@@ -27,7 +27,7 @@ export async function PATCH(
     }
 
     // Validate status enum
-    const validStatuses = ['new', 'contacted', 'interviewed', 'offered', 'rejected'];
+    const validStatuses = ['new', 'contacted', 'interviewed', 'offered', 'rejected', 'withdrawn'];
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
         { error: 'Invalid status. Must be one of: ' + validStatuses.join(', ') },
@@ -46,12 +46,30 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Prevent changing status of withdrawn applications
+    if (application.status === 'withdrawn') {
+      return NextResponse.json(
+        { error: 'Cannot change status of a withdrawn application. Withdrawn applications cannot be modified.' },
+        { status: 400 }
+      );
+    }
+
     // Store old status for email notification
     const oldStatus = application.status;
 
-    // Update status and lastActivityAt
+    // Update status
     application.status = status;
-    application.lastActivityAt = new Date();
+    
+    // Update lastActivityAt only if status actually changed
+    if (oldStatus !== status) {
+      application.lastActivityAt = new Date();
+      
+      // Set withdrawnAt timestamp when status changes to withdrawn
+      if (status === 'withdrawn') {
+        application.withdrawnAt = new Date();
+      }
+    }
+    
     await application.save();
 
     // Populate for response

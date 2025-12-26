@@ -141,6 +141,7 @@ export function getStatusChangedEmail(data: ApplicationEmailData): { subject: st
     interviewed: 'Interview Scheduled',
     offered: 'Offer Extended',
     rejected: 'Not Selected',
+    withdrawn: 'Application Withdrawn',
   };
 
   const statusLabel = statusLabels[status || 'new'] || status || 'Updated';
@@ -151,6 +152,7 @@ export function getStatusChangedEmail(data: ApplicationEmailData): { subject: st
     interviewed: '#f59e0b',
     offered: '#10b981',
     rejected: '#ef4444',
+    withdrawn: '#6b7280',
   };
 
   const statusColor = statusColors[status || 'new'] || '#6b7280';
@@ -194,6 +196,13 @@ export function getStatusChangedEmail(data: ApplicationEmailData): { subject: st
           </p>
         </div>
       ` : ''}
+      ${status === 'withdrawn' ? `
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; color: #374151;">
+            Your application has been withdrawn. If you have any questions, please contact the recruiter.
+          </p>
+        </div>
+      ` : ''}
 
       <p style="margin-top: 20px;">
         ${recruiterName ? `Recruiter: ${recruiterName}` : 'You can view all your applications in your Chickenloop dashboard.'}
@@ -215,6 +224,7 @@ New Status: ${statusLabel}
 
 ${status === 'offered' ? '🎉 Congratulations! You\'ve received an offer. The recruiter will contact you with details.\n' : ''}
 ${status === 'rejected' ? 'Thank you for your interest. While this position didn\'t work out, we encourage you to keep applying to other opportunities on Chickenloop.\n' : ''}
+${status === 'withdrawn' ? 'Your application has been withdrawn. If you have any questions, please contact the recruiter.\n' : ''}
 ${recruiterName ? `Recruiter: ${recruiterName}` : 'You can view all your applications in your Chickenloop dashboard.'}`;
 
   return { subject, html, text };
@@ -340,6 +350,69 @@ View Job: ${jobUrl}
 Tip: You can manage your saved searches and adjust your preferences in your Chickenloop dashboard.
 
 This is a ${frequencyText} job alert. You're receiving this because you have an active saved search on Chickenloop.`;
+
+  return { subject, html, text };
+}
+
+/**
+ * Email: Application withdrawn by candidate
+ * Sent to: Recruiter
+ */
+export function getApplicationWithdrawnEmail(data: ApplicationEmailData): { subject: string; html: string; text: string } {
+  const { candidateName, candidateEmail, recruiterName, recruiterEmail, jobTitle, jobCompany, jobLocation } = data;
+
+  const subject = `Application Withdrawn: ${candidateName} withdrew from ${jobTitle || 'your job posting'}`;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #6b7280; margin-bottom: 20px;">Application Withdrawn</h2>
+      
+      <p>Hello ${recruiterName},</p>
+      
+      <p>A candidate has withdrawn their application.</p>
+
+      <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 0 0 10px 0;"><strong>Candidate:</strong> ${candidateName}</p>
+        <p style="margin: 0 0 10px 0;"><strong>Email:</strong> <a href="mailto:${candidateEmail}" style="color: #2563eb; text-decoration: none;">${candidateEmail}</a></p>
+      </div>
+
+      ${jobTitle ? `
+        <div style="background-color: #ffffff; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; margin: 20px 0;">
+          <h3 style="color: #374151; margin-top: 0;">Job Details</h3>
+          <p style="margin: 5px 0;"><strong>Position:</strong> ${jobTitle}</p>
+          ${jobCompany ? `<p style="margin: 5px 0;"><strong>Company:</strong> ${jobCompany}</p>` : ''}
+          ${jobLocation ? `<p style="margin: 5px 0;"><strong>Location:</strong> ${jobLocation}</p>` : ''}
+        </div>
+      ` : ''}
+
+      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; border-left: 4px solid #6b7280; margin: 20px 0;">
+        <p style="margin: 0; color: #374151;">
+          <strong>Status: Application Withdrawn</strong>
+        </p>
+      </div>
+
+      <p style="margin-top: 20px;">
+        You can view all applications in your Chickenloop recruiter dashboard.
+      </p>
+    </div>
+  `;
+
+  const text = `Application Withdrawn
+
+Hello ${recruiterName},
+
+A candidate has withdrawn their application.
+
+Candidate: ${candidateName}
+Email: ${candidateEmail}
+
+${jobTitle ? `Job Details:
+Position: ${jobTitle}
+${jobCompany ? `Company: ${jobCompany}\n` : ''}${jobLocation ? `Location: ${jobLocation}\n` : ''}` : ''}
+
+Status: Application Withdrawn
+
+You can view all applications in your Chickenloop recruiter dashboard.`;
 
   return { subject, html, text };
 }

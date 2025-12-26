@@ -442,6 +442,10 @@ export default function RecruiterDashboard() {
                   const job = jobApplications[0].jobId;
                   const jobTitle = job?.title || 'Unknown Job';
                   const jobLocation = job?.location || '';
+                  
+                  // Count active applications (exclude withdrawn)
+                  const activeApplications = jobApplications.filter((app: any) => app.status !== 'withdrawn');
+                  const withdrawnCount = jobApplications.filter((app: any) => app.status === 'withdrawn').length;
 
                   return (
                     <div key={jobId} className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -451,7 +455,14 @@ export default function RecruiterDashboard() {
                           <p className="text-sm text-gray-600 mt-1">📍 {jobLocation}</p>
                         )}
                         <p className="text-sm text-gray-500 mt-1">
-                          {jobApplications.length} {jobApplications.length === 1 ? 'application' : 'applications'}
+                          <span>
+                            {activeApplications.length} active {activeApplications.length === 1 ? 'application' : 'applications'}
+                          </span>
+                          {withdrawnCount > 0 && (
+                            <span className="ml-2 text-gray-400">
+                              ({withdrawnCount} withdrawn)
+                            </span>
+                          )}
                         </p>
                       </div>
                       <div className="overflow-x-auto">
@@ -478,33 +489,47 @@ export default function RecruiterDashboard() {
                               const candidateName = candidate?.name || 'Unknown';
                               const candidateEmail = candidate?.email || '';
                               const appliedDate = new Date(app.appliedAt).toLocaleDateString();
+                              const isWithdrawn = app.status === 'withdrawn';
                               const statusColors: { [key: string]: string } = {
                                 new: 'bg-blue-100 text-blue-800',
                                 contacted: 'bg-yellow-100 text-yellow-800',
                                 interviewed: 'bg-purple-100 text-purple-800',
                                 offered: 'bg-green-100 text-green-800',
                                 rejected: 'bg-red-100 text-red-800',
+                                withdrawn: 'bg-gray-100 text-gray-800',
+                              };
+
+                              const getStatusLabel = (status: string) => {
+                                if (status === 'withdrawn') {
+                                  return 'Withdrawn by candidate';
+                                }
+                                return status.charAt(0).toUpperCase() + status.slice(1);
                               };
 
                               return (
-                                <tr key={app._id}>
+                                <tr key={app._id} className={isWithdrawn ? 'opacity-75' : ''}>
                                   <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm font-medium text-gray-900">{candidateName}</div>
-                                    <div className="text-sm text-gray-500">{candidateEmail}</div>
+                                    <div className={`text-sm font-medium ${isWithdrawn ? 'text-gray-500' : 'text-gray-900'}`}>{candidateName}</div>
+                                    <div className={`text-sm ${isWithdrawn ? 'text-gray-400' : 'text-gray-500'}`}>{candidateEmail}</div>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {appliedDate}
+                                    <div>{appliedDate}</div>
+                                    {isWithdrawn && app.withdrawnAt && (
+                                      <div className="text-xs text-gray-400 mt-1">
+                                        Withdrawn: {new Date(app.withdrawnAt).toLocaleDateString()}
+                                      </div>
+                                    )}
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[app.status] || 'bg-gray-100 text-gray-800'}`}>
-                                      {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                                      {getStatusLabel(app.status)}
                                     </span>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <select
                                       value={app.status}
                                       onChange={(e) => handleUpdateStatus(app._id, e.target.value)}
-                                      disabled={updatingStatus === app._id}
+                                      disabled={isWithdrawn || updatingStatus === app._id}
                                       className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                       <option value="new">New</option>
@@ -512,9 +537,13 @@ export default function RecruiterDashboard() {
                                       <option value="interviewed">Interviewed</option>
                                       <option value="offered">Offered</option>
                                       <option value="rejected">Rejected</option>
+                                      <option value="withdrawn">Withdrawn</option>
                                     </select>
                                     {updatingStatus === app._id && (
                                       <span className="ml-2 text-xs text-gray-500">Updating...</span>
+                                    )}
+                                    {isWithdrawn && (
+                                      <span className="ml-2 text-xs text-gray-400">Cannot change status</span>
                                     )}
                                   </td>
                                 </tr>
@@ -738,7 +767,7 @@ export default function RecruiterDashboard() {
         <div className="mb-8 flex justify-end">
           <div className="bg-white rounded-lg shadow-md p-6 max-w-sm border border-gray-200">
             <p className="text-sm text-gray-700 mb-3">
-              Do you have Feedback or Feature Requests?<br />
+              <span className="text-red-600">Feedback or Feature Requests?</span><br />
               We love to hear from you!
             </p>
             <button

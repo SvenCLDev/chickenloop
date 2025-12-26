@@ -130,6 +130,14 @@ export const savedSearchesApi = {
     }),
 };
 
+export const applicationsApi = {
+  getMyApplications: () => apiRequest('/my-applications'),
+  withdraw: (applicationId: string) =>
+    apiRequest(`/applications/${applicationId}/withdraw`, {
+      method: 'POST',
+    }),
+};
+
 export const companyApi = {
   get: () => apiRequest('/company'),
   create: (data: any) =>

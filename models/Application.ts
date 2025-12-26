@@ -4,10 +4,11 @@ export interface IApplication extends Document {
   jobId?: mongoose.Types.ObjectId | null;
   recruiterId: mongoose.Types.ObjectId;
   candidateId: mongoose.Types.ObjectId;
-  status: 'new' | 'contacted' | 'interviewed' | 'offered' | 'rejected';
+  status: 'new' | 'contacted' | 'interviewed' | 'offered' | 'rejected' | 'withdrawn';
   appliedAt: Date;
   internalNotes?: string;
   lastActivityAt: Date;
+  withdrawnAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,7 +33,7 @@ const ApplicationSchema: Schema = new Schema(
     },
     status: {
       type: String,
-      enum: ['new', 'contacted', 'interviewed', 'offered', 'rejected'],
+      enum: ['new', 'contacted', 'interviewed', 'offered', 'rejected', 'withdrawn'],
       default: 'new',
       required: true,
     },
@@ -48,6 +49,9 @@ const ApplicationSchema: Schema = new Schema(
       type: Date,
       default: Date.now,
       required: true,
+    },
+    withdrawnAt: {
+      type: Date,
     },
   },
   {

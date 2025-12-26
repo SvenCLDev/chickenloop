@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
-import { jobsApi, cvApi, savedSearchesApi } from '@/lib/api';
+import { jobsApi, cvApi, savedSearchesApi, applicationsApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import Link from 'next/link';
 
@@ -41,6 +41,9 @@ export default function JobSeekerDashboard() {
   const [editSearchName, setEditSearchName] = useState('');
   const [editSearchFrequency, setEditSearchFrequency] = useState<'daily' | 'weekly' | 'never'>('daily');
   const [editSearchActive, setEditSearchActive] = useState(false);
+  const [myApplications, setMyApplications] = useState<any[]>([]);
+  const [loadingApplications, setLoadingApplications] = useState(false);
+  const [withdrawingApplication, setWithdrawingApplication] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -54,6 +57,7 @@ export default function JobSeekerDashboard() {
     if (user && user.role === 'job-seeker') {
       loadData();
       loadSavedSearches();
+      loadMyApplications();
     }
   }, [user]);
 
@@ -127,6 +131,80 @@ export default function JobSeekerDashboard() {
       await loadSavedSearches();
     } catch (err: any) {
       alert(err.message || 'Failed to delete search');
+    }
+  };
+
+  const loadMyApplications = async () => {
+    setLoadingApplications(true);
+    try {
+      const data = await applicationsApi.getMyApplications();
+      setMyApplications(data.applications || []);
+    } catch (err: any) {
+      console.error('Failed to load applications:', err);
+      // Don't show error to user, just log it
+    } finally {
+      setLoadingApplications(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'new':
+        return 'bg-blue-100 text-blue-800';
+      case 'contacted':
+        return 'bg-purple-100 text-purple-800';
+      case 'interviewed':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'offered':
+        return 'bg-green-100 text-green-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      case 'withdrawn':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'new':
+        return 'Application sent';
+      case 'contacted':
+        return 'Recruiter contacted you';
+      case 'interviewed':
+        return 'Interview stage';
+      case 'offered':
+        return 'Offer made';
+      case 'rejected':
+        return 'Application not successful';
+      case 'withdrawn':
+        return 'Application withdrawn';
+      default:
+        return status;
+    }
+  };
+
+  const handleWithdrawApplication = async (applicationId: string, jobTitle: string) => {
+    if (!confirm(`Are you sure you want to withdraw your application for "${jobTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setWithdrawingApplication(applicationId);
+    try {
+      await applicationsApi.withdraw(applicationId);
+      // Update the application in the local state
+      setMyApplications((prev) =>
+        prev.map((app) =>
+          app._id === applicationId
+            ? { ...app, status: 'withdrawn', withdrawnAt: new Date().toISOString(), lastActivityAt: new Date().toISOString() }
+            : app
+        )
+      );
+    } catch (err: any) {
+      alert(err.message || 'Failed to withdraw application');
+    } finally {
+      setWithdrawingApplication(null);
     }
   };
 
@@ -313,6 +391,114 @@ export default function JobSeekerDashboard() {
               </Link>
             </div>
           </div>
+        </div>
+
+        {/* My Applications Section */}
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">My Applications</h2>
+          {loadingApplications ? (
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <p className="text-gray-600">Loading applications...</p>
+            </div>
+          ) : myApplications.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <p className="text-gray-600">You have not applied to any jobs yet.</p>
+              <p className="text-gray-500 text-sm mt-2">
+                Browse jobs and click "Quick Apply" to submit your application.
+              </p>
+              <Link
+                href="/jobs"
+                className="inline-block mt-4 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
+              >
+                Browse Jobs
+              </Link>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Job Title
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Company
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Applied Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {myApplications.map((application) => {
+                      const isWithdrawn = application.status === 'withdrawn';
+                      return (
+                        <tr 
+                          key={application._id}
+                          className={isWithdrawn ? 'opacity-60' : ''}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            {application.job ? (
+                              <Link
+                                href={`/jobs/${application.job._id}`}
+                                className={isWithdrawn 
+                                  ? 'text-gray-400 hover:text-gray-500 hover:underline' 
+                                  : 'text-blue-600 hover:text-blue-900 hover:underline'
+                                }
+                              >
+                                {application.job.title}
+                              </Link>
+                            ) : (
+                              <span className="text-gray-400">No job linked</span>
+                            )}
+                          </td>
+                          <td className={`px-6 py-4 whitespace-nowrap text-sm ${isWithdrawn ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {application.company ? (
+                              application.company.name
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className={`px-6 py-4 whitespace-nowrap text-sm ${isWithdrawn ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {new Date(application.appliedAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(application.status)}`}>
+                              {getStatusLabel(application.status)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            {!isWithdrawn ? (
+                              <button
+                                onClick={() => handleWithdrawApplication(application._id, application.job?.title || 'this job')}
+                                disabled={withdrawingApplication === application._id}
+                                className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {withdrawingApplication === application._id ? 'Withdrawing...' : 'Withdraw application'}
+                              </button>
+                            ) : (
+                              <span className="text-gray-400 text-xs">Already withdrawn</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Saved Searches Section */}
@@ -602,7 +788,7 @@ export default function JobSeekerDashboard() {
         <div className="mb-8 flex justify-end">
           <div className="bg-white rounded-lg shadow-md p-6 max-w-sm border border-gray-200">
             <p className="text-sm text-gray-700 mb-3">
-              Do you have Feedback or Feature Requests?<br />
+              <span className="text-red-600">Feedback or Feature Requests?</span><br />
               We love to hear from you!
             </p>
             <button
