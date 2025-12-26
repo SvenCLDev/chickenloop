@@ -3,8 +3,9 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Navbar from '../components/Navbar';
-import { jobsApi } from '@/lib/api';
+import { jobsApi, savedSearchesApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
+import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
 
 interface Job {
@@ -89,6 +90,7 @@ function TimeAgoDisplay({ date }: { date: string }) {
 }
 
 function JobsPageContent() {
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [allJobs, setAllJobs] = useState<Job[]>([]); // Store all jobs for filtering
@@ -101,6 +103,11 @@ function JobsPageContent() {
   const [keyword, setKeyword] = useState<string>('');
   const [location, setLocation] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [showSaveSearchModal, setShowSaveSearchModal] = useState(false);
+  const [savingSearch, setSavingSearch] = useState(false);
+  const [saveSearchName, setSaveSearchName] = useState('');
+  const [saveSearchFrequency, setSaveSearchFrequency] = useState<'daily' | 'weekly' | 'never'>('daily');
+  const [saveSearchMessage, setSaveSearchMessage] = useState('');
   const jobsPerPage = 20;
 
   useEffect(() => {
@@ -108,6 +115,9 @@ function JobsPageContent() {
     const categoryParam = searchParams?.get('category');
     const keywordParam = searchParams?.get('keyword');
     const locationParam = searchParams?.get('location');
+    const countryParam = searchParams?.get('country');
+    const sportParam = searchParams?.get('sport');
+    const languageParam = searchParams?.get('language');
 
     if (categoryParam) {
       setSelectedCategory(decodeURIComponent(categoryParam));
@@ -117,6 +127,15 @@ function JobsPageContent() {
     }
     if (locationParam) {
       setLocation(decodeURIComponent(locationParam));
+    }
+    if (countryParam) {
+      setSelectedCountry(decodeURIComponent(countryParam));
+    }
+    if (sportParam) {
+      setSelectedSport(decodeURIComponent(sportParam));
+    }
+    if (languageParam) {
+      setSelectedLanguage(decodeURIComponent(languageParam));
     }
 
     // Load jobs regardless of authentication status
@@ -300,6 +319,42 @@ function JobsPageContent() {
     return Array.from(languageSet).sort();
   };
 
+  const handleSaveSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!saveSearchName.trim()) {
+      setSaveSearchMessage('Please enter a name for your saved search');
+      return;
+    }
+
+    setSavingSearch(true);
+    setSaveSearchMessage('');
+
+    try {
+      await savedSearchesApi.create({
+        name: saveSearchName.trim(),
+        keyword: keyword || undefined,
+        location: location || undefined,
+        country: selectedCountry || undefined,
+        category: selectedCategory || undefined,
+        sport: selectedSport || undefined,
+        language: selectedLanguage || undefined,
+        frequency: saveSearchFrequency,
+        active: true,
+      });
+
+      setSaveSearchMessage('Search saved successfully!');
+      setTimeout(() => {
+        setShowSaveSearchModal(false);
+        setSaveSearchName('');
+        setSaveSearchMessage('');
+      }, 1500);
+    } catch (err: any) {
+      setSaveSearchMessage(err.message || 'Failed to save search');
+    } finally {
+      setSavingSearch(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
@@ -316,9 +371,23 @@ function JobsPageContent() {
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex flex-col mb-8 gap-4">
-          <h1 className="text-4xl font-bold text-gray-900">
-            We have {jobs.length} {jobs.length === 1 ? 'job' : 'jobs'} meeting these criteria
-          </h1>
+          <div className="flex justify-between items-center flex-wrap gap-4">
+            <h1 className="text-4xl font-bold text-gray-900">
+              We have {jobs.length} {jobs.length === 1 ? 'job' : 'jobs'} meeting these criteria
+            </h1>
+            {/* Save Search Button - Only for job seekers */}
+            {user && user.role === 'job-seeker' && (keyword || location || selectedCountry || selectedCategory || selectedSport || selectedLanguage) && (
+              <button
+                onClick={() => setShowSaveSearchModal(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 whitespace-nowrap"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                Save Search
+              </button>
+            )}
+          </div>
 
           {/* Filters */}
           <div className="flex flex-col sm:flex-row items-end sm:items-center sm:justify-end gap-3 flex-wrap">
@@ -383,13 +452,15 @@ function JobsPageContent() {
             </select>
 
             {/* Clear Filters Button */}
-            {(selectedCountry || selectedCategory || selectedSport || selectedLanguage) && (
+            {(selectedCountry || selectedCategory || selectedSport || selectedLanguage || keyword || location) && (
               <button
                 onClick={() => {
                   setSelectedCountry('');
                   setSelectedCategory('');
                   setSelectedSport('');
                   setSelectedLanguage('');
+                  setKeyword('');
+                  setLocation('');
                 }}
                 className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 underline whitespace-nowrap"
               >
@@ -594,6 +665,95 @@ function JobsPageContent() {
               );
             })()}
           </>
+        )}
+
+        {/* Save Search Modal */}
+        {showSaveSearchModal && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => !savingSearch && setShowSaveSearchModal(false)}
+          >
+            <div 
+              className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-2xl font-bold mb-4 text-gray-900">Save Job Search</h2>
+              <form onSubmit={handleSaveSearch}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Search Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={saveSearchName}
+                    onChange={(e) => setSaveSearchName(e.target.value)}
+                    placeholder="e.g., Kitesurfing jobs in Portugal"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Frequency *
+                  </label>
+                  <select
+                    value={saveSearchFrequency}
+                    onChange={(e) => setSaveSearchFrequency(e.target.value as 'daily' | 'weekly' | 'never')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="never">Never</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {saveSearchFrequency === 'never' 
+                      ? 'No email alerts will be sent. You can still view and manage this saved search.'
+                      : 'You\'ll receive email alerts when new jobs match your search criteria.'}
+                  </p>
+                </div>
+                <div className="mb-4 p-3 bg-gray-50 rounded-md">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Current Search Criteria:</p>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    {keyword && <li>• Keyword: <strong>{keyword}</strong></li>}
+                    {location && <li>• Location: <strong>{location}</strong></li>}
+                    {selectedCountry && <li>• Country: <strong>{getCountryNameFromCode(selectedCountry)}</strong></li>}
+                    {selectedCategory && <li>• Category: <strong>{selectedCategory}</strong></li>}
+                    {selectedSport && <li>• Sport: <strong>{selectedSport}</strong></li>}
+                    {selectedLanguage && <li>• Language: <strong>{selectedLanguage}</strong></li>}
+                    {!keyword && !location && !selectedCountry && !selectedCategory && !selectedSport && !selectedLanguage && (
+                      <li className="text-gray-500">No filters applied</li>
+                    )}
+                  </ul>
+                </div>
+                {saveSearchMessage && (
+                  <div className={`mb-4 p-3 rounded-md ${
+                    saveSearchMessage.includes('successfully') 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {saveSearchMessage}
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    disabled={savingSearch}
+                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {savingSearch ? 'Saving...' : 'Save Search'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveSearchModal(false)}
+                    disabled={savingSearch}
+                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </main>
     </div>

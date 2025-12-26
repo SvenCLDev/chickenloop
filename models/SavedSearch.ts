@@ -9,7 +9,7 @@ export interface ISavedSearch extends Document {
   category?: string; // occupationalAreas
   sport?: string; // sports
   language?: string; // languages
-  frequency: 'daily' | 'weekly';
+  frequency: 'daily' | 'weekly' | 'never';
   active: boolean;
   lastSent?: Date;
   createdAt: Date;
@@ -54,7 +54,7 @@ const SavedSearchSchema: Schema = new Schema(
     },
     frequency: {
       type: String,
-      enum: ['daily', 'weekly'],
+      enum: ['daily', 'weekly', 'never'],
       default: 'daily',
       required: true,
     },

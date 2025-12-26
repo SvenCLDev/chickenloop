@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
-import { jobsApi, cvApi } from '@/lib/api';
+import { jobsApi, cvApi, savedSearchesApi } from '@/lib/api';
+import { getCountryNameFromCode } from '@/lib/countryUtils';
 import Link from 'next/link';
 
 interface Job {
@@ -34,6 +35,12 @@ export default function JobSeekerDashboard() {
   const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
+  const [savedSearches, setSavedSearches] = useState<any[]>([]);
+  const [loadingSearches, setLoadingSearches] = useState(false);
+  const [editingSearch, setEditingSearch] = useState<string | null>(null);
+  const [editSearchName, setEditSearchName] = useState('');
+  const [editSearchFrequency, setEditSearchFrequency] = useState<'daily' | 'weekly' | 'never'>('daily');
+  const [editSearchActive, setEditSearchActive] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -46,6 +53,7 @@ export default function JobSeekerDashboard() {
   useEffect(() => {
     if (user && user.role === 'job-seeker') {
       loadData();
+      loadSavedSearches();
     }
   }, [user]);
 
@@ -61,6 +69,64 @@ export default function JobSeekerDashboard() {
       setError(err.message || 'Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSavedSearches = async () => {
+    setLoadingSearches(true);
+    try {
+      const data = await savedSearchesApi.getAll();
+      setSavedSearches(data.savedSearches || []);
+    } catch (err: any) {
+      console.error('Failed to load saved searches:', err);
+    } finally {
+      setLoadingSearches(false);
+    }
+  };
+
+  const handleToggleSearchActive = async (searchId: string, currentActive: boolean) => {
+    try {
+      await savedSearchesApi.update(searchId, { active: !currentActive });
+      await loadSavedSearches();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update search');
+    }
+  };
+
+  const handleEditSearch = (search: any) => {
+    setEditingSearch(search._id);
+    setEditSearchName(search.name || '');
+    setEditSearchFrequency(search.frequency || 'daily');
+    setEditSearchActive(search.active || false);
+  };
+
+  const handleSaveEdit = async (searchId: string) => {
+    if (!editSearchName.trim()) {
+      alert('Please enter a name for your saved search');
+      return;
+    }
+
+    try {
+      await savedSearchesApi.update(searchId, {
+        name: editSearchName.trim(),
+        frequency: editSearchFrequency,
+        active: editSearchActive,
+      });
+      setEditingSearch(null);
+      await loadSavedSearches();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update search');
+    }
+  };
+
+  const handleDeleteSearch = async (searchId: string, searchName: string) => {
+    if (!confirm(`Are you sure you want to delete "${searchName}"?`)) return;
+
+    try {
+      await savedSearchesApi.delete(searchId);
+      await loadSavedSearches();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete search');
     }
   };
 
@@ -247,6 +313,205 @@ export default function JobSeekerDashboard() {
               </Link>
             </div>
           </div>
+        </div>
+
+        {/* Saved Searches Section */}
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">Job Search Alerts</h2>
+          {loadingSearches ? (
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <p className="text-gray-600">Loading saved searches...</p>
+            </div>
+          ) : savedSearches.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <p className="text-gray-600">You don't have any saved searches yet.</p>
+              <p className="text-gray-500 text-sm mt-2">
+                Use the "Save Search" button on the jobs page to create email alerts for new jobs matching your criteria.
+              </p>
+              <Link
+                href="/jobs"
+                className="inline-block mt-4 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
+              >
+                Browse Jobs
+              </Link>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Search Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Criteria
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Frequency
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {savedSearches.map((search) => (
+                      <tr key={search._id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {editingSearch === search._id ? (
+                            <input
+                              type="text"
+                              value={editSearchName}
+                              onChange={(e) => setEditSearchName(e.target.value)}
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-gray-900"
+                            />
+                          ) : (
+                            (() => {
+                              // Build URL with all search filters as query parameters
+                              const params = new URLSearchParams();
+                              if (search.keyword) params.set('keyword', search.keyword);
+                              if (search.location) params.set('location', search.location);
+                              if (search.country) params.set('country', search.country);
+                              if (search.category) params.set('category', search.category);
+                              if (search.sport) params.set('sport', search.sport);
+                              if (search.language) params.set('language', search.language);
+                              
+                              const queryString = params.toString();
+                              const jobsUrl = queryString ? `/jobs?${queryString}` : '/jobs';
+                              
+                              return (
+                                <Link
+                                  href={jobsUrl}
+                                  className="text-blue-600 hover:text-blue-900 hover:underline"
+                                >
+                                  {search.name || 'Unnamed Search'}
+                                </Link>
+                              );
+                            })()
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          <div className="flex flex-wrap gap-2">
+                            {search.keyword && (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                Keyword: {search.keyword}
+                              </span>
+                            )}
+                            {search.location && (
+                              <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
+                                Location: {search.location}
+                              </span>
+                            )}
+                            {search.country && (
+                              <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+                                Country: {getCountryNameFromCode(search.country)}
+                              </span>
+                            )}
+                            {search.category && (
+                              <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">
+                                Category: {search.category}
+                              </span>
+                            )}
+                            {search.sport && (
+                              <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs">
+                                Sport: {search.sport}
+                              </span>
+                            )}
+                            {search.language && (
+                              <span className="px-2 py-1 bg-pink-100 text-pink-800 rounded text-xs">
+                                Language: {search.language}
+                              </span>
+                            )}
+                            {!search.keyword && !search.location && !search.country && !search.category && !search.sport && !search.language && (
+                              <span className="text-gray-400 text-xs">No filters</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {editingSearch === search._id ? (
+                            <select
+                              value={editSearchFrequency}
+                              onChange={(e) => setEditSearchFrequency(e.target.value as 'daily' | 'weekly' | 'never')}
+                              className="px-2 py-1 border border-gray-300 rounded text-gray-900"
+                            >
+                              <option value="daily">Daily</option>
+                              <option value="weekly">Weekly</option>
+                              <option value="never">Never</option>
+                            </select>
+                          ) : (
+                            <span className="capitalize">{search.frequency || 'daily'}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {editingSearch === search._id ? (
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={editSearchActive}
+                                onChange={(e) => setEditSearchActive(e.target.checked)}
+                                className="rounded"
+                              />
+                              <span className={editSearchActive ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                                {editSearchActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </label>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleSearchActive(search._id, search.active)}
+                              className={`px-3 py-1 rounded text-xs font-medium ${
+                                search.active
+                                  ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              {search.active ? 'Active' : 'Inactive'}
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          {editingSearch === search._id ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleSaveEdit(search._id)}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => setEditingSearch(null)}
+                                className="text-gray-600 hover:text-gray-900"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleEditSearch(search)}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSearch(search._id, search.name || 'Unnamed Search')}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Favourite Jobs Section */}

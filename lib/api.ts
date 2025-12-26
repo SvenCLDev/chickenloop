@@ -112,6 +112,24 @@ export const cvApi = {
     }),
 };
 
+export const savedSearchesApi = {
+  getAll: () => apiRequest('/saved-searches'),
+  create: (data: any) =>
+    apiRequest('/saved-searches', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: any) =>
+    apiRequest(`/saved-searches/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiRequest(`/saved-searches/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
 export const companyApi = {
   get: () => apiRequest('/company'),
   create: (data: any) =>

@@ -40,6 +40,12 @@ export async function GET(request: NextRequest) {
 
     for (const search of savedSearches) {
       try {
+        // Skip searches with frequency "never"
+        if (search.frequency === 'never') {
+          console.log(`[Cron Job Alerts] Skipping search ${search._id}: frequency is "never"`);
+          continue;
+        }
+
         // Determine if this search should be processed
         let shouldProcess = false;
         let sinceDate: Date | undefined;
