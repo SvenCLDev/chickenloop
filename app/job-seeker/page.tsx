@@ -44,6 +44,7 @@ export default function JobSeekerDashboard() {
   const [myApplications, setMyApplications] = useState<any[]>([]);
   const [loadingApplications, setLoadingApplications] = useState(false);
   const [withdrawingApplication, setWithdrawingApplication] = useState<string | null>(null);
+  const [archivingApplication, setArchivingApplication] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -205,6 +206,23 @@ export default function JobSeekerDashboard() {
       alert(err.message || 'Failed to withdraw application');
     } finally {
       setWithdrawingApplication(null);
+    }
+  };
+
+  const handleRemoveFromList = async (applicationId: string) => {
+    if (!confirm('Remove this application from your list? You can still access it via direct link.')) {
+      return;
+    }
+
+    setArchivingApplication(applicationId);
+    try {
+      await applicationsApi.archive(applicationId, true);
+      // Reload applications list to remove archived application
+      await loadMyApplications();
+    } catch (err: any) {
+      alert(err.message || 'Failed to remove application from list');
+    } finally {
+      setArchivingApplication(null);
     }
   };
 
@@ -404,7 +422,7 @@ export default function JobSeekerDashboard() {
             <div className="bg-white rounded-lg shadow-md p-8 text-center">
               <p className="text-gray-600">You have not applied to any jobs yet.</p>
               <p className="text-gray-500 text-sm mt-2">
-                Browse jobs and click "Quick Apply" to submit your application.
+                Browse jobs and click "Instant Application" to submit your application.
               </p>
               <Link
                 href="/jobs"
@@ -439,34 +457,48 @@ export default function JobSeekerDashboard() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {myApplications.map((application) => {
                       const isWithdrawn = application.status === 'withdrawn';
+                      const isRejected = application.status === 'rejected';
+                      const canRemove = isWithdrawn || isRejected;
+                      const isInactive = isWithdrawn || isRejected;
                       return (
                         <tr 
                           key={application._id}
-                          className={isWithdrawn ? 'opacity-60' : ''}
+                          className={isInactive ? 'opacity-60' : ''}
                         >
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             {application.job ? (
-                              <Link
-                                href={`/jobs/${application.job._id}`}
-                                className={isWithdrawn 
-                                  ? 'text-gray-400 hover:text-gray-500 hover:underline' 
-                                  : 'text-blue-600 hover:text-blue-900 hover:underline'
-                                }
-                              >
-                                {application.job.title}
-                              </Link>
+                              <div className="flex flex-col gap-1">
+                                <Link
+                                  href={`/dashboard/jobseeker/applications/${application._id}`}
+                                  className={isInactive 
+                                    ? 'text-gray-400 hover:text-gray-500 hover:underline font-medium' 
+                                    : 'text-blue-600 hover:text-blue-900 hover:underline font-medium'
+                                  }
+                                >
+                                  {application.job.title}
+                                </Link>
+                                <Link
+                                  href={`/jobs/${application.job._id}`}
+                                  className={isInactive 
+                                    ? 'text-gray-400 hover:text-gray-500 hover:underline text-xs' 
+                                    : 'text-gray-500 hover:text-gray-700 hover:underline text-xs'
+                                  }
+                                >
+                                  View job posting →
+                                </Link>
+                              </div>
                             ) : (
                               <span className="text-gray-400">No job linked</span>
                             )}
                           </td>
-                          <td className={`px-6 py-4 whitespace-nowrap text-sm ${isWithdrawn ? 'text-gray-400' : 'text-gray-500'}`}>
+                          <td className={`px-6 py-4 whitespace-nowrap text-sm ${isInactive ? 'text-gray-400' : 'text-gray-500'}`}>
                             {application.company ? (
                               application.company.name
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
                           </td>
-                          <td className={`px-6 py-4 whitespace-nowrap text-sm ${isWithdrawn ? 'text-gray-400' : 'text-gray-500'}`}>
+                          <td className={`px-6 py-4 whitespace-nowrap text-sm ${isInactive ? 'text-gray-400' : 'text-gray-500'}`}>
                             {new Date(application.appliedAt).toLocaleDateString('en-US', {
                               year: 'numeric',
                               month: 'short',
@@ -479,7 +511,15 @@ export default function JobSeekerDashboard() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            {!isWithdrawn ? (
+                            {canRemove ? (
+                              <button
+                                onClick={() => handleRemoveFromList(application._id)}
+                                disabled={archivingApplication === application._id}
+                                className="text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {archivingApplication === application._id ? 'Removing...' : 'Remove from list'}
+                              </button>
+                            ) : (
                               <button
                                 onClick={() => handleWithdrawApplication(application._id, application.job?.title || 'this job')}
                                 disabled={withdrawingApplication === application._id}
@@ -487,8 +527,6 @@ export default function JobSeekerDashboard() {
                               >
                                 {withdrawingApplication === application._id ? 'Withdrawing...' : 'Withdraw application'}
                               </button>
-                            ) : (
-                              <span className="text-gray-400 text-xs">Already withdrawn</span>
                             )}
                           </td>
                         </tr>

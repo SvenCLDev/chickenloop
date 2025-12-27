@@ -6,6 +6,7 @@ import Job from '@/models/Job';
 import { requireRole } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
 import { getApplicationWithdrawnEmail } from '@/lib/emailTemplates';
+import { guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
 
 // POST - Withdraw application (job seekers only)
 export async function POST(
@@ -90,10 +91,35 @@ export async function POST(
       console.error('Failed to send withdrawal notification email:', emailError);
     }
 
+    // Format response - exclude recruiter-only fields for job seekers
+    const response: any = {
+      _id: application._id,
+      status: application.status,
+      appliedAt: application.appliedAt,
+      lastActivityAt: application.lastActivityAt,
+      withdrawnAt: application.withdrawnAt,
+      createdAt: application.createdAt,
+      updatedAt: application.updatedAt,
+      job: application.jobId ? {
+        _id: (application.jobId as any)._id,
+        title: (application.jobId as any).title,
+        company: (application.jobId as any).company,
+        location: (application.jobId as any).location,
+      } : null,
+    };
+
+    // Explicitly ensure recruiterNotes and internalNotes are never included
+    // This endpoint is job-seeker only, so these fields should never be present
+    delete response.recruiterNotes;
+    delete response.internalNotes;
+
+    // Server-side guard to prevent recruiterNotes leak
+    guardAgainstRecruiterNotesLeak(response, 'job-seeker');
+
     return NextResponse.json(
       {
         message: 'Application withdrawn successfully',
-        application,
+        application: response,
       },
       { status: 200 }
     );

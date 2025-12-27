@@ -8,6 +8,7 @@ export interface IUser extends Document {
   favouriteJobs?: mongoose.Types.ObjectId[];
   favouriteCandidates?: mongoose.Types.ObjectId[];
   lastOnline?: Date;
+  notesEnabled?: boolean; // Feature flag for recruiterNotes functionality (default: true)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,6 +45,10 @@ const UserSchema: Schema = new Schema(
     }],
     lastOnline: {
       type: Date,
+    },
+    notesEnabled: {
+      type: Boolean,
+      default: true, // Default enabled for all recruiters
     },
   },
   {

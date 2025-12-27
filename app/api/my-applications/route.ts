@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Application from '@/models/Application';
 import { requireRole } from '@/lib/auth';
+import { guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
 
 // GET - Get all applications for the current job seeker
 export async function GET(request: NextRequest) {
@@ -11,8 +12,10 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     // Fetch applications where candidateId matches the current user
+    // Exclude applications archived by the job seeker
     const applications = await Application.find({
       candidateId: user.userId,
+      archivedByJobSeeker: { $ne: true },
     })
       .populate({
         path: 'jobId',
@@ -49,6 +52,10 @@ export async function GET(request: NextRequest) {
 
       return result;
     });
+
+    // Server-side guard to prevent recruiterNotes leak
+    // This endpoint is job-seeker only, so recruiterNotes should never be present
+    guardAgainstRecruiterNotesLeak({ applications: formattedApplications }, 'job-seeker');
 
     return NextResponse.json(
       {

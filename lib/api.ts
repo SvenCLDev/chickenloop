@@ -132,6 +132,21 @@ export const savedSearchesApi = {
 
 export const applicationsApi = {
   getMyApplications: () => apiRequest('/my-applications'),
+  getOne: (applicationId: string) => apiRequest(`/applications/${applicationId}`),
+  updateStatus: (applicationId: string, status: string, recruiterNotes?: string) =>
+    apiRequest(`/applications/${applicationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, ...(recruiterNotes !== undefined && { recruiterNotes }) }),
+    }),
+  contactCandidate: (applicationId: string) =>
+    apiRequest(`/applications/${applicationId}/contact`, {
+      method: 'POST',
+    }),
+  archive: (applicationId: string, archivedByJobSeeker?: boolean, archivedByRecruiter?: boolean) =>
+    apiRequest(`/applications/${applicationId}/archive`, {
+      method: 'PATCH',
+      body: JSON.stringify({ archivedByJobSeeker, archivedByRecruiter }),
+    }),
   withdraw: (applicationId: string) =>
     apiRequest(`/applications/${applicationId}/withdraw`, {
       method: 'POST',

@@ -610,7 +610,7 @@ export default function JobDetailPage() {
                       disabled={applying || checkingApplication}
                       className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {applying ? 'Submitting Application...' : checkingApplication ? 'Checking...' : 'Quick Apply'}
+                      {applying ? 'Submitting Application...' : checkingApplication ? 'Checking...' : 'Instant Application'}
                     </button>
                   )}
                   {applicationError && (

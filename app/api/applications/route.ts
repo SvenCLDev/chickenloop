@@ -6,6 +6,7 @@ import User from '@/models/User';
 import { requireRole, requireAuth } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
 import { getCandidateAppliedEmail, getRecruiterContactedEmail } from '@/lib/emailTemplates';
+import { guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
 
 // GET - Get applications
 // For job seekers: Check if user has applied to a specific job (requires jobId query param)
@@ -25,19 +26,40 @@ export async function GET(request: NextRequest) {
         candidateId: user.userId,
       });
 
+      // Format response - exclude recruiter-only fields for job seekers
+      let formattedApplication = null;
+      if (application) {
+        formattedApplication = {
+          _id: application._id,
+          status: application.status,
+          appliedAt: application.appliedAt,
+          lastActivityAt: application.lastActivityAt,
+          withdrawnAt: application.withdrawnAt,
+          createdAt: application.createdAt,
+          updatedAt: application.updatedAt,
+        };
+        // Explicitly exclude recruiterNotes and internalNotes
+        // These fields are never returned to job seekers
+      }
+
+      // Server-side guard to prevent recruiterNotes leak
+      guardAgainstRecruiterNotesLeak({ hasApplied: !!application, application: formattedApplication }, user.role);
+
       return NextResponse.json(
         {
           hasApplied: !!application,
-          application: application || null,
+          application: formattedApplication,
         },
         { status: 200 }
       );
     }
 
     // If no jobId, recruiter wants all their applications
+    // Exclude applications archived by the recruiter
     if (user.role === 'recruiter') {
       const applications = await Application.find({
         recruiterId: user.userId,
+        archivedByRecruiter: { $ne: true },
       })
         .populate('jobId', 'title company location')
         .populate('candidateId', 'name email')
@@ -76,8 +98,9 @@ export async function GET(request: NextRequest) {
 // For job seekers: Create job application (requires jobId, status='new')
 // For recruiters: Contact candidate (candidateId required, jobId optional, status='contacted')
 export async function POST(request: NextRequest) {
+  let user: any = null;
   try {
-    const user = requireAuth(request);
+    user = requireAuth(request);
     await connectDB();
 
     const { jobId, candidateId } = await request.json();
@@ -339,16 +362,32 @@ export async function POST(request: NextRequest) {
     
     // Handle duplicate key error (from unique index)
     if (errorMessage.includes('duplicate key') || errorMessage.includes('E11000')) {
-      if (errorMessage.includes('recruiterId')) {
+      // Determine error message based on user role, not error message content
+      // Try to get user if not already available
+      if (!user) {
+        try {
+          user = requireAuth(request);
+        } catch {
+          // If we can't get user, default to job application error (more common case)
+          return NextResponse.json(
+            { error: 'You have already applied to this job' },
+            { status: 400 }
+          );
+        }
+      }
+      
+      if (user && (user.role === 'recruiter' || user.role === 'admin')) {
         return NextResponse.json(
           { error: 'You have already contacted this candidate' },
           { status: 400 }
         );
+      } else {
+        // Job seeker duplicate application
+        return NextResponse.json(
+          { error: 'You have already applied to this job' },
+          { status: 400 }
+        );
       }
-      return NextResponse.json(
-        { error: 'You have already applied to this job' },
-        { status: 400 }
-      );
     }
 
     if (errorMessage === 'Unauthorized') {

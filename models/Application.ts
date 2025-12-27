@@ -7,8 +7,12 @@ export interface IApplication extends Document {
   status: 'new' | 'contacted' | 'interviewed' | 'offered' | 'rejected' | 'withdrawn';
   appliedAt: Date;
   internalNotes?: string;
+  recruiterNotes: string;
   lastActivityAt: Date;
   withdrawnAt?: Date;
+  viewedAt?: Date;
+  archivedByJobSeeker: boolean;
+  archivedByRecruiter: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +49,10 @@ const ApplicationSchema: Schema = new Schema(
     internalNotes: {
       type: String,
     },
+    recruiterNotes: {
+      type: String,
+      default: '',
+    },
     lastActivityAt: {
       type: Date,
       default: Date.now,
@@ -52,6 +60,17 @@ const ApplicationSchema: Schema = new Schema(
     },
     withdrawnAt: {
       type: Date,
+    },
+    viewedAt: {
+      type: Date,
+    },
+    archivedByJobSeeker: {
+      type: Boolean,
+      default: false,
+    },
+    archivedByRecruiter: {
+      type: Boolean,
+      default: false,
     },
   },
   {

@@ -509,7 +509,12 @@ export default function RecruiterDashboard() {
                               return (
                                 <tr key={app._id} className={isWithdrawn ? 'opacity-75' : ''}>
                                   <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className={`text-sm font-medium ${isWithdrawn ? 'text-gray-500' : 'text-gray-900'}`}>{candidateName}</div>
+                                    <Link
+                                      href={`/dashboard/recruiter/applications/${app._id}`}
+                                      className={`text-sm font-medium ${isWithdrawn ? 'text-gray-500' : 'text-blue-600 hover:text-blue-800 hover:underline'}`}
+                                    >
+                                      {candidateName}
+                                    </Link>
                                     <div className={`text-sm ${isWithdrawn ? 'text-gray-400' : 'text-gray-500'}`}>{candidateEmail}</div>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -526,25 +531,33 @@ export default function RecruiterDashboard() {
                                     </span>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <select
-                                      value={app.status}
-                                      onChange={(e) => handleUpdateStatus(app._id, e.target.value)}
-                                      disabled={isWithdrawn || updatingStatus === app._id}
-                                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                      <option value="new">New</option>
-                                      <option value="contacted">Contacted</option>
-                                      <option value="interviewed">Interviewed</option>
-                                      <option value="offered">Offered</option>
-                                      <option value="rejected">Rejected</option>
-                                      <option value="withdrawn">Withdrawn</option>
-                                    </select>
-                                    {updatingStatus === app._id && (
-                                      <span className="ml-2 text-xs text-gray-500">Updating...</span>
-                                    )}
-                                    {isWithdrawn && (
-                                      <span className="ml-2 text-xs text-gray-400">Cannot change status</span>
-                                    )}
+                                    <div className="flex flex-col gap-2">
+                                      <Link
+                                        href={`/dashboard/recruiter/applications/${app._id}`}
+                                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                                      >
+                                        View Details →
+                                      </Link>
+                                      <select
+                                        value={app.status}
+                                        onChange={(e) => handleUpdateStatus(app._id, e.target.value)}
+                                        disabled={isWithdrawn || updatingStatus === app._id}
+                                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        <option value="new">New</option>
+                                        <option value="contacted">Contacted</option>
+                                        <option value="interviewed">Interviewed</option>
+                                        <option value="offered">Offered</option>
+                                        <option value="rejected">Rejected</option>
+                                        <option value="withdrawn">Withdrawn</option>
+                                      </select>
+                                      {updatingStatus === app._id && (
+                                        <span className="text-xs text-gray-500">Updating...</span>
+                                      )}
+                                      {isWithdrawn && (
+                                        <span className="text-xs text-gray-400">Cannot change status</span>
+                                      )}
+                                    </div>
                                   </td>
                                 </tr>
                               );
