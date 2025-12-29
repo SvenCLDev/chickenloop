@@ -11,7 +11,7 @@ export default function EditCareerAdvicePage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const params = useParams();
-  const articleId = params?.id as string;
+  const articleId = (params?.id as string) || '';
 
   const [formData, setFormData] = useState({
     title: '',

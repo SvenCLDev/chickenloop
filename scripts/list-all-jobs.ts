@@ -18,7 +18,7 @@ function loadEnv() {
                 }
             });
         }
-    } catch (e) {
+    } catch {
         console.warn('⚠️ Could not load .env.local');
     }
 }
@@ -65,8 +65,9 @@ async function listAllJobs() {
 
         await mongoose.disconnect();
         console.log('\n👋 Disconnected.');
-    } catch (error: any) {
-        console.error('❌ Error:', error.message);
+    } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        console.error('❌ Error:', (error as any).message);
     }
 }
 

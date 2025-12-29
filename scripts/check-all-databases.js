@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const mongoose = require('mongoose');
 
 // Connection strings to test
@@ -23,7 +24,7 @@ const schemas = {
     role: String,
     name: String,
   }, { timestamps: true }),
-  
+
   Job: new mongoose.Schema({
     title: String,
     description: String,
@@ -33,7 +34,7 @@ const schemas = {
     type: String,
     recruiter: mongoose.Schema.Types.ObjectId,
   }, { timestamps: true }),
-  
+
   Company: new mongoose.Schema({
     name: String,
     description: String,
@@ -48,17 +49,17 @@ async function checkDatabase(connectionString, name) {
   try {
     // Create fresh connection
     const conn = await mongoose.createConnection(connectionString).asPromise();
-    
+
     const User = conn.model('User', schemas.User);
     const Job = conn.model('Job', schemas.Job);
     const Company = conn.model('Company', schemas.Company);
-    
+
     const users = await User.find().select('-password').limit(5);
     const jobs = await Job.find().limit(5);
     const companies = await Company.find().limit(5);
-    
+
     await conn.close();
-    
+
     return {
       name,
       uri: connectionString.replace(/:[^:@]+@/, ':****@'), // Hide password
@@ -80,14 +81,14 @@ async function checkDatabase(connectionString, name) {
 async function checkAllDatabases() {
   console.log('🔍 Checking all possible database connections...\n');
   console.log('='.repeat(80));
-  
+
   const results = [];
-  
+
   for (const conn of CONNECTION_STRINGS) {
     console.log(`\nChecking: ${conn.name}...`);
     const result = await checkDatabase(conn.uri, conn.name);
     results.push(result);
-    
+
     if (result.success) {
       console.log(`  ✅ Connected!`);
       console.log(`  - Users: ${result.users}`);
@@ -97,10 +98,10 @@ async function checkAllDatabases() {
       console.log(`  ❌ Failed: ${result.error}`);
     }
   }
-  
+
   console.log('\n' + '='.repeat(80));
   console.log('\n📊 SUMMARY:\n');
-  
+
   results.forEach((result) => {
     if (result.success) {
       console.log(`✅ ${result.name}`);
@@ -109,15 +110,15 @@ async function checkAllDatabases() {
       console.log('');
     }
   });
-  
+
   // Find database with most data
   const withData = results.filter(r => r.success && (r.jobs > 0 || r.companies > 0));
-  
+
   if (withData.length > 0) {
-    const bestMatch = withData.reduce((a, b) => 
+    const bestMatch = withData.reduce((a, b) =>
       (a.jobs + a.companies) > (b.jobs + b.companies) ? a : b
     );
-    
+
     console.log('🎯 Database with jobs/companies:');
     console.log(`   ${bestMatch.name}`);
     console.log(`   URI: ${bestMatch.uri}`);

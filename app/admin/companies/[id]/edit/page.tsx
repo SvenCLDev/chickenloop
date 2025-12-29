@@ -50,7 +50,7 @@ export default function AdminEditCompanyPage() {
   const params = useParams();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const companyId = params?.id as string;
+  const companyId = (params?.id as string) || '';
   const [formData, setFormData] = useState({
     name: '',
     description: '',

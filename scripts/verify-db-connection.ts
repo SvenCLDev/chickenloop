@@ -18,7 +18,7 @@ function loadEnv() {
                 }
             });
         }
-    } catch (e) {
+    } catch {
         console.warn('⚠️ Could not load .env.local');
     }
 }
@@ -64,9 +64,11 @@ async function verifyConnection() {
 
         await mongoose.disconnect();
         console.log('\n👋 Disconnected.');
-    } catch (error: any) {
-        console.error('❌ Connection failed:', error.message);
-        if (error.cause) console.error('   Cause:', error.cause);
+    } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        console.error('❌ Connection failed:', (error as any).message);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((error as any).cause) console.error('   Cause:', (error as any).cause);
     }
 }
 

@@ -56,6 +56,11 @@ const UserSchema: Schema = new Schema(
   }
 );
 
+// Create indexes for efficient querying
+UserSchema.index({ role: 1 }); // For role-based filtering
+UserSchema.index({ createdAt: -1 }); // For sorting by creation date
+UserSchema.index({ lastOnline: -1 }); // For sorting by last online
+
 const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
 
 export default User;

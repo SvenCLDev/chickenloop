@@ -15,7 +15,7 @@ function loadEnv() {
                 }
             });
         }
-    } catch (e) { }
+    } catch { }
 }
 
 loadEnv();
@@ -48,8 +48,9 @@ async function inspectMonster() {
         }
 
         await mongoose.disconnect();
-    } catch (error: any) {
-        console.error('Error:', error.message);
+    } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        console.error('Error:', (error as any).message);
     }
 }
 

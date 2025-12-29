@@ -19,7 +19,7 @@ export default function AdminEditJobPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const params = useParams();
-  const jobId = params?.id as string;
+  const jobId = (params?.id as string) || '';
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -68,10 +68,10 @@ export default function AdminEditJobPage() {
     try {
       const data = await adminApi.getJob(jobId);
       const job = data.job;
-      
+
       const jobCountryCode = (job as any).country;
       const jobCountryName = jobCountryCode ? getCountryNameFromCode(jobCountryCode) : '';
-      
+
       setFormData({
         title: job.title || '',
         description: job.description || '',
@@ -103,7 +103,7 @@ export default function AdminEditJobPage() {
   const handlePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const totalPictures = existingPictures.length + selectedPictures.length + files.length;
-    
+
     if (totalPictures > 3) {
       setError('Maximum 3 pictures allowed (including existing ones)');
       return;
@@ -144,10 +144,10 @@ export default function AdminEditJobPage() {
   const removeNewPicture = (index: number) => {
     const newPictures = selectedPictures.filter((_, i) => i !== index);
     const newPreviews = picturePreviews.filter((_, i) => i !== index);
-    
+
     // Revoke the URL to free memory
     URL.revokeObjectURL(picturePreviews[index]);
-    
+
     setSelectedPictures(newPictures);
     setPicturePreviews(newPreviews);
   };
@@ -206,7 +206,7 @@ export default function AdminEditJobPage() {
 
       // Show success modal
       setShowSuccessModal(true);
-      
+
       // Redirect after 3 seconds
       setTimeout(() => {
         router.push('/admin');
@@ -378,7 +378,7 @@ export default function AdminEditJobPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Languages Required (Optional)
               </label>
-              
+
               {formData.languages.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2">
                   {formData.languages.map((lang) => (
@@ -408,7 +408,7 @@ export default function AdminEditJobPage() {
               <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
                 {OFFICIAL_LANGUAGES.map((lang) => {
                   const isSelected = formData.languages.includes(lang);
-                  
+
                   return (
                     <label
                       key={lang}
@@ -437,9 +437,9 @@ export default function AdminEditJobPage() {
                   );
                 })}
               </div>
-              
+
               <p className="text-xs text-gray-500 mt-2">
-                {formData.languages.length > 0 
+                {formData.languages.length > 0
                   ? `${formData.languages.length} language(s) selected`
                   : 'Select languages (tap to select)'}
               </p>
@@ -582,7 +582,7 @@ export default function AdminEditJobPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Required Qualifications (Optional)
               </label>
-              
+
               {formData.qualifications.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2">
                   {formData.qualifications.map((qual) => (
@@ -617,7 +617,7 @@ export default function AdminEditJobPage() {
                     </div>
                     {category.items.map((qual) => {
                       const isSelected = formData.qualifications.includes(qual);
-                      
+
                       return (
                         <label
                           key={qual}
@@ -648,9 +648,9 @@ export default function AdminEditJobPage() {
                   </div>
                 ))}
               </div>
-              
+
               <p className="text-xs text-gray-500 mt-2">
-                {formData.qualifications.length > 0 
+                {formData.qualifications.length > 0
                   ? `${formData.qualifications.length} qualification(s) selected`
                   : 'Select required qualifications (tap to select)'}
               </p>
@@ -725,7 +725,7 @@ export default function AdminEditJobPage() {
             {/* How to Apply Section */}
             <div className="border-t pt-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">How to Apply</h2>
-              
+
               <div className="space-y-4">
                 <div className="flex items-start">
                   <input

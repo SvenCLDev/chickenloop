@@ -100,7 +100,7 @@ export default function JobDetailPage() {
   const params = useParams();
   const pathname = usePathname();
   const { user } = useAuth();
-  const jobId = params?.id as string;
+  const jobId = (params?.id as string) || '';
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -159,7 +159,7 @@ export default function JobDetailPage() {
 
   const checkFavouriteStatus = async () => {
     if (!user || user.role !== 'job-seeker') return;
-    
+
     setCheckingFavourite(true);
     try {
       const data = await jobsApi.checkFavourite(jobId);
@@ -173,7 +173,7 @@ export default function JobDetailPage() {
 
   const handleToggleFavourite = async () => {
     if (!user || user.role !== 'job-seeker' || togglingFavourite) return;
-    
+
     setTogglingFavourite(true);
     try {
       const data = await jobsApi.toggleFavourite(jobId);
@@ -241,13 +241,13 @@ export default function JobDetailPage() {
 
   const handleReportSpam = async () => {
     if (!job || spamReported) return;
-    
+
     setReportingSpam(true);
     try {
       const response = await fetch(`/api/jobs/${jobId}/report-spam`, {
         method: 'POST',
       });
-      
+
       if (response.ok) {
         setSpamReported(true);
       } else {
@@ -392,7 +392,7 @@ export default function JobDetailPage() {
                   </div>
                 )}
               </div>
-              
+
               {/* Languages Required - in Job Details section */}
               {job.languages && job.languages.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -412,7 +412,7 @@ export default function JobDetailPage() {
                   </div>
                 </div>
               )}
-              
+
               {/* Job Categories - in Job Details section */}
               {job.occupationalAreas && job.occupationalAreas.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -432,7 +432,7 @@ export default function JobDetailPage() {
                   </div>
                 </div>
               )}
-              
+
               {/* Required Qualifications - in Job Details section */}
               {job.qualifications && job.qualifications.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -461,7 +461,7 @@ export default function JobDetailPage() {
             </div>
 
             {job.pictures && job.pictures.length > 0 && (
-            <div className="mb-6">
+              <div className="mb-6">
                 <div className="grid grid-cols-3 gap-2">
                   {job.pictures.map((picture, index) => (
                     <button
@@ -704,18 +704,17 @@ export default function JobDetailPage() {
                   </p>
                   <FormattedDate date={job.createdAt} />
                 </div>
-                
+
                 {/* Right Column - Report Spam Button */}
                 <div className="flex-shrink-0">
                   {/* Report Spam Button */}
                   <button
                     onClick={handleReportSpam}
                     disabled={reportingSpam || spamReported}
-                    className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
-                      spamReported
+                    className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${spamReported
                         ? 'bg-red-100 text-red-700 cursor-not-allowed'
                         : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                    }`}
+                      }`}
                   >
                     {spamReported ? '✓ Reported as Spam' : reportingSpam ? 'Reporting...' : '🚩 Report as Spam'}
                   </button>

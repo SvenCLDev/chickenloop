@@ -24,7 +24,7 @@ interface Article {
 export default function CareerAdviceArticlePage() {
   const params = useParams();
   const router = useRouter();
-  const articleId = params?.id as string;
+  const articleId = (params?.id as string) || '';
 
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);

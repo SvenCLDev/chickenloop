@@ -18,7 +18,7 @@ function loadEnv() {
                 }
             });
         }
-    } catch (e) {
+    } catch {
         console.warn('⚠️ Could not load .env.local');
     }
 }
@@ -37,12 +37,12 @@ async function findOrCreateRecruiter() {
         console.log('✅ Connected to MongoDB');
 
         if (!mongoose.connection.db) {
-            throw new Error('Database connection failed');
+            throw new Error('❌ Database connection failed');
         }
         const User = mongoose.connection.db.collection('users');
 
         // Find existing recruiter
-        const recruiter = await User.findOne({ role: 'recruiter' });
+        const recruiter = await User.findOne({ role: 'recruiter' }) as { email: string } | null;
 
         if (recruiter) {
             console.log('\nFOUND_RECRUITER_EMAIL=' + recruiter.email);
@@ -64,8 +64,9 @@ async function findOrCreateRecruiter() {
                 await User.insertOne(newUser);
                 console.log('\nCREATED_RECRUITER_EMAIL=auto-recruiter@test.com');
                 console.log('PASSWORD=password123');
-            } catch (e: any) {
-                if (e.code === 11000) {
+            } catch (e) {
+                const err = e as { code?: number };
+                if (err.code === 11000) {
                     // Collided, try to find it
                     console.log('\nFOUND_RECRUITER_EMAIL=auto-recruiter@test.com');
                     console.log('PASSWORD=password123 (assumed)');
@@ -78,7 +79,7 @@ async function findOrCreateRecruiter() {
         // Also check for company
         if (recruiter || process.env.CREATED_RECRUITER_EMAIL) {
             const email = recruiter ? recruiter.email : 'auto-recruiter@test.com';
-            const user = await User.findOne({ email });
+            const user = await User.findOne({ email }) as { _id: mongoose.Types.ObjectId } | null;
             if (user) {
                 const Company = mongoose.connection.db.collection('companies');
                 const company = await Company.findOne({ owner: user._id });

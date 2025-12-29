@@ -40,8 +40,8 @@ A full-stack job board platform specifically designed for the watersports indust
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd cl1
+git clone https://github.com/chickenloop3845-commits/chickenloop.git
+cd chickenloop
 ```
 
 2. Install dependencies:
@@ -154,6 +154,14 @@ Start production server:
 ```bash
 npm start
 ```
+
+## Contributing
+
+This repository is a fork of [chickenloop3845-commits/chickenloop](https://github.com/chickenloop3845-commits/chickenloop). 
+
+To contribute changes back to the upstream repository:
+- See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines
+- Use the helper script: `./create-upstream-pr.sh`
 
 ## License
 

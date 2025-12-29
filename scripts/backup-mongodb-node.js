@@ -5,6 +5,7 @@
  * Creates a backup of the Chickenloop database without requiring mongodump
  */
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -48,7 +49,7 @@ async function connectDB() {
   // Use MONGODB_URI from .env.local, but if it's localhost, use Atlas instead
   // (since the site uses Atlas, not localhost)
   let uri = process.env.MONGODB_URI;
-  
+
   // If MONGODB_URI points to localhost, use Atlas instead (this is what the site uses)
   if (!uri || uri.includes('localhost') || uri.includes('127.0.0.1')) {
     // Use MongoDB Atlas connection string (this is what the production site uses)
@@ -59,13 +60,13 @@ async function connectDB() {
       log('⚠️  MONGODB_URI not found, using Atlas connection from scripts', 'yellow');
     }
   }
-  
+
   // Extract database name from URI or use default
   uri = uri.includes('/chickenloop') ? uri : `${uri}/chickenloop`;
-  
+
   await mongoose.connect(uri);
   log('✅ Connected to MongoDB Atlas (production database)', 'green');
-  
+
   return mongoose.connection.db;
 }
 
@@ -77,10 +78,10 @@ async function getCollections(db) {
 async function backupCollection(db, collectionName, backupPath) {
   const collection = db.collection(collectionName);
   const documents = await collection.find({}).toArray();
-  
+
   const filePath = path.join(backupPath, `${collectionName}.json`);
   fs.writeFileSync(filePath, JSON.stringify(documents, null, 2));
-  
+
   return documents.length;
 }
 
@@ -130,25 +131,25 @@ async function main() {
     // Compress the backup
     log('\n📦 Compressing backup...');
     const tarPath = `${BACKUP_PATH}.tar.gz`;
-    
+
     try {
       // Use tar command if available
       execSync(`cd "${BACKUP_DIR}" && tar -czf "${path.basename(tarPath)}" "${BACKUP_NAME}"`, {
         stdio: 'inherit',
       });
-      
+
       // Remove uncompressed directory
       fs.rmSync(BACKUP_PATH, { recursive: true, force: true });
-      
+
       const stats = fs.statSync(tarPath);
       const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-      
+
       log('\n✅ Backup created successfully!', 'green');
       log(`   Location: ${tarPath}`);
       log(`   Size: ${sizeMB} MB`);
       log(`\n💡 To restore this backup, use:`, 'yellow');
       log(`   node scripts/restore-mongodb-node.js ${tarPath}`);
-    } catch (tarError) {
+    } catch {
       // If tar is not available, keep uncompressed backup
       log('\n⚠️  Could not compress backup (tar not available)', 'yellow');
       log('   Backup saved as uncompressed directory:', 'yellow');

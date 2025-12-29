@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
@@ -32,21 +33,21 @@ async function createAdminUser() {
   try {
     console.log('🔐 Creating Admin User...\n');
     console.log('='.repeat(80));
-    
+
     const name = 'Rooster';
     const email = 'rooster@chickenloop.com';
     const password = 'Chicken!123';
     const role = 'admin';
-    
+
     console.log('\n📝 User Details:');
     console.log(`   Name: ${name}`);
     console.log(`   Email: ${email}`);
     console.log(`   Role: ${role}`);
     console.log('\nConnecting to MongoDB...');
-    
+
     await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected successfully!\n');
-    
+
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingUser) {
@@ -56,12 +57,12 @@ async function createAdminUser() {
       await mongoose.disconnect();
       process.exit(1);
     }
-    
+
     // Hash the password
     console.log('🔒 Hashing password...');
     const hashedPassword = await bcrypt.hash(password, 10);
     console.log('✅ Password hashed successfully!\n');
-    
+
     // Create the user
     console.log('👤 Creating user...');
     const user = await User.create({
@@ -70,7 +71,7 @@ async function createAdminUser() {
       password: hashedPassword,
       role,
     });
-    
+
     console.log('✅ User created successfully!\n');
     console.log('='.repeat(80));
     console.log('\n📊 User Created:');
@@ -85,7 +86,7 @@ async function createAdminUser() {
     console.log(`   Email: ${email}`);
     console.log(`   Password: ${password}`);
     console.log('\n');
-    
+
     await mongoose.disconnect();
     console.log('✅ Disconnected from MongoDB\n');
   } catch (error) {

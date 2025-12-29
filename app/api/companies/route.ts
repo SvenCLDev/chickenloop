@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Company from '@/models/Company';
+import { CachePresets } from '@/lib/cache';
 
 // GET - Get companies with optional limit (public endpoint)
 export async function GET(request: NextRequest) {
@@ -50,7 +51,13 @@ export async function GET(request: NextRequest) {
       createdAt: company.createdAt,
     }));
 
-    return NextResponse.json({ companies: formattedCompanies }, { status: 200 });
+    // Add cache headers - companies can be cached for 5 minutes
+    const cacheHeaders = CachePresets.short();
+
+    return NextResponse.json({ companies: formattedCompanies }, {
+      status: 200,
+      headers: cacheHeaders,
+    });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in /api/companies:', error);

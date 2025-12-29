@@ -2,6 +2,7 @@
 // Force Vercel rebuild
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -139,7 +140,7 @@ export default function CVsPage() {
       const response = await fetch('/api/applications', {
         credentials: 'include',
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         const contacted = new Set<string>();
@@ -168,11 +169,11 @@ export default function CVsPage() {
   const handleContactCandidate = async (e: React.MouseEvent, candidateId: string, jobId?: string) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (contactingCandidate || contactedCandidates.has(candidateId)) return;
-    
+
     setContactingCandidate(candidateId);
-    
+
     try {
       const response = await fetch('/api/applications', {
         method: 'POST',
@@ -212,7 +213,7 @@ export default function CVsPage() {
   const handleJobSelect = (jobId: string) => {
     if (pendingCandidateId) {
       handleContactCandidate(
-        { preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent,
+        { preventDefault: () => { }, stopPropagation: () => { } } as React.MouseEvent,
         pendingCandidateId,
         jobId
       );
@@ -318,84 +319,84 @@ export default function CVsPage() {
         <h1 className="text-4xl font-bold text-gray-900 mb-8">
           We have {cvs.length} {cvs.length === 1 ? 'candidate' : 'candidates'} meeting these criteria
         </h1>
-        
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row items-end sm:items-center sm:justify-end mb-8 gap-3 flex-wrap">
-            {/* Language Filter */}
-            <select
-              id="language-filter"
-              value={selectedLanguage}
-              onChange={(e) => setSelectedLanguage(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
-            >
-              <option value="">All Languages</option>
-              {getUniqueLanguages().map((language) => (
-                <option key={language} value={language}>
-                  {language}
-                </option>
-              ))}
-            </select>
+          {/* Language Filter */}
+          <select
+            id="language-filter"
+            value={selectedLanguage}
+            onChange={(e) => setSelectedLanguage(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
+          >
+            <option value="">All Languages</option>
+            {getUniqueLanguages().map((language) => (
+              <option key={language} value={language}>
+                {language}
+              </option>
+            ))}
+          </select>
 
-            {/* Work Area Filter */}
-            <select
-              id="workarea-filter"
-              value={selectedWorkArea}
-              onChange={(e) => setSelectedWorkArea(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
-            >
-              <option value="">All Work Areas</option>
-              {getUniqueWorkAreas().map((area) => (
-                <option key={area} value={area}>
-                  {area}
-                </option>
-              ))}
-            </select>
+          {/* Work Area Filter */}
+          <select
+            id="workarea-filter"
+            value={selectedWorkArea}
+            onChange={(e) => setSelectedWorkArea(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
+          >
+            <option value="">All Work Areas</option>
+            {getUniqueWorkAreas().map((area) => (
+              <option key={area} value={area}>
+                {area}
+              </option>
+            ))}
+          </select>
 
-            {/* Sports Experiences Filter */}
-            <select
-              id="sport-filter"
-              value={selectedSport}
-              onChange={(e) => setSelectedSport(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
-            >
-              <option value="">All Sports</option>
-              {getUniqueSports().map((sport) => (
-                <option key={sport} value={sport}>
-                  {sport}
-                </option>
-              ))}
-            </select>
+          {/* Sports Experiences Filter */}
+          <select
+            id="sport-filter"
+            value={selectedSport}
+            onChange={(e) => setSelectedSport(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
+          >
+            <option value="">All Sports</option>
+            {getUniqueSports().map((sport) => (
+              <option key={sport} value={sport}>
+                {sport}
+              </option>
+            ))}
+          </select>
 
-            {/* Professional Certifications Filter */}
-            <select
-              id="certification-filter"
-              value={selectedCertification}
-              onChange={(e) => setSelectedCertification(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
-            >
-              <option value="">All Certifications</option>
-              {getUniqueCertifications().map((cert) => (
-                <option key={cert} value={cert}>
-                  {cert}
-                </option>
-              ))}
-            </select>
+          {/* Professional Certifications Filter */}
+          <select
+            id="certification-filter"
+            value={selectedCertification}
+            onChange={(e) => setSelectedCertification(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
+          >
+            <option value="">All Certifications</option>
+            {getUniqueCertifications().map((cert) => (
+              <option key={cert} value={cert}>
+                {cert}
+              </option>
+            ))}
+          </select>
 
-            {/* Clear Filters Button */}
-            {(selectedLanguage || selectedWorkArea || selectedSport || selectedCertification) && (
-              <button
-                onClick={() => {
-                  setSelectedLanguage('');
-                  setSelectedWorkArea('');
-                  setSelectedSport('');
-                  setSelectedCertification('');
-                }}
-                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 underline whitespace-nowrap"
-              >
-                Clear Filters
-              </button>
-            )}
-          </div>
+          {/* Clear Filters Button */}
+          {(selectedLanguage || selectedWorkArea || selectedSport || selectedCertification) && (
+            <button
+              onClick={() => {
+                setSelectedLanguage('');
+                setSelectedWorkArea('');
+                setSelectedSport('');
+                setSelectedCertification('');
+              }}
+              className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 underline whitespace-nowrap"
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -446,230 +447,229 @@ export default function CVsPage() {
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {currentCvs.map((cv) => {
-              // Get the first picture, or use a placeholder
-              const firstPicture = cv.pictures && cv.pictures.length > 0
-                ? cv.pictures[0]
-                : null;
+                      // Get the first picture, or use a placeholder
+                      const firstPicture = cv.pictures && cv.pictures.length > 0
+                        ? cv.pictures[0]
+                        : null;
 
-              // Get user's last online date
-              const lastOnlineDate = cv.jobSeeker?.lastOnline;
+                      // Get user's last online date
+                      const lastOnlineDate = cv.jobSeeker?.lastOnline;
 
-              return (
-                <Link
-                  key={cv._id}
-                  href={`/candidates/${cv._id}`}
-                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block"
-                >
-                  {/* CV Picture */}
-                  <div className="w-full h-48 bg-gray-200 relative overflow-hidden">
-                    {firstPicture ? (
-                      <img
-                        src={firstPicture}
-                        alt={cv.fullName}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-300 to-gray-400">
-                        <span className="text-gray-500 text-sm">No Image</span>
-                      </div>
-                    )}
-                  </div>
+                      return (
+                        <Link
+                          key={cv._id}
+                          href={`/candidates/${cv._id}`}
+                          className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block"
+                        >
+                          {/* CV Picture */}
+                          <div className="w-full h-48 bg-gray-200 relative overflow-hidden">
+                            {firstPicture ? (
+                              <Image
+                                src={firstPicture}
+                                alt={cv.fullName}
+                                fill
+                                className="object-cover"
+                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-300 to-gray-400">
+                                <span className="text-gray-500 text-sm">No Image</span>
+                              </div>
+                            )}
+                          </div>
 
-                  {/* CV Info */}
-                  <div className="p-4">
-                    <h2 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
-                      {cv.fullName}
-                    </h2>
+                          {/* CV Info */}
+                          <div className="p-4">
+                            <h2 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
+                              {cv.fullName}
+                            </h2>
 
-                    {/* Summary Preview */}
-                    {cv.summary && (
-                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {cv.summary}
-                      </p>
-                    )}
+                            {/* Summary Preview */}
+                            {cv.summary && (
+                              <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                                {cv.summary}
+                              </p>
+                            )}
 
-                    {/* Skills Preview */}
-                    {cv.experienceAndSkill && cv.experienceAndSkill.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {cv.experienceAndSkill.slice(0, 3).map((skill, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                        {cv.experienceAndSkill.length > 3 && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                            +{cv.experienceAndSkill.length - 3}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                            {/* Skills Preview */}
+                            {cv.experienceAndSkill && cv.experienceAndSkill.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-2">
+                                {cv.experienceAndSkill.slice(0, 3).map((skill, index) => (
+                                  <span
+                                    key={index}
+                                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+                                  >
+                                    {skill}
+                                  </span>
+                                ))}
+                                {cv.experienceAndSkill.length > 3 && (
+                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                                    +{cv.experienceAndSkill.length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            )}
 
-                    {/* Work Areas Preview */}
-                    {cv.lookingForWorkInAreas && cv.lookingForWorkInAreas.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {cv.lookingForWorkInAreas.slice(0, 2).map((area, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
-                          >
-                            {area}
-                          </span>
-                        ))}
-                        {cv.lookingForWorkInAreas.length > 2 && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                            +{cv.lookingForWorkInAreas.length - 2}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                            {/* Work Areas Preview */}
+                            {cv.lookingForWorkInAreas && cv.lookingForWorkInAreas.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-2">
+                                {cv.lookingForWorkInAreas.slice(0, 2).map((area, index) => (
+                                  <span
+                                    key={index}
+                                    className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
+                                  >
+                                    {area}
+                                  </span>
+                                ))}
+                                {cv.lookingForWorkInAreas.length > 2 && (
+                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                                    +{cv.lookingForWorkInAreas.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            )}
 
-                    {/* Languages Preview */}
-                    {cv.languages && cv.languages.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {cv.languages.slice(0, 2).map((lang, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
-                          >
-                            {lang}
-                          </span>
-                        ))}
-                        {cv.languages.length > 2 && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                            +{cv.languages.length - 2}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                            {/* Languages Preview */}
+                            {cv.languages && cv.languages.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-2">
+                                {cv.languages.slice(0, 2).map((lang, index) => (
+                                  <span
+                                    key={index}
+                                    className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
+                                  >
+                                    {lang}
+                                  </span>
+                                ))}
+                                {cv.languages.length > 2 && (
+                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                                    +{cv.languages.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            )}
 
-                    {/* Location and Last Online */}
-                    <div className="flex flex-col gap-1 mt-2">
-                      {cv.address && (
-                        <p className="text-sm text-gray-600 flex items-center gap-1">
-                          <span>📍</span>
-                          <span className="font-medium text-gray-800">{cv.address}</span>
-                        </p>
-                      )}
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500">Last logged in:</span>
-                        {lastOnlineDate ? (
-                          <TimeAgoDisplay date={lastOnlineDate} />
-                        ) : (
-                          <span className="text-xs text-gray-500">Never</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Contact Candidate Button */}
-                    {user && (user.role === 'recruiter' || user.role === 'admin') && cv.jobSeeker && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        {(() => {
-                          const candidateId = cv.jobSeeker?._id ? String(cv.jobSeeker._id) : null;
-                          if (!candidateId) return null;
-                          
-                          return contactedCandidates.has(candidateId) ? (
-                            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-800 rounded-md text-sm font-medium">
-                              <span>✓</span>
-                              <span>Contacted</span>
+                            {/* Location and Last Online */}
+                            <div className="flex flex-col gap-1 mt-2">
+                              {cv.address && (
+                                <p className="text-sm text-gray-600 flex items-center gap-1">
+                                  <span>📍</span>
+                                  <span className="font-medium text-gray-800">{cv.address}</span>
+                                </p>
+                              )}
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-gray-500">Last logged in:</span>
+                                {lastOnlineDate ? (
+                                  <TimeAgoDisplay date={lastOnlineDate} />
+                                ) : (
+                                  <span className="text-xs text-gray-500">Never</span>
+                                )}
+                              </div>
                             </div>
-                          ) : (
-                            <button
-                              onClick={(e) => handleContactCandidate(e, candidateId)}
-                              disabled={contactingCandidate === candidateId}
-                              className="w-full px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {contactingCandidate === candidateId
-                                ? 'Contacting...'
-                                : 'Contact Candidate'}
-                            </button>
-                          );
-                        })()}
-                      </div>
-                    )}
+
+                            {/* Contact Candidate Button */}
+                            {user && (user.role === 'recruiter' || user.role === 'admin') && cv.jobSeeker && (
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                {(() => {
+                                  const candidateId = cv.jobSeeker?._id ? String(cv.jobSeeker._id) : null;
+                                  if (!candidateId) return null;
+
+                                  return contactedCandidates.has(candidateId) ? (
+                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-800 rounded-md text-sm font-medium">
+                                      <span>✓</span>
+                                      <span>Contacted</span>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => handleContactCandidate(e, candidateId)}
+                                      disabled={contactingCandidate === candidateId}
+                                      className="w-full px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      {contactingCandidate === candidateId
+                                        ? 'Contacting...'
+                                        : 'Contact Candidate'}
+                                    </button>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
-                </Link>
-              );
-            })}
-          </div>
 
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="mt-8 flex items-center justify-center gap-2">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-md font-medium ${
-                  currentPage === 1
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                Previous
-              </button>
-              
-              <div className="flex gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                  // Show first page, last page, current page, and pages around current
-                  if (
-                    page === 1 ||
-                    page === totalPages ||
-                    (page >= currentPage - 1 && page <= currentPage + 1)
-                  ) {
-                    return (
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="mt-8 flex items-center justify-center gap-2">
                       <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`px-3 py-2 rounded-md font-medium ${
-                          currentPage === page
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                        }`}
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className={`px-4 py-2 rounded-md font-medium ${currentPage === 1
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
                       >
-                        {page}
+                        Previous
                       </button>
-                    );
-                  } else if (
-                    page === currentPage - 2 ||
-                    page === currentPage + 2
-                  ) {
-                    return (
-                      <span key={page} className="px-2 py-2 text-gray-500">
-                        ...
-                      </span>
-                    );
-                  }
-                  return null;
-                })}
-              </div>
 
-              <button
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-md font-medium ${
-                  currentPage === totalPages
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                Next
-              </button>
-            </div>
-          )}
+                      <div className="flex gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                          // Show first page, last page, current page, and pages around current
+                          if (
+                            page === 1 ||
+                            page === totalPages ||
+                            (page >= currentPage - 1 && page <= currentPage + 1)
+                          ) {
+                            return (
+                              <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`px-3 py-2 rounded-md font-medium ${currentPage === page
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                                  }`}
+                              >
+                                {page}
+                              </button>
+                            );
+                          } else if (
+                            page === currentPage - 2 ||
+                            page === currentPage + 2
+                          ) {
+                            return (
+                              <span key={page} className="px-2 py-2 text-gray-500">
+                                ...
+                              </span>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
 
-          {/* Page info */}
-          {totalPages > 1 && (
-            <div className="mt-4 text-center text-sm text-gray-600">
-              Showing {indexOfFirstCv + 1} to {Math.min(indexOfLastCv, cvs.length)} of {cvs.length} candidates
-            </div>
-          )}
-        </>
-      );
-    })()}
-  </>
-  )}
+                      <button
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className={`px-4 py-2 rounded-md font-medium ${currentPage === totalPages
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Page info */}
+                  {totalPages > 1 && (
+                    <div className="mt-4 text-center text-sm text-gray-600">
+                      Showing {indexOfFirstCv + 1} to {Math.min(indexOfLastCv, cvs.length)} of {cvs.length} candidates
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </>
+        )}
       </main>
       <JobSelectionModal
         isOpen={showJobModal}

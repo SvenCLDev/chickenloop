@@ -5,8 +5,7 @@
  * Copies all data from Atlas to local MongoDB
  */
 
-const fs = require('fs');
-const path = require('path');
+/* eslint-disable @typescript-eslint/no-require-imports */
 const mongoose = require('mongoose');
 
 // MongoDB Atlas connection string (source)
@@ -28,18 +27,7 @@ function log(message, color = 'reset') {
   console.log(`${colors[color]}${message}${colors.reset}`);
 }
 
-async function connectToDatabase(uri, name) {
-  try {
-    // Create a new mongoose connection for each database
-    const conn = mongoose.createConnection(uri);
-    await conn.asPromise();
-    log(`✅ Connected to ${name}`, 'green');
-    return conn.db;
-  } catch (error) {
-    log(`❌ Failed to connect to ${name}: ${error.message}`, 'red');
-    throw error;
-  }
-}
+
 
 async function getCollections(db) {
   const collections = await db.listCollections().toArray();
@@ -48,28 +36,28 @@ async function getCollections(db) {
 
 async function copyCollection(sourceDb, targetDb, collectionName) {
   log(`\n   📦 Copying ${collectionName}...`, 'cyan');
-  
+
   // Get all documents from source
   const sourceCollection = sourceDb.collection(collectionName);
   const documents = await sourceCollection.find({}).toArray();
-  
+
   if (documents.length === 0) {
     log(`   ⚠️  ${collectionName}: No documents to copy`, 'yellow');
     return { collection: collectionName, count: 0, inserted: 0 };
   }
-  
+
   // Clear existing data in target collection
   const targetCollection = targetDb.collection(collectionName);
   await targetCollection.deleteMany({});
   log(`   🗑️  Cleared existing ${collectionName} data`, 'yellow');
-  
+
   // Insert all documents into target
   if (documents.length > 0) {
     await targetCollection.insertMany(documents, { ordered: false });
   }
-  
+
   log(`   ✅ ${collectionName}: Copied ${documents.length} documents`, 'green');
-  
+
   return { collection: collectionName, count: documents.length, inserted: documents.length };
 }
 
@@ -77,29 +65,29 @@ async function main() {
   try {
     log('🔄 MongoDB Atlas to Local Sync', 'blue');
     log('================================\n');
-    
+
     log('📡 Step 1: Connecting to databases...', 'blue');
-    
+
     // Connect to both databases simultaneously
     const atlasConn = mongoose.createConnection(ATLAS_URI);
     const localConn = mongoose.createConnection(LOCAL_URI);
-    
+
     await atlasConn.asPromise();
     log(`✅ Connected to MongoDB Atlas (source)`, 'green');
-    
+
     await localConn.asPromise();
     log(`✅ Connected to Local MongoDB (destination)`, 'green');
-    
+
     const atlasDb = atlasConn.db;
     const localDb = localConn.db;
-    
+
     log('\n📋 Step 2: Getting collections from Atlas...', 'blue');
     const collections = await getCollections(atlasDb);
     log(`   Found ${collections.length} collections: ${collections.join(', ')}`, 'green');
-    
+
     log('\n📥 Step 3: Copying data from Atlas to Local...', 'blue');
     log('   This will replace all existing data in local MongoDB!\n', 'yellow');
-    
+
     const results = [];
     for (const collectionName of collections) {
       try {
@@ -110,16 +98,16 @@ async function main() {
         results.push({ collection: collectionName, count: 0, inserted: 0, error: error.message });
       }
     }
-    
+
     // Summary
     log(`\n${'='.repeat(60)}`, 'blue');
     log('📊 SYNC SUMMARY', 'blue');
     log(`${'='.repeat(60)}`, 'blue');
-    
+
     const totalDocuments = results.reduce((sum, r) => sum + (r.inserted || 0), 0);
     log(`\n✅ Total documents copied: ${totalDocuments}`, 'green');
     log(`\n📋 Collections synced:`, 'green');
-    
+
     results.forEach(result => {
       if (result.error) {
         log(`   ❌ ${result.collection}: Error - ${result.error}`, 'red');
@@ -127,26 +115,26 @@ async function main() {
         log(`   ✅ ${result.collection}: ${result.inserted} documents`, 'green');
       }
     });
-    
+
     // Close both connections
     await atlasConn.close();
     await localConn.close();
     log('\n✅ Sync completed successfully!', 'green');
     log('\n💡 Your local site should now show the same data as production.', 'cyan');
     log('   Restart your dev server if it\'s running to see the changes.', 'yellow');
-    
+
   } catch (error) {
     log(`\n❌ Fatal error: ${error.message}`, 'red');
     console.error(error);
-    
+
     // Try to close connections
     try {
       if (atlasConn) await atlasConn.close();
       if (localConn) await localConn.close();
-    } catch (e) {
+    } catch {
       // Ignore
     }
-    
+
     process.exit(1);
   }
 }

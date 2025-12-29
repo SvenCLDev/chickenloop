@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const user = requireRole(request, ['job-seeker']);
     await connectDB();
 
-    const cv = await CV.findOne({ jobSeeker: user.userId });
+    const cv = await CV.findOne({ jobSeeker: user.userId }).lean();
 
     if (!cv) {
       return NextResponse.json({ error: 'CV not found' }, { status: 404 });

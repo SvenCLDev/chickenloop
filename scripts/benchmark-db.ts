@@ -18,7 +18,7 @@ function loadEnv() {
                 }
             });
         }
-    } catch (e) { console.warn('⚠️ Could not load .env.local'); }
+    } catch { console.warn('⚠️ Could not load .env.local'); }
 }
 
 loadEnv();
@@ -64,8 +64,9 @@ async function benchmark() {
 
         await mongoose.disconnect();
 
-    } catch (error: any) {
-        console.error('❌ Error:', error.message);
+    } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        console.error('❌ Error:', (error as any).message);
     }
 }
 

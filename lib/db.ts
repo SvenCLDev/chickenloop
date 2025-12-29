@@ -85,13 +85,15 @@ async function connectDB() {
       serverSelectionTimeoutMS: isLocal ? 5000 : 10000, // Faster for local
       socketTimeoutMS: isLocal ? 30000 : 60000, // Shorter for local
       connectTimeoutMS: isLocal ? 5000 : 10000, // Faster for local
-      maxPoolSize: isLocal ? 10 : 5, // More connections for local
-      minPoolSize: isLocal ? 2 : 0, // Maintain connections for local
+      maxPoolSize: isLocal ? 15 : 10, // More connections for local (increased from 10)
+      minPoolSize: isLocal ? 3 : 1, // Maintain more connections for local (increased from 2)
       maxIdleTimeMS: isLocal ? 30000 : 10000, // Longer for local
       retryWrites: true,
       retryReads: true,
       // Use direct connection for local MongoDB
       directConnection: isLocal ? true : false,
+      // Compression for better network performance
+      compressors: ['zlib' as const],
       // Note: maxTimeMS is a query option, not a connection option
       // It should be set on individual queries, not here
     };

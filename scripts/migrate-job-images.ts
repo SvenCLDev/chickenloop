@@ -23,7 +23,7 @@ function loadEnv() {
                 }
             });
         }
-    } catch (e) {
+    } catch {
         console.warn('⚠️ Could not load .env.local');
     }
 }
@@ -113,8 +113,9 @@ async function migrate() {
             } else {
                 console.log(`   ⚠️ Kept (has Base64)`);
             }
-        } catch (error: any) {
-            console.log(`   ❌ Error: ${error.message}`);
+        } catch (error) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            console.log(`   ❌ Error: ${(error as any).message}`);
         }
     }
 

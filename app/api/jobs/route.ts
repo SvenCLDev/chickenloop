@@ -4,6 +4,7 @@ import Job from '@/models/Job';
 import Company from '@/models/Company';
 import { requireAuth, requireRole } from '@/lib/auth';
 import mongoose from 'mongoose';
+import { CachePresets } from '@/lib/cache';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 export async function GET(request: NextRequest) {
@@ -64,11 +65,33 @@ export async function GET(request: NextRequest) {
       queryFilter.featured = true;
     }
 
-    // Query to get jobs - Load ALL fields (including description, images, etc.)
-    // No limit needed for local MongoDB - it's fast enough
-    console.log('[API /jobs] Executing find query (no limit, ALL fields - no projection)...');
+    // Query to get jobs - Project only fields needed for list display
+    // Include pictures for thumbnails, exclude description (loaded on detail page)
+    const listProjection = {
+      _id: 1,
+      title: 1,
+      company: 1,
+      location: 1,
+      country: 1,
+      salary: 1,
+      type: 1,
+      recruiter: 1,
+      companyId: 1,
+      sports: 1,
+      occupationalAreas: 1,
+      published: 1,
+      featured: 1,
+      pictures: 1, // Need for list thumbnails
+      createdAt: 1,
+      updatedAt: 1,
+      // Exclude: description, languages, qualifications (loaded on detail page)
+    };
+
+    console.log('[API /jobs] Executing find query with projection (excluding heavy fields)...');
     console.log('[API /jobs] Creating query cursor...');
     const queryCursor = collection.find(queryFilter)
+      .project(listProjection)
+      .hint({ published: 1, createdAt: -1 }) // Use the compound index for better performance
       .maxTimeMS(10000); // 10 second timeout should be plenty for local DB
 
     console.log('[API /jobs] Query cursor created, calling toArray()...');
@@ -156,7 +179,13 @@ export async function GET(request: NextRequest) {
     const queryTime = Date.now() - queryStart;
     console.log(`[API /jobs] Total query time: ${queryTime}ms`);
 
-    return NextResponse.json({ jobs }, { status: 200 });
+    // Add cache headers - jobs can be cached for 5 minutes with stale-while-revalidate
+    const cacheHeaders = CachePresets.short();
+
+    return NextResponse.json({ jobs }, {
+      status: 200,
+      headers: cacheHeaders,
+    });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in /api/jobs:', error);
@@ -184,13 +213,13 @@ export async function POST(request: NextRequest) {
     const user = requireRole(request, ['recruiter']);
     await connectDB();
 
-    const { 
-      title, 
-      description, 
-      company, 
-      location, 
+    const {
+      title,
+      description,
+      company,
+      location,
       country,
-      salary, 
+      salary,
       type,
       languages,
       qualifications,

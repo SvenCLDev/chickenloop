@@ -15,7 +15,7 @@ function loadEnv() {
                 }
             });
         }
-    } catch (e) { }
+    } catch { }
 }
 
 loadEnv();
@@ -49,9 +49,10 @@ async function findMonster() {
         }
 
         await mongoose.disconnect();
-    } catch (error: any) {
+    } catch (error) {
         // Fallback if $bsonSize is not supported (unlikely on Atlas)
-        console.error('Error:', error.message);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        console.error('Error:', (error as any).message);
     }
 }
 

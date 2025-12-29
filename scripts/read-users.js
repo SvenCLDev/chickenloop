@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const mongoose = require('mongoose');
 
 const MONGODB_URI = 'mongodb+srv://chickenloop3845_db_user:msLBG6d6lscrfQYf@cluster042369.iggtazi.mongodb.net/chickenloop?appName=Cluster042369';
@@ -20,10 +21,10 @@ async function readUsers() {
     console.log('Connected successfully!\n');
 
     const users = await User.find().select('-password').sort({ createdAt: -1 });
-    
+
     console.log(`Found ${users.length} user(s):\n`);
     console.log('='.repeat(80));
-    
+
     users.forEach((user, index) => {
       console.log(`\nUser ${index + 1}:`);
       console.log(`  ID: ${user._id}`);
@@ -33,10 +34,10 @@ async function readUsers() {
       console.log(`  Created: ${user.createdAt}`);
       console.log(`  Updated: ${user.updatedAt}`);
     });
-    
+
     console.log('\n' + '='.repeat(80));
     console.log(`\nTotal: ${users.length} user(s)`);
-    
+
     await mongoose.disconnect();
     console.log('\nDisconnected from MongoDB');
   } catch (error) {

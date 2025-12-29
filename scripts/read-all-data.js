@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const mongoose = require('mongoose');
 
 const MONGODB_URI = 'mongodb+srv://chickenloop3845_db_user:msLBG6d6lscrfQYf@cluster042369.iggtazi.mongodb.net/chickenloop?appName=Cluster042369';
@@ -45,14 +46,14 @@ async function readAllData() {
     const users = await User.find().select('-password').sort({ createdAt: -1 });
     const jobs = await Job.find().populate('recruiter', 'name email').sort({ createdAt: -1 });
     const cvs = await CV.find().populate('jobSeeker', 'name email').sort({ createdAt: -1 });
-    
+
     console.log('='.repeat(80));
     console.log('DATABASE SUMMARY');
     console.log('='.repeat(80));
     console.log(`\nUsers: ${users.length}`);
     console.log(`Jobs: ${jobs.length}`);
     console.log(`CVs: ${cvs.length}`);
-    
+
     if (users.length > 0) {
       console.log('\n' + '='.repeat(80));
       console.log('USERS:');
@@ -64,7 +65,7 @@ async function readAllData() {
         console.log(`   Created: ${user.createdAt}`);
       });
     }
-    
+
     if (jobs.length > 0) {
       console.log('\n' + '='.repeat(80));
       console.log('JOBS:');
@@ -79,7 +80,7 @@ async function readAllData() {
         console.log(`   Created: ${job.createdAt}`);
       });
     }
-    
+
     if (cvs.length > 0) {
       console.log('\n' + '='.repeat(80));
       console.log('CVs:');
@@ -94,9 +95,9 @@ async function readAllData() {
         console.log(`   Created: ${cv.createdAt}`);
       });
     }
-    
+
     console.log('\n' + '='.repeat(80));
-    
+
     await mongoose.disconnect();
     console.log('\nDisconnected from MongoDB');
   } catch (error) {

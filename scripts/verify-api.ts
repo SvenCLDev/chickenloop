@@ -1,5 +1,5 @@
 
-import { headers } from 'next/headers';
+
 
 const BASE_URL = 'http://localhost:3000';
 
@@ -13,7 +13,7 @@ async function runVerification() {
   const recruiterEmail = `recruiter_${randomString()}@test.com`;
   const recruiterPassword = 'password123';
   console.log(`\n1. Registering Recruiter (${recruiterEmail})...`);
-  
+
   let res = await fetch(`${BASE_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -46,7 +46,7 @@ async function runVerification() {
     console.error('Failed to login recruiter:', await res.text());
     return;
   }
-  
+
   const recruiterCookie = res.headers.get('set-cookie');
   if (!recruiterCookie) {
     console.error('No cookie received for recruiter');
@@ -58,7 +58,7 @@ async function runVerification() {
   console.log('\n3. Creating Company...');
   res = await fetch(`${BASE_URL}/api/company`, {
     method: 'POST',
-    headers: { 
+    headers: {
       'Content-Type': 'application/json',
       'Cookie': recruiterCookie
     },
@@ -84,7 +84,7 @@ async function runVerification() {
   const jobTitle = `Test Job ${randomString()}`;
   res = await fetch(`${BASE_URL}/api/jobs`, {
     method: 'POST',
-    headers: { 
+    headers: {
       'Content-Type': 'application/json',
       'Cookie': recruiterCookie
     },
@@ -154,7 +154,7 @@ async function runVerification() {
   console.log('\n7. Creating CV...');
   res = await fetch(`${BASE_URL}/api/cv`, {
     method: 'POST',
-    headers: { 
+    headers: {
       'Content-Type': 'application/json',
       'Cookie': seekerCookie || ''
     },
@@ -177,7 +177,7 @@ async function runVerification() {
   console.log('\n8. Verifying Job Visibility...');
   res = await fetch(`${BASE_URL}/api/jobs`, {
     method: 'GET',
-    headers: { 
+    headers: {
       'Cookie': seekerCookie || ''
     }
   });
@@ -187,13 +187,13 @@ async function runVerification() {
     return;
   }
   const jobsData = await res.json();
-  const foundJob = jobsData.jobs.find((j: any) => j.title === jobTitle);
-  
+  const foundJob = jobsData.jobs.find((j: { title: string }) => j.title === jobTitle);
+
   if (foundJob) {
     console.log('✅ Found posted job in listings!');
   } else {
     console.error('❌ Could not find posted job in listings');
-    console.log('Available jobs:', jobsData.jobs.map((j: any) => j.title));
+    console.log('Available jobs:', jobsData.jobs.map((j: { title: string }) => j.title));
   }
 
   console.log('\n🎉 Verification Complete!');

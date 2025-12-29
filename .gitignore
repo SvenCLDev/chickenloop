@@ -61,3 +61,7 @@ exports/
 *.tar.gz
 *.bson
 *.json.backup
+
+# Backup files (prevent .bak files from being committed)
+*.bak
+*.bak.*

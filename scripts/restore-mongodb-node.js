@@ -5,6 +5,7 @@
  * Restores a backup created with backup-mongodb-node.js
  */
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -55,7 +56,7 @@ async function connectDB() {
 async function restoreCollection(db, collectionName, filePath) {
   const collection = db.collection(collectionName);
   const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  
+
   if (data.length === 0) {
     log(`   ⚠️  ${collectionName}: No documents to restore (skipping)`);
     return 0;
@@ -97,7 +98,7 @@ async function main() {
     // Extract backup if it's compressed
     let backupPath;
     const tempDir = fs.mkdtempSync(path.join(__dirname, '../temp-restore-'));
-    
+
     try {
       if (backupFile.endsWith('.tar.gz')) {
         log('📦 Extracting backup...');
@@ -111,9 +112,10 @@ async function main() {
 
       log(`\n⚠️  WARNING: This will replace all data in the '${DB_NAME}' database!`, 'yellow');
       log('Press Ctrl+C to cancel, or Enter to continue...\n');
-      
+
       // Wait for user input (simple timeout approach)
       await new Promise(resolve => {
+
         const readline = require('readline').createInterface({
           input: process.stdin,
           output: process.stdout,
@@ -141,7 +143,7 @@ async function main() {
 
       // Restore each collection
       const files = fs.readdirSync(backupPath).filter(f => f.endsWith('.json') && f !== 'backup-info.json');
-      
+
       for (const file of files) {
         const collectionName = path.basename(file, '.json');
         log(`   Restoring ${collectionName}...`);

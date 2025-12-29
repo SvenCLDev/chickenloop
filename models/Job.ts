@@ -126,6 +126,16 @@ const JobSchema: Schema = new Schema(
   }
 );
 
+// Create indexes for efficient querying
+JobSchema.index({ createdAt: -1 }); // For sorting by creation date
+JobSchema.index({ updatedAt: -1 }); // For sorting by update date
+JobSchema.index({ published: 1, createdAt: -1 }); // Compound index for published jobs sorted by date
+JobSchema.index({ featured: 1, published: 1 }); // For featured published jobs
+JobSchema.index({ recruiter: 1 }); // For recruiter's job queries
+JobSchema.index({ companyId: 1 }); // For company-specific job queries
+JobSchema.index({ country: 1 }); // For country-based filtering
+JobSchema.index({ type: 1 }); // For job type filtering
+
 const Job: Model<IJob> = mongoose.models.Job || mongoose.model<IJob>('Job', JobSchema);
 
 export default Job;

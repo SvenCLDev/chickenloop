@@ -18,7 +18,7 @@ export default function EditJobPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const params = useParams();
-  const jobId = params?.id as string;
+  const jobId = (params?.id as string) || '';
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -72,23 +72,23 @@ export default function EditJobPage() {
     } catch (err: any) {
       // Company might not exist for old jobs, but we'll show the job's company
     }
-    
+
     // Load job and use company's location as fallback if job doesn't have it
     try {
       const data = await jobsApi.getOne(jobId);
       const job = data.job;
-      
+
       // Use job's location if available, otherwise fall back to company's city
       const jobLocation = job.location || '';
       const fallbackLocation = companyData?.address?.city || '';
       const locationToUse = jobLocation || fallbackLocation;
-      
+
       const jobCountryCode = (job as any).country;
       const fallbackCountryCode = companyData?.address?.country;
       const jobCountryName = jobCountryCode ? getCountryNameFromCode(jobCountryCode) : '';
       const fallbackCountryName = fallbackCountryCode ? getCountryNameFromCode(fallbackCountryCode) : '';
       const countryToUse = jobCountryName || fallbackCountryName;
-      
+
       setFormData({
         title: job.title,
         description: job.description,
@@ -118,7 +118,7 @@ export default function EditJobPage() {
   const handlePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const totalPictures = existingPictures.length + selectedPictures.length + files.length;
-    
+
     if (totalPictures > 3) {
       setError('Maximum 3 pictures allowed (including existing ones)');
       return;
@@ -159,10 +159,10 @@ export default function EditJobPage() {
   const removeNewPicture = (index: number) => {
     const newPictures = selectedPictures.filter((_, i) => i !== index);
     const newPreviews = picturePreviews.filter((_, i) => i !== index);
-    
+
     // Revoke the URL to free memory
     URL.revokeObjectURL(picturePreviews[index]);
-    
+
     setSelectedPictures(newPictures);
     setPicturePreviews(newPreviews);
   };
@@ -232,7 +232,7 @@ export default function EditJobPage() {
 
       // Show success modal
       setShowSuccessModal(true);
-      
+
       // Redirect after 3 seconds
       setTimeout(() => {
         router.push('/recruiter');
@@ -384,7 +384,7 @@ export default function EditJobPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Languages Required (Optional)
               </label>
-              
+
               {/* Selected Languages Display */}
               {formData.languages.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2">
@@ -416,7 +416,7 @@ export default function EditJobPage() {
               <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
                 {OFFICIAL_LANGUAGES.map((lang) => {
                   const isSelected = formData.languages.includes(lang);
-                  
+
                   return (
                     <label
                       key={lang}
@@ -445,9 +445,9 @@ export default function EditJobPage() {
                   );
                 })}
               </div>
-              
+
               <p className="text-xs text-gray-500 mt-2">
-                {formData.languages.length > 0 
+                {formData.languages.length > 0
                   ? `${formData.languages.length} language(s) selected`
                   : 'Select languages (tap to select)'}
               </p>
@@ -587,7 +587,7 @@ export default function EditJobPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Required Qualifications (Optional)
               </label>
-              
+
               {/* Selected Qualifications Display */}
               {formData.qualifications.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2">
@@ -626,7 +626,7 @@ export default function EditJobPage() {
                     {/* Qualification Items */}
                     {category.items.map((qual) => {
                       const isSelected = formData.qualifications.includes(qual);
-                      
+
                       return (
                         <label
                           key={qual}
@@ -657,9 +657,9 @@ export default function EditJobPage() {
                   </div>
                 ))}
               </div>
-              
+
               <p className="text-xs text-gray-500 mt-2">
-                {formData.qualifications.length > 0 
+                {formData.qualifications.length > 0
                   ? `${formData.qualifications.length} qualification(s) selected`
                   : 'Select required qualifications (tap to select)'}
               </p>
@@ -736,7 +736,7 @@ export default function EditJobPage() {
             {/* How to Apply Section */}
             <div className="border-t pt-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">How to Apply</h2>
-              
+
               <div className="space-y-4">
                 {/* By Email Checkbox */}
                 <div className="flex items-start">

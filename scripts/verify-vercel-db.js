@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const mongoose = require('mongoose');
 
 // Expected connection string
@@ -18,22 +19,22 @@ async function verifyDatabase() {
     console.log('Expected URI:');
     console.log(EXPECTED_URI.replace(/:[^:@]+@/, ':****@')); // Hide password
     console.log('\n' + '='.repeat(80));
-    
+
     console.log('\nConnecting to MongoDB...');
     await mongoose.connect(EXPECTED_URI);
     console.log('✅ Connected successfully!\n');
-    
+
     // Check users
     const users = await User.find().select('-password').sort({ createdAt: -1 });
     console.log(`📊 Found ${users.length} user(s) in database:\n`);
-    
+
     users.forEach((user, index) => {
       console.log(`${index + 1}. ${user.name} (${user.email})`);
       console.log(`   Role: ${user.role}`);
       console.log(`   Created: ${user.createdAt}`);
       console.log('');
     });
-    
+
     console.log('='.repeat(80));
     console.log('\n✅ Verification Summary:');
     console.log(`   - Database: chickenloop`);
@@ -43,7 +44,7 @@ async function verifyDatabase() {
     console.log('   1. Visit https://cl1-ashen.vercel.app/login');
     console.log(`   2. Try logging in with one of the emails above`);
     console.log('   3. If login works, Vercel is connected to the same database ✅');
-    
+
     await mongoose.disconnect();
     console.log('\n✅ Disconnected from MongoDB\n');
   } catch (error) {

@@ -5,6 +5,7 @@
  * Creates a backup of the local MongoDB database (localhost:27017)
  */
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -46,10 +47,10 @@ async function getCollections(db) {
 async function backupCollection(db, collectionName, backupPath) {
   const collection = db.collection(collectionName);
   const documents = await collection.find({}).toArray();
-  
+
   const filePath = path.join(backupPath, `${collectionName}.json`);
   fs.writeFileSync(filePath, JSON.stringify(documents, null, 2));
-  
+
   return documents.length;
 }
 
@@ -101,23 +102,23 @@ async function main() {
     // Compress the backup
     log('\n📦 Compressing backup...', 'cyan');
     const tarPath = `${BACKUP_PATH}.tar.gz`;
-    
+
     try {
       // Use tar command to compress
       execSync(`cd "${ARCHIVE_DIR}" && tar -czf "${path.basename(tarPath)}" "${BACKUP_NAME}"`, {
         stdio: 'inherit',
       });
-      
+
       // Remove uncompressed directory
       fs.rmSync(BACKUP_PATH, { recursive: true, force: true });
-      
+
       const stats = fs.statSync(tarPath);
       const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-      
+
       log('\n✅ Backup created successfully!', 'green');
       log(`   Location: ${tarPath}`);
       log(`   Size: ${sizeMB} MB`);
-    } catch (tarError) {
+    } catch {
       // If tar fails, keep uncompressed backup
       log('\n⚠️  Could not compress backup', 'yellow');
       log('   Backup saved as uncompressed directory:', 'yellow');

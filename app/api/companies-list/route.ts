@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Company from '@/models/Company';
+import { CachePresets } from '@/lib/cache';
 
 // GET - Get all companies (public endpoint)
 export async function GET(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Clean up social media fields for all companies
+    // Clean up and minimize payload - return only fields needed for list display
     const cleanedCompanies = companies.map((company: any) => {
       let cleanedSocialMedia = company.socialMedia;
       if (cleanedSocialMedia) {
@@ -36,9 +37,9 @@ export async function GET(request: NextRequest) {
           twitter: cleanedSocialMedia.twitter?.trim() || undefined,
         };
         // If all fields are undefined, set to undefined
-        if (!cleanedSocialMedia.facebook && !cleanedSocialMedia.instagram && 
-            !cleanedSocialMedia.tiktok && !cleanedSocialMedia.youtube && 
-            !cleanedSocialMedia.twitter) {
+        if (!cleanedSocialMedia.facebook && !cleanedSocialMedia.instagram &&
+          !cleanedSocialMedia.tiktok && !cleanedSocialMedia.youtube &&
+          !cleanedSocialMedia.twitter) {
           cleanedSocialMedia = undefined;
         }
       }
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
       return {
         id: company._id,
         name: company.name,
-        description: company.description,
+        // description excluded - loaded on detail page
         address: company.address,
         coordinates: company.coordinates,
         website: company.website,
@@ -54,15 +55,22 @@ export async function GET(request: NextRequest) {
         socialMedia: cleanedSocialMedia,
         offeredActivities: company.offeredActivities,
         offeredServices: company.offeredServices,
-        logo: company.logo,
-        pictures: company.pictures,
+        logo: company.logo, // Keep logo for list display
+        // pictures excluded - loaded on detail page
         owner: company.owner,
+        featured: company.featured,
         createdAt: company.createdAt,
         updatedAt: company.updatedAt,
       };
     });
 
-    return NextResponse.json({ companies: cleanedCompanies }, { status: 200 });
+    // Add cache headers - companies can be cached for 5 minutes
+    const cacheHeaders = CachePresets.short();
+
+    return NextResponse.json({ companies: cleanedCompanies }, {
+      status: 200,
+      headers: cacheHeaders,
+    });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
