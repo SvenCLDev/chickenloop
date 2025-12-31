@@ -1,14 +1,37 @@
+/**
+ * CV (Resume/Curriculum Vitae) API Route
+ * 
+ * This endpoint manages CVs for job seekers. Each job seeker can have one CV
+ * that contains their work experience, education, skills, and other professional information.
+ * CVs can be viewed by recruiters when published.
+ * 
+ * @endpoint GET /api/cv - Get current user's CV
+ * @endpoint POST /api/cv - Create a new CV
+ * @endpoint PUT /api/cv - Update existing CV
+ * @endpoint DELETE /api/cv - Delete CV
+ * @access Job Seekers only (role: 'job-seeker')
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import CV from '@/models/CV';
 import { requireRole } from '@/lib/auth';
 
-// GET - Get current user's CV (job seekers only)
+/**
+ * GET handler - Retrieve current user's CV
+ * 
+ * Returns the CV document for the authenticated job seeker.
+ * Uses .lean() for better performance as we're not modifying the document.
+ * 
+ * @returns CV object or 404 if not found
+ */
 export async function GET(request: NextRequest) {
   try {
+    // Verify user is authenticated and has job-seeker role
     const user = requireRole(request, ['job-seeker']);
     await connectDB();
 
+    // Find CV belonging to this user
     const cv = await CV.findOne({ jobSeeker: user.userId }).lean();
 
     if (!cv) {
@@ -31,13 +54,22 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create a new CV (job seekers only)
+/**
+ * POST handler - Create a new CV
+ * 
+ * Creates a new CV for the authenticated job seeker.
+ * Each job seeker can only have one CV - if one exists, returns an error.
+ * 
+ * @requestBody All CV fields (see ICV interface in models/CV.ts)
+ * @returns Created CV object
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Verify user is authenticated and has job-seeker role
     const user = requireRole(request, ['job-seeker']);
     await connectDB();
 
-    // Check if CV already exists
+    // Check if CV already exists for this user
     const existingCV = await CV.findOne({ jobSeeker: user.userId });
     if (existingCV) {
       return NextResponse.json(

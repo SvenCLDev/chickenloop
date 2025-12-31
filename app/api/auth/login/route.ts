@@ -1,9 +1,47 @@
+/**
+ * Authentication Login API Route
+ * 
+ * This endpoint authenticates users and creates a session by issuing a JWT token.
+ * The token is stored in an HTTP-only cookie for security and returned in the response.
+ * 
+ * @endpoint POST /api/auth/login
+ * @access Public
+ * 
+ * @requestBody
+ * {
+ *   email: string;    // User's email address
+ *   password: string; // User's password (will be compared with hashed password)
+ * }
+ * 
+ * @response Success (200)
+ * {
+ *   message: "Login successful",
+ *   user: {
+ *     id: string;
+ *     email: string;
+ *     name: string;
+ *     role: "recruiter" | "job-seeker" | "admin";
+ *   }
+ * }
+ * 
+ * @response Error (400) - Missing credentials
+ * @response Error (401) - Invalid credentials
+ * @response Error (500) - Server/database error
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
 import { generateToken } from '@/lib/jwt';
 
+/**
+ * POST handler for user login
+ * 
+ * Authenticates a user by verifying their email and password,
+ * then generates a JWT token and sets it as an HTTP-only cookie.
+ * Also updates the user's lastOnline timestamp.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Connect to database with explicit error handling
@@ -26,6 +64,7 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = await request.json();
 
+    // Validate required fields
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
@@ -33,6 +72,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
       return NextResponse.json(
@@ -41,6 +81,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verify password using bcrypt
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       return NextResponse.json(
@@ -49,12 +90,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update lastOnline timestamp
+    // Update lastOnline timestamp for analytics
     user.lastOnline = new Date();
     await user.save();
 
+    // Generate JWT token with user information
     const token = generateToken(user);
 
+    // Prepare success response with user data (excluding sensitive fields)
     const response = NextResponse.json(
       {
         message: 'Login successful',
@@ -68,10 +111,11 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
 
+    // Set JWT token as HTTP-only cookie for security
     response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      httpOnly: true, // Prevents JavaScript access to cookie
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      sameSite: 'lax', // CSRF protection
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
