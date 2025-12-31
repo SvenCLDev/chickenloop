@@ -1,3 +1,18 @@
+/**
+ * MongoDB database connection module for Next.js serverless environment
+ * 
+ * This module provides a cached MongoDB connection using Mongoose that's optimized
+ * for serverless environments like Vercel. It maintains a connection pool across
+ * function invocations to improve performance and reduce connection overhead.
+ * 
+ * Key features:
+ * - Connection pooling and reuse across serverless function calls
+ * - Automatic model registration to prevent registration errors
+ * - Different connection strategies for local vs. cloud MongoDB instances
+ * - Stale connection detection and cleanup
+ * - Automatic retry logic for failed connections
+ */
+
 import mongoose from 'mongoose';
 
 // Import all models to ensure they are registered
@@ -17,21 +32,62 @@ if (!process.env.MONGODB_URI) {
 
 const MONGODB_URI = process.env.MONGODB_URI.trim();
 
+/**
+ * Cache structure for storing MongoDB connection across serverless invocations.
+ * Stored in global scope to persist between function calls.
+ */
 interface MongooseCache {
+  /** Active Mongoose connection instance, or null if not connected */
   conn: typeof mongoose | null;
+  /** Promise representing a pending connection attempt, or null if none */
   promise: Promise<typeof mongoose> | null;
 }
 
+/**
+ * Global declaration to store the connection cache.
+ * In serverless environments, the global object persists between invocations
+ * in the same container, allowing connection reuse.
+ */
 declare global {
   var mongoose: MongooseCache | undefined;
 }
 
+/** The cached connection object, stored globally */
 let cached: MongooseCache = global.mongoose || { conn: null, promise: null };
 
 if (!global.mongoose) {
   global.mongoose = cached;
 }
 
+/**
+ * Establishes and manages a connection to MongoDB.
+ * 
+ * This function implements connection pooling optimized for serverless environments:
+ * - Reuses existing connections when available
+ * - Automatically detects and cleans up stale connections
+ * - Configures different timeouts for local vs. cloud databases
+ * - Maintains connection pools to improve performance
+ * 
+ * Connection is cached globally to persist across serverless function invocations
+ * within the same container, significantly improving performance.
+ * 
+ * @returns Promise resolving to the Mongoose instance
+ * @throws Error if MONGODB_URI is not defined
+ * @throws Error if connection fails after retries
+ * 
+ * @example
+ * ```typescript
+ * // In an API route
+ * import connectDB from '@/lib/db';
+ * 
+ * export async function GET() {
+ *   await connectDB();
+ *   // Now you can use Mongoose models
+ *   const users = await User.find();
+ *   return NextResponse.json(users);
+ * }
+ * ```
+ */
 async function connectDB() {
   // Check if connection string is available
   const uri = process.env.MONGODB_URI?.trim() || MONGODB_URI;
@@ -80,20 +136,22 @@ async function connectDB() {
     // Detect if we're using local MongoDB or Atlas
     const isLocal = uri.includes('localhost') || uri.includes('127.0.0.1');
     
+    /**
+     * Connection options optimized for serverless environments.
+     * Different settings are used for local vs. cloud MongoDB instances.
+     */
     const opts = {
-      bufferCommands: false,
+      bufferCommands: false, // Disable buffering in serverless to fail fast
       serverSelectionTimeoutMS: isLocal ? 5000 : 10000, // Faster for local
       socketTimeoutMS: isLocal ? 30000 : 60000, // Shorter for local
       connectTimeoutMS: isLocal ? 5000 : 10000, // Faster for local
       maxPoolSize: isLocal ? 15 : 10, // More connections for local (increased from 10)
       minPoolSize: isLocal ? 3 : 1, // Maintain more connections for local (increased from 2)
       maxIdleTimeMS: isLocal ? 30000 : 10000, // Longer for local
-      retryWrites: true,
-      retryReads: true,
-      // Use direct connection for local MongoDB
-      directConnection: isLocal ? true : false,
-      // Compression for better network performance
-      compressors: ['zlib' as const],
+      retryWrites: true, // Automatically retry write operations
+      retryReads: true, // Automatically retry read operations
+      directConnection: isLocal ? true : false, // Use direct connection for local MongoDB
+      compressors: ['zlib' as const], // Compression for better network performance
       // Note: maxTimeMS is a query option, not a connection option
       // It should be set on individual queries, not here
     };

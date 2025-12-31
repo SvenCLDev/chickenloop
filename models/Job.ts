@@ -1,34 +1,104 @@
+/**
+ * Job listing model for the watersports industry
+ * 
+ * This model represents job postings in the ChickenLoop platform.
+ * Jobs are created by recruiters and can be browsed by job seekers.
+ * Each job can be associated with a company and includes details about
+ * the position, requirements, and application methods.
+ * 
+ * @module models/Job
+ */
+
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+/**
+ * Job document interface extending Mongoose Document.
+ * Represents a job listing in the watersports industry.
+ */
 export interface IJob extends Document {
+  /** Job title/position name */
   title: string;
+  
+  /** Full job description (can include HTML or markdown) */
   description: string;
+  
+  /** Company name (string field for legacy compatibility) */
   company: string;
+  
+  /** Job location (city/region) */
   location: string;
+  
+  /** Country where the job is located (optional) */
   country?: string | null;
+  
+  /** Salary range or details (optional, free text) */
   salary?: string;
+  
+  /** Employment type */
   type: 'full-time' | 'part-time' | 'contract' | 'freelance';
+  
+  /** Reference to the User (recruiter) who posted this job */
   recruiter: mongoose.Types.ObjectId;
+  
+  /** Reference to the Company this job belongs to (optional) */
   companyId?: mongoose.Types.ObjectId;
+  
+  /** Required or preferred languages for the job */
   languages?: string[];
+  
+  /** Required or preferred qualifications */
   qualifications?: string[];
+  
+  /** Related watersports activities (e.g., surfing, diving, sailing) */
   sports?: string[];
+  
+  /** Job categories/occupational areas (e.g., instructor, management) */
   occupationalAreas?: string[];
+  
+  /** URLs to job-related images (stored in Blob Storage) */
   pictures?: string[];
+  
+  /** Spam flag set by admins or automated systems */
   spam?: 'yes' | 'no';
+  
+  /** Whether the job is publicly visible (defaults to true) */
   published?: boolean;
+  
+  /** Whether the job is featured/highlighted (premium listing) */
   featured?: boolean;
+  
+  /** Number of times this job has been viewed */
   visitCount?: number;
+  
+  /** Whether applicants can apply via email */
   applyByEmail?: boolean;
+  
+  /** Whether applicants can apply via website */
   applyByWebsite?: boolean;
+  
+  /** Whether applicants can apply via WhatsApp */
   applyByWhatsApp?: boolean;
+  
+  /** Email address for job applications (if applyByEmail is true) */
   applicationEmail?: string;
+  
+  /** Website URL for job applications (if applyByWebsite is true) */
   applicationWebsite?: string;
+  
+  /** WhatsApp number for job applications (if applyByWhatsApp is true) */
   applicationWhatsApp?: string;
+  
+  /** Auto-generated timestamp of when the job was created */
   createdAt: Date;
+  
+  /** Auto-generated timestamp of when the job was last updated */
   updatedAt: Date;
 }
 
+/**
+ * Mongoose schema for Job documents.
+ * Defines the structure, validation, and default values for job listings.
+ */
 const JobSchema: Schema = new Schema(
   {
     title: {
@@ -61,12 +131,12 @@ const JobSchema: Schema = new Schema(
     },
     recruiter: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'User', // References the User who created this job
       required: true,
     },
     companyId: {
       type: Schema.Types.ObjectId,
-      ref: 'Company',
+      ref: 'Company', // References the associated Company (optional)
     },
     languages: [{
       type: String,
@@ -81,7 +151,7 @@ const JobSchema: Schema = new Schema(
       type: String,
     }],
     pictures: [{
-      type: String,
+      type: String, // URLs to images stored in Vercel Blob Storage
     }],
     spam: {
       type: String,
@@ -89,15 +159,15 @@ const JobSchema: Schema = new Schema(
     },
     published: {
       type: Boolean,
-      default: true,
+      default: true, // Jobs are published by default
     },
     featured: {
       type: Boolean,
-      default: false,
+      default: false, // Premium feature, off by default
     },
     visitCount: {
       type: Number,
-      default: 0,
+      default: 0, // Incremented each time someone views the job
     },
     applyByEmail: {
       type: Boolean,
@@ -122,7 +192,7 @@ const JobSchema: Schema = new Schema(
     },
   },
   {
-    timestamps: true,
+    timestamps: true, // Automatically add createdAt and updatedAt fields
   }
 );
 
@@ -136,6 +206,10 @@ JobSchema.index({ companyId: 1 }); // For company-specific job queries
 JobSchema.index({ country: 1 }); // For country-based filtering
 JobSchema.index({ type: 1 }); // For job type filtering
 
+/**
+ * Job model for database operations.
+ * In serverless environments, uses cached model if available to prevent recompilation errors.
+ */
 const Job: Model<IJob> = mongoose.models.Job || mongoose.model<IJob>('Job', JobSchema);
 
 export default Job;
