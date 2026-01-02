@@ -231,7 +231,7 @@ export default function HomePageContent() {
         
         {/* Featured Jobs Section */}
         {featuredJobs.length > 0 && (
-          <section className="bg-white py-12 sm:py-16">
+          <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <SectionHeader
                 title="Featured Jobs"
@@ -257,7 +257,7 @@ export default function HomePageContent() {
         )}
         
         {/* Featured Companies Section */}
-        <section className="bg-white py-12 sm:py-16">
+        <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <SectionHeader title="Featured Companies" />
             
@@ -280,7 +280,7 @@ export default function HomePageContent() {
         </section>
         
         {/* Latest Jobs Section */}
-        <section className="bg-gray-50 py-12 sm:py-16">
+        <section className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <SectionHeader
               title="Latest Jobs"
@@ -314,7 +314,7 @@ export default function HomePageContent() {
         
         {/* Top Candidates Section - Only visible to recruiters and admins */}
         {user && (user.role === 'recruiter' || user.role === 'admin') && (
-          <section className="bg-gray-50 py-12 sm:py-16">
+          <section className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <SectionHeader title="Top Candidates" />
               

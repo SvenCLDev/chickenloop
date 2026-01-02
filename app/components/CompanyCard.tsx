@@ -38,8 +38,30 @@ export default function CompanyCard({ company }: CompanyCardProps) {
       {/* Company Picture */}
       <div className="w-full h-36 sm:h-40 bg-gray-200 overflow-hidden relative">
         {company.pictures && company.pictures.length > 0 ? (
+          <>
+            <Image
+              src={company.pictures[0]}
+              alt={company.name}
+              fill
+              className="object-cover transition-transform duration-300 hover:scale-110"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            />
+            {/* Logo overlay in top right corner */}
+            {company.logo && (
+              <div className="absolute top-2 right-2 w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-lg shadow-md p-1.5 flex items-center justify-center z-10">
+                <Image
+                  src={company.logo}
+                  alt={`${company.name} logo`}
+                  width={56}
+                  height={56}
+                  className="object-contain w-full h-full"
+                />
+              </div>
+            )}
+          </>
+        ) : company.logo ? (
           <Image
-            src={company.pictures[0]}
+            src={company.logo}
             alt={company.name}
             fill
             className="object-cover transition-transform duration-300 hover:scale-110"
