@@ -8,7 +8,7 @@ import { cvApi } from '@/lib/api';
 import { SPORTS_LIST } from '@/lib/sports';
 import { QUALIFICATIONS } from '@/lib/qualifications';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
-import { OCCUPATIONAL_AREAS } from '@/lib/occupationalAreas';
+import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 
 export default function NewCVPage() {
   const { user, loading: authLoading } = useAuth();
@@ -384,7 +384,7 @@ export default function NewCVPage() {
                 </div>
               )}
               <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
-                {OCCUPATIONAL_AREAS.map((area) => {
+                {JOB_CATEGORIES.map((area) => {
                   const isSelected = formData.lookingForWorkInAreas.includes(area);
                   return (
                     <label

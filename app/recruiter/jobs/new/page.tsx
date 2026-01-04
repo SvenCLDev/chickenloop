@@ -12,7 +12,7 @@ import {
   normalizeCountryForStorage,
 } from '@/lib/countryUtils';
 import { SPORTS_LIST } from '@/lib/sports';
-import { OCCUPATIONAL_AREAS } from '@/lib/occupationalAreas';
+import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import Link from 'next/link';
 
 export default function NewJobPage() {
@@ -366,65 +366,29 @@ export default function NewJobPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Job Category (Optional)
+                <label htmlFor="occupationalAreas" className="block text-sm font-medium text-gray-700 mb-2">
+                  Job Category <span className="text-red-500">*</span>
                 </label>
-                {formData.occupationalAreas.length > 0 && (
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    {formData.occupationalAreas.map((area) => (
-                      <span
-                        key={area}
-                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800"
-                      >
-                        {area}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFormData({
-                              ...formData,
-                              occupationalAreas: formData.occupationalAreas.filter((a) => a !== area),
-                            });
-                          }}
-                          className="ml-2 text-purple-600 hover:text-purple-800"
-                          aria-label={`Remove ${area}`}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
-                  {OCCUPATIONAL_AREAS.map((area) => {
-                    const isSelected = formData.occupationalAreas.includes(area);
-                    return (
-                      <label
-                        key={area}
-                        className="flex items-center py-2 px-2 rounded hover:bg-gray-50 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFormData({
-                                ...formData,
-                                occupationalAreas: [...formData.occupationalAreas, area],
-                              });
-                            } else {
-                              setFormData({
-                                ...formData,
-                                occupationalAreas: formData.occupationalAreas.filter((a) => a !== area),
-                              });
-                            }
-                          }}
-                          className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <span className="text-sm text-gray-900">{area}</span>
-                      </label>
-                    );
-                  })}
-                </div>
+                <select
+                  id="occupationalAreas"
+                  value={formData.occupationalAreas[0] || ''}
+                  onChange={(e) => {
+                    const selectedCategory = e.target.value;
+                    setFormData({
+                      ...formData,
+                      occupationalAreas: selectedCategory ? [selectedCategory] : [],
+                    });
+                  }}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                >
+                  <option value="">Select a category</option>
+                  {JOB_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

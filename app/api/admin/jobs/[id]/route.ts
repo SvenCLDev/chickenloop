@@ -4,6 +4,7 @@ import Job from '@/models/Job';
 import Company from '@/models/Company';
 import { requireRole } from '@/lib/auth';
 import { createDeleteAuditLog } from '@/lib/audit';
+import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 
 // GET - Get a single job (admin only)
 export async function GET(
@@ -80,6 +81,18 @@ export async function PUT(
       job.sports = sports || [];
     }
     if (occupationalAreas !== undefined) {
+      // Validate job categories - ensure all categories are in JOB_CATEGORIES
+      if (Array.isArray(occupationalAreas)) {
+        const invalidCategories = occupationalAreas.filter(
+          (category: string) => !JOB_CATEGORIES.includes(category as any)
+        );
+        if (invalidCategories.length > 0) {
+          return NextResponse.json(
+            { message: 'Invalid job category' },
+            { status: 400 }
+          );
+        }
+      }
       job.occupationalAreas = occupationalAreas || [];
     }
 

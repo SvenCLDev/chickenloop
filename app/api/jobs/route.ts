@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 import { CachePresets } from '@/lib/cache';
 import { parseJobSearchParams } from '@/lib/jobSearchParams';
 import { getCountryCodeFromName } from '@/lib/countryUtils';
+import { JOB_CATEGORIES, categorySlugToLabel } from '@/src/constants/jobCategories';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 export async function GET(request: NextRequest) {
@@ -428,6 +429,19 @@ export async function POST(request: NextRequest) {
         { error: 'Maximum 3 pictures allowed' },
         { status: 400 }
       );
+    }
+
+    // Validate job categories - ensure all categories are in JOB_CATEGORIES
+    if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
+      const invalidCategories = occupationalAreas.filter(
+        (category: string) => !JOB_CATEGORIES.includes(category as any)
+      );
+      if (invalidCategories.length > 0) {
+        return NextResponse.json(
+          { message: 'Invalid job category' },
+          { status: 400 }
+        );
+      }
     }
 
     // Normalize country: trim and uppercase, or set to null if empty

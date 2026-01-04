@@ -11,27 +11,31 @@
  * - keyword (string): Search term matching job title, description, or company name
  * - location (string): Location/city name for job location filtering
  * - country (string): ISO 3166-1 alpha-2 country code (e.g., 'US', 'GB', 'FR')
- * - category (string): Job category/occupational area filter
+ * - category (string): Job category slug (lowercase URL-safe value, maps to JOB_CATEGORIES)
  * - activity (string): Sports/activities filter (maps to 'sport' field in Job model)
  * - language (string): Required language filter
  * 
  * Usage:
  *   import { JobSearchParams, parseJobSearchParams, buildJobSearchQuery } from '@/lib/jobSearchParams';
  * 
- *   // Parse URL search params
+ *   // Parse URL search params (category slugs are converted to labels)
  *   const params = parseJobSearchParams(searchParams);
  * 
- *   // Build URL query string
+ *   // Build URL query string (category labels are converted to slugs)
  *   const queryString = buildJobSearchQuery(params);
  * 
  * Migration Note:
  * - The 'activity' parameter maps to the 'sport' field in the Job model
  * - Existing code may use 'sport' in URLs - this should be migrated to 'activity' for consistency
+ * - Category parameter uses slugs in URLs (lowercase), but labels (canonical) in API/database
  */
+
+import { categoryLabelToSlug, categorySlugToLabel } from '@/src/constants/jobCategories';
 
 /**
  * Canonical job search parameters interface
  * These parameters represent the complete state of a job search
+ * Note: category is stored as a label (canonical) in this interface, but converted to/from slug in URLs
  */
 export interface JobSearchParams {
   /** Search term matching job title, description, or company name */
@@ -43,7 +47,7 @@ export interface JobSearchParams {
   /** ISO 3166-1 alpha-2 country code (e.g., 'US', 'GB', 'FR') */
   country?: string;
   
-  /** Job category/occupational area filter */
+  /** Job category label (canonical value from JOB_CATEGORIES) - converted to/from slug in URLs */
   category?: string;
   
   /** Sports/activities filter (maps to 'sport' field in Job model) */
@@ -75,7 +79,13 @@ export function parseJobSearchParams(searchParams: URLSearchParams | ReadonlyURL
   if (country) params.country = decodeURIComponent(country);
   
   const category = searchParams.get('category');
-  if (category) params.category = decodeURIComponent(category);
+  if (category) {
+    // Convert slug to label for internal use
+    const label = categorySlugToLabel(decodeURIComponent(category));
+    if (label) {
+      params.category = label;
+    }
+  }
   
   const activity = searchParams.get('activity');
   if (activity) params.activity = decodeURIComponent(activity);
@@ -111,7 +121,9 @@ export function buildJobSearchQuery(params: JobSearchParams): string {
   }
   
   if (params.category) {
-    queryParts.push(`category=${encodeURIComponent(params.category)}`);
+    // Convert label to slug for URL
+    const slug = categoryLabelToSlug(params.category);
+    queryParts.push(`category=${encodeURIComponent(slug)}`);
   }
   
   if (params.activity) {

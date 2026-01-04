@@ -7,6 +7,7 @@ import Navbar from '../components/Navbar';
 import { jobsApi, savedSearchesApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { parseJobSearchParams, buildJobSearchQuery, buildJobSearchUrl, type JobSearchParams } from '@/lib/jobSearchParams';
+import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
 
@@ -267,20 +268,24 @@ function JobsPageContent() {
     return countries;
   };
 
-  // Get unique job categories from filtered jobs (only show available options)
-  const getUniqueCategories = (): string[] => {
-    const categorySet = new Set<string>();
+  // Get job categories from canonical source (JOB_CATEGORIES)
+  // Filter to only show categories that exist in the current job results
+  const getAvailableCategories = (): string[] => {
+    const availableCategories = new Set<string>();
 
     jobs.forEach((job) => {
       if (job.occupationalAreas && job.occupationalAreas.length > 0) {
         job.occupationalAreas.forEach((category) => {
-          categorySet.add(category);
+          // Only include categories that are in JOB_CATEGORIES (skip old/invalid values)
+          if (JOB_CATEGORIES.includes(category as any)) {
+            availableCategories.add(category);
+          }
         });
       }
     });
 
-    // Convert to array and sort alphabetically
-    return Array.from(categorySet).sort();
+    // Convert to array, filter to JOB_CATEGORIES, and sort alphabetically
+    return JOB_CATEGORIES.filter(cat => availableCategories.has(cat));
   };
 
   // Get unique sports/activities from filtered jobs (only show available options)
@@ -637,7 +642,7 @@ function JobsPageContent() {
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
                     >
                       <option value="">All Categories</option>
-                      {getUniqueCategories().map((category) => (
+                      {getAvailableCategories().map((category) => (
                         <option key={category} value={category}>
                           {category}
                         </option>

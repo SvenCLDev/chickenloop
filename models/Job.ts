@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 
 export interface IJob extends Document {
   title: string;
@@ -79,6 +80,7 @@ const JobSchema: Schema = new Schema(
     }],
     occupationalAreas: [{
       type: String,
+      enum: [...JOB_CATEGORIES],
     }],
     pictures: [{
       type: String,

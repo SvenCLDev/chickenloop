@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { jobsApi } from '@/lib/api';
+import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { useAuth } from '../contexts/AuthContext';
 import Navbar from './Navbar';
 import JobCard from './JobCard';
@@ -161,20 +162,24 @@ export default function HomePageContent() {
   };
 
 
-  // Get unique job categories from all jobs (same logic as jobs page)
-  const getUniqueCategories = () => {
-    const categorySet = new Set();
+  // Get job categories from canonical source (JOB_CATEGORIES)
+  // Filter to only show categories that exist in the loaded jobs
+  const getAvailableCategories = () => {
+    const availableCategories = new Set();
     
     allJobs.forEach((job) => {
       if (job.occupationalAreas && job.occupationalAreas.length > 0) {
         job.occupationalAreas.forEach((category) => {
-          categorySet.add(category);
+          // Only include categories that are in JOB_CATEGORIES (skip old/invalid values)
+          if (JOB_CATEGORIES.includes(category)) {
+            availableCategories.add(category);
+          }
         });
       }
     });
 
-    // Convert to array and sort alphabetically
-    return Array.from(categorySet).sort();
+    // Convert to array, filter to JOB_CATEGORIES, and sort alphabetically
+    return JOB_CATEGORIES.filter(cat => availableCategories.has(cat));
   };
 
   return (
@@ -222,7 +227,7 @@ export default function HomePageContent() {
           keyword={keyword}
           location={location}
           category={category}
-          categories={getUniqueCategories()}
+          categories={getAvailableCategories()}
           categoriesLoading={categoriesLoading}
           onKeywordChange={setKeyword}
           onLocationChange={setLocation}

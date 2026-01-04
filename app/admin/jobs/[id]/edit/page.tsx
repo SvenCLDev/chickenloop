@@ -12,7 +12,7 @@ import {
   normalizeCountryForStorage,
 } from '@/lib/countryUtils';
 import { SPORTS_LIST } from '@/lib/sports';
-import { OCCUPATIONAL_AREAS } from '@/lib/occupationalAreas';
+import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import Link from 'next/link';
 
 export default function AdminEditJobPage() {
@@ -477,7 +477,7 @@ export default function AdminEditJobPage() {
               )}
 
               <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
-                {OCCUPATIONAL_AREAS.map((area) => {
+                {JOB_CATEGORIES.map((area) => {
                   const isSelected = formData.occupationalAreas.includes(area);
                   return (
                     <label

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import { requireAuth, requireRole } from '@/lib/auth';
+import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 
 // GET - Get a single job (accessible to all users, including anonymous)
 export async function GET(
@@ -87,6 +88,19 @@ export async function PUT(
     }
 
     const { title, description, company, location, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, published, featured, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = await request.json();
+
+    // Validate job categories - ensure all categories are in JOB_CATEGORIES
+    if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
+      const invalidCategories = occupationalAreas.filter(
+        (category: string) => !JOB_CATEGORIES.includes(category as any)
+      );
+      if (invalidCategories.length > 0) {
+        return NextResponse.json(
+          { message: 'Invalid job category' },
+          { status: 400 }
+        );
+      }
+    }
 
     if (title) job.title = title;
     if (description) job.description = description;
