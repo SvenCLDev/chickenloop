@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { buildJobSearchUrl, type JobSearchParams } from '@/lib/jobSearchParams';
 
 interface SearchBarProps {
   keyword: string;
@@ -28,15 +29,15 @@ export default function SearchBar({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Build query parameters - only include non-empty values
-    const params = new URLSearchParams();
-    if (keyword.trim()) params.set('keyword', keyword.trim());
-    if (location.trim()) params.set('location', location.trim());
-    if (category.trim()) params.set('category', category.trim());
+    // Build query parameters using canonical utility - only include non-empty values
+    const params: JobSearchParams = {};
+    if (keyword.trim()) params.keyword = keyword.trim();
+    if (location.trim()) params.location = location.trim(); // Semantic location search
+    if (category.trim()) params.category = category.trim();
     
-    // Build URL with query string
-    const queryString = params.toString();
-    const jobsUrl = queryString ? `/jobs?${queryString}` : '/jobs';
+    // Build URL with query string using canonical utility
+    // This ensures consistent parameter handling across the app
+    const jobsUrl = buildJobSearchUrl('/jobs', params);
     
     // Redirect to /jobs with query parameters
     router.push(jobsUrl);
@@ -75,7 +76,7 @@ export default function SearchBar({
                 id="location"
                 value={location}
                 onChange={(e) => onLocationChange(e.target.value)}
-                placeholder="City, Country..."
+                placeholder="City or country"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 shadow-sm transition-shadow"
               />
             </div>

@@ -110,6 +110,7 @@ function JobsPageContent() {
   const [selectedCategory, setSelectedCategory] = useState<string>(urlParams?.category || '');
   const [selectedActivity, setSelectedActivity] = useState<string>(activityValue);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(urlParams?.language || '');
+  const [selectedCity, setSelectedCity] = useState<string>(urlParams?.city || '');
   const [keyword, setKeyword] = useState<string>(urlParams?.keyword || '');
   const [location, setLocation] = useState<string>(urlParams?.location || '');
   
@@ -153,6 +154,7 @@ function JobsPageContent() {
     setSelectedCategory(urlParams.category || '');
     setSelectedActivity(activityValue);
     setSelectedLanguage(urlParams.language || '');
+    setSelectedCity(urlParams.city || '');
     
     // Also update search bar inputs to stay in sync with URL
     setSearchKeyword(urlParams.keyword || '');
@@ -183,7 +185,7 @@ function JobsPageContent() {
     loadJobs();
     // Reset to page 1 when filters change
     setCurrentPage(1);
-  }, [selectedCountry, selectedCategory, selectedActivity, selectedLanguage, keyword, location]);
+  }, [selectedCountry, selectedCategory, selectedActivity, selectedLanguage, selectedCity, keyword, location]);
 
   const loadJobs = async () => {
     try {
@@ -210,6 +212,7 @@ function JobsPageContent() {
       if (selectedCategory) params.set('category', selectedCategory);
       if (selectedActivity) params.set('activity', selectedActivity);
       if (selectedLanguage) params.set('language', selectedLanguage);
+      if (selectedCity) params.set('city', selectedCity);
       
       const queryString = params.toString();
       const endpoint = queryString ? `/jobs?${queryString}` : '/jobs';
@@ -312,13 +315,33 @@ function JobsPageContent() {
     return Array.from(languageSet).sort();
   };
 
+  // Get unique cities from filtered jobs (only show available options)
+  const getUniqueCities = (): string[] => {
+    const citySet = new Set<string>();
+
+    jobs.forEach((job) => {
+      // Extract city from location field (assuming location contains city name)
+      // If location.city exists in the data, use that; otherwise use location field
+      if (job.location && job.location.trim()) {
+        const city = job.location.trim();
+        if (city) {
+          citySet.add(city);
+        }
+      }
+    });
+
+    // Convert to array and sort alphabetically
+    return Array.from(citySet).sort();
+  };
+
   // Handler to update filter and URL
-  const handleFilterChange = (filterType: 'country' | 'category' | 'activity' | 'language', value: string) => {
+  const handleFilterChange = (filterType: 'country' | 'category' | 'activity' | 'language' | 'city', value: string) => {
     // Update local state
     if (filterType === 'country') setSelectedCountry(value);
     if (filterType === 'category') setSelectedCategory(value);
     if (filterType === 'activity') setSelectedActivity(value);
     if (filterType === 'language') setSelectedLanguage(value);
+    if (filterType === 'city') setSelectedCity(value);
 
     // Build clean URL params using canonical utility
     const currentParams = searchParams ? parseJobSearchParams(searchParams) : {};
@@ -339,6 +362,10 @@ function JobsPageContent() {
     if (filterType === 'language') {
       if (value) newParams.language = value;
       else delete newParams.language;
+    }
+    if (filterType === 'city') {
+      if (value) newParams.city = value;
+      else delete newParams.city;
     }
 
     const newUrl = buildJobSearchUrl('/jobs', newParams);
@@ -383,6 +410,7 @@ function JobsPageContent() {
     setSelectedCategory('');
     setSelectedActivity('');
     setSelectedLanguage('');
+    setSelectedCity('');
     setCurrentPage(1);
 
     // Navigate to /jobs with no query parameters
@@ -408,6 +436,7 @@ function JobsPageContent() {
         category: selectedCategory || undefined,
         activity: selectedActivity || undefined,
         language: selectedLanguage || undefined,
+        city: selectedCity || undefined,
         frequency: saveSearchFrequency,
         active: true,
       });
@@ -486,7 +515,7 @@ function JobsPageContent() {
                   id="search-location"
                   value={searchLocation}
                   onChange={(e) => setSearchLocation(e.target.value)}
-                  placeholder="Location"
+                  placeholder="City or country"
                   className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                 />
               </div>
@@ -553,6 +582,39 @@ function JobsPageContent() {
                         onClick={() => handleFilterChange('country', '')}
                         className="text-gray-400 hover:text-gray-600"
                         aria-label="Clear country filter"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* City Filter */}
+                <div>
+                  <label htmlFor="city-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                    City
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      id="city-filter"
+                      value={selectedCity}
+                      onChange={(e) => handleFilterChange('city', e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                    >
+                      <option value="">All Cities</option>
+                      {getUniqueCities().map((city) => (
+                        <option key={city} value={city}>
+                          {city}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedCity && (
+                      <button
+                        onClick={() => handleFilterChange('city', '')}
+                        className="text-gray-400 hover:text-gray-600"
+                        aria-label="Clear city filter"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -685,7 +747,7 @@ function JobsPageContent() {
                   </h1>
                 </div>
                 {/* Save Search Button - Only for job seekers */}
-                {user && user.role === 'job-seeker' && (keyword || location || selectedCountry || selectedCategory || selectedActivity || selectedLanguage) && (
+                {user && user.role === 'job-seeker' && (keyword || location || selectedCountry || selectedCategory || selectedActivity || selectedLanguage || selectedCity) && (
                   <button
                     onClick={() => setShowSaveSearchModal(true)}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 whitespace-nowrap"
@@ -706,7 +768,7 @@ function JobsPageContent() {
             )}
 
             {/* Active Filter Chips */}
-            {(keyword || location || selectedCountry || selectedCategory || selectedActivity || selectedLanguage) && (
+            {(keyword || location || selectedCountry || selectedCategory || selectedActivity || selectedLanguage || selectedCity) && (
               <div className="mb-4">
                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center sm:justify-between">
                   <div className="flex flex-wrap gap-2 items-center">
@@ -787,6 +849,20 @@ function JobsPageContent() {
                         onClick={() => handleFilterChange('language', '')}
                         className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
                         aria-label="Remove language filter"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  {selectedCity && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                      <span>City: <strong>{selectedCity}</strong></span>
+                      <button
+                        onClick={() => handleFilterChange('city', '')}
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        aria-label="Remove city filter"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1016,7 +1092,8 @@ function JobsPageContent() {
                     {selectedCategory && <li>• Category: <strong>{selectedCategory}</strong></li>}
                     {selectedActivity && <li>• Activity: <strong>{selectedActivity}</strong></li>}
                     {selectedLanguage && <li>• Language: <strong>{selectedLanguage}</strong></li>}
-                    {!keyword && !location && !selectedCountry && !selectedCategory && !selectedActivity && !selectedLanguage && (
+                    {selectedCity && <li>• City: <strong>{selectedCity}</strong></li>}
+                    {!keyword && !location && !selectedCountry && !selectedCategory && !selectedActivity && !selectedLanguage && !selectedCity && (
                       <li className="text-gray-500">No filters applied</li>
                     )}
                   </ul>

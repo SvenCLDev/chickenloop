@@ -6,6 +6,7 @@ import { requireAuth, requireRole } from '@/lib/auth';
 import mongoose from 'mongoose';
 import { CachePresets } from '@/lib/cache';
 import { parseJobSearchParams } from '@/lib/jobSearchParams';
+import { getCountryCodeFromName } from '@/lib/countryUtils';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 export async function GET(request: NextRequest) {
@@ -56,6 +57,7 @@ export async function GET(request: NextRequest) {
       category: filters.category || null,
       activity: activityValue || null,
       language: filters.language || null,
+      city: filters.city || null,
       featured: featured || null,
     });
 
@@ -90,10 +92,129 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Location filter: city-based search (case-insensitive partial match)
+    // Location filter: semantic search against location (city) and country fields (OR logic)
+    // This is the top search bar - searches both location (city) and country fields semantically
+    // Can be used together with city filter: when both are present, location search only checks country field
     if (filters.location) {
-      const locationRegex = new RegExp(filters.location.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      queryFilter.location = locationRegex;
+      // Safety guards: trim whitespace and validate minimum length
+      const trimmedLocation = filters.location.trim();
+      
+      // Ignore input shorter than 2 characters to avoid expensive unindexed scans
+      // Also limit maximum length to prevent regex DoS attacks
+      if (trimmedLocation.length < 2 || trimmedLocation.length > 100) {
+        // Skip location filter if too short or too long
+        // This prevents expensive regex scans on unindexed fields
+      } else {
+        // Safely escape regex special characters to prevent regex injection
+        const escapedLocation = trimmedLocation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const locationRegex = new RegExp(escapedLocation, 'i');
+        
+        // Build location OR conditions: always search both location (city) and country fields
+        // Both fields are indexed, so these queries will use indexes efficiently
+        const locationOr: any[] = [
+          { location: locationRegex }, // Search in city name (semantic/partial match) - uses location index
+          { country: locationRegex }    // Search in country code (partial match) - uses country index
+        ];
+        
+        // Also try to convert location search term to country code and search for that
+        // This handles cases where user searches "Spain" but DB has "ES"
+        const countryCode = getCountryCodeFromName(trimmedLocation);
+        if (countryCode) {
+          // Add exact match for country code (case-insensitive)
+          // Country code is already safe (2 letters), but escape for consistency
+          const escapedCode = countryCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const countryCodeRegex = new RegExp(`^${escapedCode}$`, 'i');
+          locationOr.push({ country: countryCodeRegex });
+        }
+        
+        // If keyword filter already exists, we need to use $and to combine both conditions
+        if (queryFilter.$or && filters.keyword) {
+          // Both keyword and location filters exist - combine with $and
+          // Result: (keyword matches) AND (location OR country matches)
+          const keywordOr = queryFilter.$or;
+          delete queryFilter.$or;
+          queryFilter.$and = [
+            { $or: keywordOr },
+            { $or: locationOr }
+          ];
+        } else {
+          // Only location filter (or location + other non-$or filters) - use $or directly
+          queryFilter.$or = locationOr;
+        }
+      }
+    }
+
+    // City filter: exact match (case-insensitive) on location field ONLY
+    // This is the sidebar filter - provides precise city filtering
+    // When combined with location search: (location = exact city) AND (country matches location search)
+    // When used alone: (location = exact city)
+    if (filters.city) {
+      // Safety guards: trim whitespace and validate minimum length
+      const trimmedCity = filters.city.trim();
+      
+      // Ignore input shorter than 2 characters to avoid expensive unindexed scans
+      // Also limit maximum length to prevent regex DoS attacks
+      if (trimmedCity.length < 2 || trimmedCity.length > 100) {
+        // Skip city filter if too short or too long
+        // This prevents expensive regex scans
+      } else {
+        // Safely escape regex special characters to prevent regex injection
+        // Use case-insensitive exact match for location field (which contains city name)
+        const cityRegex = new RegExp(`^${trimmedCity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+      
+      // If location search is also present, combine with AND logic
+      // Result: (location matches city exactly) AND (country matches location search)
+      if (filters.location) {
+        // Location search is present - rebuild it to only check country field (not location)
+        // Since city filter already constrains location, location search should only match country
+        const escapedLocation = filters.location.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const locationRegex = new RegExp(escapedLocation, 'i');
+        
+        // Build country-only search conditions
+        const countryOnlyOr: any[] = [
+          { country: locationRegex } // Search in country code (partial match)
+        ];
+        
+        // Also try to convert location search term to country code and search for that
+        const countryCode = getCountryCodeFromName(filters.location);
+        if (countryCode) {
+          const escapedCode = countryCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const countryCodeRegex = new RegExp(`^${escapedCode}$`, 'i');
+          countryOnlyOr.push({ country: countryCodeRegex });
+        }
+        
+        // Check if location search $or is at top level or already in $and (from keyword combination)
+        if (queryFilter.$or) {
+          // Location search created $or at top level - replace it with country-only search
+          delete queryFilter.$or;
+          
+          queryFilter.$and = queryFilter.$and || [];
+          queryFilter.$and.push({ location: cityRegex });
+          queryFilter.$and.push({ $or: countryOnlyOr });
+        } else if (queryFilter.$and) {
+          // Location search is already in $and (combined with keyword)
+          // Find and replace the location search $or condition with country-only version
+          const andIndex = queryFilter.$and.findIndex((condition: any) => condition.$or);
+          if (andIndex !== -1) {
+            // Replace the location search $or with country-only version
+            queryFilter.$and[andIndex] = { $or: countryOnlyOr };
+          }
+          queryFilter.$and.push({ location: cityRegex });
+        } else {
+          // Should not happen if location search was processed, but handle it
+          queryFilter.$and = [
+            { location: cityRegex },
+            { $or: countryOnlyOr }
+          ];
+        }
+      } else if (queryFilter.$and) {
+        // Other AND conditions exist (e.g., from keyword filter)
+        queryFilter.$and.push({ location: cityRegex });
+      } else {
+        // No location search - just apply city filter directly
+        queryFilter.location = cityRegex;
+      }
+      }
     }
 
     // Country filter: exact match (normalized to uppercase, as stored in DB)

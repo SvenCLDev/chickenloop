@@ -37,7 +37,7 @@ export interface JobSearchParams {
   /** Search term matching job title, description, or company name */
   keyword?: string;
   
-  /** Location/city name for job location filtering */
+  /** Semantic location search - searches both city (location field) and country fields with OR logic */
   location?: string;
   
   /** ISO 3166-1 alpha-2 country code (e.g., 'US', 'GB', 'FR') */
@@ -51,6 +51,9 @@ export interface JobSearchParams {
   
   /** Required language filter */
   language?: string;
+  
+  /** Exact city filter - case-insensitive exact match on location field. Can be used together with location parameter. */
+  city?: string;
 }
 
 /**
@@ -79,6 +82,9 @@ export function parseJobSearchParams(searchParams: URLSearchParams | ReadonlyURL
   
   const language = searchParams.get('language');
   if (language) params.language = decodeURIComponent(language);
+  
+  const city = searchParams.get('city');
+  if (city) params.city = decodeURIComponent(city);
   
   return params;
 }
@@ -116,6 +122,10 @@ export function buildJobSearchQuery(params: JobSearchParams): string {
     queryParts.push(`language=${encodeURIComponent(params.language)}`);
   }
   
+  if (params.city) {
+    queryParts.push(`city=${encodeURIComponent(params.city)}`);
+  }
+  
   return queryParts.join('&');
 }
 
@@ -138,7 +148,7 @@ export function buildJobSearchUrl(baseUrl: string = '/jobs', params: JobSearchPa
  * @returns true if at least one filter is set
  */
 export function hasActiveFilters(params: JobSearchParams): boolean {
-  return !!(params.keyword || params.location || params.country || params.category || params.activity || params.language);
+  return !!(params.keyword || params.location || params.country || params.category || params.activity || params.language || params.city);
 }
 
 /**

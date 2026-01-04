@@ -14,9 +14,10 @@ Job search state is managed through URL query parameters. All job search functio
 - **Usage**: Free-text search across multiple job fields
 
 ### `location` (string, optional)
-- **Description**: Location/city name for job location filtering
-- **Example**: `?location=Dahab`
-- **Usage**: Filters jobs by location/city name
+- **Description**: Semantic location search - searches both city (location field) and country fields with OR logic
+- **Example**: `?location=Spain` (matches jobs in any city in Spain, or cities named "Spain")
+- **Usage**: Free-text search that matches either city name OR country name/code
+- **Note**: Can be used together with `city` parameter for combined filtering
 
 ### `country` (string, optional)
 - **Description**: ISO 3166-1 alpha-2 country code
@@ -40,6 +41,14 @@ Job search state is managed through URL query parameters. All job search functio
 - **Example**: `?language=English`
 - **Usage**: Filters jobs that require a specific language
 
+### `city` (string, optional)
+- **Description**: Exact city filter - case-insensitive exact match on location field
+- **Example**: `?city=Tarifa`
+- **Usage**: Filters jobs to exact city match only
+- **Note**: Can be used together with `location` parameter. When both are present:
+  - `city` constrains location to exact city
+  - `location` only searches country field (since location is already constrained)
+
 ## URL Format
 
 Parameters can be combined in any order:
@@ -47,6 +56,20 @@ Parameters can be combined in any order:
 ```
 /jobs?keyword=instructor&location=Dahab&country=EG&activity=Kitesurfing&language=English
 ```
+
+### Combining `location` and `city` Parameters
+
+Both `location` (semantic search) and `city` (exact filter) can be used together:
+
+```
+/jobs?location=Spain&city=Tarifa
+```
+
+This will:
+- Match jobs in Tarifa (exact city match from `city` parameter)
+- AND match jobs where country matches "Spain" (from `location` parameter)
+
+Result: Jobs in Tarifa, Spain only (not other cities in Spain)
 
 ## Implementation
 
@@ -67,7 +90,8 @@ const searchParams = useSearchParams();
 const params = parseJobSearchParams(searchParams);
 
 // params.keyword
-// params.location
+// params.location  // Semantic location search
+// params.city      // Exact city filter
 // params.country
 // params.category
 // params.activity
@@ -81,13 +105,14 @@ import { buildJobSearchQuery, buildJobSearchUrl } from '@/lib/jobSearchParams';
 
 const params = {
   keyword: 'instructor',
-  location: 'Dahab',
+  location: 'Dahab',  // Semantic search: city OR country
+  city: 'Tarifa',      // Exact city filter (can be combined with location)
   country: 'EG',
   activity: 'Kitesurfing'
 };
 
 const queryString = buildJobSearchQuery(params);
-// Returns: "keyword=instructor&location=Dahab&country=EG&activity=Kitesurfing"
+// Returns: "keyword=instructor&location=Dahab&city=Tarifa&country=EG&activity=Kitesurfing"
 
 const url = buildJobSearchUrl('/jobs', params);
 // Returns: "/jobs?keyword=instructor&location=Dahab&country=EG&activity=Kitesurfing"

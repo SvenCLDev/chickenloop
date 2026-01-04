@@ -133,7 +133,8 @@ JobSchema.index({ published: 1, createdAt: -1 }); // Compound index for publishe
 JobSchema.index({ featured: 1, published: 1 }); // For featured published jobs
 JobSchema.index({ recruiter: 1 }); // For recruiter's job queries
 JobSchema.index({ companyId: 1 }); // For company-specific job queries
-JobSchema.index({ country: 1 }); // For country-based filtering
+JobSchema.index({ country: 1 }); // For country-based filtering (semantic location search)
+JobSchema.index({ location: 1 }); // For city-based filtering (semantic location search and exact city filter)
 JobSchema.index({ type: 1 }); // For job type filtering
 
 const Job: Model<IJob> = mongoose.models.Job || mongoose.model<IJob>('Job', JobSchema);
