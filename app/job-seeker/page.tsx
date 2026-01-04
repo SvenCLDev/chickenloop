@@ -601,7 +601,8 @@ export default function JobSeekerDashboard() {
                               if (search.location) params.set('location', search.location);
                               if (search.country) params.set('country', search.country);
                               if (search.category) params.set('category', search.category);
-                              if (search.sport) params.set('sport', search.sport);
+                              // Support both activity (canonical) and sport (backward compatibility)
+                              if (search.activity || search.sport) params.set('activity', search.activity || search.sport);
                               if (search.language) params.set('language', search.language);
                               
                               const queryString = params.toString();
@@ -640,9 +641,9 @@ export default function JobSeekerDashboard() {
                                 Category: {search.category}
                               </span>
                             )}
-                            {search.sport && (
+                            {(search.activity || search.sport) && (
                               <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs">
-                                Sport: {search.sport}
+                                Activity: {search.activity || search.sport}
                               </span>
                             )}
                             {search.language && (
@@ -650,7 +651,7 @@ export default function JobSeekerDashboard() {
                                 Language: {search.language}
                               </span>
                             )}
-                            {!search.keyword && !search.location && !search.country && !search.category && !search.sport && !search.language && (
+                            {!search.keyword && !search.location && !search.country && !search.category && !search.activity && !search.sport && !search.language && (
                               <span className="text-gray-400 text-xs">No filters</span>
                             )}
                           </div>

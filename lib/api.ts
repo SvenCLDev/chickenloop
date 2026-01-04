@@ -65,7 +65,7 @@ export const authApi = {
 };
 
 export const jobsApi = {
-  getAll: () => apiRequest('/jobs'),
+  getAll: (endpoint?: string) => apiRequest(endpoint || '/jobs'),
   getOne: (id: string) => apiRequest(`/jobs/${id}`),
   getMyJobs: () => apiRequest('/jobs/my'),
   create: (data: any) =>

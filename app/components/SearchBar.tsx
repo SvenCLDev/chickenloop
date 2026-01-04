@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface SearchBarProps {
   keyword: string;
@@ -24,15 +23,31 @@ export default function SearchBar({
   onLocationChange,
   onCategoryChange,
 }: SearchBarProps) {
+  const router = useRouter();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Build query parameters - only include non-empty values
+    const params = new URLSearchParams();
+    if (keyword.trim()) params.set('keyword', keyword.trim());
+    if (location.trim()) params.set('location', location.trim());
+    if (category.trim()) params.set('category', category.trim());
+    
+    // Build URL with query string
+    const queryString = params.toString();
+    const jobsUrl = queryString ? `/jobs?${queryString}` : '/jobs';
+    
+    // Redirect to /jobs with query parameters
+    router.push(jobsUrl);
+  };
+
   return (
     <section className="bg-white py-12 sm:py-16 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-gray-50 rounded-xl p-6 sm:p-8 shadow-sm border border-gray-100">
           <form 
-            onSubmit={(e) => {
-              e.preventDefault();
-              // Navigation will be handled by the Link button
-            }}
+            onSubmit={handleSubmit}
             className="flex flex-col sm:flex-row gap-4"
           >
             {/* Keyword Input */}
@@ -92,12 +107,12 @@ export default function SearchBar({
 
             {/* Search Button */}
             <div className="flex items-end">
-              <Link
-                href={`/jobs-list?keyword=${encodeURIComponent(keyword)}&location=${encodeURIComponent(location)}&category=${encodeURIComponent(category)}`}
+              <button
+                type="submit"
                 className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium text-center shadow-md hover:shadow-lg transform hover:scale-105"
               >
                 Search Jobs
-              </Link>
+              </button>
             </div>
           </form>
         </div>

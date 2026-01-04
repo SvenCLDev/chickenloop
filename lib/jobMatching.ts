@@ -103,12 +103,13 @@ export async function findMatchingJobs(
       }
     }
 
-    // Filter by sport
-    if (jobMatches && savedSearch.sport) {
-      if (!job.sports || !job.sports.includes(savedSearch.sport)) {
+    // Filter by activity (maps to sport field in SavedSearch model)
+    const activityValue = (savedSearch as any).activity || savedSearch.sport;
+    if (jobMatches && activityValue) {
+      if (!job.sports || !job.sports.includes(activityValue)) {
         jobMatches = false;
       } else {
-        matchReasons.push(`Sport: ${savedSearch.sport}`);
+        matchReasons.push(`Activity: ${activityValue}`);
       }
     }
 

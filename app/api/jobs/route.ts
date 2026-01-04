@@ -5,6 +5,7 @@ import Company from '@/models/Company';
 import { requireAuth, requireRole } from '@/lib/auth';
 import mongoose from 'mongoose';
 import { CachePresets } from '@/lib/cache';
+import { parseJobSearchParams } from '@/lib/jobSearchParams';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 export async function GET(request: NextRequest) {
@@ -42,8 +43,22 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const featured = searchParams.get('featured');
+    
+    // Parse canonical job search parameters
+    const filters = parseJobSearchParams(searchParams);
+    // Also support legacy 'sport' parameter for backward compatibility
+    const activityValue = filters.activity || searchParams.get('sport') || null;
 
-    console.log('[API /jobs] Querying jobs...');
+    console.log('[API /jobs] Querying jobs with filters:', {
+      keyword: filters.keyword || null,
+      location: filters.location || null,
+      country: filters.country || null,
+      category: filters.category || null,
+      activity: activityValue || null,
+      language: filters.language || null,
+      featured: featured || null,
+    });
+
     const queryStart = Date.now();
     const fetchStart = Date.now();
 
@@ -54,20 +69,57 @@ export async function GET(request: NextRequest) {
 
     const collection = dbConnection.collection('jobs');
 
-    // Build query filter
+    // Build MongoDB query filter
     const queryFilter: any = {};
 
-    // Filter for published jobs (exclude only where published is explicitly false)
-    // We'll filter this client-side after fetching
+    // Always filter for published jobs (exclude only where published is explicitly false)
+    queryFilter.published = { $ne: false };
 
-    // If featured=true, filter for featured jobs
+    // Featured filter
     if (featured === 'true') {
       queryFilter.featured = true;
     }
 
+    // Keyword filter: free-text search in title, description, or company
+    if (filters.keyword) {
+      const keywordRegex = new RegExp(filters.keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      queryFilter.$or = [
+        { title: keywordRegex },
+        { description: keywordRegex },
+        { company: keywordRegex },
+      ];
+    }
+
+    // Location filter: city-based search (case-insensitive partial match)
+    if (filters.location) {
+      const locationRegex = new RegExp(filters.location.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      queryFilter.location = locationRegex;
+    }
+
+    // Country filter: exact match (normalized to uppercase, as stored in DB)
+    if (filters.country) {
+      const countryUpper = filters.country.trim().toUpperCase();
+      queryFilter.country = countryUpper;
+    }
+
+    // Category filter: exact match in occupationalAreas array
+    if (filters.category) {
+      queryFilter.occupationalAreas = filters.category;
+    }
+
+    // Activity filter: exact match in sports array (maps to 'sport' field in Job model)
+    if (activityValue) {
+      queryFilter.sports = activityValue;
+    }
+
+    // Language filter: exact match in languages array
+    if (filters.language) {
+      queryFilter.languages = filters.language;
+    }
+
     // Query to get jobs - Project only fields needed for list display
-    // Include pictures for thumbnails, exclude description (loaded on detail page)
-    const listProjection = {
+    // Include description when keyword filter is present (for search), otherwise exclude for performance
+    const listProjection: any = {
       _id: 1,
       title: 1,
       company: 1,
@@ -84,8 +136,15 @@ export async function GET(request: NextRequest) {
       pictures: 1, // Need for list thumbnails
       createdAt: 1,
       updatedAt: 1,
-      // Exclude: description, languages, qualifications (loaded on detail page)
+      languages: 1, // Needed for language filter
     };
+    
+    // Include description only if keyword filter is present (for search functionality)
+    // Note: MongoDB can search description even without projecting it, but we include it
+    // for potential client-side display of search highlights
+    if (filters.keyword) {
+      listProjection.description = 1;
+    }
 
     console.log('[API /jobs] Executing find query with projection (excluding heavy fields)...');
     console.log('[API /jobs] Creating query cursor...');

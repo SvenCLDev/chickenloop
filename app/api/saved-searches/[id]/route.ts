@@ -16,9 +16,9 @@ export async function PATCH(
     const updates = await request.json();
 
     // Validate frequency if provided
-    if (updates.frequency && !['daily', 'weekly'].includes(updates.frequency)) {
+    if (updates.frequency && !['daily', 'weekly', 'never'].includes(updates.frequency)) {
       return NextResponse.json(
-        { error: 'Frequency must be "daily" or "weekly"' },
+        { error: 'Frequency must be "daily", "weekly", or "never"' },
         { status: 400 }
       );
     }
@@ -33,6 +33,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Map activity to sport (for backward compatibility, also accept sport)
+    if (updates.activity !== undefined) {
+      updates.sport = updates.activity;
+      delete updates.activity;
+    }
+
     // Update fields
     Object.keys(updates).forEach((key) => {
       if (updates[key] !== undefined) {
@@ -42,10 +48,16 @@ export async function PATCH(
 
     await savedSearch.save();
 
+    // Return with activity field (map sport back to activity for API consistency)
+    const responseSearch = savedSearch.toObject();
+    if (responseSearch.sport) {
+      (responseSearch as any).activity = responseSearch.sport;
+    }
+
     return NextResponse.json(
       {
         message: 'Saved search updated successfully',
-        savedSearch,
+        savedSearch: responseSearch,
       },
       { status: 200 }
     );

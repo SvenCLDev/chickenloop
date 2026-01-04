@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, Suspense, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Navbar from '../components/Navbar';
 import { jobsApi, savedSearchesApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
+import { parseJobSearchParams, buildJobSearchQuery, buildJobSearchUrl, type JobSearchParams } from '@/lib/jobSearchParams';
 import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
 
@@ -93,141 +94,132 @@ function TimeAgoDisplay({ date }: { date: string }) {
 function JobsPageContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [allJobs, setAllJobs] = useState<Job[]>([]); // Store all jobs for filtering
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedSport, setSelectedSport] = useState<string>('');
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('');
-  const [keyword, setKeyword] = useState<string>('');
-  const [location, setLocation] = useState<string>('');
+  // Initialize state from URL params immediately if available
+  // This prevents loading all jobs before filters are applied
+  const urlParams = searchParams ? parseJobSearchParams(searchParams) : null;
+  const activityValue = searchParams && urlParams 
+    ? (urlParams.activity || searchParams.get('sport') || '') 
+    : '';
+
+  const [selectedCountry, setSelectedCountry] = useState<string>(urlParams?.country || '');
+  const [selectedCategory, setSelectedCategory] = useState<string>(urlParams?.category || '');
+  const [selectedActivity, setSelectedActivity] = useState<string>(activityValue);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(urlParams?.language || '');
+  const [keyword, setKeyword] = useState<string>(urlParams?.keyword || '');
+  const [location, setLocation] = useState<string>(urlParams?.location || '');
+  
+  // Separate state for search bar inputs (don't trigger job loading until submit)
+  const [searchKeyword, setSearchKeyword] = useState<string>(urlParams?.keyword || '');
+  const [searchLocation, setSearchLocation] = useState<string>(urlParams?.location || '');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [showSaveSearchModal, setShowSaveSearchModal] = useState(false);
   const [savingSearch, setSavingSearch] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState('');
   const [saveSearchFrequency, setSaveSearchFrequency] = useState<'daily' | 'weekly' | 'never'>('daily');
   const [saveSearchMessage, setSaveSearchMessage] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const jobsPerPage = 20;
+  const isInitialMount = useRef(true);
 
+  // Sync state with URL query parameters when URL changes (browser back/forward)
+  // Skip on initial mount since state is already initialized from URL params
+  // This ensures page reload preserves search state and browser back/forward works correctly
   useEffect(() => {
-    // Read query parameters from URL on mount
-    const categoryParam = searchParams?.get('category');
-    const keywordParam = searchParams?.get('keyword');
-    const locationParam = searchParams?.get('location');
-    const countryParam = searchParams?.get('country');
-    const sportParam = searchParams?.get('sport');
-    const languageParam = searchParams?.get('language');
-
-    if (categoryParam) {
-      setSelectedCategory(decodeURIComponent(categoryParam));
-    }
-    if (keywordParam) {
-      setKeyword(decodeURIComponent(keywordParam));
-    }
-    if (locationParam) {
-      setLocation(decodeURIComponent(locationParam));
-    }
-    if (countryParam) {
-      setSelectedCountry(decodeURIComponent(countryParam));
-    }
-    if (sportParam) {
-      setSelectedSport(decodeURIComponent(sportParam));
-    }
-    if (languageParam) {
-      setSelectedLanguage(decodeURIComponent(languageParam));
+    if (!searchParams) return;
+    
+    // Skip on initial mount - state is already initialized from URL params above
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
     }
 
-    // Load jobs regardless of authentication status
-    loadJobs();
+    // Parse all supported search parameters from URL using canonical parser
+    const urlParams = parseJobSearchParams(searchParams);
+    
+    // Also check for legacy 'sport' parameter for backward compatibility
+    const activityValue = urlParams.activity || searchParams.get('sport') || '';
+
+    // Update state from URL parameters
+    // This handles both setting values and clearing them when removed from URL
+    // This ensures state always matches URL, supporting browser back/forward navigation
+    setKeyword(urlParams.keyword || '');
+    setLocation(urlParams.location || '');
+    setSelectedCountry(urlParams.country || '');
+    setSelectedCategory(urlParams.category || '');
+    setSelectedActivity(activityValue);
+    setSelectedLanguage(urlParams.language || '');
+    
+    // Also update search bar inputs to stay in sync with URL
+    setSearchKeyword(urlParams.keyword || '');
+    setSearchLocation(urlParams.location || '');
   }, [searchParams]);
 
+  // Update canonical URL for SEO
   useEffect(() => {
-    // Filter jobs when any filter changes
-    let filtered = allJobs;
-
-    // Filter by keyword (searches in title, description, company)
-    if (keyword) {
-      const keywordLower = keyword.toLowerCase();
-      filtered = filtered.filter((job) => {
-        const titleMatch = job.title?.toLowerCase().includes(keywordLower);
-        const descriptionMatch = job.description?.toLowerCase().includes(keywordLower);
-        const companyMatch = job.company?.toLowerCase().includes(keywordLower);
-        return titleMatch || descriptionMatch || companyMatch;
-      });
+    if (typeof window === 'undefined') return;
+    
+    const currentParams = searchParams ? parseJobSearchParams(searchParams) : {};
+    const canonicalUrl = buildJobSearchUrl('/jobs', currentParams);
+    const fullCanonicalUrl = `${window.location.origin}${canonicalUrl}`;
+    
+    // Update or create canonical link tag
+    let canonicalLink = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalLink);
     }
+    canonicalLink.setAttribute('href', fullCanonicalUrl);
+  }, [searchParams]);
 
-    // Filter by location (searches in location field)
-    if (location) {
-      const locationLower = location.toLowerCase();
-      filtered = filtered.filter((job) => {
-        return job.location?.toLowerCase().includes(locationLower);
-      });
-    }
-
-    // Filter by country
-    if (selectedCountry) {
-      filtered = filtered.filter((job) => {
-        if (!job.country) return false;
-        return job.country.toUpperCase() === selectedCountry.toUpperCase();
-      });
-    }
-
-    // Filter by job category
-    if (selectedCategory) {
-      filtered = filtered.filter((job) => {
-        if (!job.occupationalAreas || job.occupationalAreas.length === 0) return false;
-        return job.occupationalAreas.includes(selectedCategory);
-      });
-    }
-
-    // Filter by sport/activity
-    if (selectedSport) {
-      filtered = filtered.filter((job) => {
-        if (!job.sports || job.sports.length === 0) return false;
-        return job.sports.includes(selectedSport);
-      });
-    }
-
-    // Filter by language
-    if (selectedLanguage) {
-      filtered = filtered.filter((job) => {
-        if (!job.languages || job.languages.length === 0) return false;
-        return job.languages.includes(selectedLanguage);
-      });
-    }
-
-    // Sort: featured jobs first, then by posting date (createdAt) descending
-    // 1) Featured jobs ordered by post date descending
-    // 2) Non-featured jobs ordered by post date descending
-    filtered.sort((a, b) => {
-      // Featured jobs come first
-      const aFeatured = Boolean(a.featured);
-      const bFeatured = Boolean(b.featured);
-
-      // If one is featured and the other isn't, featured comes first
-      if (aFeatured && !bFeatured) return -1;
-      if (!aFeatured && bFeatured) return 1;
-
-      // Within each group (both featured or both non-featured), sort by posting date (createdAt) descending
-      const dateA = new Date(a.createdAt || 0).getTime();
-      const dateB = new Date(b.createdAt || 0).getTime();
-      return dateB - dateA; // Descending (newest first)
-    });
-
-    setJobs(filtered);
+  // Reload jobs when filters change (API now handles filtering server-side)
+  useEffect(() => {
+    // Reload jobs with current filters
+    loadJobs();
     // Reset to page 1 when filters change
     setCurrentPage(1);
-  }, [selectedCountry, selectedCategory, selectedSport, selectedLanguage, keyword, location, allJobs]);
+  }, [selectedCountry, selectedCategory, selectedActivity, selectedLanguage, keyword, location]);
 
   const loadJobs = async () => {
     try {
-      const data = await jobsApi.getAll();
-      const jobsList = data.jobs || [];
+      setLoading(true);
+      
+      // Load all jobs for filter options (countries, categories, sports, languages)
+      // This is done once and cached in allJobs state
+      const allJobsData = await jobsApi.getAll('/jobs');
+      const allJobsList = allJobsData.jobs || [];
+      
+      // Sort all jobs for filter options
+      const sortedAllJobs = [...allJobsList].sort((a, b) => {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+      setAllJobs(sortedAllJobs);
+      
+      // Build query string from current filters for filtered results
+      const params = new URLSearchParams();
+      if (keyword) params.set('keyword', keyword);
+      if (location) params.set('location', location);
+      if (selectedCountry) params.set('country', selectedCountry);
+      if (selectedCategory) params.set('category', selectedCategory);
+      if (selectedActivity) params.set('activity', selectedActivity);
+      if (selectedLanguage) params.set('language', selectedLanguage);
+      
+      const queryString = params.toString();
+      const endpoint = queryString ? `/jobs?${queryString}` : '/jobs';
+      
+      // API now handles filtering server-side
+      const filteredData = await jobsApi.getAll(endpoint);
+      const filteredJobsList = filteredData.jobs || [];
 
-      // Sort jobs: featured first, then by posting date descending
-      const sortedJobs = [...jobsList].sort((a, b) => {
+      // Sort filtered jobs: featured first, then by posting date descending
+      const sortedFilteredJobs = [...filteredJobsList].sort((a, b) => {
         // Featured jobs come first
         const aFeatured = Boolean(a.featured);
         const bFeatured = Boolean(b.featured);
@@ -242,20 +234,20 @@ function JobsPageContent() {
         return dateB - dateA; // Descending (newest first)
       });
 
-      setAllJobs(sortedJobs);
-      setJobs(sortedJobs);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load jobs');
+      setJobs(sortedFilteredJobs);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load jobs';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // Get unique countries from all jobs
+  // Get unique countries from filtered jobs (only show available options)
   const getUniqueCountries = (): Array<{ code: string; name: string }> => {
     const countryMap = new Map<string, string>();
 
-    allJobs.forEach((job) => {
+    jobs.forEach((job) => {
       if (job.country && job.country.trim()) {
         const code = job.country.toUpperCase();
         if (!countryMap.has(code)) {
@@ -272,11 +264,11 @@ function JobsPageContent() {
     return countries;
   };
 
-  // Get unique job categories from all jobs
+  // Get unique job categories from filtered jobs (only show available options)
   const getUniqueCategories = (): string[] => {
     const categorySet = new Set<string>();
 
-    allJobs.forEach((job) => {
+    jobs.forEach((job) => {
       if (job.occupationalAreas && job.occupationalAreas.length > 0) {
         job.occupationalAreas.forEach((category) => {
           categorySet.add(category);
@@ -288,11 +280,11 @@ function JobsPageContent() {
     return Array.from(categorySet).sort();
   };
 
-  // Get unique sports/activities from all jobs
+  // Get unique sports/activities from filtered jobs (only show available options)
   const getUniqueSports = (): string[] => {
     const sportSet = new Set<string>();
 
-    allJobs.forEach((job) => {
+    jobs.forEach((job) => {
       if (job.sports && job.sports.length > 0) {
         job.sports.forEach((sport) => {
           sportSet.add(sport);
@@ -304,11 +296,11 @@ function JobsPageContent() {
     return Array.from(sportSet).sort();
   };
 
-  // Get unique languages from all jobs
+  // Get unique languages from filtered jobs (only show available options)
   const getUniqueLanguages = (): string[] => {
     const languageSet = new Set<string>();
 
-    allJobs.forEach((job) => {
+    jobs.forEach((job) => {
       if (job.languages && job.languages.length > 0) {
         job.languages.forEach((language) => {
           languageSet.add(language);
@@ -318,6 +310,83 @@ function JobsPageContent() {
 
     // Convert to array and sort alphabetically
     return Array.from(languageSet).sort();
+  };
+
+  // Handler to update filter and URL
+  const handleFilterChange = (filterType: 'country' | 'category' | 'activity' | 'language', value: string) => {
+    // Update local state
+    if (filterType === 'country') setSelectedCountry(value);
+    if (filterType === 'category') setSelectedCategory(value);
+    if (filterType === 'activity') setSelectedActivity(value);
+    if (filterType === 'language') setSelectedLanguage(value);
+
+    // Build clean URL params using canonical utility
+    const currentParams = searchParams ? parseJobSearchParams(searchParams) : {};
+    const newParams: JobSearchParams = { ...currentParams };
+    
+    if (filterType === 'country') {
+      if (value) newParams.country = value;
+      else delete newParams.country;
+    }
+    if (filterType === 'category') {
+      if (value) newParams.category = value;
+      else delete newParams.category;
+    }
+    if (filterType === 'activity') {
+      if (value) newParams.activity = value;
+      else delete newParams.activity;
+    }
+    if (filterType === 'language') {
+      if (value) newParams.language = value;
+      else delete newParams.language;
+    }
+
+    const newUrl = buildJobSearchUrl('/jobs', newParams);
+    router.push(newUrl);
+  };
+
+  // Handler to remove keyword or location filter
+  const handleRemoveSearchFilter = (filterType: 'keyword' | 'location') => {
+    // Update local state
+    if (filterType === 'keyword') {
+      setKeyword('');
+      setSearchKeyword('');
+    }
+    if (filterType === 'location') {
+      setLocation('');
+      setSearchLocation('');
+    }
+
+    // Build clean URL params using canonical utility
+    const currentParams = searchParams ? parseJobSearchParams(searchParams) : {};
+    const newParams: JobSearchParams = { ...currentParams };
+    
+    if (filterType === 'keyword') {
+      delete newParams.keyword;
+    }
+    if (filterType === 'location') {
+      delete newParams.location;
+    }
+
+    const newUrl = buildJobSearchUrl('/jobs', newParams);
+    router.push(newUrl);
+  };
+
+  // Handler to clear all filters and search
+  const handleClearAllFilters = () => {
+    // Reset all state variables
+    setKeyword('');
+    setLocation('');
+    setSearchKeyword('');
+    setSearchLocation('');
+    setSelectedCountry('');
+    setSelectedCategory('');
+    setSelectedActivity('');
+    setSelectedLanguage('');
+    setCurrentPage(1);
+
+    // Navigate to /jobs with no query parameters
+    router.push('/jobs');
   };
 
   const handleSaveSearch = async (e: React.FormEvent) => {
@@ -337,7 +406,7 @@ function JobsPageContent() {
         location: location || undefined,
         country: selectedCountry || undefined,
         category: selectedCategory || undefined,
-        sport: selectedSport || undefined,
+        activity: selectedActivity || undefined,
         language: selectedLanguage || undefined,
         frequency: saveSearchFrequency,
         active: true,
@@ -349,11 +418,37 @@ function JobsPageContent() {
         setSaveSearchName('');
         setSaveSearchMessage('');
       }, 1500);
-    } catch (err: any) {
-      setSaveSearchMessage(err.message || 'Failed to save search');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save search';
+      setSaveSearchMessage(errorMessage);
     } finally {
       setSavingSearch(false);
     }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Build clean URL params using canonical utility (preserve existing params like country, category, etc.)
+    const currentParams = searchParams ? parseJobSearchParams(searchParams) : {};
+    const newParams: JobSearchParams = { ...currentParams };
+    
+    // Update keyword and location params from search bar inputs
+    if (searchKeyword.trim()) {
+      newParams.keyword = searchKeyword.trim();
+    } else {
+      delete newParams.keyword;
+    }
+    
+    if (searchLocation.trim()) {
+      newParams.location = searchLocation.trim();
+    } else {
+      delete newParams.location;
+    }
+    
+    // Update URL - this will trigger the useEffect that syncs state and loads jobs
+    const newUrl = buildJobSearchUrl('/jobs', newParams);
+    router.push(newUrl);
   };
 
   if (loading) {
@@ -371,138 +466,347 @@ function JobsPageContent() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-col mb-8 gap-4">
-          <div className="flex justify-between items-center flex-wrap gap-4">
-            <h1 className="text-4xl font-bold text-gray-900">
-              We have {jobs.length} {jobs.length === 1 ? 'job' : 'jobs'} meeting these criteria
-            </h1>
-            {/* Save Search Button - Only for job seekers */}
-            {user && user.role === 'job-seeker' && (keyword || location || selectedCountry || selectedCategory || selectedSport || selectedLanguage) && (
-              <button
-                onClick={() => setShowSaveSearchModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 whitespace-nowrap"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
-                Save Search
-              </button>
-            )}
-          </div>
-
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row items-end sm:items-center sm:justify-end gap-3 flex-wrap">
-            {/* Country Filter */}
-            <select
-              id="country-filter"
-              value={selectedCountry}
-              onChange={(e) => setSelectedCountry(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
-            >
-              <option value="">All Countries</option>
-              {getUniqueCountries().map((country) => (
-                <option key={country.code} value={country.code}>
-                  {country.name}
-                </option>
-              ))}
-            </select>
-
-            {/* Job Category Filter */}
-            <select
-              id="category-filter"
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
-            >
-              <option value="">All Categories</option>
-              {getUniqueCategories().map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-
-            {/* Sport Filter */}
-            <select
-              id="sport-filter"
-              value={selectedSport}
-              onChange={(e) => setSelectedSport(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
-            >
-              <option value="">All Sports</option>
-              {getUniqueSports().map((sport) => (
-                <option key={sport} value={sport}>
-                  {sport}
-                </option>
-              ))}
-            </select>
-
-            {/* Languages Filter */}
-            <select
-              id="language-filter"
-              value={selectedLanguage}
-              onChange={(e) => setSelectedLanguage(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
-            >
-              <option value="">All Languages</option>
-              {getUniqueLanguages().map((language) => (
-                <option key={language} value={language}>
-                  {language}
-                </option>
-              ))}
-            </select>
-
-            {/* Clear Filters Button */}
-            {(selectedCountry || selectedCategory || selectedSport || selectedLanguage || keyword || location) && (
-              <button
-                onClick={() => {
-                  setSelectedCountry('');
-                  setSelectedCategory('');
-                  setSelectedSport('');
-                  setSelectedLanguage('');
-                  setKeyword('');
-                  setLocation('');
-                }}
-                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 underline whitespace-nowrap"
-              >
-                Clear Filters
-              </button>
-            )}
-          </div>
+        {/* Compact Search Bar - Always Visible */}
+        <div className="mb-4 sm:mb-6">
+          <form onSubmit={handleSearchSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  id="search-keyword"
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  placeholder="Keyword"
+                  className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                />
+              </div>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  id="search-location"
+                  value={searchLocation}
+                  onChange={(e) => setSearchLocation(e.target.value)}
+                  placeholder="Location"
+                  className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto px-4 sm:px-6 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium whitespace-nowrap"
+                >
+                  Search
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
 
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
+        {/* Main Content Layout: Sidebar + Jobs Grid */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Mobile Overlay */}
+          {sidebarOpen && (
+            <div
+              className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
 
-        {(selectedCountry || selectedCategory || selectedSport || selectedLanguage) && (
-          <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded mb-4">
-            Showing jobs
-            {selectedCountry && (
-              <span> in: <strong>{getCountryNameFromCode(selectedCountry)}</strong></span>
-            )}
-            {selectedCategory && (
-              <span>
-                {selectedCountry ? ',' : ''} category: <strong>{selectedCategory}</strong>
-              </span>
-            )}
-            {selectedSport && (
-              <span>
-                {(selectedCountry || selectedCategory) ? ',' : ''} sport: <strong>{selectedSport}</strong>
-              </span>
-            )}
-            {selectedLanguage && (
-              <span>
-                {(selectedCountry || selectedCategory || selectedSport) ? ',' : ''} language: <strong>{selectedLanguage}</strong>
-              </span>
-            )}
-            {' '}({jobs.length} {jobs.length === 1 ? 'job' : 'jobs'})
-          </div>
-        )}
+          {/* Filters Sidebar */}
+          <aside className={`lg:w-64 flex-shrink-0 ${sidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-64 overflow-y-auto bg-white' : 'hidden'} lg:block lg:relative lg:z-auto`}>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 lg:sticky lg:top-4 h-full lg:h-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="lg:hidden text-gray-500 hover:text-gray-700"
+                  aria-label="Close filters"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
 
-        {jobs.length === 0 ? (
+              <div className="space-y-6">
+                {/* Country Filter */}
+                <div>
+                  <label htmlFor="country-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                    Country
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      id="country-filter"
+                      value={selectedCountry}
+                      onChange={(e) => handleFilterChange('country', e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                    >
+                      <option value="">All Countries</option>
+                      {getUniqueCountries().map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.name}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedCountry && (
+                      <button
+                        onClick={() => handleFilterChange('country', '')}
+                        className="text-gray-400 hover:text-gray-600"
+                        aria-label="Clear country filter"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Category Filter */}
+                <div>
+                  <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                    Job Type
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      id="category-filter"
+                      value={selectedCategory}
+                      onChange={(e) => handleFilterChange('category', e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                    >
+                      <option value="">All Categories</option>
+                      {getUniqueCategories().map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedCategory && (
+                      <button
+                        onClick={() => handleFilterChange('category', '')}
+                        className="text-gray-400 hover:text-gray-600"
+                        aria-label="Clear category filter"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Activity Filter */}
+                <div>
+                  <label htmlFor="activity-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                    Activity Type
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      id="activity-filter"
+                      value={selectedActivity}
+                      onChange={(e) => handleFilterChange('activity', e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                    >
+                      <option value="">All Activities</option>
+                      {getUniqueSports().map((sport) => (
+                        <option key={sport} value={sport}>
+                          {sport}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedActivity && (
+                      <button
+                        onClick={() => handleFilterChange('activity', '')}
+                        className="text-gray-400 hover:text-gray-600"
+                        aria-label="Clear activity filter"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Language Filter */}
+                <div>
+                  <label htmlFor="language-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                    Language
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      id="language-filter"
+                      value={selectedLanguage}
+                      onChange={(e) => handleFilterChange('language', e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                    >
+                      <option value="">All Languages</option>
+                      {getUniqueLanguages().map((language) => (
+                        <option key={language} value={language}>
+                          {language}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedLanguage && (
+                      <button
+                        onClick={() => handleFilterChange('language', '')}
+                        className="text-gray-400 hover:text-gray-600"
+                        aria-label="Clear language filter"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main Content Area */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col mb-6 sm:mb-8 gap-3 sm:gap-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {/* Mobile Filter Toggle Button */}
+                  <button
+                    onClick={() => setSidebarOpen(true)}
+                    className="lg:hidden px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    aria-label="Open filters"
+                  >
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                    <span className="hidden xs:inline">Filters</span>
+                  </button>
+                  <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900">
+                    We have {jobs.length} {jobs.length === 1 ? 'job' : 'jobs'} meeting these criteria
+                  </h1>
+                </div>
+                {/* Save Search Button - Only for job seekers */}
+                {user && user.role === 'job-seeker' && (keyword || location || selectedCountry || selectedCategory || selectedActivity || selectedLanguage) && (
+                  <button
+                    onClick={() => setShowSaveSearchModal(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    Save Search
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                {error}
+              </div>
+            )}
+
+            {/* Active Filter Chips */}
+            {(keyword || location || selectedCountry || selectedCategory || selectedActivity || selectedLanguage) && (
+              <div className="mb-4">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap gap-2 items-center">
+                  {keyword && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                      <span>Keyword: <strong>{keyword}</strong></span>
+                      <button
+                        onClick={() => handleRemoveSearchFilter('keyword')}
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        aria-label="Remove keyword filter"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  {location && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                      <span>Location: <strong>{location}</strong></span>
+                      <button
+                        onClick={() => handleRemoveSearchFilter('location')}
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        aria-label="Remove location filter"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  {selectedCountry && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                      <span>Country: <strong>{getCountryNameFromCode(selectedCountry)}</strong></span>
+                      <button
+                        onClick={() => handleFilterChange('country', '')}
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        aria-label="Remove country filter"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  {selectedCategory && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                      <span>Job Type: <strong>{selectedCategory}</strong></span>
+                      <button
+                        onClick={() => handleFilterChange('category', '')}
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        aria-label="Remove category filter"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  {selectedActivity && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                      <span>Activity: <strong>{selectedActivity}</strong></span>
+                      <button
+                        onClick={() => handleFilterChange('activity', '')}
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        aria-label="Remove activity filter"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  {selectedLanguage && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                      <span>Language: <strong>{selectedLanguage}</strong></span>
+                      <button
+                        onClick={() => handleFilterChange('language', '')}
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        aria-label="Remove language filter"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  </div>
+                  {/* Clear All Button */}
+                  <button
+                    onClick={handleClearAllFilters}
+                    className="px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors whitespace-nowrap self-start sm:self-auto"
+                  >
+                    Clear search
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {jobs.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
             <p className="text-gray-600">No jobs available at the moment.</p>
             <p className="text-gray-500 mt-2">Check back later for new opportunities!</p>
@@ -518,7 +822,7 @@ function JobsPageContent() {
 
               return (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {currentJobs.map((job) => {
                       // Get the most recent date (createdAt or updatedAt if it exists and is more recent)
                       const mostRecentDate = (job.updatedAt && new Date(job.updatedAt) > new Date(job.createdAt))
@@ -659,8 +963,8 @@ function JobsPageContent() {
           </>
         )}
 
-        {/* Save Search Modal */}
-        {showSaveSearchModal && (
+            {/* Save Search Modal */}
+            {showSaveSearchModal && (
           <div 
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
             onClick={() => !savingSearch && setShowSaveSearchModal(false)}
@@ -710,9 +1014,9 @@ function JobsPageContent() {
                     {location && <li>• Location: <strong>{location}</strong></li>}
                     {selectedCountry && <li>• Country: <strong>{getCountryNameFromCode(selectedCountry)}</strong></li>}
                     {selectedCategory && <li>• Category: <strong>{selectedCategory}</strong></li>}
-                    {selectedSport && <li>• Sport: <strong>{selectedSport}</strong></li>}
+                    {selectedActivity && <li>• Activity: <strong>{selectedActivity}</strong></li>}
                     {selectedLanguage && <li>• Language: <strong>{selectedLanguage}</strong></li>}
-                    {!keyword && !location && !selectedCountry && !selectedCategory && !selectedSport && !selectedLanguage && (
+                    {!keyword && !location && !selectedCountry && !selectedCategory && !selectedActivity && !selectedLanguage && (
                       <li className="text-gray-500">No filters applied</li>
                     )}
                   </ul>
@@ -746,7 +1050,9 @@ function JobsPageContent() {
               </form>
             </div>
           </div>
-        )}
+            )}
+          </div>
+        </div>
       </main>
     </div>
   );
