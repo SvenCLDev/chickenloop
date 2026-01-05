@@ -78,10 +78,10 @@ export async function findMatchingJobs(
     // Filter by location
     if (jobMatches && savedSearch.location) {
       const locationLower = savedSearch.location.toLowerCase();
-      if (!job.location?.toLowerCase().includes(locationLower)) {
+      if (!job.city?.toLowerCase().includes(locationLower)) {
         jobMatches = false;
       } else {
-        matchReasons.push(`Location: ${job.location}`);
+        matchReasons.push(`Location: ${job.city}`);
       }
     }
 

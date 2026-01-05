@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
             recruiterEmail: recruiter.email,
             jobTitle: job.title,
             jobCompany: job.company,
-            jobLocation: job.location,
+            jobCity: job.city,
             applicationDate: now,
           });
 
@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
                 _id: String(job._id),
                 title: job.title,
                 company: job.company,
-                location: job.location,
+                city: job.city,
               })),
             },
             { status: 400 }
@@ -306,14 +306,14 @@ export async function POST(request: NextRequest) {
         if (candidate && recruiter && candidate.email) {
           let jobTitle: string | undefined;
           let jobCompany: string | undefined;
-          let jobLocation: string | undefined;
+          let jobCity: string | undefined;
 
           if (finalJobId) {
             const job = await Job.findById(finalJobId).select('title company location');
             if (job) {
               jobTitle = job.title;
               jobCompany = job.company;
-              jobLocation = job.location;
+              jobCity = job.city;
             }
           }
 
@@ -324,7 +324,7 @@ export async function POST(request: NextRequest) {
             recruiterEmail: recruiter.email,
             jobTitle,
             jobCompany,
-            jobLocation,
+            jobCity,
           });
 
           await sendEmail({

@@ -22,7 +22,7 @@ export default function EditJobPage() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    location: '',
+    city: '',
     country: '',
     salary: '',
     type: 'full-time',
@@ -78,10 +78,10 @@ export default function EditJobPage() {
       const data = await jobsApi.getOne(jobId);
       const job = data.job;
 
-      // Use job's location if available, otherwise fall back to company's city
-      const jobLocation = job.location || '';
-      const fallbackLocation = companyData?.address?.city || '';
-      const locationToUse = jobLocation || fallbackLocation;
+      // Use job's city if available, otherwise fall back to company's city
+      const jobCity = job.city || '';
+      const fallbackCity = companyData?.address?.city || '';
+      const cityToUse = jobCity || fallbackCity;
 
       const jobCountryCode = (job as any).country;
       const fallbackCountryCode = companyData?.address?.country;
@@ -92,7 +92,7 @@ export default function EditJobPage() {
       setFormData({
         title: job.title,
         description: job.description,
-        location: locationToUse,
+        city: cityToUse,
         country: countryToUse,
         salary: job.salary || '',
         type: job.type,
@@ -303,14 +303,14 @@ export default function EditJobPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-                  Location *
+                <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                  City *
                 </label>
                 <input
-                  id="location"
+                  id="city"
                   type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 />

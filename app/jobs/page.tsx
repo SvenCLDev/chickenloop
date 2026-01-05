@@ -16,7 +16,7 @@ interface Job {
   title: string;
   description: string;
   company: string;
-  location: string;
+  city: string;
   country?: string;
   salary?: string;
   type: string;
@@ -327,8 +327,8 @@ function JobsPageContent() {
     jobs.forEach((job) => {
       // Extract city from location field (assuming location contains city name)
       // If location.city exists in the data, use that; otherwise use location field
-      if (job.location && job.location.trim()) {
-        const city = job.location.trim();
+      if (job.city && job.city.trim()) {
+        const city = job.city.trim();
         if (city) {
           citySet.add(city);
         }
@@ -563,25 +563,25 @@ function JobsPageContent() {
               </div>
 
               <div className="space-y-6">
-                {/* Country Filter */}
+            {/* Country Filter */}
                 <div>
                   <label htmlFor="country-filter" className="block text-sm font-medium text-gray-700 mb-2">
                     Country
                   </label>
                   <div className="flex items-center gap-2">
-                    <select
-                      id="country-filter"
-                      value={selectedCountry}
+            <select
+              id="country-filter"
+              value={selectedCountry}
                       onChange={(e) => handleFilterChange('country', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
-                    >
-                      <option value="">All Countries</option>
-                      {getUniqueCountries().map((country) => (
-                        <option key={country.code} value={country.code}>
-                          {country.name}
-                        </option>
-                      ))}
-                    </select>
+            >
+              <option value="">All Countries</option>
+              {getUniqueCountries().map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.name}
+                </option>
+              ))}
+            </select>
                     {selectedCountry && (
                       <button
                         onClick={() => handleFilterChange('country', '')}
@@ -635,19 +635,19 @@ function JobsPageContent() {
                     Job Type
                   </label>
                   <div className="flex items-center gap-2">
-                    <select
-                      id="category-filter"
-                      value={selectedCategory}
+            <select
+              id="category-filter"
+              value={selectedCategory}
                       onChange={(e) => handleFilterChange('category', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
-                    >
-                      <option value="">All Categories</option>
+            >
+              <option value="">All Categories</option>
                       {getAvailableCategories().map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
                     {selectedCategory && (
                       <button
                         onClick={() => handleFilterChange('category', '')}
@@ -668,19 +668,19 @@ function JobsPageContent() {
                     Activity Type
                   </label>
                   <div className="flex items-center gap-2">
-                    <select
+            <select
                       id="activity-filter"
                       value={selectedActivity}
                       onChange={(e) => handleFilterChange('activity', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
                     >
                       <option value="">All Activities</option>
-                      {getUniqueSports().map((sport) => (
-                        <option key={sport} value={sport}>
-                          {sport}
-                        </option>
-                      ))}
-                    </select>
+              {getUniqueSports().map((sport) => (
+                <option key={sport} value={sport}>
+                  {sport}
+                </option>
+              ))}
+            </select>
                     {selectedActivity && (
                       <button
                         onClick={() => handleFilterChange('activity', '')}
@@ -701,19 +701,19 @@ function JobsPageContent() {
                     Language
                   </label>
                   <div className="flex items-center gap-2">
-                    <select
-                      id="language-filter"
-                      value={selectedLanguage}
+            <select
+              id="language-filter"
+              value={selectedLanguage}
                       onChange={(e) => handleFilterChange('language', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
-                    >
-                      <option value="">All Languages</option>
-                      {getUniqueLanguages().map((language) => (
-                        <option key={language} value={language}>
-                          {language}
-                        </option>
-                      ))}
-                    </select>
+            >
+              <option value="">All Languages</option>
+              {getUniqueLanguages().map((language) => (
+                <option key={language} value={language}>
+                  {language}
+                </option>
+              ))}
+            </select>
                     {selectedLanguage && (
                       <button
                         onClick={() => handleFilterChange('language', '')}
@@ -737,7 +737,7 @@ function JobsPageContent() {
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
                 <div className="flex items-center gap-2 sm:gap-3">
                   {/* Mobile Filter Toggle Button */}
-                  <button
+              <button
                     onClick={() => setSidebarOpen(true)}
                     className="lg:hidden px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                     aria-label="Open filters"
@@ -761,16 +761,16 @@ function JobsPageContent() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                     </svg>
                     Save Search
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                {error}
-              </div>
+              </button>
             )}
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
 
             {/* Active Filter Chips */}
             {(keyword || location || selectedCountry || selectedCategory || selectedActivity || selectedLanguage || selectedCity) && (
@@ -805,7 +805,7 @@ function JobsPageContent() {
                       </button>
                     </div>
                   )}
-                  {selectedCountry && (
+            {selectedCountry && (
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                       <span>Country: <strong>{getCountryNameFromCode(selectedCountry)}</strong></span>
                       <button
@@ -818,8 +818,8 @@ function JobsPageContent() {
                         </svg>
                       </button>
                     </div>
-                  )}
-                  {selectedCategory && (
+            )}
+            {selectedCategory && (
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                       <span>Job Type: <strong>{selectedCategory}</strong></span>
                       <button
@@ -846,8 +846,8 @@ function JobsPageContent() {
                         </svg>
                       </button>
                     </div>
-                  )}
-                  {selectedLanguage && (
+            )}
+            {selectedLanguage && (
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                       <span>Language: <strong>{selectedLanguage}</strong></span>
                       <button
@@ -884,10 +884,10 @@ function JobsPageContent() {
                     Clear search
                   </button>
                 </div>
-              </div>
-            )}
+          </div>
+        )}
 
-            {jobs.length === 0 ? (
+        {jobs.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
             <p className="text-gray-600">No jobs available at the moment.</p>
             <p className="text-gray-500 mt-2">Check back later for new opportunities!</p>
@@ -956,7 +956,7 @@ function JobsPageContent() {
                             <div className="flex flex-col gap-1">
                               <p className="text-sm text-gray-600 flex flex-wrap items-center gap-1">
                                 <span className="mr-1">📍</span>
-                                <span className="font-medium text-gray-800">{job.location}</span>
+                                <span className="font-medium text-gray-800">{job.city}</span>
                                 {job.country && typeof job.country === 'string' && job.country.trim() && (
                                   <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
                                     • {getCountryNameFromCode(job.country)}

@@ -9,7 +9,7 @@ export interface ApplicationEmailData {
   recruiterEmail: string;
   jobTitle?: string;
   jobCompany?: string;
-  jobLocation?: string;
+  jobCity?: string;
   status?: string;
   applicationDate?: Date;
 }
@@ -19,7 +19,7 @@ export interface ApplicationEmailData {
  * Sent to: Recruiter
  */
 export function getCandidateAppliedEmail(data: ApplicationEmailData): { subject: string; html: string; text: string } {
-  const { candidateName, candidateEmail, jobTitle, jobCompany, jobLocation, applicationDate } = data;
+  const { candidateName, candidateEmail, jobTitle, jobCompany, jobCity, applicationDate } = data;
   
   const dateStr = applicationDate ? new Date(applicationDate).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -44,7 +44,7 @@ export function getCandidateAppliedEmail(data: ApplicationEmailData): { subject:
           <h3 style="color: #374151; margin-top: 0;">Job Details</h3>
           <p style="margin: 5px 0;"><strong>Position:</strong> ${jobTitle}</p>
           ${jobCompany ? `<p style="margin: 5px 0;"><strong>Company:</strong> ${jobCompany}</p>` : ''}
-          ${jobLocation ? `<p style="margin: 5px 0;"><strong>Location:</strong> ${jobLocation}</p>` : ''}
+          ${jobCity ? `<p style="margin: 5px 0;"><strong>City:</strong> ${jobCity}</p>` : ''}
         </div>
       ` : ''}
 
@@ -64,7 +64,7 @@ Applied: ${dateStr}
 
 ${jobTitle ? `Job Details:
 Position: ${jobTitle}
-${jobCompany ? `Company: ${jobCompany}\n` : ''}${jobLocation ? `Location: ${jobLocation}\n` : ''}` : ''}
+${jobCompany ? `Company: ${jobCompany}\n` : ''}${jobCity ? `City: ${jobCity}\n` : ''}` : ''}
 
 Next Steps: Review this application in your dashboard and update the status as you progress through your hiring process.`;
 
@@ -76,7 +76,7 @@ Next Steps: Review this application in your dashboard and update the status as y
  * Sent to: Candidate
  */
 export function getRecruiterContactedEmail(data: ApplicationEmailData): { subject: string; html: string; text: string } {
-  const { recruiterName, recruiterEmail, jobTitle, jobCompany, jobLocation } = data;
+  const { recruiterName, recruiterEmail, jobTitle, jobCompany, jobCity } = data;
 
   const subject = jobTitle 
     ? `${recruiterName} from ${jobCompany || 'a company'} is interested in your profile`
@@ -95,7 +95,7 @@ export function getRecruiterContactedEmail(data: ApplicationEmailData): { subjec
           <h3 style="color: #374151; margin-top: 0;">Position of Interest</h3>
           <p style="margin: 5px 0;"><strong>Position:</strong> ${jobTitle}</p>
           ${jobCompany ? `<p style="margin: 5px 0;"><strong>Company:</strong> ${jobCompany}</p>` : ''}
-          ${jobLocation ? `<p style="margin: 5px 0;"><strong>Location:</strong> ${jobLocation}</p>` : ''}
+          ${jobCity ? `<p style="margin: 5px 0;"><strong>City:</strong> ${jobCity}</p>` : ''}
         </div>
       ` : ''}
 
@@ -119,7 +119,7 @@ ${recruiterName} has reached out to you through Chickenloop.
 
 ${jobTitle ? `Position of Interest:
 Position: ${jobTitle}
-${jobCompany ? `Company: ${jobCompany}\n` : ''}${jobLocation ? `Location: ${jobLocation}\n` : ''}` : ''}
+${jobCompany ? `Company: ${jobCompany}\n` : ''}${jobCity ? `City: ${jobCity}\n` : ''}` : ''}
 
 What's Next? The recruiter may contact you directly to discuss opportunities. Keep an eye on your email and the Chickenloop platform for updates.
 
@@ -242,7 +242,7 @@ export interface JobAlertEmailData {
     _id: string;
     title: string;
     company: string;
-    location: string;
+    city: string;
     country?: string;
     description: string;
     type: string;
@@ -279,7 +279,7 @@ export function getJobAlertEmail(data: JobAlertEmailData): { subject: string; ht
         </h3>
         <p style="margin: 5px 0; color: #4b5563; font-weight: 600;">${job.company}</p>
         <p style="margin: 5px 0; color: #6b7280;">
-          📍 ${job.location}${job.country ? `, ${job.country}` : ''}
+          📍 ${job.city}${job.country ? `, ${job.country}` : ''}
         </p>
         <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">
           💼 ${job.type.charAt(0).toUpperCase() + job.type.slice(1)} • Posted ${dateStr}
@@ -359,7 +359,7 @@ This is a ${frequencyText} job alert. You're receiving this because you have an 
  * Sent to: Recruiter
  */
 export function getApplicationWithdrawnEmail(data: ApplicationEmailData): { subject: string; html: string; text: string } {
-  const { candidateName, candidateEmail, recruiterName, jobTitle, jobCompany, jobLocation } = data;
+  const { candidateName, candidateEmail, recruiterName, jobTitle, jobCompany, jobCity } = data;
 
   const subject = `Application Withdrawn: ${candidateName} withdrew from ${jobTitle || 'your job posting'}`;
 
@@ -381,7 +381,7 @@ export function getApplicationWithdrawnEmail(data: ApplicationEmailData): { subj
           <h3 style="color: #374151; margin-top: 0;">Job Details</h3>
           <p style="margin: 5px 0;"><strong>Position:</strong> ${jobTitle}</p>
           ${jobCompany ? `<p style="margin: 5px 0;"><strong>Company:</strong> ${jobCompany}</p>` : ''}
-          ${jobLocation ? `<p style="margin: 5px 0;"><strong>Location:</strong> ${jobLocation}</p>` : ''}
+          ${jobCity ? `<p style="margin: 5px 0;"><strong>City:</strong> ${jobCity}</p>` : ''}
         </div>
       ` : ''}
 
@@ -408,7 +408,7 @@ Email: ${candidateEmail}
 
 ${jobTitle ? `Job Details:
 Position: ${jobTitle}
-${jobCompany ? `Company: ${jobCompany}\n` : ''}${jobLocation ? `Location: ${jobLocation}\n` : ''}` : ''}
+${jobCompany ? `Company: ${jobCompany}\n` : ''}${jobCity ? `City: ${jobCity}\n` : ''}` : ''}
 
 Status: Application Withdrawn
 

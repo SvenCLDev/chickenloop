@@ -36,7 +36,7 @@ interface Job {
   title: string;
   description: string;
   company: string;
-  location: string;
+  city: string;
   country?: string;
   salary?: string;
   type: string;
@@ -159,7 +159,7 @@ export default function JobDetailPage() {
 
   const checkFavouriteStatus = async () => {
     if (!user || user.role !== 'job-seeker') return;
-
+    
     setCheckingFavourite(true);
     try {
       const data = await jobsApi.checkFavourite(jobId);
@@ -173,7 +173,7 @@ export default function JobDetailPage() {
 
   const handleToggleFavourite = async () => {
     if (!user || user.role !== 'job-seeker' || togglingFavourite) return;
-
+    
     setTogglingFavourite(true);
     try {
       const data = await jobsApi.toggleFavourite(jobId);
@@ -241,13 +241,13 @@ export default function JobDetailPage() {
 
   const handleReportSpam = async () => {
     if (!job || spamReported) return;
-
+    
     setReportingSpam(true);
     try {
       const response = await fetch(`/api/jobs/${jobId}/report-spam`, {
         method: 'POST',
       });
-
+      
       if (response.ok) {
         setSpamReported(true);
       } else {
@@ -335,7 +335,7 @@ export default function JobDetailPage() {
               <div className="flex items-center gap-3">
                 <ShareJobButton
                   jobTitle={job.title}
-                  shortDescription={`${job.type} position at ${job.company} in ${job.location}`}
+                  shortDescription={`${job.type} position at ${job.company} in ${job.city}`}
                   url={currentUrl}
                 />
                 {/* Add to Favourites Button */}
@@ -373,7 +373,7 @@ export default function JobDetailPage() {
               <div className="flex flex-wrap gap-4 mb-4">
                 <div className="flex items-center text-gray-600">
                   <span className="mr-2">📍</span>
-                  <span>{job.location}</span>
+                  <span>{job.city}</span>
                 </div>
                 {job.country && typeof job.country === 'string' && job.country.trim() && (
                   <div className="flex items-center text-gray-600">
@@ -392,7 +392,7 @@ export default function JobDetailPage() {
                   </div>
                 )}
               </div>
-
+              
               {/* Languages Required - in Job Details section */}
               {job.languages && job.languages.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -412,7 +412,7 @@ export default function JobDetailPage() {
                   </div>
                 </div>
               )}
-
+              
               {/* Job Categories - in Job Details section */}
               {job.occupationalAreas && job.occupationalAreas.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -432,7 +432,7 @@ export default function JobDetailPage() {
                   </div>
                 </div>
               )}
-
+              
               {/* Required Qualifications - in Job Details section */}
               {job.qualifications && job.qualifications.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -461,7 +461,7 @@ export default function JobDetailPage() {
             </div>
 
             {job.pictures && job.pictures.length > 0 && (
-              <div className="mb-6">
+            <div className="mb-6">
                 <div className="grid grid-cols-3 gap-2">
                   {job.pictures.map((picture, index) => (
                     <button
@@ -562,7 +562,7 @@ export default function JobDetailPage() {
                 )}
                 {formatCompanyAddress(job.companyId.address) && (
                   <p className="text-sm text-gray-600 mb-1">
-                    <span className="font-semibold text-gray-600">Location:</span>{' '}
+                    <span className="font-semibold text-gray-600">City:</span>{' '}
                     {formatCompanyAddress(job.companyId.address)}
                   </p>
                 )}
@@ -593,8 +593,8 @@ export default function JobDetailPage() {
             )}
 
             {/* How to Apply Section */}
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">How to Apply</h2>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-3">How to Apply</h2>
               
               {/* ATS Apply Button - Show for job seekers */}
               {user && user.role === 'job-seeker' && (
@@ -625,54 +625,54 @@ export default function JobDetailPage() {
                   {user && user.role === 'job-seeker' && (
                     <p className="text-sm text-gray-600 mb-3">Or apply directly:</p>
                   )}
-                  <div className="space-y-3">
-                    {job.applyByEmail && job.applicationEmail && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">📧</span>
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <span className="font-medium">By email:</span>
-                          <a
-                            href={`mailto:${job.applicationEmail}`}
-                            className="text-blue-600 hover:text-blue-800 hover:underline"
-                          >
-                            {job.applicationEmail}
-                          </a>
-                        </div>
+                <div className="space-y-3">
+                  {job.applyByEmail && job.applicationEmail && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">📧</span>
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <span className="font-medium">By email:</span>
+                        <a
+                          href={`mailto:${job.applicationEmail}`}
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {job.applicationEmail}
+                        </a>
                       </div>
-                    )}
-                    {job.applyByWebsite && job.applicationWebsite && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">🌐</span>
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <span className="font-medium">Via our Website:</span>
-                          <a
-                            href={job.applicationWebsite}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 hover:underline"
-                          >
-                            {job.applicationWebsite}
-                          </a>
-                        </div>
+                    </div>
+                  )}
+                  {job.applyByWebsite && job.applicationWebsite && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">🌐</span>
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <span className="font-medium">Via our Website:</span>
+                        <a
+                          href={job.applicationWebsite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {job.applicationWebsite}
+                        </a>
                       </div>
-                    )}
-                    {job.applyByWhatsApp && job.applicationWhatsApp && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">💬</span>
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <span className="font-medium">By WhatsApp:</span>
-                          <a
-                            href={`https://wa.me/${job.applicationWhatsApp.replace(/[^0-9]/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 hover:underline"
-                          >
-                            {job.applicationWhatsApp}
-                          </a>
-                        </div>
+                    </div>
+                  )}
+                  {job.applyByWhatsApp && job.applicationWhatsApp && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">💬</span>
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <span className="font-medium">By WhatsApp:</span>
+                        <a
+                          href={`https://wa.me/${job.applicationWhatsApp.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {job.applicationWhatsApp}
+                        </a>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+                </div>
                 </>
               )}
 
@@ -704,7 +704,7 @@ export default function JobDetailPage() {
                   </p>
                   <FormattedDate date={job.createdAt} />
                 </div>
-
+                
                 {/* Right Column - Report Spam Button */}
                 <div className="flex-shrink-0">
                   {/* Report Spam Button */}
@@ -714,7 +714,7 @@ export default function JobDetailPage() {
                     className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${spamReported
                         ? 'bg-red-100 text-red-700 cursor-not-allowed'
                         : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                      }`}
+                    }`}
                   >
                     {spamReported ? '✓ Reported as Spam' : reportingSpam ? 'Reporting...' : '🚩 Report as Spam'}
                   </button>

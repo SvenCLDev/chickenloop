@@ -110,3 +110,4 @@ deleteJobWithCategory(category)
     process.exit(1);
   });
 
+

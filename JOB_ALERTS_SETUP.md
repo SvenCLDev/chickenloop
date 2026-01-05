@@ -263,3 +263,4 @@ Potential improvements:
 - Search analytics (how many matches per search)
 - Duplicate detection (don't send same job twice)
 
+

@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       title: job.title,
       description: job.description,
       company: job.company,
-      location: job.location,
+      city: job.city,
       country: job.country,
       salary: job.salary,
       type: job.type,

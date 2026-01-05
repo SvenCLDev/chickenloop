@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
           _id: String(match.job._id),
           title: match.job.title,
           company: match.job.company,
-          location: match.job.location,
+          city: match.job.city,
           country: match.job.country || undefined,
           description: match.job.description || '',
           type: match.job.type,

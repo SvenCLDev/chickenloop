@@ -793,7 +793,7 @@ export default function JobSeekerDashboard() {
                           {job.company}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {job.location}
+                          {job.city}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">

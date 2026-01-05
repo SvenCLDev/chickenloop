@@ -56,11 +56,21 @@ export async function PUT(
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
-    const { title, description, location, country, salary, type, company, languages, qualifications, sports, occupationalAreas, pictures, spam, published, featured, applyByEmail, applyByWebsite, applicationEmail, applicationWebsite } = await request.json();
+    const requestBody = await request.json();
+    
+    // Safeguard: Reject requests that include deprecated `location` field
+    if (requestBody.location !== undefined) {
+      return NextResponse.json(
+        { error: 'The `location` field has been deprecated. Please use `city` instead.' },
+        { status: 400 }
+      );
+    }
+
+    const { title, description, city, country, salary, type, company, languages, qualifications, sports, occupationalAreas, pictures, spam, published, featured, applyByEmail, applyByWebsite, applicationEmail, applicationWebsite } = requestBody;
 
     if (title) job.title = title;
     if (description) job.description = description;
-    if (location) job.location = location;
+    if (city) job.city = city;
     if (country !== undefined) job.country = country?.trim().toUpperCase() || undefined;
     if (salary !== undefined) job.salary = salary;
     if (type) job.type = type;

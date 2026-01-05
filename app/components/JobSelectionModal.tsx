@@ -4,7 +4,7 @@ interface Job {
   _id: string;
   title: string;
   company: string;
-  location: string;
+  city: string;
 }
 
 interface JobSelectionModalProps {
@@ -68,7 +68,7 @@ export default function JobSelectionModal({
               >
                 <div className="font-semibold text-gray-900">{job.title}</div>
                 <div className="text-sm text-gray-600 mt-1">
-                  {job.company} • {job.location}
+                  {job.company} • {job.city}
                 </div>
               </button>
             ))}

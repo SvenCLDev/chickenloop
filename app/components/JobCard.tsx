@@ -6,7 +6,7 @@ interface JobCardProps {
     _id: string;
     title: string;
     company: string;
-    location: string;
+    city: string;
     pictures?: string[];
   };
 }
@@ -46,7 +46,7 @@ export default function JobCard({ job }: JobCardProps) {
         </p>
         <p className="text-sm text-gray-600 flex items-center">
           <span className="mr-1.5">📍</span>
-          <span className="line-clamp-1">{job.location}</span>
+          <span className="line-clamp-1">{job.city}</span>
         </p>
       </div>
     </Link>

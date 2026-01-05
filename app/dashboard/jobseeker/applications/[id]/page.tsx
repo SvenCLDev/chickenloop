@@ -280,7 +280,7 @@ export default function JobSeekerApplicationDetailPage() {
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Location</p>
                     <p className="text-lg text-gray-900">
-                      {application.job.location}
+                      {application.job.city}
                       {application.job.country && `, ${application.job.country}`}
                     </p>
                   </div>

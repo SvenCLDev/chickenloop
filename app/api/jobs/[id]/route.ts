@@ -51,6 +51,7 @@ export async function GET(
     
     const jobResponse = {
       ...jobObject,
+      city: jobObject.city, // Renamed from location
       country: countryValue,
     };
 
@@ -87,7 +88,17 @@ export async function PUT(
       );
     }
 
-    const { title, description, company, location, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, published, featured, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = await request.json();
+    const requestBody = await request.json();
+    
+    // Safeguard: Reject requests that include deprecated `location` field
+    if (requestBody.location !== undefined) {
+      return NextResponse.json(
+        { error: 'The `location` field has been deprecated. Please use `city` instead.' },
+        { status: 400 }
+      );
+    }
+
+    const { title, description, company, city, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, published, featured, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
 
     // Validate job categories - ensure all categories are in JOB_CATEGORIES
     if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
@@ -105,7 +116,7 @@ export async function PUT(
     if (title) job.title = title;
     if (description) job.description = description;
     if (company) job.company = company;
-    if (location) job.location = location;
+    if (city) job.city = city;
     if (country !== undefined) {
       // Normalize country: trim and uppercase, or set to null if empty (null explicitly stores the field)
       job.country = country?.trim() ? country.trim().toUpperCase() : null;
@@ -173,6 +184,7 @@ export async function PUT(
     const jobObject = updatedJob?.toObject();
     const jobResponse = jobObject ? {
       ...jobObject,
+      city: jobObject.city, // Renamed from location
       // Handle country field - normalize if it exists, preserve null/undefined appropriately
       country: jobObject.country != null 
         ? (jobObject.country.trim() ? jobObject.country.trim().toUpperCase() : null)

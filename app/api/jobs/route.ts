@@ -93,8 +93,8 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Location filter: semantic search against location (city) and country fields (OR logic)
-    // This is the top search bar - searches both location (city) and country fields semantically
+    // Location filter: semantic search against city and country fields (OR logic)
+    // This is the top search bar - searches both city and country fields semantically
     // Can be used together with city filter: when both are present, location search only checks country field
     if (filters.location) {
       // Safety guards: trim whitespace and validate minimum length
@@ -110,10 +110,10 @@ export async function GET(request: NextRequest) {
         const escapedLocation = trimmedLocation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const locationRegex = new RegExp(escapedLocation, 'i');
         
-        // Build location OR conditions: always search both location (city) and country fields
+        // Build location OR conditions: always search both city and country fields
         // Both fields are indexed, so these queries will use indexes efficiently
         const locationOr: any[] = [
-          { location: locationRegex }, // Search in city name (semantic/partial match) - uses location index
+          { city: locationRegex }, // Search in city name (semantic/partial match) - uses city index
           { country: locationRegex }    // Search in country code (partial match) - uses country index
         ];
         
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // City filter: exact match (case-insensitive) on location field ONLY
+    // City filter: exact match (case-insensitive) on city field ONLY
     // This is the sidebar filter - provides precise city filtering
     // When combined with location search: (location = exact city) AND (country matches location search)
     // When used alone: (location = exact city)
@@ -160,14 +160,14 @@ export async function GET(request: NextRequest) {
         // This prevents expensive regex scans
       } else {
         // Safely escape regex special characters to prevent regex injection
-        // Use case-insensitive exact match for location field (which contains city name)
+        // Use case-insensitive exact match for city field
         const cityRegex = new RegExp(`^${trimmedCity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
       
       // If location search is also present, combine with AND logic
-      // Result: (location matches city exactly) AND (country matches location search)
+      // Result: (city matches exactly) AND (country matches location search)
       if (filters.location) {
-        // Location search is present - rebuild it to only check country field (not location)
-        // Since city filter already constrains location, location search should only match country
+        // Location search is present - rebuild it to only check country field (not city)
+        // Since city filter already constrains city, location search should only match country
         const escapedLocation = filters.location.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const locationRegex = new RegExp(escapedLocation, 'i');
         
@@ -190,7 +190,7 @@ export async function GET(request: NextRequest) {
           delete queryFilter.$or;
           
           queryFilter.$and = queryFilter.$and || [];
-          queryFilter.$and.push({ location: cityRegex });
+          queryFilter.$and.push({ city: cityRegex });
           queryFilter.$and.push({ $or: countryOnlyOr });
         } else if (queryFilter.$and) {
           // Location search is already in $and (combined with keyword)
@@ -200,11 +200,11 @@ export async function GET(request: NextRequest) {
             // Replace the location search $or with country-only version
             queryFilter.$and[andIndex] = { $or: countryOnlyOr };
           }
-          queryFilter.$and.push({ location: cityRegex });
+          queryFilter.$and.push({ city: cityRegex });
         } else {
           // Should not happen if location search was processed, but handle it
           queryFilter.$and = [
-            { location: cityRegex },
+            { city: cityRegex },
             { $or: countryOnlyOr }
           ];
         }
@@ -245,7 +245,7 @@ export async function GET(request: NextRequest) {
       _id: 1,
       title: 1,
       company: 1,
-      location: 1,
+      city: 1,
       country: 1,
       salary: 1,
       type: 1,
@@ -394,11 +394,21 @@ export async function POST(request: NextRequest) {
     const user = requireRole(request, ['recruiter']);
     await connectDB();
 
+    const requestBody = await request.json();
+    
+    // Safeguard: Reject requests that include deprecated `location` field
+    if (requestBody.location !== undefined) {
+      return NextResponse.json(
+        { error: 'The `location` field has been deprecated. Please use `city` instead.' },
+        { status: 400 }
+      );
+    }
+
     const {
       title,
       description,
       company,
-      location,
+      city,
       country,
       salary,
       type,
@@ -413,12 +423,12 @@ export async function POST(request: NextRequest) {
       applicationEmail,
       applicationWebsite,
       applicationWhatsApp
-    } = await request.json();
+    } = requestBody;
 
     // Validate required fields - check for empty strings and whitespace
-    if (!title || !title.trim() || !description || !description.trim() || !company || !company.trim() || !location || !location.trim() || !type || !type.trim()) {
+    if (!title || !title.trim() || !description || !description.trim() || !company || !company.trim() || !city || !city.trim() || !type || !type.trim()) {
       return NextResponse.json(
-        { error: 'Title, description, company, location, and type are required' },
+        { error: 'Title, description, company, city, and type are required' },
         { status: 400 }
       );
     }
@@ -455,7 +465,7 @@ export async function POST(request: NextRequest) {
       title,
       description,
       company,
-      location,
+      city,
       country: normalizedCountry,
       salary,
       type,

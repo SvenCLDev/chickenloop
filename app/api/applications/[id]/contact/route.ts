@@ -42,14 +42,14 @@ export async function POST(
     // Get job details if available
     let jobTitle: string | undefined;
     let jobCompany: string | undefined;
-    let jobLocation: string | undefined;
+    let jobCity: string | undefined;
 
     if (application.jobId) {
-      const job = await Job.findById(application.jobId).select('title company location');
+      const job = await Job.findById(application.jobId).select('title company city');
       if (job) {
         jobTitle = job.title;
         jobCompany = job.company;
-        jobLocation = job.location;
+        jobCity = job.city;
       }
     }
 
@@ -62,7 +62,7 @@ export async function POST(
         recruiterEmail: recruiter.email,
         jobTitle,
         jobCompany,
-        jobLocation,
+        jobCity,
       });
 
       await sendEmail({
