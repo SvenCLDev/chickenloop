@@ -26,6 +26,8 @@ export interface IJob extends Document {
   applicationEmail?: string;
   applicationWebsite?: string;
   applicationWhatsApp?: string;
+  datePosted?: Date; // System-managed: set when job is first published (Google Jobs SEO)
+  validThrough?: Date; // System-managed: datePosted + 90 days (Google Jobs SEO)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,7 +52,8 @@ const JobSchema: Schema = new Schema(
     },
     country: {
       type: String,
-      default: null,
+      // Required for new documents, but allow existing documents without it for backward compatibility
+      // Validation is enforced at API level for create/update operations
     },
     salary: {
       type: String,
@@ -78,10 +81,15 @@ const JobSchema: Schema = new Schema(
     sports: [{
       type: String,
     }],
-    occupationalAreas: [{
-      type: String,
-      enum: [...JOB_CATEGORIES],
-    }],
+    occupationalAreas: {
+      type: [{
+        type: String,
+        enum: [...JOB_CATEGORIES],
+      }],
+      // Required for new documents, but allow existing documents without it for backward compatibility
+      // Validation is enforced at API level for create/update operations
+      default: [],
+    },
     pictures: [{
       type: String,
     }],
@@ -122,6 +130,16 @@ const JobSchema: Schema = new Schema(
     applicationWhatsApp: {
       type: String,
     },
+    datePosted: {
+      type: Date,
+      // System-managed field - not editable by users
+      // Set automatically when job is first published
+    },
+    validThrough: {
+      type: Date,
+      // System-managed field - not editable by users
+      // Set automatically to datePosted + 90 days
+    },
   },
   {
     timestamps: true,
@@ -132,29 +150,70 @@ const JobSchema: Schema = new Schema(
 // Mongoose strict mode (enabled by default) will ignore fields not in the schema,
 // but we add explicit hooks as an additional safeguard
 
-// Pre-save hook: Remove `location` if it somehow exists
+// Pre-save hook: Manage system-managed date fields and remove deprecated fields
 JobSchema.pre('save', function(next) {
   const doc = this as any;
+  
   // Remove `location` field if present (should not happen due to strict mode + API validation)
   if (doc.location !== undefined) {
     delete doc.location;
   }
+  
+  // System-managed date fields for Google Jobs SEO
+  const isNew = this.isNew;
+  const wasPublished = this.get('published') === true;
+  const isBeingPublished = doc.published !== undefined ? doc.published === true : wasPublished;
+  const currentDatePosted = this.get('datePosted');
+  
+  // Only manage dates for published jobs
+  if (isBeingPublished) {
+    // Set datePosted when job is first published (never change it once set)
+    if (!currentDatePosted) {
+      // Use createdAt as fallback for backward compatibility, or current date
+      const dateToUse = this.get('createdAt') || new Date();
+      doc.datePosted = dateToUse instanceof Date ? dateToUse : new Date(dateToUse);
+    }
+    // datePosted is never changed once set (preserve existing value)
+    
+    // Ensure validThrough exists: datePosted + 90 days
+    if (!doc.validThrough && !this.get('validThrough')) {
+      const datePosted = doc.datePosted || currentDatePosted || this.get('createdAt') || new Date();
+      const datePostedDate = datePosted instanceof Date ? datePosted : new Date(datePosted);
+      const validThroughDate = new Date(datePostedDate);
+      validThroughDate.setDate(validThroughDate.getDate() + 90);
+      doc.validThrough = validThroughDate;
+    }
+  }
+  
   next();
 });
 
-// Pre-update hooks: Strip `location` from update operations
+// Pre-update hooks: Strip system-managed fields and deprecated fields from update operations
 JobSchema.pre(['updateOne', 'findOneAndUpdate', 'updateMany'], function() {
   const update = this.getUpdate() as any;
   if (update && typeof update === 'object') {
-    // Remove from $set
+    // Remove deprecated `location` field
     if (update.$set && update.$set.location !== undefined) {
       delete update.$set.location;
     }
-    // Remove from top-level update
     if (update.location !== undefined) {
       delete update.location;
     }
-    // Explicitly unset if it was present
+    
+    // Remove system-managed fields (datePosted, validThrough)
+    // These are managed server-side in API routes, not via direct updates
+    if (update.$set) {
+      delete update.$set.datePosted;
+      delete update.$set.validThrough;
+    }
+    if (update.datePosted !== undefined) {
+      delete update.datePosted;
+    }
+    if (update.validThrough !== undefined) {
+      delete update.validThrough;
+    }
+    
+    // Explicitly unset deprecated fields if they were present
     if (update.$set?.location !== undefined || update.location !== undefined) {
       update.$unset = update.$unset || {};
       update.$unset.location = '';

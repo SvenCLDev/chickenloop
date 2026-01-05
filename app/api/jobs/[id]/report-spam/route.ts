@@ -18,8 +18,9 @@ export async function POST(
     }
 
     // Set spam flag to 'yes'
+    // Skip validation since we're only updating the spam flag, not job content
     job.spam = 'yes';
-    await job.save();
+    await job.save({ validateBeforeSave: false });
     
     // Verify the save worked
     const updatedJob = await Job.findById(id);

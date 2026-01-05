@@ -97,6 +97,14 @@ export async function PUT(
         { status: 400 }
       );
     }
+    
+    // Safeguard: Reject requests that include system-managed date fields
+    if (requestBody.datePosted !== undefined || requestBody.validThrough !== undefined) {
+      return NextResponse.json(
+        { error: 'The `datePosted` and `validThrough` fields are system-managed and cannot be set manually.' },
+        { status: 400 }
+      );
+    }
 
     const { title, description, company, city, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, published, featured, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
 
@@ -107,10 +115,48 @@ export async function PUT(
       );
       if (invalidCategories.length > 0) {
         return NextResponse.json(
-          { message: 'Invalid job category' },
+          { error: 'Invalid job category' },
           { status: 400 }
         );
       }
+    }
+
+    // Validate required fields if provided
+    if (title !== undefined && (!title || !title.trim())) {
+      return NextResponse.json(
+        { error: 'Job Title is required' },
+        { status: 400 }
+      );
+    }
+    if (description !== undefined && (!description || !description.trim())) {
+      return NextResponse.json(
+        { error: 'Description is required' },
+        { status: 400 }
+      );
+    }
+    if (city !== undefined && (!city || !city.trim())) {
+      return NextResponse.json(
+        { error: 'City is required' },
+        { status: 400 }
+      );
+    }
+    if (country !== undefined && (!country || !country.trim())) {
+      return NextResponse.json(
+        { error: 'Country (ISO code) is required' },
+        { status: 400 }
+      );
+    }
+    if (type !== undefined && (!type || !type.trim())) {
+      return NextResponse.json(
+        { error: 'Employment Type is required' },
+        { status: 400 }
+      );
+    }
+    if (occupationalAreas !== undefined && (!Array.isArray(occupationalAreas) || occupationalAreas.length === 0)) {
+      return NextResponse.json(
+        { error: 'At least one Job Category is required' },
+        { status: 400 }
+      );
     }
 
     if (title) job.title = title;
@@ -147,8 +193,55 @@ export async function PUT(
     }
     
     // Update published flag (recruiters can publish/unpublish their own jobs)
+    // System-managed date fields: datePosted and validThrough
+    const wasPublished = job.published === true;
     if (published !== undefined) {
       job.published = published === true;
+      
+      // Handle system-managed date fields when publishing status changes
+      const isBeingPublished = published === true;
+      
+      if (isBeingPublished && !wasPublished) {
+        // Job is being published for the first time
+        if (!job.datePosted) {
+          // Set datePosted to now (first time publishing)
+          job.datePosted = new Date();
+          // Set validThrough to datePosted + 90 days
+          const validThroughDate = new Date(job.datePosted);
+          validThroughDate.setDate(validThroughDate.getDate() + 90);
+          job.validThrough = validThroughDate;
+        } else {
+          // Job was previously published, being republished
+          // Keep existing datePosted, but ensure validThrough exists
+          if (!job.validThrough) {
+            const validThroughDate = new Date(job.datePosted);
+            validThroughDate.setDate(validThroughDate.getDate() + 90);
+            job.validThrough = validThroughDate;
+          }
+        }
+      } else if (isBeingPublished && wasPublished) {
+        // Job remains published - ensure datePosted and validThrough exist (backward compatibility)
+        if (!job.datePosted) {
+          // Use createdAt as fallback for existing published jobs
+          job.datePosted = job.createdAt || new Date();
+        }
+        if (!job.validThrough) {
+          const validThroughDate = new Date(job.datePosted);
+          validThroughDate.setDate(validThroughDate.getDate() + 90);
+          job.validThrough = validThroughDate;
+        }
+      }
+      // If being unpublished, we don't change datePosted or validThrough
+    } else if (wasPublished) {
+      // Job is already published, ensure datePosted and validThrough exist (backward compatibility)
+      if (!job.datePosted) {
+        job.datePosted = job.createdAt || new Date();
+      }
+      if (!job.validThrough) {
+        const validThroughDate = new Date(job.datePosted);
+        validThroughDate.setDate(validThroughDate.getDate() + 90);
+        job.validThrough = validThroughDate;
+      }
     }
     
     // Featured flag can only be updated by admins, ignore if sent by recruiters
@@ -172,6 +265,25 @@ export async function PUT(
     }
     if (applicationWhatsApp !== undefined) {
       job.applicationWhatsApp = applicationWhatsApp || undefined;
+    }
+
+    // Validate all required fields are present before saving
+    const requiredFields: { [key: string]: string } = {};
+    if (!job.title || !job.title.trim()) requiredFields.title = 'Job Title';
+    if (!job.description || !job.description.trim()) requiredFields.description = 'Description';
+    if (!job.city || !job.city.trim()) requiredFields.city = 'City';
+    if (!job.country || !job.country.trim()) requiredFields.country = 'Country (ISO code)';
+    if (!job.type || !job.type.trim()) requiredFields.type = 'Employment Type';
+    if (!job.occupationalAreas || !Array.isArray(job.occupationalAreas) || job.occupationalAreas.length === 0) {
+      requiredFields.category = 'Job Category';
+    }
+    
+    if (Object.keys(requiredFields).length > 0) {
+      const missingFields = Object.values(requiredFields).join(', ');
+      return NextResponse.json(
+        { error: `Missing required fields: ${missingFields}` },
+        { status: 400 }
+      );
     }
 
     await job.save();

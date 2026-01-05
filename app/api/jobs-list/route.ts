@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       _id: 1,
       title: 1,
       company: 1,
-      location: 1,
+      city: 1, // Updated from location to city
       country: 1,
       salary: 1,
       type: 1,

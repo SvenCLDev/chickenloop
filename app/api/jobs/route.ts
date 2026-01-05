@@ -210,10 +210,10 @@ export async function GET(request: NextRequest) {
         }
       } else if (queryFilter.$and) {
         // Other AND conditions exist (e.g., from keyword filter)
-        queryFilter.$and.push({ location: cityRegex });
+        queryFilter.$and.push({ city: cityRegex });
       } else {
         // No location search - just apply city filter directly
-        queryFilter.location = cityRegex;
+        queryFilter.city = cityRegex;
       }
       }
     }
@@ -403,6 +403,14 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    
+    // Safeguard: Reject requests that include system-managed date fields
+    if (requestBody.datePosted !== undefined || requestBody.validThrough !== undefined) {
+      return NextResponse.json(
+        { error: 'The `datePosted` and `validThrough` fields are system-managed and cannot be set manually.' },
+        { status: 400 }
+      );
+    }
 
     const {
       title,
@@ -426,9 +434,21 @@ export async function POST(request: NextRequest) {
     } = requestBody;
 
     // Validate required fields - check for empty strings and whitespace
-    if (!title || !title.trim() || !description || !description.trim() || !company || !company.trim() || !city || !city.trim() || !type || !type.trim()) {
+    const requiredFields: { [key: string]: string } = {};
+    if (!title || !title.trim()) requiredFields.title = 'Job Title';
+    if (!description || !description.trim()) requiredFields.description = 'Description';
+    if (!company || !company.trim()) requiredFields.company = 'Company';
+    if (!city || !city.trim()) requiredFields.city = 'City';
+    if (!country || !country.trim()) requiredFields.country = 'Country (ISO code)';
+    if (!type || !type.trim()) requiredFields.type = 'Employment Type';
+    if (!occupationalAreas || !Array.isArray(occupationalAreas) || occupationalAreas.length === 0) {
+      requiredFields.category = 'Job Category';
+    }
+    
+    if (Object.keys(requiredFields).length > 0) {
+      const missingFields = Object.values(requiredFields).join(', ');
       return NextResponse.json(
-        { error: 'Title, description, company, city, and type are required' },
+        { error: `Missing required fields: ${missingFields}` },
         { status: 400 }
       );
     }
@@ -461,6 +481,13 @@ export async function POST(request: NextRequest) {
     const recruiterCompany = await Company.findOne({ owner: user.userId });
     const companyId = recruiterCompany ? recruiterCompany._id : undefined;
 
+    // System-managed date fields for Google Jobs SEO
+    // datePosted is set when job is first published
+    // validThrough is set to datePosted + 90 days
+    const now = new Date();
+    const validThroughDate = new Date(now);
+    validThroughDate.setDate(validThroughDate.getDate() + 90);
+
     const job = await Job.create({
       title,
       description,
@@ -482,6 +509,9 @@ export async function POST(request: NextRequest) {
       applicationEmail: applicationEmail || undefined,
       applicationWebsite: applicationWebsite || undefined,
       applicationWhatsApp: applicationWhatsApp || undefined,
+      published: true, // Jobs are published by default
+      datePosted: now, // System-managed: set when first published
+      validThrough: validThroughDate, // System-managed: datePosted + 90 days
     });
 
     const populatedJob = await Job.findById(job._id).populate('recruiter', 'name email');

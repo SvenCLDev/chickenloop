@@ -1,14 +1,12 @@
 /**
- * Migration Script: Rename Job field from `location` to `city`
+ * Migration Script: Add system-managed posting dates for Google Jobs SEO
  * 
- * This script migrates existing Job documents to rename the `location` field to `city`.
+ * This script backfills `datePosted` and `validThrough` fields for existing Job documents.
  * 
  * Migration logic:
- * - Find documents where `location` exists AND `city` does NOT exist
- * - For each document:
- *   - Set `city = location`
- *   - Remove `location` field
- * - Do NOT overwrite `city` if it already exists
+ * - Find all published jobs missing `datePosted` or `validThrough`
+ * - Set `datePosted` to `createdAt` (or current date if createdAt is missing)
+ * - Set `validThrough` to `datePosted + 90 days`
  * 
  * The script is idempotent and safe to re-run multiple times.
  */
@@ -45,15 +43,14 @@ import '../models/Job';
 interface MigrationStats {
   totalJobs: number;
   jobsScanned: number;
-  jobsMigrated: number;
+  jobsUpdated: number;
   jobsSkipped: number;
-  jobsWithBothFields: number;
   errors: number;
 }
 
-async function migrateLocationToCity() {
+async function migrateJobPostingDates() {
   console.log('='.repeat(80));
-  console.log('Job Location → City Migration Script');
+  console.log('Job Posting Dates Migration Script');
   console.log('='.repeat(80));
   console.log('');
 
@@ -84,24 +81,23 @@ async function migrateLocationToCity() {
     const stats: MigrationStats = {
       totalJobs: 0,
       jobsScanned: 0,
-      jobsMigrated: 0,
+      jobsUpdated: 0,
       jobsSkipped: 0,
-      jobsWithBothFields: 0,
       errors: 0,
     };
 
-    // Fetch all jobs that have `location` field
-    console.log('📊 Fetching jobs with `location` field...');
-    const jobsWithLocation = await JobModel.find({ 
-      location: { $exists: true, $ne: null } 
+    // Fetch all published jobs
+    console.log('📊 Fetching published jobs...');
+    const publishedJobs = await JobModel.find({ 
+      published: true 
     }).lean();
     
-    stats.totalJobs = jobsWithLocation.length;
-    console.log(`   Found ${stats.totalJobs} jobs with \`location\` field`);
+    stats.totalJobs = publishedJobs.length;
+    console.log(`   Found ${stats.totalJobs} published jobs`);
     console.log('');
 
     if (stats.totalJobs === 0) {
-      console.log('ℹ️  No jobs with `location` field found. Migration complete.');
+      console.log('ℹ️  No published jobs found. Migration complete.');
       await mongoose.disconnect();
       return;
     }
@@ -110,48 +106,56 @@ async function migrateLocationToCity() {
     console.log('');
 
     // Process each job
-    for (const job of jobsWithLocation) {
+    for (const job of publishedJobs) {
       stats.jobsScanned++;
       const jobId = job._id.toString();
-      const hasLocation = job.location !== undefined && job.location !== null;
-      const hasCity = job.city !== undefined && job.city !== null;
+      const hasDatePosted = job.datePosted !== undefined && job.datePosted !== null;
+      const hasValidThrough = job.validThrough !== undefined && job.validThrough !== null;
 
-      // Skip if job doesn't have location (shouldn't happen due to query, but safety check)
-      if (!hasLocation) {
+      // Skip if both fields already exist
+      if (hasDatePosted && hasValidThrough) {
         stats.jobsSkipped++;
         continue;
       }
 
-      // If both fields exist, skip (do not overwrite city)
-      if (hasLocation && hasCity) {
-        stats.jobsWithBothFields++;
-        console.log(`   ⚠️  Job ${jobId}: Both \`location\` and \`city\` exist. Skipping to preserve \`city\`.`);
-        continue;
+      // Determine datePosted: use existing value, or createdAt, or current date
+      let datePosted: Date;
+      if (hasDatePosted) {
+        datePosted = new Date(job.datePosted);
+      } else if (job.createdAt) {
+        datePosted = new Date(job.createdAt);
+      } else {
+        datePosted = new Date();
       }
 
-      // If city already exists (but location doesn't), skip
-      if (hasCity && !hasLocation) {
-        stats.jobsSkipped++;
-        continue;
-      }
+      // Calculate validThrough: datePosted + 90 days
+      const validThrough = new Date(datePosted);
+      validThrough.setDate(validThrough.getDate() + 90);
 
-      // Migrate: set city = location, remove location
+      // Update the job
       try {
-        const locationValue = job.location;
+        const updateData: any = {};
         
+        if (!hasDatePosted) {
+          updateData.datePosted = datePosted;
+        }
+        if (!hasValidThrough) {
+          updateData.validThrough = validThrough;
+        }
+
         await JobModel.updateOne(
           { _id: job._id },
-          { 
-            $set: { city: locationValue },
-            $unset: { location: '' }
-          }
+          { $set: updateData }
         );
         
-        stats.jobsMigrated++;
-        console.log(`   ✓ Job ${jobId}: Migrated \`location\` ("${locationValue}") → \`city\``);
+        stats.jobsUpdated++;
+        const updates: string[] = [];
+        if (!hasDatePosted) updates.push(`datePosted: ${datePosted.toISOString()}`);
+        if (!hasValidThrough) updates.push(`validThrough: ${validThrough.toISOString()}`);
+        console.log(`   ✓ Job ${jobId}: Updated ${updates.join(', ')}`);
       } catch (error) {
         stats.errors++;
-        console.error(`   ❌ Error migrating job ${jobId}:`, error);
+        console.error(`   ❌ Error updating job ${jobId}:`, error);
       }
     }
 
@@ -161,19 +165,12 @@ async function migrateLocationToCity() {
     console.log('Migration Summary');
     console.log('='.repeat(80));
     console.log('');
-    console.log(`Total jobs scanned:         ${stats.jobsScanned}`);
-    console.log(`Jobs migrated:               ${stats.jobsMigrated}`);
-    console.log(`Jobs skipped:               ${stats.jobsSkipped}`);
-    console.log(`Jobs with both fields:      ${stats.jobsWithBothFields}`);
-    console.log(`Errors:                     ${stats.errors}`);
+    console.log(`Total published jobs:        ${stats.totalJobs}`);
+    console.log(`Jobs scanned:                ${stats.jobsScanned}`);
+    console.log(`Jobs updated:                ${stats.jobsUpdated}`);
+    console.log(`Jobs skipped (already set):  ${stats.jobsSkipped}`);
+    console.log(`Errors:                      ${stats.errors}`);
     console.log('');
-
-    if (stats.jobsWithBothFields > 0) {
-      console.log('ℹ️  Note: Some jobs had both `location` and `city` fields.');
-      console.log('          These were skipped to preserve existing `city` values.');
-      console.log('          You may want to manually review these jobs.');
-      console.log('');
-    }
 
     if (stats.errors > 0) {
       console.log('⚠️  Warning: Some jobs could not be migrated due to errors.');
@@ -195,7 +192,7 @@ async function migrateLocationToCity() {
 }
 
 // Run migration
-migrateLocationToCity()
+migrateJobPostingDates()
   .then(() => {
     console.log('✅ Script completed successfully');
     process.exit(0);

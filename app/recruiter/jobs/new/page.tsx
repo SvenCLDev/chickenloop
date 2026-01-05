@@ -182,6 +182,41 @@ export default function NewJobPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Client-side validation for required fields
+    const validationErrors: string[] = [];
+    if (!formData.title || !formData.title.trim()) {
+      validationErrors.push('Job Title is required');
+    }
+    if (!formData.description || !formData.description.trim()) {
+      validationErrors.push('Description is required');
+    }
+    if (!formData.city || !formData.city.trim()) {
+      validationErrors.push('City is required');
+    }
+    if (!formData.country || !formData.country.trim()) {
+      validationErrors.push('Country is required');
+    }
+    if (!formData.type || !formData.type.trim()) {
+      validationErrors.push('Employment Type is required');
+    }
+    if (!formData.occupationalAreas || formData.occupationalAreas.length === 0) {
+      validationErrors.push('Job Category is required');
+    }
+
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join('. '));
+      setLoading(false);
+      // Scroll to error banner
+      setTimeout(() => {
+        const errorBanner = document.getElementById('error-banner');
+        if (errorBanner) {
+          errorBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -312,7 +347,7 @@ export default function NewJobPage() {
               </div>
               <div>
                 <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
-                  Country
+                  Country <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="country"
@@ -320,6 +355,7 @@ export default function NewJobPage() {
                   value={formData.country}
                   onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                   placeholder="e.g., United States"
+                  required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -335,7 +371,7 @@ export default function NewJobPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
-                  Job Type *
+                  Employment Type <span className="text-red-500">*</span>
                 </label>
                 <select
                   id="type"

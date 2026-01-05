@@ -50,6 +50,8 @@ interface Job {
   };
   createdAt: string;
   updatedAt?: string;
+  datePosted?: string; // System-managed: ISO 8601 date when job was first published
+  validThrough?: string; // System-managed: ISO 8601 date (datePosted + 90 days)
   companyId?: CompanyInfo;
   spam?: 'yes' | 'no';
   applyByEmail?: boolean;
