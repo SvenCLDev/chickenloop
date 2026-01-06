@@ -22,7 +22,7 @@ interface Application {
     _id: string;
     title: string;
     company: string;
-    location: string;
+    city: string;
     country?: string;
   } | null;
   company: {
