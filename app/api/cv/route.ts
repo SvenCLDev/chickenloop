@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import CV from '@/models/CV';
 import { requireRole } from '@/lib/auth';
+import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 
 // GET - Get current user's CV (job seekers only)
 export async function GET(request: NextRequest) {
@@ -68,6 +69,19 @@ export async function POST(request: NextRequest) {
         { error: 'Full name and email are required' },
         { status: 400 }
       );
+    }
+
+    // Validate lookingForWorkInAreas against JOB_CATEGORIES
+    if (lookingForWorkInAreas && Array.isArray(lookingForWorkInAreas)) {
+      const invalidCategories = lookingForWorkInAreas.filter(
+        (category: string) => !JOB_CATEGORIES.includes(category as any)
+      );
+      if (invalidCategories.length > 0) {
+        return NextResponse.json(
+          { error: `Invalid job categories: ${invalidCategories.join(', ')}. Valid categories are: ${JOB_CATEGORIES.join(', ')}` },
+          { status: 400 }
+        );
+      }
     }
 
     const cv = await CV.create({
@@ -159,6 +173,18 @@ export async function PUT(request: NextRequest) {
       cv.markModified('languages');
     }
     if (lookingForWorkInAreas !== undefined) {
+      // Validate lookingForWorkInAreas against JOB_CATEGORIES
+      if (Array.isArray(lookingForWorkInAreas)) {
+        const invalidCategories = lookingForWorkInAreas.filter(
+          (category: string) => !JOB_CATEGORIES.includes(category as any)
+        );
+        if (invalidCategories.length > 0) {
+          return NextResponse.json(
+            { error: `Invalid job categories: ${invalidCategories.join(', ')}. Valid categories are: ${JOB_CATEGORIES.join(', ')}` },
+            { status: 400 }
+          );
+        }
+      }
       cv.lookingForWorkInAreas = lookingForWorkInAreas || [];
       cv.markModified('lookingForWorkInAreas');
     }

@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 
 export interface ICV extends Document {
   fullName: string;
@@ -75,7 +76,15 @@ const CVSchema: Schema = new Schema(
     professionalCertifications: [String],
     experienceAndSkill: [String],
     languages: [String],
-    lookingForWorkInAreas: [String],
+    lookingForWorkInAreas: {
+      type: [{
+        type: String,
+        enum: [...JOB_CATEGORIES],
+      }],
+      // Required for new documents, but allow existing documents without it for backward compatibility
+      // Validation is enforced at API level for create/update operations
+      default: [],
+    },
     pictures: [String],
     published: {
       type: Boolean,
