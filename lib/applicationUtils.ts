@@ -41,7 +41,7 @@ export function sanitizeApplicationForRole(application: any, userRole: string): 
           _id: application.jobId._id,
           title: application.jobId.title,
           company: application.jobId.company,
-          location: application.jobId.location,
+          city: application.jobId.city,
           country: application.jobId.country,
           type: application.jobId.type,
           createdAt: application.jobId.createdAt,

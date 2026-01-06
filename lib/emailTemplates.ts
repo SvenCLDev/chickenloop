@@ -338,7 +338,7 @@ ${jobs.length > 0 ? jobs.map((job) => {
     return `
 ${job.featured ? '⭐ FEATURED\n' : ''}${job.title}
 ${job.company}
-📍 ${job.location}${job.country ? `, ${job.country}` : ''}
+📍 ${job.city}${job.country ? `, ${job.country}` : ''}
 💼 ${job.type.charAt(0).toUpperCase() + job.type.slice(1)} • Posted ${dateStr}
 
 ${job.description.substring(0, 200)}${job.description.length > 200 ? '...' : ''}

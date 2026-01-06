@@ -74,7 +74,7 @@ export async function PATCH(
     await application.save();
 
     // Populate related data for response
-    await application.populate('jobId', 'title company location');
+    await application.populate('jobId', 'title company city');
     await application.populate('candidateId', 'name email');
     await application.populate('recruiterId', 'name email');
 
@@ -94,7 +94,7 @@ export async function PATCH(
         _id: (application.jobId as any)._id,
         title: (application.jobId as any).title,
         company: (application.jobId as any).company,
-        location: (application.jobId as any).location,
+        city: (application.jobId as any).city,
       } : null,
       candidate: application.candidateId ? {
         _id: (application.candidateId as any)._id,

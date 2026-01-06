@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         recruiterId: user.userId,
         archivedByRecruiter: { $ne: true },
       })
-        .populate('jobId', 'title company location')
+        .populate('jobId', 'title company city')
         .populate('candidateId', 'name email')
         .sort({ appliedAt: -1 })
         .lean();
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
         const publishedJobs = await Job.find({
           recruiter: user.userId,
           published: true,
-        }).select('_id title company location');
+        }).select('_id title company city');
 
         if (publishedJobs.length === 0) {
           return NextResponse.json(
@@ -309,7 +309,7 @@ export async function POST(request: NextRequest) {
           let jobCity: string | undefined;
 
           if (finalJobId) {
-            const job = await Job.findById(finalJobId).select('title company location');
+            const job = await Job.findById(finalJobId).select('title company city');
             if (job) {
               jobTitle = job.title;
               jobCompany = job.company;

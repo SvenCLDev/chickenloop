@@ -391,9 +391,9 @@ export default function CompanyPage() {
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">Job Openings</h2>
               <ul className="list-disc list-inside space-y-2">
                 {jobs.map((job) => {
-                  // Extract town from location (assuming format like "Town, Country" or just "Town")
-                  const locationParts = job.location.split(',').map((part: string) => part.trim());
-                  const town = locationParts[0] || job.location;
+                  // Extract town from city (assuming format like "Town, Country" or just "Town")
+                  const cityParts = job.city.split(',').map((part: string) => part.trim());
+                  const town = cityParts[0] || job.city;
 
                   return (
                     <li key={job._id} className="text-gray-700">

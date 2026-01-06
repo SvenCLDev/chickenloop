@@ -441,7 +441,7 @@ export default function RecruiterDashboard() {
                 return Object.entries(groupedByJob).map(([jobId, jobApplications]) => {
                   const job = jobApplications[0].jobId;
                   const jobTitle = job?.title || 'Unknown Job';
-                  const jobLocation = job?.location || '';
+                  const jobCity = job?.city || '';
                   
                   // Count active applications (exclude withdrawn)
                   const activeApplications = jobApplications.filter((app: any) => app.status !== 'withdrawn');
@@ -451,8 +451,8 @@ export default function RecruiterDashboard() {
                     <div key={jobId} className="bg-white rounded-lg shadow-md overflow-hidden">
                       <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                         <h3 className="text-xl font-semibold text-gray-900">{jobTitle}</h3>
-                        {jobLocation && (
-                          <p className="text-sm text-gray-600 mt-1">📍 {jobLocation}</p>
+                        {jobCity && (
+                          <p className="text-sm text-gray-600 mt-1">📍 {jobCity}</p>
                         )}
                         <p className="text-sm text-gray-500 mt-1">
                           <span>

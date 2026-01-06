@@ -50,7 +50,7 @@ export async function GET(
     }
 
     // Populate related data
-    await application.populate('jobId', 'title description company location country type recruiter companyId createdAt');
+    await application.populate('jobId', 'title description company city country type recruiter companyId createdAt');
     await application.populate('candidateId', 'name email');
     await application.populate('recruiterId', 'name email');
 
@@ -95,7 +95,7 @@ export async function GET(
         title: (application.jobId as any).title,
         description: (application.jobId as any).description,
         company: (application.jobId as any).company,
-        location: (application.jobId as any).location,
+        city: (application.jobId as any).city,
         country: (application.jobId as any).country,
         type: (application.jobId as any).type,
         createdAt: (application.jobId as any).createdAt,
@@ -272,7 +272,7 @@ export async function GET(
         const recruiter = await User.findById(application.recruiterId).select('name email');
         
         if (candidate && recruiter && candidate.email) {
-          const job = application.jobId ? await Job.findById(application.jobId).select('title company location') : null;
+          const job = application.jobId ? await Job.findById(application.jobId).select('title company city') : null;
 
           const emailTemplate = getStatusChangedEmail({
             candidateName: candidate.name,
@@ -304,7 +304,7 @@ export async function GET(
     }
 
     // Populate related data for response
-    await application.populate('jobId', 'title company location');
+    await application.populate('jobId', 'title company city');
     await application.populate('candidateId', 'name email');
     await application.populate('recruiterId', 'name email');
 
@@ -322,7 +322,7 @@ export async function GET(
         _id: (application.jobId as any)._id,
         title: (application.jobId as any).title,
         company: (application.jobId as any).company,
-        location: (application.jobId as any).location,
+        city: (application.jobId as any).city,
       } : null,
       candidate: application.candidateId ? {
         _id: (application.candidateId as any)._id,

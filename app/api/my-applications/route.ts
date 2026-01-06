@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     })
       .populate({
         path: 'jobId',
-        select: 'title location company',
+        select: 'title city company',
       })
       .select('status appliedAt lastActivityAt jobId')
       .sort({ appliedAt: -1 })
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         result.job = {
           _id: app.jobId._id,
           title: app.jobId.title,
-          location: app.jobId.location,
+          city: app.jobId.city,
         };
         result.company = {
           name: app.jobId.company,
