@@ -126,7 +126,7 @@ const TwitterIcon = () => (
 interface Job {
   _id: string;
   title: string;
-  location: string;
+  city: string;
   companyId?: string | { _id?: string; id?: string };
 }
 

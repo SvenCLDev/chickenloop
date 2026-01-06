@@ -13,7 +13,7 @@ interface Job {
   title: string;
   description: string;
   company: string;
-  location: string;
+  city: string;
   salary?: string;
   type: string;
   recruiter: {

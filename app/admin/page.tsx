@@ -31,7 +31,7 @@ interface Job {
   id: string;
   title: string;
   company: string;
-  location: string;
+  city: string;
   type: string;
   recruiter: any;
   featured?: boolean;
@@ -520,7 +520,7 @@ export default function AdminDashboard() {
                             <>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.title}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.company}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.location}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.city}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.type}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.recruiter?.name || 'Unknown'}
