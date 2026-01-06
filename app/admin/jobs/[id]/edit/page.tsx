@@ -376,7 +376,7 @@ export default function AdminEditJobPage() {
             {/* Languages, Qualifications, Sports, Occupational Areas - Same as recruiter version */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Languages Required (Optional)
+                Languages Required
               </label>
 
               {formData.languages.length > 0 && (
@@ -447,7 +447,7 @@ export default function AdminEditJobPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Job Category (Optional)
+                Job Category
               </label>
 
               {formData.occupationalAreas.length > 0 && (
@@ -512,7 +512,7 @@ export default function AdminEditJobPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Sport / Activities (Optional)
+                Sport / Activities
               </label>
 
               {formData.sports.length > 0 && (
@@ -580,7 +580,7 @@ export default function AdminEditJobPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Required Qualifications (Optional)
+                Required Qualifications
               </label>
 
               {formData.qualifications.length > 0 && (
@@ -658,7 +658,7 @@ export default function AdminEditJobPage() {
 
             <div>
               <label htmlFor="pictures" className="block text-sm font-medium text-gray-700 mb-1">
-                Pictures (Optional - up to 3 total)
+                Pictures (up to 3 total)
               </label>
               {existingPictures.length > 0 && (
                 <div className="mb-4">
@@ -684,15 +684,31 @@ export default function AdminEditJobPage() {
                   </div>
                 </div>
               )}
-              <input
-                id="pictures"
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
-                multiple
-                onChange={handlePictureChange}
-                disabled={existingPictures.length + selectedPictures.length >= 3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
+              <div className="relative">
+                <input
+                  id="pictures"
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  multiple
+                  onChange={handlePictureChange}
+                  disabled={existingPictures.length + selectedPictures.length >= 3}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
+                />
+                {existingPictures.length + selectedPictures.length >= 3 ? (
+                  <div className="block w-full px-3 py-2 border border-gray-200 rounded-md text-sm text-center bg-gray-100 text-gray-400">
+                    Image limit reached (3 of 3)
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="pictures"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-center cursor-pointer transition-colors bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+                  >
+                    {existingPictures.length + selectedPictures.length === 0
+                      ? 'Choose images (up to 3)'
+                      : 'Choose another image'}
+                  </label>
+                )}
+              </div>
               <p className="text-sm text-gray-500 mt-1">
                 Maximum 3 pictures total (including existing ones), 5MB each. Supported formats: JPEG, PNG, WEBP, GIF
               </p>
