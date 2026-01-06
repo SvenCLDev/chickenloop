@@ -170,15 +170,58 @@ JobSchema.pre('save', function(next) {
     // Set datePosted when job is first published (never change it once set)
     if (!currentDatePosted) {
       // Use createdAt as fallback for backward compatibility, or current date
-      const dateToUse = this.get('createdAt') || new Date();
-      doc.datePosted = dateToUse instanceof Date ? dateToUse : new Date(dateToUse);
+      const createdAt = this.get('createdAt');
+      
+      let normalizedDate: Date;
+      
+      if (createdAt instanceof Date) {
+        normalizedDate = createdAt;
+      } else if (typeof createdAt === 'string' || typeof createdAt === 'number') {
+        normalizedDate = new Date(createdAt);
+      } else {
+        normalizedDate = new Date();
+      }
+      
+      doc.datePosted = normalizedDate;
     }
     // datePosted is never changed once set (preserve existing value)
     
     // Ensure validThrough exists: datePosted + 90 days
     if (!doc.validThrough && !this.get('validThrough')) {
-      const datePosted = doc.datePosted || currentDatePosted || this.get('createdAt') || new Date();
-      const datePostedDate = datePosted instanceof Date ? datePosted : new Date(datePosted);
+      // Get datePosted value (could be from doc or current value)
+      const datePostedValue = doc.datePosted || currentDatePosted;
+      
+      let datePostedDate: Date;
+      
+      if (datePostedValue instanceof Date) {
+        datePostedDate = datePostedValue;
+      } else if (datePostedValue) {
+        // datePostedValue exists but is not a Date, try to convert it
+        if (typeof datePostedValue === 'string' || typeof datePostedValue === 'number') {
+          datePostedDate = new Date(datePostedValue);
+        } else {
+          // Fallback to createdAt or current date
+          const createdAt = this.get('createdAt');
+          if (createdAt instanceof Date) {
+            datePostedDate = createdAt;
+          } else if (typeof createdAt === 'string' || typeof createdAt === 'number') {
+            datePostedDate = new Date(createdAt);
+          } else {
+            datePostedDate = new Date();
+          }
+        }
+      } else {
+        // No datePosted value, use createdAt or current date
+        const createdAt = this.get('createdAt');
+        if (createdAt instanceof Date) {
+          datePostedDate = createdAt;
+        } else if (typeof createdAt === 'string' || typeof createdAt === 'number') {
+          datePostedDate = new Date(createdAt);
+        } else {
+          datePostedDate = new Date();
+        }
+      }
+      
       const validThroughDate = new Date(datePostedDate);
       validThroughDate.setDate(validThroughDate.getDate() + 90);
       doc.validThrough = validThroughDate;
