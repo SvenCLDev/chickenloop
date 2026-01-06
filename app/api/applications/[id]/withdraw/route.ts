@@ -54,7 +54,7 @@ export async function POST(
     await application.save();
 
     // Populate for response and email
-    await application.populate('jobId', 'title company location');
+    await application.populate('jobId', 'title company city');
     await application.populate('recruiterId', 'name email');
     await application.populate('candidateId', 'name email');
 
@@ -62,7 +62,7 @@ export async function POST(
     try {
       const candidate = await User.findById(application.candidateId).select('name email');
       const recruiter = await User.findById(application.recruiterId).select('name email');
-      const job = application.jobId ? await Job.findById(application.jobId).select('title company location') : null;
+      const job = application.jobId ? await Job.findById(application.jobId).select('title company city') : null;
       
       if (recruiter && recruiter.email && candidate) {
         const emailTemplate = getApplicationWithdrawnEmail({
@@ -72,7 +72,7 @@ export async function POST(
           recruiterEmail: recruiter.email,
           jobTitle: job?.title,
           jobCompany: job?.company,
-          jobLocation: job?.location,
+          jobCity: job?.city,
         });
 
         await sendEmail({
@@ -104,7 +104,7 @@ export async function POST(
         _id: (application.jobId as any)._id,
         title: (application.jobId as any).title,
         company: (application.jobId as any).company,
-        location: (application.jobId as any).location,
+        city: (application.jobId as any).city,
       } : null,
     };
 
