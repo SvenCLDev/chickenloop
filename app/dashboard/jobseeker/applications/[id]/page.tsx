@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import Navbar from '@/app/components/Navbar';
 import { applicationsApi } from '@/lib/api';
+import { ApplicationJobSnapshot } from '@/lib/applicationTypes';
 import Link from 'next/link';
 
 interface Application {
@@ -16,13 +17,7 @@ interface Application {
   viewedAt?: string;
   createdAt: string;
   updatedAt: string;
-  job: {
-    _id: string;
-    title: string;
-    company: string;
-    city: string;
-    country?: string;
-  } | null;
+  job: ApplicationJobSnapshot | null;
   company: {
     name: string;
     description?: string;
