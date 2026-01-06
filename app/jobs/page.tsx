@@ -956,10 +956,10 @@ function JobsPageContent() {
                             <div className="flex flex-col gap-1">
                               <p className="text-sm text-gray-600 flex flex-wrap items-center gap-1">
                                 <span className="mr-1">📍</span>
-                                <span className="font-medium text-gray-800">{job.city}</span>
+                                <span>{job.city}</span>
                                 {job.country && typeof job.country === 'string' && job.country.trim() && (
-                                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                    • {getCountryNameFromCode(job.country)}
+                                  <span>
+                                    , {getCountryNameFromCode(job.country)}
                                   </span>
                                 )}
                               </p>
