@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { getCountryNameFromCode } from '@/lib/countryUtils';
 
 interface JobCardProps {
   job: {
@@ -7,12 +8,26 @@ interface JobCardProps {
     title: string;
     company: string;
     city: string;
+    country?: string;
     pictures?: string[];
   };
 }
 
 export default function JobCard({ job }: JobCardProps) {
   const thumbnail = job.pictures && job.pictures.length > 0 ? job.pictures[0] : null;
+
+  // Format location/country (same pattern as CompanyCard)
+  const locationParts = [];
+  if (job.city) {
+    locationParts.push(job.city);
+  }
+  if (job.country) {
+    const countryName = getCountryNameFromCode(job.country);
+    locationParts.push(countryName || job.country);
+  }
+  const locationText = locationParts.length > 0
+    ? locationParts.join(', ')
+    : 'Location not specified';
 
   return (
     <Link
@@ -46,7 +61,7 @@ export default function JobCard({ job }: JobCardProps) {
         </p>
         <p className="text-sm text-gray-600 flex items-center">
           <span className="mr-1.5">📍</span>
-          <span className="line-clamp-1">{job.city}</span>
+          <span className="line-clamp-1">{locationText}</span>
         </p>
       </div>
     </Link>

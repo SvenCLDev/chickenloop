@@ -7,6 +7,7 @@ import ShareJobButton from '../../components/ShareJobButton';
 import { jobsApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { useAuth } from '../../contexts/AuthContext';
+import { buildJobJsonLd } from '@/lib/seo/jobJsonLd';
 import Link from 'next/link';
 
 interface CompanyInfo {
@@ -291,8 +292,18 @@ export default function JobDetailPage() {
     );
   }
 
+  // Generate JSON-LD for Google Jobs
+  const jsonLd = job && currentUrl ? buildJobJsonLd(job, currentUrl) : (job ? buildJobJsonLd(job) : null);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+      {/* Google Jobs JSON-LD structured data */}
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Link
