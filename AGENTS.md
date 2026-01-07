@@ -196,3 +196,20 @@ For comprehensive type checking and validation:
 | Slow page load | Check for base64 images, add lazy loading |
 | Build fails on Vercel | Check env vars are set, run build locally first |
 | Images not loading | Use Next.js Image component, check `remotePatterns` in `next.config.ts` |
+
+---
+
+## 16. Problem Solving Strategy (Mandatory Sequential Thinking)
+**Protocol:**
+You **MUST** use the `sequential-thinking` MCP tool for **all** user requests, problem-solving tasks, planning, and debugging. Do not skip this step. This is the primary mechanism to ensure high-quality, human-like reasoning.
+
+**Reasoning Steps within the Tool:**
+1. **Stop & Think**: Before committing to a solution, pause and analyze what is needed and what has been tried.
+2. **Deductive Reasoning**: Use symbolic and deductive reasoning to explore the problem space.
+3. **Breadth-First Search**: Explore multiple possible solutions (make a graph of ideas/conclusions) before selecting one.
+4. **Prediction**: Predict the outcome of action X and explain *why* it should work.
+5. **Human-Like Thinking**:
+   - Focus on getting things *working* (pragmatic execution).
+   - Understand the core intent ("what do they really want?").
+   - Keep this intent as the guiding principle throughout the task.
+6. **Execuion**: Only after thorough reasoning in the tool, select the best path and execute it.
