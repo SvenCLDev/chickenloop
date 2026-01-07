@@ -62,6 +62,8 @@ export async function POST(request: NextRequest) {
       languages,
       lookingForWorkInAreas,
       pictures,
+      experienceLevel,
+      availability,
     } = await request.json();
 
     if (!fullName || !email) {
@@ -84,6 +86,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Validate experienceLevel enum
+    const validExperienceLevels = ['entry', 'intermediate', 'experienced', 'senior'];
+    if (experienceLevel && !validExperienceLevels.includes(experienceLevel)) {
+      return NextResponse.json(
+        { error: `Invalid experienceLevel. Valid values are: ${validExperienceLevels.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate availability enum
+    const validAvailability = ['available_now', 'available_soon', 'seasonal', 'not_available'];
+    if (availability && !validAvailability.includes(availability)) {
+      return NextResponse.json(
+        { error: `Invalid availability. Valid values are: ${validAvailability.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
     const cv = await CV.create({
       fullName,
       email,
@@ -99,6 +119,8 @@ export async function POST(request: NextRequest) {
       languages: languages || [],
       lookingForWorkInAreas: lookingForWorkInAreas || [],
       pictures: pictures || [],
+      experienceLevel,
+      availability,
       published: true, // New CVs are published by default
       jobSeeker: user.userId,
     });
@@ -149,6 +171,8 @@ export async function PUT(request: NextRequest) {
       languages,
       lookingForWorkInAreas,
       pictures,
+      experienceLevel,
+      availability,
     } = await request.json();
 
     if (fullName) cv.fullName = fullName;
@@ -191,6 +215,28 @@ export async function PUT(request: NextRequest) {
     if (pictures !== undefined) {
       cv.pictures = pictures || [];
       cv.markModified('pictures');
+    }
+    if (experienceLevel !== undefined) {
+      // Validate experienceLevel enum
+      const validExperienceLevels = ['entry', 'intermediate', 'experienced', 'senior'];
+      if (experienceLevel && !validExperienceLevels.includes(experienceLevel)) {
+        return NextResponse.json(
+          { error: `Invalid experienceLevel. Valid values are: ${validExperienceLevels.join(', ')}` },
+          { status: 400 }
+        );
+      }
+      cv.experienceLevel = experienceLevel || undefined;
+    }
+    if (availability !== undefined) {
+      // Validate availability enum
+      const validAvailability = ['available_now', 'available_soon', 'seasonal', 'not_available'];
+      if (availability && !validAvailability.includes(availability)) {
+        return NextResponse.json(
+          { error: `Invalid availability. Valid values are: ${validAvailability.join(', ')}` },
+          { status: 400 }
+        );
+      }
+      cv.availability = availability || undefined;
     }
 
     await cv.save();

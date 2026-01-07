@@ -29,6 +29,8 @@ export interface ICV extends Document {
   lookingForWorkInAreas?: string[];
   pictures?: string[];
   published?: boolean;
+  experienceLevel?: 'entry' | 'intermediate' | 'experienced' | 'senior';
+  availability?: 'available_now' | 'available_soon' | 'seasonal' | 'not_available';
   jobSeeker: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -90,6 +92,14 @@ const CVSchema: Schema = new Schema(
       type: Boolean,
       default: true,
     },
+    experienceLevel: {
+      type: String,
+      enum: ['entry', 'intermediate', 'experienced', 'senior'],
+    },
+    availability: {
+      type: String,
+      enum: ['available_now', 'available_soon', 'seasonal', 'not_available'],
+    },
     jobSeeker: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -109,6 +119,9 @@ CVSchema.index({ createdAt: -1 });
 CVSchema.index({ published: 1, createdAt: -1 });
 // Index on jobSeeker for efficient $lookup operations
 CVSchema.index({ jobSeeker: 1 });
+// Indexes for search/filtering on new fields
+CVSchema.index({ experienceLevel: 1 });
+CVSchema.index({ availability: 1 });
 
 export default CV;
 

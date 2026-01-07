@@ -27,6 +27,8 @@ export default function EditCVPage() {
     experienceAndSkill: [] as string[],
     languages: [] as string[],
     lookingForWorkInAreas: [] as string[],
+    experienceLevel: '' as '' | 'entry' | 'intermediate' | 'experienced' | 'senior',
+    availability: '' as '' | 'available_now' | 'available_soon' | 'seasonal' | 'not_available',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -69,6 +71,8 @@ export default function EditCVPage() {
         experienceAndSkill: cv.experienceAndSkill || [],
         languages: cv.languages || [],
         lookingForWorkInAreas: cv.lookingForWorkInAreas || [],
+        experienceLevel: cv.experienceLevel || '',
+        availability: cv.availability || '',
       });
       setExistingPictures(cv.pictures || []);
     } catch (err: any) {
@@ -190,6 +194,8 @@ export default function EditCVPage() {
         experienceAndSkill: formData.experienceAndSkill || [],
         languages: formData.languages || [],
         lookingForWorkInAreas: formData.lookingForWorkInAreas || [],
+        experienceLevel: formData.experienceLevel || undefined,
+        availability: formData.availability || undefined,
         pictures: picturePaths,
       };
       await cvApi.update(data);
@@ -384,6 +390,50 @@ export default function EditCVPage() {
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               />
+            </div>
+
+            {/* Experience Level and Availability */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="experienceLevel" className="block text-sm font-medium text-gray-700 mb-1">
+                  Experience Level
+                </label>
+                <select
+                  id="experienceLevel"
+                  value={formData.experienceLevel}
+                  onChange={(e) => setFormData({ ...formData, experienceLevel: e.target.value as typeof formData.experienceLevel })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                >
+                  <option value="">Select experience level</option>
+                  <option value="entry">Entry</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="experienced">Experienced</option>
+                  <option value="senior">Senior</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Select your overall professional experience level
+                </p>
+              </div>
+              <div>
+                <label htmlFor="availability" className="block text-sm font-medium text-gray-700 mb-1">
+                  Availability
+                </label>
+                <select
+                  id="availability"
+                  value={formData.availability}
+                  onChange={(e) => setFormData({ ...formData, availability: e.target.value as typeof formData.availability })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                >
+                  <option value="">Select availability</option>
+                  <option value="available_now">Available Now</option>
+                  <option value="available_soon">Available Soon</option>
+                  <option value="seasonal">Seasonal</option>
+                  <option value="not_available">Not Available</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  When you're available to start work
+                </p>
+              </div>
             </div>
 
             {/* Looking for work in these areas */}
