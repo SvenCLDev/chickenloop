@@ -1,18 +1,18 @@
 'use client';
 // Force Vercel rebuild
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import Image from 'next/image';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import JobSelectionModal from '../components/JobSelectionModal';
-import { 
-  parseCandidateSearchParams, 
+import {
+  parseCandidateSearchParams,
   buildCandidateSearchUrl,
   buildCandidateSearchQuery,
-  type CandidateSearchParams 
+  type CandidateSearchParams
 } from '@/lib/candidateSearchParams';
 
 interface CV {
@@ -96,26 +96,26 @@ function TimeAgoDisplay({ date }: { date: string }) {
   return <span className="text-xs text-gray-500">{timeAgo}</span>;
 }
 
-export default function CVsPage() {
+function CandidatesContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // Initialize state from URL params immediately if available
   const urlParams = searchParams ? parseCandidateSearchParams(searchParams) : null;
-  
+
   const [cvs, setCvs] = useState<CV[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // Search state (synced with URL)
   const [keyword, setKeyword] = useState<string>(urlParams?.kw || '');
   const [location, setLocation] = useState<string>(urlParams?.location || '');
-  
+
   // Separate state for search bar inputs (don't trigger CV loading until submit)
   const [searchKeyword, setSearchKeyword] = useState<string>(urlParams?.kw || '');
   const [searchLocation, setSearchLocation] = useState<string>(urlParams?.location || '');
-  
+
   // Filter state (synced with URL) - arrays for multi-select support
   const [selectedLanguage, setSelectedLanguage] = useState<string[]>(urlParams?.language || []);
   const [selectedWorkArea, setSelectedWorkArea] = useState<string[]>(urlParams?.workArea || []);
@@ -123,15 +123,15 @@ export default function CVsPage() {
   const [selectedCertification, setSelectedCertification] = useState<string[]>(urlParams?.certification || []);
   const [selectedExperienceLevel, setSelectedExperienceLevel] = useState<string[]>(urlParams?.experienceLevel || []);
   const [selectedAvailability, setSelectedAvailability] = useState<string[]>(urlParams?.availability || []);
-  
+
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+
   // Pagination state (synced with URL)
   const [currentPage, setCurrentPage] = useState<number>(urlParams?.page || 1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number>(0);
-  
+
   // Filter options from API
   const [filterOptions, setFilterOptions] = useState<{
     languages: string[];
@@ -148,17 +148,17 @@ export default function CVsPage() {
     experienceLevels: [],
     availability: [],
   });
-  
+
   const [contactedCandidates, setContactedCandidates] = useState<Set<string>>(new Set());
   const [contactingCandidate, setContactingCandidate] = useState<string | null>(null);
   const [showJobModal, setShowJobModal] = useState(false);
   const [pendingCandidateId, setPendingCandidateId] = useState<string | null>(null);
   const [availableJobs, setAvailableJobs] = useState<any[]>([]);
-  
+
   // Multi-select dropdown state
   const [workAreaDropdownOpen, setWorkAreaDropdownOpen] = useState(false);
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
-  
+
   const isInitialMount = useRef(true);
 
   useEffect(() => {
@@ -172,7 +172,7 @@ export default function CVsPage() {
   // Sync state with URL query parameters when URL changes (browser back/forward)
   useEffect(() => {
     if (!searchParams) return;
-    
+
     // Skip on initial mount - state is already initialized from URL params above
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -303,11 +303,11 @@ export default function CVsPage() {
     // Build clean URL params using canonical utility
     const currentParams = searchParams ? parseCandidateSearchParams(searchParams) : {};
     const newParams: CandidateSearchParams = { ...currentParams };
-    
+
     // Get current values for this filter
     const currentValues = newParams[filterType] || [];
     let newValues: string[];
-    
+
     if (checked) {
       // Add value if not already present
       newValues = currentValues.includes(value) ? currentValues : [...currentValues, value];
@@ -315,14 +315,14 @@ export default function CVsPage() {
       // Remove value
       newValues = currentValues.filter(v => v !== value);
     }
-    
+
     // Update the filter in params
     if (newValues.length > 0) {
       newParams[filterType] = newValues;
     } else {
       delete newParams[filterType];
     }
-    
+
     // Update local state
     if (filterType === 'language') setSelectedLanguage(newValues);
     if (filterType === 'workArea') setSelectedWorkArea(newValues);
@@ -342,10 +342,10 @@ export default function CVsPage() {
   const handleClearFilter = (filterType: 'language' | 'workArea' | 'sport' | 'certification' | 'experienceLevel' | 'availability') => {
     const currentParams = searchParams ? parseCandidateSearchParams(searchParams) : {};
     const newParams: CandidateSearchParams = { ...currentParams };
-    
+
     delete newParams[filterType];
     newParams.page = 1;
-    
+
     // Update local state
     if (filterType === 'language') setSelectedLanguage([]);
     if (filterType === 'workArea') setSelectedWorkArea([]);
@@ -353,7 +353,7 @@ export default function CVsPage() {
     if (filterType === 'certification') setSelectedCertification([]);
     if (filterType === 'experienceLevel') setSelectedExperienceLevel([]);
     if (filterType === 'availability') setSelectedAvailability([]);
-    
+
     const newUrl = buildCandidateSearchUrl('/candidates', newParams);
     router.push(newUrl);
   };
@@ -373,7 +373,7 @@ export default function CVsPage() {
     // Build clean URL params using canonical utility
     const currentParams = searchParams ? parseCandidateSearchParams(searchParams) : {};
     const newParams: CandidateSearchParams = { ...currentParams };
-    
+
     if (filterType === 'keyword') {
       delete newParams.kw;
     }
@@ -395,18 +395,18 @@ export default function CVsPage() {
   ) => {
     const currentParams = searchParams ? parseCandidateSearchParams(searchParams) : {};
     const newParams: CandidateSearchParams = { ...currentParams };
-    
+
     // Get current values and remove the specified value
     const currentValues = newParams[filterType] || [];
     const newValues = currentValues.filter(v => v !== value);
-    
+
     // Update the filter in params
     if (newValues.length > 0) {
       newParams[filterType] = newValues;
     } else {
       delete newParams[filterType];
     }
-    
+
     // Update local state
     if (filterType === 'language') setSelectedLanguage(newValues);
     if (filterType === 'workArea') setSelectedWorkArea(newValues);
@@ -444,27 +444,27 @@ export default function CVsPage() {
   // Handler for keyword/location search submit
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Build clean URL params using canonical utility (preserve existing params like filters)
     const currentParams = searchParams ? parseCandidateSearchParams(searchParams) : {};
     const newParams: CandidateSearchParams = { ...currentParams };
-    
+
     // Update keyword and location params from search bar inputs
     if (searchKeyword.trim()) {
       newParams.kw = searchKeyword.trim();
     } else {
       delete newParams.kw;
     }
-    
+
     if (searchLocation.trim()) {
       newParams.location = searchLocation.trim();
     } else {
       delete newParams.location;
     }
-    
+
     // Reset to page 1 when search changes
     newParams.page = 1;
-    
+
     // Update URL - this will trigger the useEffect that syncs state and loads CVs
     const newUrl = buildCandidateSearchUrl('/candidates', newParams);
     router.push(newUrl);
@@ -473,7 +473,7 @@ export default function CVsPage() {
   const loadCVs = async () => {
     try {
       setLoading(true);
-      
+
       // Build query string from current state using canonical URL builder
       // This ensures consistency with URL format (comma-separated values, correct parameter names)
       const params: CandidateSearchParams = {};
@@ -486,10 +486,10 @@ export default function CVsPage() {
       if (selectedExperienceLevel.length > 0) params.experienceLevel = selectedExperienceLevel;
       if (selectedAvailability.length > 0) params.availability = selectedAvailability;
       if (currentPage > 1) params.page = currentPage;
-      
+
       const queryString = buildCandidateSearchQuery(params);
       const endpoint = queryString ? `/api/candidates-list?${queryString}` : '/api/candidates-list';
-      
+
       const response = await fetch(endpoint, {
         credentials: 'include',
       });
@@ -509,13 +509,13 @@ export default function CVsPage() {
 
       const data = await response.json();
       setCvs(data.cvs || []);
-      
+
       // Set pagination metadata
       if (data.pagination) {
         setTotalPages(data.pagination.totalPages || 1);
         setTotalCount(data.pagination.total || 0);
       }
-      
+
       // Set filter options from backend (pre-computed, more efficient)
       if (data.filters) {
         setFilterOptions({
@@ -591,7 +591,7 @@ export default function CVsPage() {
                   </button>
                 </div>
               </div>
-              
+
               {/* Second Row: Primary Filters (Work Area, Language) */}
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 {/* Work Area Multi-Select Dropdown */}
@@ -613,8 +613,8 @@ export default function CVsPage() {
                         {selectedWorkArea.length === 0
                           ? 'All Work Areas'
                           : selectedWorkArea.length === 1
-                          ? selectedWorkArea[0]
-                          : `${selectedWorkArea.length} selected`}
+                            ? selectedWorkArea[0]
+                            : `${selectedWorkArea.length} selected`}
                       </span>
                       <svg
                         className={`w-4 h-4 transition-transform ${workAreaDropdownOpen ? 'rotate-180' : ''}`}
@@ -689,8 +689,8 @@ export default function CVsPage() {
                         {selectedLanguage.length === 0
                           ? 'All Languages'
                           : selectedLanguage.length === 1
-                          ? selectedLanguage[0]
-                          : `${selectedLanguage.length} selected`}
+                            ? selectedLanguage[0]
+                            : `${selectedLanguage.length} selected`}
                       </span>
                       <svg
                         className={`w-4 h-4 transition-transform ${languageDropdownOpen ? 'rotate-180' : ''}`}
@@ -738,7 +738,7 @@ export default function CVsPage() {
                               >
                                 Clear selection
                               </button>
-                              </div>
+                            </div>
                           )}
                         </div>
                       </>
@@ -925,7 +925,7 @@ export default function CVsPage() {
                     <span className="hidden xs:inline">Filters</span>
                   </button>
                   <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900">
-                    {totalCount > 0 
+                    {totalCount > 0
                       ? `We have ${totalCount} ${totalCount === 1 ? 'candidate' : 'candidates'} meeting these criteria`
                       : 'No candidates found matching these criteria'
                     }
@@ -1087,250 +1087,250 @@ export default function CVsPage() {
             )}
 
             {cvs.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <p className="text-gray-600">No CVs available at the moment.</p>
-            <p className="text-gray-500 mt-2">Check back later for new candidates!</p>
-          </div>
-        ) : (
-          <>
-            {/* Candidate Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {cvs.map((cv) => {
-                      // Get the first picture, or use a placeholder
-                      const firstPicture = cv.pictures && cv.pictures.length > 0
-                        ? cv.pictures[0]
-                        : null;
+              <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                <p className="text-gray-600">No CVs available at the moment.</p>
+                <p className="text-gray-500 mt-2">Check back later for new candidates!</p>
+              </div>
+            ) : (
+              <>
+                {/* Candidate Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {cvs.map((cv) => {
+                    // Get the first picture, or use a placeholder
+                    const firstPicture = cv.pictures && cv.pictures.length > 0
+                      ? cv.pictures[0]
+                      : null;
 
-                      // Get user's last online date
-                      const lastOnlineDate = cv.jobSeeker?.lastOnline;
+                    // Get user's last online date
+                    const lastOnlineDate = cv.jobSeeker?.lastOnline;
 
-                      return (
-                        <Link
-                          key={cv._id}
-                          href={`/candidates/${cv._id}`}
-                          className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block"
-                        >
-                          {/* CV Picture */}
-                          <div className="w-full h-48 bg-gray-200 relative overflow-hidden">
-                            {firstPicture ? (
-                              <Image
-                                src={firstPicture}
-                                alt={cv.fullName}
-                                fill
-                                className="object-cover"
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-300 to-gray-400">
-                                <span className="text-gray-500 text-sm">No Image</span>
-                              </div>
-                            )}
-                          </div>
+                    return (
+                      <Link
+                        key={cv._id}
+                        href={`/candidates/${cv._id}`}
+                        className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block"
+                      >
+                        {/* CV Picture */}
+                        <div className="w-full h-48 bg-gray-200 relative overflow-hidden">
+                          {firstPicture ? (
+                            <Image
+                              src={firstPicture}
+                              alt={cv.fullName}
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-300 to-gray-400">
+                              <span className="text-gray-500 text-sm">No Image</span>
+                            </div>
+                          )}
+                        </div>
 
-                          {/* CV Info */}
-                          <div className="p-4">
-                            <h2 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
-                              {cv.fullName}
-                            </h2>
+                        {/* CV Info */}
+                        <div className="p-4">
+                          <h2 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
+                            {cv.fullName}
+                          </h2>
 
-                            {/* Summary Preview */}
-                            {cv.summary && (
-                              <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                                {cv.summary}
+                          {/* Summary Preview */}
+                          {cv.summary && (
+                            <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                              {cv.summary}
+                            </p>
+                          )}
+
+                          {/* Skills Preview */}
+                          {cv.experienceAndSkill && cv.experienceAndSkill.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {cv.experienceAndSkill.slice(0, 3).map((skill, index) => (
+                                <span
+                                  key={index}
+                                  className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                              {cv.experienceAndSkill.length > 3 && (
+                                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                                  +{cv.experienceAndSkill.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Work Areas Preview */}
+                          {cv.lookingForWorkInAreas && cv.lookingForWorkInAreas.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {cv.lookingForWorkInAreas.slice(0, 2).map((area, index) => (
+                                <span
+                                  key={index}
+                                  className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
+                                >
+                                  {area}
+                                </span>
+                              ))}
+                              {cv.lookingForWorkInAreas.length > 2 && (
+                                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                                  +{cv.lookingForWorkInAreas.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Languages Preview */}
+                          {cv.languages && cv.languages.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {cv.languages.slice(0, 2).map((lang, index) => (
+                                <span
+                                  key={index}
+                                  className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
+                                >
+                                  {lang}
+                                </span>
+                              ))}
+                              {cv.languages.length > 2 && (
+                                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                                  +{cv.languages.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Location and Last Online */}
+                          <div className="flex flex-col gap-1 mt-2">
+                            {cv.address && (
+                              <p className="text-sm text-gray-600 flex items-center gap-1">
+                                <span>📍</span>
+                                <span className="font-medium text-gray-800">{cv.address}</span>
                               </p>
                             )}
-
-                            {/* Skills Preview */}
-                            {cv.experienceAndSkill && cv.experienceAndSkill.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mb-2">
-                                {cv.experienceAndSkill.slice(0, 3).map((skill, index) => (
-                                  <span
-                                    key={index}
-                                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-                                  >
-                                    {skill}
-                                  </span>
-                                ))}
-                                {cv.experienceAndSkill.length > 3 && (
-                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                                    +{cv.experienceAndSkill.length - 3}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Work Areas Preview */}
-                            {cv.lookingForWorkInAreas && cv.lookingForWorkInAreas.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mb-2">
-                                {cv.lookingForWorkInAreas.slice(0, 2).map((area, index) => (
-                                  <span
-                                    key={index}
-                                    className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
-                                  >
-                                    {area}
-                                  </span>
-                                ))}
-                                {cv.lookingForWorkInAreas.length > 2 && (
-                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                                    +{cv.lookingForWorkInAreas.length - 2}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Languages Preview */}
-                            {cv.languages && cv.languages.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mb-2">
-                                {cv.languages.slice(0, 2).map((lang, index) => (
-                                  <span
-                                    key={index}
-                                    className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
-                                  >
-                                    {lang}
-                                  </span>
-                                ))}
-                                {cv.languages.length > 2 && (
-                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                                    +{cv.languages.length - 2}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Location and Last Online */}
-                            <div className="flex flex-col gap-1 mt-2">
-                              {cv.address && (
-                                <p className="text-sm text-gray-600 flex items-center gap-1">
-                                  <span>📍</span>
-                                  <span className="font-medium text-gray-800">{cv.address}</span>
-                                </p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-gray-500">Last logged in:</span>
+                              {lastOnlineDate ? (
+                                <TimeAgoDisplay date={lastOnlineDate} />
+                              ) : (
+                                <span className="text-xs text-gray-500">Never</span>
                               )}
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs text-gray-500">Last logged in:</span>
-                                {lastOnlineDate ? (
-                                  <TimeAgoDisplay date={lastOnlineDate} />
-                                ) : (
-                                  <span className="text-xs text-gray-500">Never</span>
-                                )}
-                              </div>
                             </div>
-
-                            {/* Contact Candidate Button */}
-                            {user && (user.role === 'recruiter' || user.role === 'admin') && cv.jobSeeker && (
-                              <div className="mt-3 pt-3 border-t border-gray-200">
-                                {(() => {
-                                  const candidateId = cv.jobSeeker?._id ? String(cv.jobSeeker._id) : null;
-                                  if (!candidateId) return null;
-
-                                  return contactedCandidates.has(candidateId) ? (
-                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-800 rounded-md text-sm font-medium">
-                                      <span>✓</span>
-                                      <span>Contacted</span>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      onClick={(e) => handleContactCandidate(e, candidateId)}
-                                      disabled={contactingCandidate === candidateId}
-                                      className="w-full px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                      {contactingCandidate === candidateId
-                                        ? 'Contacting...'
-                                        : 'Contact Candidate'}
-                                    </button>
-                                  );
-                                })()}
-                              </div>
-                            )}
                           </div>
-                        </Link>
-                      );
-              })}
-            </div>
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="mt-8 flex items-center justify-center gap-2">
-                <button
-                  onClick={() => {
-                    const newParams = searchParams ? parseCandidateSearchParams(searchParams) : {};
-                    newParams.page = Math.max((newParams.page || 1) - 1, 1);
-                    const newUrl = buildCandidateSearchUrl('/candidates', newParams);
-                    router.push(newUrl);
-                  }}
-                  disabled={currentPage === 1}
-                  className={`px-4 py-2 rounded-md font-medium ${currentPage === 1
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                >
-                  Previous
-                </button>
+                          {/* Contact Candidate Button */}
+                          {user && (user.role === 'recruiter' || user.role === 'admin') && cv.jobSeeker && (
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              {(() => {
+                                const candidateId = cv.jobSeeker?._id ? String(cv.jobSeeker._id) : null;
+                                if (!candidateId) return null;
 
-                <div className="flex gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                    // Show first page, last page, current page, and pages around current
-                    if (
-                      page === 1 ||
-                      page === totalPages ||
-                      (page >= currentPage - 1 && page <= currentPage + 1)
-                    ) {
-                      return (
-                        <button
-                          key={page}
-                          onClick={() => {
-                            const newParams = searchParams ? parseCandidateSearchParams(searchParams) : {};
-                            newParams.page = page;
-                            const newUrl = buildCandidateSearchUrl('/candidates', newParams);
-                            router.push(newUrl);
-                          }}
-                          className={`px-3 py-2 rounded-md font-medium ${currentPage === page
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                            }`}
-                        >
-                          {page}
-                        </button>
-                      );
-                    } else if (
-                      page === currentPage - 2 ||
-                      page === currentPage + 2
-                    ) {
-                      return (
-                        <span key={page} className="px-2 py-2 text-gray-500">
-                          ...
-                        </span>
-                      );
-                    }
-                    return null;
+                                return contactedCandidates.has(candidateId) ? (
+                                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-800 rounded-md text-sm font-medium">
+                                    <span>✓</span>
+                                    <span>Contacted</span>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={(e) => handleContactCandidate(e, candidateId)}
+                                    disabled={contactingCandidate === candidateId}
+                                    className="w-full px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {contactingCandidate === candidateId
+                                      ? 'Contacting...'
+                                      : 'Contact Candidate'}
+                                  </button>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    );
                   })}
                 </div>
 
-                <button
-                  onClick={() => {
-                    const newParams = searchParams ? parseCandidateSearchParams(searchParams) : {};
-                    newParams.page = Math.min((newParams.page || 1) + 1, totalPages);
-                    const newUrl = buildCandidateSearchUrl('/candidates', newParams);
-                    router.push(newUrl);
-                  }}
-                  disabled={currentPage === totalPages}
-                  className={`px-4 py-2 rounded-md font-medium ${currentPage === totalPages
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                >
-                  Next
-                </button>
-              </div>
-            )}
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="mt-8 flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => {
+                        const newParams = searchParams ? parseCandidateSearchParams(searchParams) : {};
+                        newParams.page = Math.max((newParams.page || 1) - 1, 1);
+                        const newUrl = buildCandidateSearchUrl('/candidates', newParams);
+                        router.push(newUrl);
+                      }}
+                      disabled={currentPage === 1}
+                      className={`px-4 py-2 rounded-md font-medium ${currentPage === 1
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                    >
+                      Previous
+                    </button>
 
-            {/* Page info */}
-            {totalPages > 1 && (
-              <div className="mt-4 text-center text-sm text-gray-600">
-                Showing page {currentPage} of {totalPages} ({totalCount} total candidates)
-              </div>
+                    <div className="flex gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                        // Show first page, last page, current page, and pages around current
+                        if (
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 1 && page <= currentPage + 1)
+                        ) {
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => {
+                                const newParams = searchParams ? parseCandidateSearchParams(searchParams) : {};
+                                newParams.page = page;
+                                const newUrl = buildCandidateSearchUrl('/candidates', newParams);
+                                router.push(newUrl);
+                              }}
+                              className={`px-3 py-2 rounded-md font-medium ${currentPage === page
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                                }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        } else if (
+                          page === currentPage - 2 ||
+                          page === currentPage + 2
+                        ) {
+                          return (
+                            <span key={page} className="px-2 py-2 text-gray-500">
+                              ...
+                            </span>
+                          );
+                        }
+                        return null;
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const newParams = searchParams ? parseCandidateSearchParams(searchParams) : {};
+                        newParams.page = Math.min((newParams.page || 1) + 1, totalPages);
+                        const newUrl = buildCandidateSearchUrl('/candidates', newParams);
+                        router.push(newUrl);
+                      }}
+                      disabled={currentPage === totalPages}
+                      className={`px-4 py-2 rounded-md font-medium ${currentPage === totalPages
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+
+                {/* Page info */}
+                {totalPages > 1 && (
+                  <div className="mt-4 text-center text-sm text-gray-600">
+                    Showing page {currentPage} of {totalPages} ({totalCount} total candidates)
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
           </div>
         </div>
       </main>
@@ -1351,6 +1351,21 @@ export default function CVsPage() {
         }
       />
     </div>
+  );
+}
+
+export default function CVsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+        <Navbar />
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    }>
+      <CandidatesContent />
+    </Suspense>
   );
 }
 
