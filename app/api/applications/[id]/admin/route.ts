@@ -41,7 +41,7 @@ export async function POST(
     const wasArchived = application.archivedByAdmin || false;
 
     // Only update if state is changing
-    if (isArchived !== wasArchived) {
+    if (isArchiving !== wasArchived) {
       application.archivedByAdmin = isArchiving;
       application.lastActivityAt = new Date();
 
