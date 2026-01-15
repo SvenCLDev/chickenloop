@@ -277,6 +277,7 @@ export async function POST(request: NextRequest) {
 
       // Declare application variable early so we can assign to it in different branches
       let application: any = null;
+      const now = new Date();
 
       // Check if there's a general contact (jobId is null) from this recruiter
       // This is different from a job-specific application - it's when a recruiter contacts
@@ -326,8 +327,6 @@ export async function POST(request: NextRequest) {
           candidateId: candidateObjectId,
           archivedByJobSeeker: true,
         });
-
-        const now = new Date();
 
         if (archivedApplication) {
           // Restore the archived application instead of creating a new one
