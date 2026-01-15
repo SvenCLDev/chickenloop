@@ -268,7 +268,9 @@ export default function RecruiterApplicationDetailPage() {
   // Get allowed next statuses for dropdown
   const allowedNextStatuses = application ? getAllowedNextStatuses(application.status) : [];
   const isWithdrawn = application && application.status === 'withdrawn';
-  const isTerminal = application && TERMINAL_STATES.includes(application.status);
+  const isTerminal = Boolean(
+    application && TERMINAL_STATES.includes(application.status)
+  );
 
   if (!mounted || authLoading || loading) {
     return (
