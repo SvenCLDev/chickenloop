@@ -208,8 +208,9 @@ const statusMigrationMap: { [key: string]: string } = {
  */
 ApplicationSchema.pre('validate', function(next) {
   // Migrate old status values to new status lifecycle
-  if (this.status && statusMigrationMap[this.status]) {
-    this.status = statusMigrationMap[this.status] as any;
+  const currentStatus = this.status as string | undefined;
+  if (currentStatus && statusMigrationMap[currentStatus]) {
+    this.status = statusMigrationMap[currentStatus] as any;
   }
   next();
 });
