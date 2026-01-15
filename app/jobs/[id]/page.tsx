@@ -13,26 +13,21 @@ import JobApplySection from './JobApplySection';
 import JobSpamButton from './JobSpamButton';
 import JobImageGallery from './JobImageGallery';
 
-interface CompanyInfo {
-  id?: string;
+export interface CompanyInfo {
   _id?: string;
+  id?: string;
   name?: string;
-  description?: string;
-  address?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    postalCode?: string;
-    country?: string;
-  };
-  website?: string;
-  socialMedia?: {
-    facebook?: string;
-    instagram?: string;
-    tiktok?: string;
-    youtube?: string;
-    twitter?: string;
-  };
+  logo?: string;
+  city?: string;
+  country?: string;
+}
+
+interface CompanyAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
 }
 
 interface Job {
@@ -67,7 +62,7 @@ interface Job {
   applicationWhatsApp?: string;
 }
 
-function formatCompanyAddress(address?: CompanyInfo['address']): string | null {
+function formatCompanyAddress(address?: CompanyAddress): string | null {
   if (!address) return null;
   const parts: string[] = [];
   if (address.street) parts.push(address.street);
@@ -143,14 +138,17 @@ async function getJob(id: string): Promise<Job | null> {
     const companyId = jobObject.companyId;
     let serializedCompanyId: CompanyInfo | undefined;
     
-    if (companyId) {
-      if (typeof companyId === 'object' && companyId !== null) {
-        serializedCompanyId = {
-          ...companyId,
-          _id: companyId._id ? String(companyId._id) : undefined,
-          id: companyId.id || (companyId._id ? String(companyId._id) : undefined),
-        } as CompanyInfo;
-      }
+    if (companyId && typeof companyId === 'object' && companyId !== null && '_id' in companyId) {
+      // Type guard: ensure it's a populated object, not just an ObjectId
+      const populatedCompany = companyId as unknown as Record<string, unknown>;
+      serializedCompanyId = {
+        _id: populatedCompany._id ? String(populatedCompany._id) : undefined,
+        id: populatedCompany._id ? String(populatedCompany._id) : undefined,
+        name: typeof populatedCompany.name === 'string' ? populatedCompany.name : undefined,
+        logo: typeof populatedCompany.logo === 'string' ? populatedCompany.logo : undefined,
+        city: typeof populatedCompany.city === 'string' ? populatedCompany.city : undefined,
+        country: typeof populatedCompany.country === 'string' ? populatedCompany.country : undefined,
+      };
     }
     
     return {
@@ -327,28 +325,6 @@ export default async function JobDetailPage({ params }: PageProps) {
             {job.companyId && (
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-3">Company Info</h2>
-                {job.companyId.description && (
-                  <p className="text-gray-700 mb-2">{job.companyId.description}</p>
-                )}
-                {formatCompanyAddress(job.companyId.address) && (
-                  <p className="text-sm text-gray-600 mb-1">
-                    <span className="font-semibold text-gray-600">City:</span>{' '}
-                    {formatCompanyAddress(job.companyId.address)}
-                  </p>
-                )}
-                {job.companyId.website && (
-                  <p className="text-sm text-gray-600 mb-1">
-                    <span className="font-semibold text-gray-600">Website:</span>{' '}
-                    <a
-                      href={job.companyId.website}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
-                      {job.companyId.website}
-                    </a>
-                  </p>
-                )}
                 {job.companyId && (job.companyId.id || job.companyId._id) && (
                   <div className="mt-4 text-right">
                     <Link
