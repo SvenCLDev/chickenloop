@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '../../components/Navbar';
 import { useAuth } from '../../contexts/AuthContext';
 import { candidatesApi } from '@/lib/api';
@@ -48,8 +48,10 @@ interface CV {
 export default function CVDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const cvId = params?.id as string;
+  const returnUrl = searchParams?.get('returnUrl') || '/candidates';
   const [cv, setCv] = useState<CV | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -234,10 +236,10 @@ export default function CVDetailPage() {
               {error || 'CV not found'}
             </div>
             <Link
-              href="/candidates"
+              href={returnUrl}
               className="inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold"
             >
-              ← Back to CVs
+              ← Back to {returnUrl.includes('/applications/') ? 'Application Details' : 'CVs'}
             </Link>
           </div>
         </main>
@@ -250,10 +252,10 @@ export default function CVDetailPage() {
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Link
-          href="/candidates"
+          href={returnUrl}
           className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6 font-semibold"
         >
-          ← Back to CVs
+          ← Back to {returnUrl.includes('/applications/') ? 'Application Details' : 'CVs'}
         </Link>
 
         <div className="bg-white rounded-lg shadow-lg p-8">

@@ -160,3 +160,4 @@ export function isSecondaryFilter(field: CandidateFilterField): boolean {
   return SECONDARY_FILTERS.some(def => def.field === field);
 }
 
+

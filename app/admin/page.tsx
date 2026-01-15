@@ -13,6 +13,7 @@ interface Statistics {
   jobs: number;
   cvs: number;
   companies: number;
+  applications: number;
 }
 
 type CategoryType = 'job-seekers' | 'recruiters' | 'jobs' | 'cvs' | 'companies' | null;
@@ -330,7 +331,7 @@ export default function AdminDashboard() {
 
         {/* Statistics Cards */}
         {statistics && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
             {/* Job Seekers Card */}
             <button
               onClick={() => handleCardClick('job-seekers')}
@@ -430,6 +431,24 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </button>
+
+            {/* Applications Card */}
+            <Link
+              href="/dashboard/admin/applications"
+              className="bg-white rounded-lg shadow-md p-6 border-l-4 border-teal-500 text-left transition-all hover:shadow-lg cursor-pointer"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Applications</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{statistics.applications}</p>
+                </div>
+                <div className="bg-teal-100 rounded-full p-3">
+                  <svg className="w-8 h-8 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+              </div>
+            </Link>
           </div>
         )}
 

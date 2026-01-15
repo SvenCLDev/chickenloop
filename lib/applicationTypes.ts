@@ -18,3 +18,4 @@ export interface ApplicationJobSnapshot {
   country?: string;
 }
 
+

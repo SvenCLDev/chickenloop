@@ -7,6 +7,7 @@ import { requireRole } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
 import { getApplicationWithdrawnEmail } from '@/lib/emailTemplates';
 import { guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
+import { validateTransition, ApplicationStatus, TERMINAL_STATES } from '@/lib/applicationStatusTransitions';
 
 // POST - Withdraw application (job seekers only)
 export async function POST(
@@ -42,6 +43,26 @@ export async function POST(
     if (application.withdrawnAt) {
       return NextResponse.json(
         { error: 'Application has already been withdrawn' },
+        { status: 400 }
+      );
+    }
+
+    // Check if current status is terminal (cannot withdraw from terminal states)
+    const currentStatus = application.status as ApplicationStatus;
+    if (TERMINAL_STATES.includes(currentStatus)) {
+      return NextResponse.json(
+        { 
+          error: `Cannot withdraw application. Applications in terminal states (${TERMINAL_STATES.join(', ')}) cannot be modified. Current status: "${currentStatus}"` 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate status transition using centralized transition rules
+    const transitionError = validateTransition(currentStatus, 'withdrawn');
+    if (transitionError) {
+      return NextResponse.json(
+        { error: transitionError },
         { status: 400 }
       );
     }

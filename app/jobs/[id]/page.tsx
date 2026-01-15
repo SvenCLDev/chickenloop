@@ -58,6 +58,7 @@ interface Job {
   validThrough?: Date | string;
   companyId?: CompanyInfo;
   spam?: 'yes' | 'no';
+  published?: boolean;
   applyByEmail?: boolean;
   applyByWebsite?: boolean;
   applyByWhatsApp?: boolean;
@@ -138,11 +139,28 @@ async function getJob(id: string): Promise<Job | null> {
           email: '',
         };
     
+    // Convert ObjectIds to strings for Client Component compatibility
+    const companyId = jobObject.companyId;
+    let serializedCompanyId: CompanyInfo | undefined;
+    
+    if (companyId) {
+      if (typeof companyId === 'object' && companyId !== null) {
+        serializedCompanyId = {
+          ...companyId,
+          _id: companyId._id ? String(companyId._id) : undefined,
+          id: companyId.id || (companyId._id ? String(companyId._id) : undefined),
+        } as CompanyInfo;
+      }
+    }
+    
     return {
       ...jobObject,
+      _id: String(jobObject._id), // Convert ObjectId to string
       city: jobObject.city,
       country: countryValue,
       recruiter,
+      companyId: serializedCompanyId,
+      published: jobObject.published !== undefined ? jobObject.published : true, // Include published status
     } as Job;
   } catch (error) {
     console.error('Error fetching job:', error);
@@ -350,6 +368,8 @@ export default async function JobDetailPage({ params }: PageProps) {
               
               <JobApplySection
                 jobId={job._id}
+                companyName={job.company}
+                jobPublished={job.published !== false}
                 applyByEmail={job.applyByEmail}
                 applyByWebsite={job.applyByWebsite}
                 applyByWhatsApp={job.applyByWhatsApp}

@@ -47,3 +47,4 @@ export default function JobSpamButton({ jobId, spamStatus }: JobSpamButtonProps)
   );
 }
 
+

@@ -133,10 +133,24 @@ export const savedSearchesApi = {
 export const applicationsApi = {
   getMyApplications: () => apiRequest('/my-applications'),
   getOne: (applicationId: string) => apiRequest(`/applications/${applicationId}`),
-  updateStatus: (applicationId: string, status: string, recruiterNotes?: string) =>
+  updateStatus: (applicationId: string, status: string, recruiterNotes?: string, adminNotes?: string) =>
     apiRequest(`/applications/${applicationId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ status, ...(recruiterNotes !== undefined && { recruiterNotes }) }),
+      body: JSON.stringify({ 
+        status, 
+        ...(recruiterNotes !== undefined && { recruiterNotes }),
+        ...(adminNotes !== undefined && { adminNotes }),
+      }),
+    }),
+  updatePublished: (applicationId: string, published: boolean) =>
+    apiRequest(`/applications/${applicationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ published }),
+    }),
+  adminAction: (applicationId: string, action: 'archive' | 'unarchive') =>
+    apiRequest(`/applications/${applicationId}/admin`, {
+      method: 'POST',
+      body: JSON.stringify({ action }),
     }),
   contactCandidate: (applicationId: string) =>
     apiRequest(`/applications/${applicationId}/contact`, {
@@ -266,6 +280,25 @@ export const adminApi = {
   },
   getStatistics: () => apiRequest('/admin/statistics'),
   getCVs: () => apiRequest('/admin/cvs'),
+  getApplications: (filters?: {
+    status?: string;
+    company?: string;
+    jobTitle?: string;
+    jobSeeker?: string;
+    page?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (filters) {
+      if (filters.status) queryParams.append('status', filters.status);
+      if (filters.company) queryParams.append('company', filters.company);
+      if (filters.jobTitle) queryParams.append('jobTitle', filters.jobTitle);
+      if (filters.jobSeeker) queryParams.append('jobSeeker', filters.jobSeeker);
+      if (filters.page) queryParams.append('page', filters.page.toString());
+    }
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/admin/applications?${queryString}` : '/admin/applications';
+    return apiRequest(endpoint);
+  },
 };
 
 export const careerAdviceApi = {
@@ -289,4 +322,3 @@ export const careerAdviceApi = {
       method: 'DELETE',
     }),
 };
-

@@ -131,39 +131,53 @@ You can contact the recruiter at: ${recruiterEmail}`;
 /**
  * Email: Application status changed
  * Sent to: Candidate
+ * Only sent for: contacted, interviewing, offered, rejected
  */
 export function getStatusChangedEmail(data: ApplicationEmailData): { subject: string; html: string; text: string } {
-  const { recruiterName, jobTitle, jobCompany, status } = data;
+  const { candidateName, recruiterName, jobTitle, jobCompany, status } = data;
 
   const statusLabels: Record<string, string> = {
-    new: 'New Application',
     contacted: 'Contacted',
-    interviewed: 'Interview Scheduled',
+    interviewing: 'Interviewing',
     offered: 'Offer Extended',
     rejected: 'Not Selected',
-    withdrawn: 'Application Withdrawn',
   };
 
-  const statusLabel = statusLabels[status || 'new'] || status || 'Updated';
+  const statusLabel = statusLabels[status || ''] || status || 'Updated';
 
   const statusColors: Record<string, string> = {
-    new: '#3b82f6',
-    contacted: '#8b5cf6',
-    interviewed: '#f59e0b',
-    offered: '#10b981',
+    contacted: '#06b6d4',
+    interviewing: '#eab308',
+    offered: '#f97316',
     rejected: '#ef4444',
-    withdrawn: '#6b7280',
   };
 
-  const statusColor = statusColors[status || 'new'] || '#6b7280';
+  const statusColor = statusColors[status || ''] || '#6b7280';
+
+  // Get base URL from environment or default
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+  const dashboardUrl = `${baseUrl}/job-seeker`;
 
   const subject = `Application Update: ${statusLabel}${jobTitle ? ` - ${jobTitle}` : ''}`;
+
+  // Status-specific messages (neutral and informational)
+  let statusMessage = '';
+  if (status === 'contacted') {
+    statusMessage = 'The recruiter has reached out regarding your application. They may contact you directly to discuss next steps.';
+  } else if (status === 'interviewing') {
+    statusMessage = 'Your application has progressed to the interview stage. The recruiter will contact you with details about the interview process.';
+  } else if (status === 'offered') {
+    statusMessage = 'An offer has been extended for this position. The recruiter will contact you with details about the offer.';
+  } else if (status === 'rejected') {
+    statusMessage = 'Thank you for your interest in this position. While this opportunity didn\'t work out, we encourage you to continue exploring other positions on Chickenloop.';
+  }
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <h2 style="color: #2563eb; margin-bottom: 20px;">Application Status Update</h2>
       
-      <p>Hello,</p>
+      <p>Hello ${candidateName || ''},</p>
       
       <p>The status of your application has been updated.</p>
 
@@ -176,43 +190,33 @@ export function getStatusChangedEmail(data: ApplicationEmailData): { subject: st
       ` : ''}
 
       <div style="background-color: ${statusColor}15; padding: 15px; border-radius: 8px; border-left: 4px solid ${statusColor}; margin: 20px 0;">
-        <p style="margin: 0;">
-          <strong style="color: ${statusColor};">New Status: ${statusLabel}</strong>
+        <p style="margin: 0 0 10px 0;">
+          <strong style="color: ${statusColor};">Status: ${statusLabel}</strong>
+        </p>
+        ${statusMessage ? `<p style="margin: 0; color: #374151;">${statusMessage}</p>` : ''}
+      </div>
+
+      <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; border-left: 4px solid #2563eb; margin: 20px 0;">
+        <p style="margin: 0; color: #1e40af; font-size: 14px;">
+          <strong>Next Steps:</strong> You can view all your applications and their current status in your Chickenloop dashboard.
         </p>
       </div>
 
-      ${status === 'offered' ? `
-        <div style="background-color: #d1fae5; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0; color: #065f46;">
-            <strong>🎉 Congratulations!</strong> You've received an offer. The recruiter will contact you with details.
-          </p>
-        </div>
-      ` : ''}
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${dashboardUrl}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">View My Applications</a>
+      </div>
 
-      ${status === 'rejected' ? `
-        <div style="background-color: #fee2e2; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0; color: #991b1b;">
-            Thank you for your interest. While this position didn't work out, we encourage you to keep applying to other opportunities on Chickenloop.
-          </p>
-        </div>
+      ${recruiterName ? `
+        <p style="margin-top: 20px; color: #6b7280; font-size: 14px;">
+          Recruiter: ${recruiterName}
+        </p>
       ` : ''}
-      ${status === 'withdrawn' ? `
-        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0; color: #374151;">
-            Your application has been withdrawn. If you have any questions, please contact the recruiter.
-          </p>
-        </div>
-      ` : ''}
-
-      <p style="margin-top: 20px;">
-        ${recruiterName ? `Recruiter: ${recruiterName}` : 'You can view all your applications in your Chickenloop dashboard.'}
-      </p>
     </div>
   `;
 
   const text = `Application Status Update
 
-Hello,
+Hello ${candidateName || ''},
 
 The status of your application has been updated.
 
@@ -220,12 +224,13 @@ ${jobTitle ? `Job Details:
 Position: ${jobTitle}
 ${jobCompany ? `Company: ${jobCompany}\n` : ''}` : ''}
 
-New Status: ${statusLabel}
+Status: ${statusLabel}
+${statusMessage ? `\n${statusMessage}\n` : ''}
 
-${status === 'offered' ? '🎉 Congratulations! You\'ve received an offer. The recruiter will contact you with details.\n' : ''}
-${status === 'rejected' ? 'Thank you for your interest. While this position didn\'t work out, we encourage you to keep applying to other opportunities on Chickenloop.\n' : ''}
-${status === 'withdrawn' ? 'Your application has been withdrawn. If you have any questions, please contact the recruiter.\n' : ''}
-${recruiterName ? `Recruiter: ${recruiterName}` : 'You can view all your applications in your Chickenloop dashboard.'}`;
+Next Steps: You can view all your applications and their current status in your Chickenloop dashboard.
+
+View My Applications: ${dashboardUrl}
+${recruiterName ? `\nRecruiter: ${recruiterName}` : ''}`;
 
   return { subject, html, text };
 }

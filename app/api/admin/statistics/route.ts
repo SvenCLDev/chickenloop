@@ -24,12 +24,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Get counts using native MongoDB driver for better performance
-    const [jobSeekersCount, recruitersCount, jobsCount, cvsCount, companiesCount] = await Promise.all([
+    const [jobSeekersCount, recruitersCount, jobsCount, cvsCount, companiesCount, applicationsCount] = await Promise.all([
       dbConnection.collection('users').countDocuments({ role: 'job-seeker' }),
       dbConnection.collection('users').countDocuments({ role: 'recruiter' }),
       dbConnection.collection('jobs').countDocuments({}),
       dbConnection.collection('cvs').countDocuments({}),
       dbConnection.collection('companies').countDocuments({}),
+      dbConnection.collection('applications').countDocuments({}),
     ]);
 
     return NextResponse.json({
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
         jobs: jobsCount,
         cvs: cvsCount,
         companies: companiesCount,
+        applications: applicationsCount,
       },
     }, { status: 200 });
   } catch (error: unknown) {

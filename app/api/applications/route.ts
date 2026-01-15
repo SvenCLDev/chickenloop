@@ -7,6 +7,7 @@ import { requireRole, requireAuth } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
 import { getCandidateAppliedEmail, getRecruiterContactedEmail } from '@/lib/emailTemplates';
 import { guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
+import mongoose from 'mongoose';
 
 // GET - Get applications
 // For job seekers: Check if user has applied to a specific job (requires jobId query param)
@@ -21,10 +22,48 @@ export async function GET(request: NextRequest) {
 
     // If jobId is provided, check if user (job seeker) has applied
     if (jobId) {
-      const application = await Application.findOne({
-        jobId: jobId,
+      // Convert jobId to ObjectId for proper type matching
+      // Exclude archived applications from the check
+      // IMPORTANT: Must match exact jobId (not null) - only applications for this specific job
+      if (!mongoose.Types.ObjectId.isValid(jobId)) {
+        return NextResponse.json(
+          { error: 'Invalid job ID' },
+          { status: 400 }
+        );
+      }
+      
+      const jobObjectId = new mongoose.Types.ObjectId(jobId);
+      const candidateObjectId = mongoose.Types.ObjectId.isValid(user.userId) ? new mongoose.Types.ObjectId(user.userId) : user.userId;
+      
+      // Debug logging
+      console.log('[API /applications GET] Checking for application:', {
+        jobId,
+        jobObjectId: jobObjectId.toString(),
         candidateId: user.userId,
+        candidateObjectId: candidateObjectId.toString(),
       });
+      
+      // Query with explicit jobId match - Mongoose will handle type conversion
+      // This query will ONLY match documents where jobId equals this exact ObjectId (not null)
+      const application = await Application.findOne({
+        jobId: jobObjectId,
+        candidateId: candidateObjectId,
+        archivedByJobSeeker: { $ne: true }, // Exclude archived applications
+      }).lean(); // Use lean() for better performance and to avoid Mongoose document issues
+
+      // Debug logging for found application
+      if (application) {
+        console.log('[API /applications GET] Found application:', {
+          applicationId: application._id?.toString(),
+          jobId: application.jobId?.toString(),
+          jobIdType: application.jobId ? typeof application.jobId : 'null/undefined',
+          candidateId: application.candidateId?.toString(),
+          archivedByJobSeeker: application.archivedByJobSeeker,
+          status: application.status,
+        });
+      } else {
+        console.log('[API /applications GET] No application found');
+      }
 
       // Format response - exclude recruiter-only fields for job seekers
       let formattedApplication = null;
@@ -40,6 +79,7 @@ export async function GET(request: NextRequest) {
         };
         // Explicitly exclude recruiterNotes and internalNotes
         // These fields are never returned to job seekers
+        // NOTE: Do NOT include application.published - it only controls dashboard visibility
       }
 
       // Server-side guard to prevent recruiterNotes leak
@@ -49,6 +89,7 @@ export async function GET(request: NextRequest) {
         {
           hasApplied: !!application,
           application: formattedApplication,
+          applicationStatus: application?.status || null, // Include status for button visibility logic
         },
         { status: 200 }
       );
@@ -56,10 +97,12 @@ export async function GET(request: NextRequest) {
 
     // If no jobId, recruiter wants all their applications
     // Exclude applications archived by the recruiter
+    // Only return published applications (published !== false)
     if (user.role === 'recruiter') {
       const applications = await Application.find({
         recruiterId: user.userId,
         archivedByRecruiter: { $ne: true },
+        published: { $ne: false },
       })
         .populate('jobId', 'title company city')
         .populate('candidateId', 'name email')
@@ -95,15 +138,46 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Create a new application
-// For job seekers: Create job application (requires jobId, status='new')
-// For recruiters: Contact candidate (candidateId required, jobId optional, status='contacted')
+// For job seekers: Create job application (requires jobId, status='applied')
+// For recruiters: Contact candidate (candidateId required, jobId optional, status='applied')
 export async function POST(request: NextRequest) {
   let user: any = null;
   try {
     user = requireAuth(request);
     await connectDB();
 
-    const { jobId, candidateId } = await request.json();
+    const { jobId, candidateId, coverNote } = await request.json();
+    
+    // Validate and sanitize coverNote if provided
+    let sanitizedCoverNote: string | undefined = undefined;
+    if (coverNote !== undefined && coverNote !== null) {
+      // Must be a string
+      if (typeof coverNote !== 'string') {
+        return NextResponse.json(
+          { error: 'coverNote must be a string' },
+          { status: 400 }
+        );
+      }
+      
+      // Trim whitespace
+      sanitizedCoverNote = coverNote.trim();
+      
+      // Check max length (300 characters)
+      if (sanitizedCoverNote.length > 300) {
+        return NextResponse.json(
+          { error: 'coverNote must not exceed 300 characters' },
+          { status: 400 }
+        );
+      }
+      
+      // Strip HTML tags to prevent XSS
+      sanitizedCoverNote = sanitizedCoverNote.replace(/<[^>]*>/g, '');
+      
+      // If after sanitization it's empty, set to undefined
+      if (sanitizedCoverNote.length === 0) {
+        sanitizedCoverNote = undefined;
+      }
+    }
 
     // Job seeker applying to a job
     if (user.role === 'job-seeker') {
@@ -134,28 +208,164 @@ export async function POST(request: NextRequest) {
       }
 
       // Check for duplicate application
-      const existingApplication = await Application.findOne({
-        jobId: jobId,
+      // Exclude archived applications from the duplicate check
+      // Use consistent ObjectId conversion for both the check and the create
+      // IMPORTANT: Must match exact jobId (not null) - only applications for this specific job
+      if (!mongoose.Types.ObjectId.isValid(jobId)) {
+        return NextResponse.json(
+          { error: 'Invalid job ID' },
+          { status: 400 }
+        );
+      }
+      
+      const jobObjectId = new mongoose.Types.ObjectId(jobId);
+      const candidateObjectId = mongoose.Types.ObjectId.isValid(user.userId) ? new mongoose.Types.ObjectId(user.userId) : user.userId;
+      
+      // Debug logging before query
+      console.log('[API /applications POST] Checking for duplicate application:', {
+        jobId,
+        jobObjectId: jobObjectId.toString(),
         candidateId: user.userId,
+        candidateObjectId: candidateObjectId.toString(),
       });
+      
+      // Query will ONLY match documents where jobId equals this exact ObjectId (not null)
+      const existingApplication = await Application.findOne({
+        jobId: jobObjectId,
+        candidateId: candidateObjectId,
+        archivedByJobSeeker: { $ne: true },
+      }).lean();
 
       if (existingApplication) {
+        // Debug logging to help identify why this application was found
+        console.log('[API /applications POST] Found existing application:', {
+          applicationId: existingApplication._id?.toString(),
+          jobId: existingApplication.jobId?.toString(),
+          jobIdType: existingApplication.jobId ? typeof existingApplication.jobId : 'null/undefined',
+          jobIdClass: existingApplication.jobId ? existingApplication.jobId.constructor.name : 'null/undefined',
+          candidateId: existingApplication.candidateId?.toString(),
+          candidateIdType: existingApplication.candidateId ? typeof existingApplication.candidateId : 'null/undefined',
+          archivedByJobSeeker: existingApplication.archivedByJobSeeker,
+          status: existingApplication.status,
+        });
+        
+        // Also try a direct database query to see all applications for this user
+        const db = mongoose.connection.db;
+        if (db) {
+          const allUserApplications = await db.collection('applications').find({
+            candidateId: candidateObjectId,
+          }).toArray();
+          console.log('[API /applications POST] All applications for this candidate:', {
+            count: allUserApplications.length,
+            applications: allUserApplications.map((app: any) => ({
+              _id: app._id?.toString(),
+              jobId: app.jobId?.toString() || 'null',
+              candidateId: app.candidateId?.toString(),
+              archivedByJobSeeker: app.archivedByJobSeeker,
+              status: app.status,
+            })),
+          });
+        }
+        
         return NextResponse.json(
           { error: 'You have already applied to this job' },
           { status: 400 }
         );
+      } else {
+        console.log('[API /applications POST] No existing application found with jobId, checking recruiterId+candidateId...');
       }
 
-      // Create new application
-      const now = new Date();
-      const application = await Application.create({
-        jobId: jobId,
+      // Declare application variable early so we can assign to it in different branches
+      let application: any = null;
+
+      // Check if there's a general contact (jobId is null) from this recruiter
+      // This is different from a job-specific application - it's when a recruiter contacts
+      // a candidate without a specific job in mind
+      const generalContact = await Application.findOne({
         recruiterId: recruiterId,
-        candidateId: user.userId,
-        status: 'new',
-        appliedAt: now,
-        lastActivityAt: now,
-      });
+        candidateId: candidateObjectId,
+        jobId: null,
+        archivedByJobSeeker: { $ne: true },
+      }).lean();
+
+      if (generalContact) {
+        // There's a general contact without a specific job - we can update it to link this job
+        // This is the only case where we update instead of create (since general contacts
+        // don't have a jobId and the unique index on recruiterId + candidateId prevents duplicates)
+        console.log('[API /applications POST] Found existing general contact, updating to link this job...');
+        const app = await Application.findById(generalContact._id);
+        if (app) {
+          app.jobId = jobObjectId;
+          app.appliedAt = new Date();
+          app.lastActivityAt = new Date();
+          app.status = 'applied';
+          app.archivedByJobSeeker = false; // Ensure it's not archived
+          // Update coverNote if provided
+          if (sanitizedCoverNote !== undefined) {
+            app.coverNote = sanitizedCoverNote;
+          }
+          await app.save();
+          application = app;
+          console.log('[API /applications POST] Updated general contact to link job');
+        } else {
+          // This shouldn't happen, but handle it just in case
+          console.error('[API /applications POST] Could not find general contact to update:', generalContact._id);
+          return NextResponse.json(
+            { error: 'An error occurred. Please try again.' },
+            { status: 500 }
+          );
+        }
+      }
+
+      // If we already have an application from the above logic (general contact update), skip creating a new one
+      if (!application) {
+        // Also check if there's an archived application for this specific job
+        // If found, we should restore it rather than create a duplicate
+        const archivedApplication = await Application.findOne({
+          jobId: jobObjectId,
+          candidateId: candidateObjectId,
+          archivedByJobSeeker: true,
+        });
+
+        const now = new Date();
+
+        if (archivedApplication) {
+          // Restore the archived application instead of creating a new one
+          archivedApplication.archivedByJobSeeker = false;
+          archivedApplication.status = 'applied';
+          archivedApplication.appliedAt = now;
+          archivedApplication.lastActivityAt = now;
+          archivedApplication.withdrawnAt = undefined;
+          // Update coverNote if provided
+          if (sanitizedCoverNote !== undefined) {
+            archivedApplication.coverNote = sanitizedCoverNote;
+          }
+          await archivedApplication.save();
+          application = archivedApplication;
+          console.log('[API /applications POST] Restored archived application');
+        } else {
+          // Create new application
+          // With the partial unique index, we can now create multiple applications
+          // from the same recruiter to the same candidate for different jobs
+          console.log('[API /applications POST] Creating new application...');
+          const applicationData: any = {
+            jobId: jobObjectId,
+            recruiterId: recruiterId,
+            candidateId: candidateObjectId,
+            status: 'applied',
+            appliedAt: now,
+            lastActivityAt: now,
+          };
+          // Only include coverNote if provided
+          if (sanitizedCoverNote !== undefined) {
+            applicationData.coverNote = sanitizedCoverNote;
+          }
+          application = await Application.create(applicationData);
+          console.log('[API /applications POST] Application created successfully:', {
+            applicationId: application._id?.toString(),
+          });
+        }
+      }
 
       // Send email notification to recruiter (non-blocking)
       try {
@@ -286,7 +496,7 @@ export async function POST(request: NextRequest) {
       const applicationData: any = {
         recruiterId: user.userId,
         candidateId: candidateId,
-        status: 'contacted',
+        status: 'applied',
         appliedAt: now,
         lastActivityAt: now,
       };

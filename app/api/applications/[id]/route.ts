@@ -10,6 +10,7 @@ import { requireRole } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
 import { getStatusChangedEmail } from '@/lib/emailTemplates';
 import { sanitizeApplicationForRole, guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
+import { validateTransition, ApplicationStatus, TERMINAL_STATES } from '@/lib/applicationStatusTransitions';
 
 // GET - Get a single application by ID
 export async function GET(
@@ -28,7 +29,10 @@ export async function GET(
     }
 
     // Role-based access control
-    if (user.role === 'recruiter' || user.role === 'admin') {
+    if (user.role === 'admin') {
+      // Admins can access all applications
+      // No restriction needed
+    } else if (user.role === 'recruiter') {
       // Recruiters can only access applications for their jobs
       if (application.recruiterId.toString() !== user.userId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -42,10 +46,23 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Update viewedAt for recruiters only (not admins or job seekers)
+    // Update viewedAt and status for recruiters only (not admins or job seekers)
     // Only update if viewedAt is null (first time viewing)
+    // When recruiter first views an application, update status from 'applied' to 'viewed'
     if (user.role === 'recruiter' && !application.viewedAt) {
       application.viewedAt = new Date();
+      // Update status to 'viewed' if it's currently 'applied' (automatic status transition)
+      // Use centralized transition validation to ensure this is allowed
+      const currentStatus = application.status as ApplicationStatus;
+      if (currentStatus === 'applied') {
+        const transitionError = validateTransition('applied', 'viewed');
+        if (!transitionError) {
+          application.status = 'viewed';
+        } else {
+          // Log warning but don't fail - this should never happen for applied -> viewed
+          console.warn(`[API /applications/[id] GET] Unexpected transition error: ${transitionError}`);
+        }
+      }
       await application.save();
     }
 
@@ -88,6 +105,8 @@ export async function GET(
       lastActivityAt: application.lastActivityAt,
       withdrawnAt: application.withdrawnAt,
       viewedAt: application.viewedAt,
+      coverNote: application.coverNote,
+      published: application.published,
       createdAt: application.createdAt,
       updatedAt: application.updatedAt,
       job: application.jobId ? {
@@ -116,9 +135,12 @@ export async function GET(
 
     // Include internalNotes and recruiterNotes only for recruiters with feature enabled
     if (user.role === 'admin') {
-      // Admins always have access
+      // Admins always have access to all notes and admin-specific fields
       response.internalNotes = application.internalNotes;
       response.recruiterNotes = application.recruiterNotes;
+      response.adminNotes = application.adminNotes;
+      response.archivedByAdmin = application.archivedByAdmin || false;
+      response.adminActions = application.adminActions || [];
       response.notesEnabled = true; // Admins always have notes enabled
     } else if (user.role === 'recruiter') {
       // Check if notes feature is enabled for this recruiter
@@ -170,37 +192,40 @@ export async function GET(
   }
 }
 
-  // PATCH - Update application status and/or recruiterNotes (recruiters only)
+  // PATCH - Update application status and/or recruiterNotes (recruiters and admins)
   export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
   ) {
     try {
-      const user = requireRole(request, ['recruiter']);
+      const user = requireRole(request, ['recruiter', 'admin']);
       await connectDB();
       const { id } = await params;
 
       const body = await request.json();
-      const { status, recruiterNotes } = body;
+      const { status, recruiterNotes, adminNotes, published } = body;
 
       // At least one field must be provided
-    if (status === undefined && recruiterNotes === undefined) {
+    if (status === undefined && recruiterNotes === undefined && adminNotes === undefined && published === undefined) {
       return NextResponse.json(
-        { error: 'Either status or recruiterNotes must be provided' },
+        { error: 'Either status, recruiterNotes, adminNotes, or published must be provided' },
         { status: 400 }
       );
     }
 
-    // Find application and verify it belongs to this recruiter
+    // Find application
     const application = await Application.findById(id);
     if (!application) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
     }
 
-    // Verify recruiter owns this application
-    if (application.recruiterId.toString() !== user.userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Verify access: Admins can access all, recruiters can only access their own
+    if (user.role === 'recruiter') {
+      if (application.recruiterId.toString() !== user.userId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
+    // Admins have full access, no restriction needed
 
     // Store old status for email notification
     const oldStatus = application.status;
@@ -208,25 +233,51 @@ export async function GET(
 
     // Update status if provided
     if (status !== undefined) {
-      // Validate status enum
-      const validStatuses = ['new', 'contacted', 'interviewed', 'offered', 'rejected', 'withdrawn'];
-      if (!validStatuses.includes(status)) {
+      // Validate status is a valid ApplicationStatus
+      const validStatuses: ApplicationStatus[] = [
+        'applied', 'viewed', 'contacted', 'interviewing', 'offered', 'hired',
+        'accepted', 'rejected', 'withdrawn'
+      ];
+      
+      if (!validStatuses.includes(status as ApplicationStatus)) {
         return NextResponse.json(
-          { error: 'Invalid status. Must be one of: ' + validStatuses.join(', ') },
+          { error: `Invalid status "${status}". Must be one of: ${validStatuses.join(', ')}` },
           { status: 400 }
         );
       }
 
-      // Prevent changing status of withdrawn applications
-      if (application.status === 'withdrawn' && status !== 'withdrawn') {
+      // Authorization: Only recruiters can set accepted/rejected/hired status
+      // Only job seekers can set withdrawn status (enforced in withdraw endpoint)
+      // Prevent recruiters from setting withdrawn status (job seekers must use withdraw endpoint)
+      if (status === 'withdrawn') {
         return NextResponse.json(
-          { error: 'Cannot change status of a withdrawn application. Withdrawn applications cannot be modified.' },
+          { error: 'Cannot set status to withdrawn via this endpoint. Job seekers must use the withdraw endpoint.' },
           { status: 400 }
         );
       }
 
-      application.status = status;
-      statusChanged = oldStatus !== status;
+      // Validate status transition using centralized transition rules
+      const currentStatus = application.status as ApplicationStatus;
+      const newStatus = status as ApplicationStatus;
+      
+      const transitionError = validateTransition(currentStatus, newStatus);
+      if (transitionError) {
+        return NextResponse.json(
+          { error: transitionError },
+          { status: 400 }
+        );
+      }
+
+      // Additional check: Prevent changing status from any terminal state
+      if (TERMINAL_STATES.includes(currentStatus) && currentStatus !== newStatus) {
+        return NextResponse.json(
+          { error: `Cannot change status from "${currentStatus}". Applications in terminal states (${TERMINAL_STATES.join(', ')}) cannot be modified.` },
+          { status: 400 }
+        );
+      }
+
+      application.status = newStatus;
+      statusChanged = oldStatus !== newStatus;
     }
 
     // Update recruiterNotes if provided
@@ -251,9 +302,71 @@ export async function GET(
       }
       application.recruiterNotes = recruiterNotes;
     }
+
+    // Update adminNotes if provided (admin only)
+    if (adminNotes !== undefined) {
+      if (user.role !== 'admin') {
+        return NextResponse.json(
+          { error: 'Only admins can update adminNotes' },
+          { status: 403 }
+        );
+      }
+
+      // Validate adminNotes is a string
+      if (typeof adminNotes !== 'string') {
+        return NextResponse.json(
+          { error: 'adminNotes must be a string' },
+          { status: 400 }
+        );
+      }
+      application.adminNotes = adminNotes;
+    }
+
+    // Update published if provided (recruiters and admins only)
+    if (published !== undefined) {
+      // Validate published is a boolean
+      if (typeof published !== 'boolean') {
+        return NextResponse.json(
+          { error: 'published must be a boolean' },
+          { status: 400 }
+        );
+      }
+      application.published = published;
+      // Note: Updating published does NOT trigger email notifications or status changes
+    }
+    
+    // Log admin actions
+    if (user.role === 'admin') {
+      const adminUser = await User.findById(user.userId).select('name').lean();
+      const adminName = adminUser?.name || 'Unknown Admin';
+      
+      if (!application.adminActions) {
+        application.adminActions = [];
+      }
+
+      if (statusChanged) {
+        application.adminActions.push({
+          adminId: user.userId as any,
+          adminName,
+          action: 'status_changed',
+          details: `Status changed from "${oldStatus}" to "${application.status}"`,
+          timestamp: new Date(),
+        });
+      }
+      if (adminNotes !== undefined && adminNotes !== (application.adminNotes || '')) {
+        application.adminActions.push({
+          adminId: user.userId as any,
+          adminName,
+          action: 'admin_notes_updated',
+          details: 'Admin notes updated',
+          timestamp: new Date(),
+        });
+      }
+    }
     
     // Update lastActivityAt if status changed or notes were updated
-    if (statusChanged || recruiterNotes !== undefined) {
+    // Note: published changes do NOT update lastActivityAt (it's a visibility toggle, not an activity)
+    if (statusChanged || recruiterNotes !== undefined || adminNotes !== undefined) {
       application.lastActivityAt = new Date();
       
       // Set withdrawnAt timestamp when status changes to withdrawn
@@ -265,41 +378,48 @@ export async function GET(
     await application.save();
 
     // Populate for email notification (if needed)
-    // Send email notification to candidate if status changed (non-blocking)
+    // Send email notification to candidate if status changed to specific statuses (non-blocking)
+    // Only send emails for: contacted, interviewing, offered, rejected
+    // Do NOT send emails for: viewed, applied, withdrawn, hired
     if (statusChanged) {
-      try {
-        const candidate = await User.findById(application.candidateId).select('name email');
-        const recruiter = await User.findById(application.recruiterId).select('name email');
-        
-        if (candidate && recruiter && candidate.email) {
-          const job = application.jobId ? await Job.findById(application.jobId).select('title company city') : null;
+      const statusesToNotify = ['contacted', 'interviewing', 'offered', 'rejected'];
+      const shouldSendEmail = statusesToNotify.includes(application.status);
+      
+      if (shouldSendEmail) {
+        try {
+          const candidate = await User.findById(application.candidateId).select('name email');
+          const recruiter = await User.findById(application.recruiterId).select('name email');
+          
+          if (candidate && recruiter && candidate.email) {
+            const job = application.jobId ? await Job.findById(application.jobId).select('title company city') : null;
 
-          const emailTemplate = getStatusChangedEmail({
-            candidateName: candidate.name,
-            candidateEmail: candidate.email,
-            recruiterName: recruiter.name,
-            recruiterEmail: recruiter.email,
-            jobTitle: job?.title,
-            jobCompany: job?.company,
-            status: application.status,
-          });
+            const emailTemplate = getStatusChangedEmail({
+              candidateName: candidate.name,
+              candidateEmail: candidate.email,
+              recruiterName: recruiter.name,
+              recruiterEmail: recruiter.email,
+              jobTitle: job?.title,
+              jobCompany: job?.company,
+              status: application.status,
+            });
 
-          await sendEmail({
-            to: candidate.email,
-            subject: emailTemplate.subject,
-            html: emailTemplate.html,
-            text: emailTemplate.text,
-            replyTo: recruiter.email,
-            tags: [
-              { name: 'type', value: 'application' },
-              { name: 'event', value: 'status_changed' },
-              { name: 'status', value: status },
-            ],
-          });
+            await sendEmail({
+              to: candidate.email,
+              subject: emailTemplate.subject,
+              html: emailTemplate.html,
+              text: emailTemplate.text,
+              replyTo: recruiter.email,
+              tags: [
+                { name: 'type', value: 'application' },
+                { name: 'event', value: 'status_changed' },
+                { name: 'status', value: application.status },
+              ],
+            });
+          }
+        } catch (emailError) {
+          // Log but don't fail the request if email fails
+          console.error('Failed to send status change notification email:', emailError);
         }
-      } catch (emailError) {
-        // Log but don't fail the request if email fails
-        console.error('Failed to send status change notification email:', emailError);
       }
     }
 
@@ -316,6 +436,7 @@ export async function GET(
       lastActivityAt: application.lastActivityAt,
       withdrawnAt: application.withdrawnAt,
       viewedAt: application.viewedAt,
+      coverNote: application.coverNote,
       createdAt: application.createdAt,
       updatedAt: application.updatedAt,
       job: application.jobId ? {
@@ -336,20 +457,38 @@ export async function GET(
       } : null,
       internalNotes: application.internalNotes,
       recruiterNotes: application.recruiterNotes,
+      published: application.published,
     };
 
+    // Include admin fields for admins
+    if (user.role === 'admin') {
+      response.adminNotes = application.adminNotes;
+      response.archivedByAdmin = application.archivedByAdmin || false;
+      response.adminActions = application.adminActions || [];
+    }
+
     // Include notesEnabled flag for recruiters
-    const recruiterUser = await User.findById(user.userId).select('notesEnabled').lean();
-    response.notesEnabled = recruiterUser?.notesEnabled !== false; // Default to true if not set
+    if (user.role === 'recruiter') {
+      const recruiterUser = await User.findById(user.userId).select('notesEnabled').lean();
+      response.notesEnabled = recruiterUser?.notesEnabled !== false; // Default to true if not set
+    } else if (user.role === 'admin') {
+      response.notesEnabled = true; // Admins always have notes enabled
+    }
 
     // Determine success message
     let message = 'Application updated successfully';
-    if (statusChanged && recruiterNotes !== undefined) {
+    if (statusChanged && recruiterNotes !== undefined && adminNotes !== undefined) {
+      message = 'Application status and notes updated successfully';
+    } else if (statusChanged && (recruiterNotes !== undefined || adminNotes !== undefined)) {
       message = 'Application status and notes updated successfully';
     } else if (statusChanged) {
       message = 'Application status updated successfully';
     } else if (recruiterNotes !== undefined) {
       message = 'Application notes updated successfully';
+    } else if (adminNotes !== undefined) {
+      message = 'Admin notes updated successfully';
+    } else if (published !== undefined) {
+      message = published ? 'Application published successfully' : 'Application removed successfully';
     }
 
     return NextResponse.json(

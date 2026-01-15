@@ -60,7 +60,8 @@ export default function RecruiterDashboard() {
   const [favouriteCandidates, setFavouriteCandidates] = useState<Candidate[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [loadingApplications, setLoadingApplications] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [removingApplication, setRemovingApplication] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -156,8 +157,19 @@ export default function RecruiterDashboard() {
     }
   };
 
-  const handleUpdateStatus = async (applicationId: string, newStatus: string) => {
-    setUpdatingStatus(applicationId);
+  const handleRemoveApplication = async (applicationId: string) => {
+    if (!confirm('Remove this application from your list? You can still access it via direct link.')) {
+      return;
+    }
+
+    // Find the application to remove (for potential restoration on error)
+    const applicationToRemove = applications.find((app: any) => app._id === applicationId);
+    if (!applicationToRemove) return;
+
+    // Optimistically remove from UI
+    setApplications((prev) => prev.filter((app: any) => app._id !== applicationId));
+    setRemovingApplication(applicationId);
+
     try {
       const response = await fetch(`/api/applications/${applicationId}`, {
         method: 'PATCH',
@@ -165,22 +177,36 @@ export default function RecruiterDashboard() {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ published: false }),
       });
 
-      if (response.ok) {
-        // Reload applications to get updated data
-        await loadApplications();
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Failed to update application status');
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to remove application from list');
       }
+
+      // Show success toast
+      setToastMessage('Application removed from list');
+      // Auto-hide toast after 3 seconds
+      setTimeout(() => setToastMessage(null), 3000);
     } catch (err: any) {
-      alert('Failed to update application status. Please try again.');
+      // Restore the application on error (using functional update to get current state)
+      setApplications((prev) => {
+        const restored = [...prev, applicationToRemove];
+        // Sort by appliedAt descending (newest first) to match original order
+        return restored.sort((a: any, b: any) => 
+          new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime()
+        );
+      });
+      console.error('Failed to remove application:', err);
+      // Show error toast
+      setToastMessage(err.message || 'Failed to remove application from list');
+      setTimeout(() => setToastMessage(null), 5000);
     } finally {
-      setUpdatingStatus(null);
+      setRemovingApplication(null);
     }
   };
+
 
   const handleRemoveFavourite = async (cvId: string) => {
     if (!confirm('Remove this candidate from your favourites?')) return;
@@ -293,6 +319,15 @@ export default function RecruiterDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
       <Navbar />
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-20 right-4 z-50 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 transition-all duration-300">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span className="font-medium">{toastMessage}</span>
+        </div>
+      )}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex flex-wrap justify-between items-center gap-3 mb-8">
           <h1 className="text-4xl font-bold text-gray-900">
@@ -491,30 +526,55 @@ export default function RecruiterDashboard() {
                               const appliedDate = new Date(app.appliedAt).toLocaleDateString();
                               const isWithdrawn = app.status === 'withdrawn';
                               const statusColors: { [key: string]: string } = {
+                                // New status lifecycle values
+                                applied: 'bg-blue-100 text-blue-800',
+                                viewed: 'bg-purple-100 text-purple-800',
+                                accepted: 'bg-green-100 text-green-800',
+                                rejected: 'bg-red-100 text-red-800',
+                                withdrawn: 'bg-gray-100 text-gray-800',
+                                // Legacy values (for backward compatibility during migration)
                                 new: 'bg-blue-100 text-blue-800',
                                 contacted: 'bg-yellow-100 text-yellow-800',
                                 interviewed: 'bg-purple-100 text-purple-800',
                                 offered: 'bg-green-100 text-green-800',
-                                rejected: 'bg-red-100 text-red-800',
-                                withdrawn: 'bg-gray-100 text-gray-800',
                               };
 
                               const getStatusLabel = (status: string) => {
                                 if (status === 'withdrawn') {
                                   return 'Withdrawn by candidate';
                                 }
-                                return status.charAt(0).toUpperCase() + status.slice(1);
+                                // Map new status values to readable labels
+                                const statusLabels: { [key: string]: string } = {
+                                  applied: 'Applied',
+                                  viewed: 'Viewed',
+                                  accepted: 'Accepted',
+                                  rejected: 'Rejected',
+                                };
+                                return statusLabels[status] || status.charAt(0).toUpperCase() + status.slice(1);
                               };
+
+                              // Check if Remove button should be shown
+                              const canRemove = app.status === 'rejected' || app.status === 'withdrawn' || app.status === 'accepted';
 
                               return (
                                 <tr key={app._id} className={isWithdrawn ? 'opacity-75' : ''}>
                                   <td className="px-6 py-4 whitespace-nowrap">
-                                    <Link
-                                      href={`/dashboard/recruiter/applications/${app._id}`}
-                                      className={`text-sm font-medium ${isWithdrawn ? 'text-gray-500' : 'text-blue-600 hover:text-blue-800 hover:underline'}`}
-                                    >
-                                      {candidateName}
-                                    </Link>
+                                    <div className="flex items-center gap-2">
+                                      <Link
+                                        href={`/dashboard/recruiter/applications/${app._id}`}
+                                        className={`text-sm font-medium ${isWithdrawn ? 'text-gray-500' : 'text-blue-600 hover:text-blue-800 hover:underline'}`}
+                                      >
+                                        {candidateName}
+                                      </Link>
+                                      {app.coverNote && (
+                                        <span
+                                          className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs font-semibold cursor-help"
+                                          title="Cover note included"
+                                        >
+                                          📝
+                                        </span>
+                                      )}
+                                    </div>
                                     <div className={`text-sm ${isWithdrawn ? 'text-gray-400' : 'text-gray-500'}`}>{candidateEmail}</div>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -531,31 +591,21 @@ export default function RecruiterDashboard() {
                                     </span>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <div className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-3">
                                       <Link
                                         href={`/dashboard/recruiter/applications/${app._id}`}
-                                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                                        className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold transition-colors"
                                       >
-                                        View Details →
+                                        Application Details
                                       </Link>
-                                      <select
-                                        value={app.status}
-                                        onChange={(e) => handleUpdateStatus(app._id, e.target.value)}
-                                        disabled={isWithdrawn || updatingStatus === app._id}
-                                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                                      >
-                                        <option value="new">New</option>
-                                        <option value="contacted">Contacted</option>
-                                        <option value="interviewed">Interviewed</option>
-                                        <option value="offered">Offered</option>
-                                        <option value="rejected">Rejected</option>
-                                        <option value="withdrawn">Withdrawn</option>
-                                      </select>
-                                      {updatingStatus === app._id && (
-                                        <span className="text-xs text-gray-500">Updating...</span>
-                                      )}
-                                      {isWithdrawn && (
-                                        <span className="text-xs text-gray-400">Cannot change status</span>
+                                      {canRemove && (
+                                        <button
+                                          onClick={() => handleRemoveApplication(app._id)}
+                                          disabled={removingApplication === app._id}
+                                          className="text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          {removingApplication === app._id ? 'Removing...' : 'Remove'}
+                                        </button>
                                       )}
                                     </div>
                                   </td>

@@ -15,6 +15,7 @@ interface Application {
   lastActivityAt: string;
   withdrawnAt?: string;
   viewedAt?: string;
+  coverNote?: string;
   createdAt: string;
   updatedAt: string;
   job: ApplicationJobSnapshot | null;
@@ -279,6 +280,16 @@ export default function JobSeekerApplicationDetailPage() {
                       {application.job.country && `, ${application.job.country}`}
                     </p>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Cover Note */}
+            {application.coverNote && (
+              <div className="border-b border-gray-200 pb-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Cover note</h2>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{application.coverNote}</p>
                 </div>
               </div>
             )}

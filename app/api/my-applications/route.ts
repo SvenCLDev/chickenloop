@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
         path: 'jobId',
         select: 'title city company',
       })
-      .select('status appliedAt lastActivityAt jobId')
-      .sort({ appliedAt: -1 })
+      .select('status appliedAt lastActivityAt updatedAt jobId')
+      .sort({ updatedAt: -1 })
       .lean();
 
     // Format the response
@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
         status: app.status,
         appliedAt: app.appliedAt,
         lastActivityAt: app.lastActivityAt,
+        updatedAt: app.updatedAt,
       };
 
       // Include job information if jobId exists

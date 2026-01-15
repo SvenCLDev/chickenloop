@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { jobsApi, cvApi, savedSearchesApi, applicationsApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
+import { ApplicationStatus, TERMINAL_STATES, getAllowedTransitions } from '@/lib/applicationStatusTransitions';
 import Link from 'next/link';
 
 interface Job {
@@ -150,13 +151,19 @@ export default function JobSeekerDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'new':
+      case 'applied':
         return 'bg-blue-100 text-blue-800';
-      case 'contacted':
+      case 'viewed':
         return 'bg-purple-100 text-purple-800';
-      case 'interviewed':
+      case 'contacted':
+        return 'bg-cyan-100 text-cyan-800';
+      case 'interviewing':
         return 'bg-yellow-100 text-yellow-800';
       case 'offered':
+        return 'bg-orange-100 text-orange-800';
+      case 'hired':
+        return 'bg-green-100 text-green-800';
+      case 'accepted':
         return 'bg-green-100 text-green-800';
       case 'rejected':
         return 'bg-red-100 text-red-800';
@@ -169,24 +176,40 @@ export default function JobSeekerDashboard() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'new':
+      case 'applied':
         return 'Application sent';
+      case 'viewed':
+        return 'Viewed by recruiter';
       case 'contacted':
-        return 'Recruiter contacted you';
-      case 'interviewed':
-        return 'Interview stage';
+        return 'Contacted';
+      case 'interviewing':
+        return 'Interviewing';
       case 'offered':
         return 'Offer made';
+      case 'hired':
+        return 'Hired';
+      case 'accepted':
+        return 'Accepted';
       case 'rejected':
-        return 'Application not successful';
+        return 'Not successful';
       case 'withdrawn':
-        return 'Application withdrawn';
+        return 'Withdrawn';
       default:
         return status;
     }
   };
 
+  // Timeline statuses in order
+  const TIMELINE_STATUSES: ApplicationStatus[] = ['applied', 'viewed', 'contacted', 'interviewing', 'offered', 'hired'];
+
+  // Check if withdrawal is allowed based on transition rules
+  const canWithdrawStatus = (status: string): boolean => {
+    const allowedTransitions = getAllowedTransitions(status as ApplicationStatus);
+    return allowedTransitions.includes('withdrawn');
+  };
+
   const handleWithdrawApplication = async (applicationId: string, jobTitle: string) => {
+    // Confirmation dialog
     if (!confirm(`Are you sure you want to withdraw your application for "${jobTitle}"? This action cannot be undone.`)) {
       return;
     }
@@ -194,14 +217,8 @@ export default function JobSeekerDashboard() {
     setWithdrawingApplication(applicationId);
     try {
       await applicationsApi.withdraw(applicationId);
-      // Update the application in the local state
-      setMyApplications((prev) =>
-        prev.map((app) =>
-          app._id === applicationId
-            ? { ...app, status: 'withdrawn', withdrawnAt: new Date().toISOString(), lastActivityAt: new Date().toISOString() }
-            : app
-        )
-      );
+      // Reload applications to get updated data from server
+      await loadMyApplications();
     } catch (err: any) {
       alert(err.message || 'Failed to withdraw application');
     } finally {
@@ -444,10 +461,10 @@ export default function JobSeekerDashboard() {
                         Company
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Applied Date
+                        Last Updated
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
+                        Application Status
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
@@ -456,10 +473,18 @@ export default function JobSeekerDashboard() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {myApplications.map((application) => {
-                      const isWithdrawn = application.status === 'withdrawn';
-                      const isRejected = application.status === 'rejected';
+                      const currentStatus = application.status as ApplicationStatus;
+                      const isWithdrawn = currentStatus === 'withdrawn';
+                      const isRejected = currentStatus === 'rejected';
+                      const isTerminal = TERMINAL_STATES.includes(currentStatus);
                       const canRemove = isWithdrawn || isRejected;
-                      const isInactive = isWithdrawn || isRejected;
+                      const canWithdraw = canWithdrawStatus(currentStatus);
+                      const isInactive = isTerminal;
+                      
+                      // Find current status position in timeline
+                      const currentStatusIndex = TIMELINE_STATUSES.indexOf(currentStatus);
+                      const isInTimeline = currentStatusIndex !== -1;
+                      
                       return (
                         <tr 
                           key={application._id}
@@ -469,7 +494,7 @@ export default function JobSeekerDashboard() {
                             {application.job ? (
                               <div className="flex flex-col gap-1">
                                 <Link
-                                  href={`/dashboard/jobseeker/applications/${application._id}`}
+                                  href={`/jobs/${application.job._id}`}
                                   className={isInactive 
                                     ? 'text-gray-400 hover:text-gray-500 hover:underline font-medium' 
                                     : 'text-blue-600 hover:text-blue-900 hover:underline font-medium'
@@ -477,18 +502,9 @@ export default function JobSeekerDashboard() {
                                 >
                                   {application.job.title}
                                 </Link>
-                                <Link
-                                  href={`/jobs/${application.job._id}`}
-                                  className={isInactive 
-                                    ? 'text-gray-400 hover:text-gray-500 hover:underline text-xs' 
-                                    : 'text-gray-500 hover:text-gray-700 hover:underline text-xs'
-                                  }
-                                >
-                                  View job posting →
-                                </Link>
                               </div>
                             ) : (
-                              <span className="text-gray-400">No job linked</span>
+                              <span className="text-gray-400">Job no longer available</span>
                             )}
                           </td>
                           <td className={`px-6 py-4 whitespace-nowrap text-sm ${isInactive ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -499,16 +515,76 @@ export default function JobSeekerDashboard() {
                             )}
                           </td>
                           <td className={`px-6 py-4 whitespace-nowrap text-sm ${isInactive ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {new Date(application.appliedAt).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            })}
+                            {application.updatedAt
+                              ? new Date(application.updatedAt).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                })
+                              : application.lastActivityAt
+                                ? new Date(application.lastActivityAt).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                  })
+                                : new Date(application.appliedAt).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                  })}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(application.status)}`}>
-                              {getStatusLabel(application.status)}
+                          <td className="px-6 py-4 text-sm">
+                            {isInTimeline ? (
+                              <div className="space-y-2">
+                                {/* Timeline */}
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {TIMELINE_STATUSES.map((status, index) => {
+                                    const isActive = status === currentStatus;
+                                    const isPast = currentStatusIndex !== -1 && index < currentStatusIndex;
+                                    const isFuture = index > currentStatusIndex;
+                                    
+                                    return (
+                                      <div key={status} className="flex items-center gap-1">
+                                        <div
+                                          className={`px-2 py-1 text-xs font-medium rounded ${
+                                            isActive
+                                              ? 'bg-blue-600 text-white ring-2 ring-blue-300'
+                                              : isPast
+                                              ? 'bg-gray-200 text-gray-700'
+                                              : 'bg-gray-100 text-gray-400'
+                                          }`}
+                                        >
+                                          {getStatusLabel(status)}
+                                        </div>
+                                        {index < TIMELINE_STATUSES.length - 1 && (
+                                          <span className={`text-xs ${
+                                            isPast || isActive ? 'text-gray-400' : 'text-gray-300'
+                                          }`}>
+                                            →
                             </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                {/* Helper text */}
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Recruiters may contact you outside the platform.
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                {/* Terminal state display */}
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(currentStatus)}`}>
+                                  {getStatusLabel(currentStatus)}
+                                </span>
+                                {isTerminal && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    This application is in a final state.
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             {canRemove ? (
@@ -519,7 +595,7 @@ export default function JobSeekerDashboard() {
                               >
                                 {archivingApplication === application._id ? 'Removing...' : 'Remove from list'}
                               </button>
-                            ) : (
+                            ) : canWithdraw ? (
                               <button
                                 onClick={() => handleWithdrawApplication(application._id, application.job?.title || 'this job')}
                                 disabled={withdrawingApplication === application._id}
@@ -527,6 +603,10 @@ export default function JobSeekerDashboard() {
                               >
                                 {withdrawingApplication === application._id ? 'Withdrawing...' : 'Withdraw application'}
                               </button>
+                            ) : (
+                              <span className="text-gray-400 text-xs">
+                                Cannot withdraw
+                              </span>
                             )}
                           </td>
                         </tr>
