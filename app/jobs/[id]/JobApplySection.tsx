@@ -178,7 +178,13 @@ export default function JobApplySection({
 
   // Determine the reason why user cannot apply (for helper text)
   const getCannotApplyReason = useMemo(() => {
-    if (!user || user.role !== 'job-seeker') {
+    // Anonymous users (not logged in)
+    if (!user) {
+      return 'Please log in to send an instant application.';
+    }
+    
+    // Logged in but not a job seeker
+    if (user.role !== 'job-seeker') {
       return null; // Not a job seeker - don't show button at all
     }
 
@@ -288,10 +294,10 @@ export default function JobApplySection({
 
   return (
     <>
-      {/* ATS Apply Button - Show for job seekers */}
-      {user && user.role === 'job-seeker' && (
+      {/* ATS Apply Button - Show for job seekers and anonymous users */}
+      {(user?.role === 'job-seeker' || !user) && (
         <div className="mb-4">
-          {checkingApplication || loadingCv ? (
+          {user && user.role === 'job-seeker' && (checkingApplication || loadingCv) ? (
             <button
               disabled
               className="px-6 py-3 bg-gray-400 text-white rounded-lg font-semibold cursor-not-allowed opacity-50"
