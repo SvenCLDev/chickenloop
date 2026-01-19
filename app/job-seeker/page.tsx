@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { jobsApi, cvApi, savedSearchesApi, applicationsApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { ApplicationStatus, TERMINAL_STATES, getAllowedTransitions } from '@/lib/applicationStatusTransitions';
+import { isApplicationStatus } from '@/lib/domainTypes';
 import Link from 'next/link';
 
 interface Job {
@@ -27,6 +28,7 @@ interface Job {
 export default function JobSeekerDashboard() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [favouriteJobs, setFavouriteJobs] = useState<Job[]>([]);
   const [cv, setCv] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -40,12 +42,14 @@ export default function JobSeekerDashboard() {
   const [loadingSearches, setLoadingSearches] = useState(false);
   const [editingSearch, setEditingSearch] = useState<string | null>(null);
   const [editSearchName, setEditSearchName] = useState('');
-  const [editSearchFrequency, setEditSearchFrequency] = useState<'daily' | 'weekly' | 'never'>('daily');
+  const [editSearchFrequency, setEditSearchFrequency] = useState<'daily' | 'weekly' | 'never'>('weekly');
   const [editSearchActive, setEditSearchActive] = useState(false);
   const [myApplications, setMyApplications] = useState<any[]>([]);
   const [loadingApplications, setLoadingApplications] = useState(false);
   const [withdrawingApplication, setWithdrawingApplication] = useState<string | null>(null);
   const [archivingApplication, setArchivingApplication] = useState<string | null>(null);
+  const [unsubscribedCategory, setUnsubscribedCategory] = useState<string | null>(null);
+  const [showUnsubscribedNotification, setShowUnsubscribedNotification] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -62,6 +66,21 @@ export default function JobSeekerDashboard() {
       loadMyApplications();
     }
   }, [user]);
+
+  // Handle unsubscribe notification
+  useEffect(() => {
+    const unsubscribed = searchParams.get('unsubscribed');
+    const category = searchParams.get('category');
+    if (unsubscribed === 'true' && category) {
+      setUnsubscribedCategory(category);
+      setShowUnsubscribedNotification(true);
+      // Remove query params from URL without reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete('unsubscribed');
+      url.searchParams.delete('category');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams]);
 
   const loadData = async () => {
     try {
@@ -102,7 +121,7 @@ export default function JobSeekerDashboard() {
   const handleEditSearch = (search: any) => {
     setEditingSearch(search._id);
     setEditSearchName(search.name || '');
-    setEditSearchFrequency(search.frequency || 'daily');
+    setEditSearchFrequency(search.frequency || 'weekly');
     setEditSearchActive(search.active || false);
   };
 
@@ -204,7 +223,8 @@ export default function JobSeekerDashboard() {
 
   // Check if withdrawal is allowed based on transition rules
   const canWithdrawStatus = (status: string): boolean => {
-    const allowedTransitions = getAllowedTransitions(status as ApplicationStatus);
+    if (!isApplicationStatus(status)) return false;
+    const allowedTransitions = getAllowedTransitions(status);
     return allowedTransitions.includes('withdrawn');
   };
 
@@ -336,6 +356,42 @@ export default function JobSeekerDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Unsubscribe Notification */}
+        {showUnsubscribedNotification && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center mb-2">
+                <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 className="text-sm font-semibold text-blue-900">Email Preferences Updated</h3>
+              </div>
+              <p className="text-sm text-blue-700 mb-3">
+                {unsubscribedCategory === 'important_transactional' 
+                  ? 'You have been unsubscribed from application update emails. You can re-enable these emails from your account settings.'
+                  : unsubscribedCategory === 'user_notification'
+                  ? 'You have been unsubscribed from job alert emails. You can re-enable these emails from your account settings.'
+                  : 'Your email preferences have been updated. You can manage your preferences from your account settings.'
+                }
+              </p>
+              <Link
+                href="/job-seeker/account/edit"
+                className="inline-block text-sm font-medium text-blue-600 hover:text-blue-800 underline"
+              >
+                Manage Email Preferences →
+              </Link>
+            </div>
+            <button
+              onClick={() => setShowUnsubscribedNotification(false)}
+              className="ml-4 text-blue-400 hover:text-blue-600"
+              aria-label="Dismiss notification"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Job Seeker Dashboard</h1>
           
@@ -473,7 +529,7 @@ export default function JobSeekerDashboard() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {myApplications.map((application) => {
-                      const currentStatus = application.status as ApplicationStatus;
+                      const currentStatus = isApplicationStatus(application.status) ? application.status : 'applied';
                       const isWithdrawn = currentStatus === 'withdrawn';
                       const isRejected = currentStatus === 'rejected';
                       const isTerminal = TERMINAL_STATES.includes(currentStatus);
@@ -748,7 +804,7 @@ export default function JobSeekerDashboard() {
                               <option value="never">Never</option>
                             </select>
                           ) : (
-                            <span className="capitalize">{search.frequency || 'daily'}</span>
+                            <span className="capitalize">{search.frequency || 'weekly'}</span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">

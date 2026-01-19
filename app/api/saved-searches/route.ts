@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       category: category || undefined,
       sport: sportValue || undefined, // Store as 'sport' in DB (backward compatible)
       language: language || undefined,
-      frequency: frequency || 'daily',
+      frequency: frequency || 'weekly',
       active: true,
     });
 

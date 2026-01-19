@@ -15,6 +15,14 @@ import SearchBar from './SearchBar';
 import CompaniesPreview from './CompaniesPreview';
 import MapPreview from './MapPreview';
 
+// Hero background images - add more images to this array to rotate through them
+const HERO_IMAGES = [
+  '/Kitesurfer.jpg',
+  '/Sailing.jpg',
+  '/Wingfoil.jpg',
+  '/Diving.jpg',
+];
+
 export default function HomePageContent() {
   const { user } = useAuth();
   const [keyword, setKeyword] = useState('');
@@ -30,6 +38,9 @@ export default function HomePageContent() {
   const [companiesLoading, setCompaniesLoading] = useState(true);
   const [topCandidates, setTopCandidates] = useState([]);
   const [candidatesLoading, setCandidatesLoading] = useState(true);
+  
+  // Hero image rotation state
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     // Load jobs to extract unique categories
@@ -45,6 +56,18 @@ export default function HomePageContent() {
       loadTopCandidates();
     }
   }, [user]);
+
+  // Rotate hero background images
+  useEffect(() => {
+    // Only rotate if there are multiple images
+    if (HERO_IMAGES.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % HERO_IMAGES.length);
+    }, 5000); // Change image every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   const loadJobs = async () => {
     try {
@@ -191,16 +214,25 @@ export default function HomePageContent() {
       <main className="flex-grow">
         {/* Hero Section */}
         <section className="relative min-h-[500px] flex items-center justify-center overflow-hidden">
-          {/* Background Image */}
+          {/* Background Images Container */}
           <div className="absolute inset-0">
-            <Image
-              src="/Kitesurfer.jpg"
-              alt="Kitesurfer background"
-              fill
-              priority
-              className="object-cover"
-              quality={90}
-            />
+            {HERO_IMAGES.map((imageSrc, index) => (
+              <div
+                key={imageSrc}
+                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                  index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+                }`}
+              >
+                <Image
+                  src={imageSrc}
+                  alt={`Hero background ${index + 1}`}
+                  fill
+                  priority={index === 0}
+                  className="object-cover"
+                  quality={90}
+                />
+              </div>
+            ))}
             {/* Overlay for better text readability */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-900/70 via-cyan-900/60 to-teal-900/70"></div>
           </div>

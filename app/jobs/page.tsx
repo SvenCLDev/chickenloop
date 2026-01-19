@@ -122,7 +122,7 @@ function JobsPageContent() {
   const [showSaveSearchModal, setShowSaveSearchModal] = useState(false);
   const [savingSearch, setSavingSearch] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState('');
-  const [saveSearchFrequency, setSaveSearchFrequency] = useState<'daily' | 'weekly' | 'never'>('daily');
+  const [saveSearchFrequency, setSaveSearchFrequency] = useState<'daily' | 'weekly' | 'never'>('weekly');
   const [saveSearchMessage, setSaveSearchMessage] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const jobsPerPage = 20;
