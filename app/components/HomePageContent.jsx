@@ -3,17 +3,17 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { jobsApi } from '@/lib/api';
+import { jobsApi, careerAdviceApi } from '@/lib/api';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { useAuth } from '../contexts/AuthContext';
 import Navbar from './Navbar';
 import JobCard from './JobCard';
 import CompanyCard from './CompanyCard';
 import CandidateCard from './CandidateCard';
+import CareerAdviceCard from './CareerAdviceCard';
 import SectionHeader from './SectionHeader';
 import SearchBar from './SearchBar';
 import CompaniesPreview from './CompaniesPreview';
-import MapPreview from './MapPreview';
 
 // Hero background images - add more images to this array to rotate through them
 const HERO_IMAGES = [
@@ -36,6 +36,8 @@ export default function HomePageContent() {
   const [featuredJobsLoading, setFeaturedJobsLoading] = useState(true);
   const [featuredCompanies, setFeaturedCompanies] = useState([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
+  const [careerAdviceArticles, setCareerAdviceArticles] = useState([]);
+  const [careerAdviceLoading, setCareerAdviceLoading] = useState(true);
   const [topCandidates, setTopCandidates] = useState([]);
   const [candidatesLoading, setCandidatesLoading] = useState(true);
   
@@ -51,6 +53,8 @@ export default function HomePageContent() {
     loadFeaturedJobs();
     // Load featured companies
     loadFeaturedCompanies();
+    // Load career advice articles
+    loadCareerAdvice();
     // Load top candidates (only if user is recruiter or admin)
     if (user && (user.role === 'recruiter' || user.role === 'admin')) {
       loadTopCandidates();
@@ -164,6 +168,19 @@ export default function HomePageContent() {
       console.error('Failed to load featured companies:', err);
     } finally {
       setCompaniesLoading(false);
+    }
+  };
+
+  const loadCareerAdvice = async () => {
+    try {
+      const data = await careerAdviceApi.getAll(); // Only published articles
+      const articles = data.articles || [];
+      // Get the latest 4 articles (already sorted by newest first from API)
+      setCareerAdviceArticles(articles.slice(0, 4));
+    } catch (err) {
+      console.error('Failed to load career advice articles:', err);
+    } finally {
+      setCareerAdviceLoading(false);
     }
   };
 
@@ -346,8 +363,34 @@ export default function HomePageContent() {
         {/* Companies Preview Section */}
         <CompaniesPreview />
         
-        {/* Map Preview Section */}
-        <MapPreview />
+        {/* Career Advice Section */}
+        {careerAdviceArticles.length > 0 && (
+          <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <SectionHeader
+                title="Career Advice"
+                actionLabel="View All Articles"
+                actionHref="/career-advice"
+              />
+              
+              {careerAdviceLoading ? (
+                <div className="text-center py-16">
+                  <p className="text-gray-600 text-lg">Loading articles...</p>
+                </div>
+              ) : careerAdviceArticles.length === 0 ? (
+                <div className="text-center py-16">
+                  <p className="text-gray-600 text-lg">No articles available at the moment.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 sm:gap-6">
+                  {careerAdviceArticles.map((article) => (
+                    <CareerAdviceCard key={article.id} article={article} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
         
         {/* Top Candidates Section - Only visible to recruiters and admins */}
         {user && (user.role === 'recruiter' || user.role === 'admin') && (
