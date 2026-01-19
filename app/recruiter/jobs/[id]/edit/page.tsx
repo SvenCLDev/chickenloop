@@ -13,6 +13,7 @@ import {
 } from '@/lib/countryUtils';
 import { SPORTS_LIST } from '@/lib/sports';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import UrlInput from '../../../../components/form/UrlInput';
 
 export default function EditJobPage() {
   const { user, loading: authLoading } = useAuth();
@@ -802,12 +803,12 @@ export default function EditJobPage() {
                       Via our Website
                     </label>
                     {formData.applyByWebsite && (
-                      <input
-                        type="url"
+                      <UrlInput
+                        label=""
+                        name="applicationWebsite"
                         value={formData.applicationWebsite}
-                        onChange={(e) => setFormData({ ...formData, applicationWebsite: e.target.value })}
-                        placeholder="https://example.com/apply"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                        onChange={(value) => setFormData({ ...formData, applicationWebsite: value })}
+                        placeholder="example.com/apply"
                       />
                     )}
                   </div>

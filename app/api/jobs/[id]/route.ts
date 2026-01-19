@@ -3,6 +3,7 @@ import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import { requireAuth, requireRole } from '@/lib/auth';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { normalizeUrl } from '@/lib/normalizeUrl';
 
 // GET - Get a single job (accessible to all users, including anonymous)
 export async function GET(
@@ -261,7 +262,7 @@ export async function PUT(
       job.applicationEmail = applicationEmail || undefined;
     }
     if (applicationWebsite !== undefined) {
-      job.applicationWebsite = applicationWebsite || undefined;
+      job.applicationWebsite = normalizeUrl(applicationWebsite);
     }
     if (applicationWhatsApp !== undefined) {
       job.applicationWhatsApp = applicationWhatsApp || undefined;

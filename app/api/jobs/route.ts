@@ -8,6 +8,7 @@ import { CachePresets } from '@/lib/cache';
 import { parseJobSearchParams } from '@/lib/jobSearchParams';
 import { getCountryCodeFromName } from '@/lib/countryUtils';
 import { JOB_CATEGORIES, categorySlugToLabel } from '@/src/constants/jobCategories';
+import { normalizeUrl } from '@/lib/normalizeUrl';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 export async function GET(request: NextRequest) {
@@ -507,7 +508,7 @@ export async function POST(request: NextRequest) {
       applyByWebsite: applyByWebsite === true,
       applyByWhatsApp: applyByWhatsApp === true,
       applicationEmail: applicationEmail || undefined,
-      applicationWebsite: applicationWebsite || undefined,
+      applicationWebsite: normalizeUrl(applicationWebsite),
       applicationWhatsApp: applicationWhatsApp || undefined,
       published: true, // Jobs are published by default
       datePosted: now, // System-managed: set when first published

@@ -5,6 +5,7 @@ import Company from '@/models/Company';
 import { requireRole } from '@/lib/auth';
 import { createDeleteAuditLog } from '@/lib/audit';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { normalizeUrl } from '@/lib/normalizeUrl';
 
 // GET - Get a single job (admin only)
 export async function GET(
@@ -238,7 +239,7 @@ export async function PUT(
       job.applicationEmail = applicationEmail || undefined;
     }
     if (applicationWebsite !== undefined) {
-      job.applicationWebsite = applicationWebsite || undefined;
+      job.applicationWebsite = normalizeUrl(applicationWebsite);
     }
 
     // Validate all required fields are present before saving

@@ -4,6 +4,7 @@ import Company from '@/models/Company';
 import Job from '@/models/Job';
 import { requireRole } from '@/lib/auth';
 import { createDeleteAuditLog } from '@/lib/audit';
+import { normalizeUrl } from '@/lib/normalizeUrl';
 
 // GET - Get a single company (admin only)
 export async function GET(
@@ -116,7 +117,7 @@ export async function PUT(
 
     if (name) company.name = name;
     if (description !== undefined) company.description = description;
-    if (website !== undefined) company.website = website;
+    if (website !== undefined) company.website = normalizeUrl(website);
 
     // Update contact
     if (contact !== undefined) {
@@ -147,11 +148,11 @@ export async function PUT(
 
     if (socialMedia !== undefined) {
       if (!company.socialMedia) company.socialMedia = {};
-      if (socialMedia.facebook !== undefined) company.socialMedia.facebook = socialMedia.facebook?.trim() || undefined;
-      if (socialMedia.instagram !== undefined) company.socialMedia.instagram = socialMedia.instagram?.trim() || undefined;
-      if (socialMedia.tiktok !== undefined) company.socialMedia.tiktok = socialMedia.tiktok?.trim() || undefined;
-      if (socialMedia.youtube !== undefined) company.socialMedia.youtube = socialMedia.youtube?.trim() || undefined;
-      if (socialMedia.twitter !== undefined) company.socialMedia.twitter = socialMedia.twitter?.trim() || undefined;
+      if (socialMedia.facebook !== undefined) company.socialMedia.facebook = normalizeUrl(socialMedia.facebook);
+      if (socialMedia.instagram !== undefined) company.socialMedia.instagram = normalizeUrl(socialMedia.instagram);
+      if (socialMedia.tiktok !== undefined) company.socialMedia.tiktok = normalizeUrl(socialMedia.tiktok);
+      if (socialMedia.youtube !== undefined) company.socialMedia.youtube = normalizeUrl(socialMedia.youtube);
+      if (socialMedia.twitter !== undefined) company.socialMedia.twitter = normalizeUrl(socialMedia.twitter);
       company.markModified('socialMedia');
     }
 

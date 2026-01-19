@@ -3,6 +3,7 @@ import connectDB from '@/lib/db';
 import Company from '@/models/Company';
 import { requireRole } from '@/lib/auth';
 import { normalizeCountryForStorage } from '@/lib/countryUtils';
+import { normalizeUrl } from '@/lib/normalizeUrl';
 
 // GET - Get current recruiter's company
 export async function GET(request: NextRequest) {
@@ -98,11 +99,11 @@ export async function POST(request: NextRequest) {
     let cleanedSocialMedia = socialMedia;
     if (socialMedia) {
       cleanedSocialMedia = {
-        facebook: socialMedia.facebook?.trim() || undefined,
-        instagram: socialMedia.instagram?.trim() || undefined,
-        tiktok: socialMedia.tiktok?.trim() || undefined,
-        youtube: socialMedia.youtube?.trim() || undefined,
-        twitter: socialMedia.twitter?.trim() || undefined,
+        facebook: normalizeUrl(socialMedia.facebook),
+        instagram: normalizeUrl(socialMedia.instagram),
+        tiktok: normalizeUrl(socialMedia.tiktok),
+        youtube: normalizeUrl(socialMedia.youtube),
+        twitter: normalizeUrl(socialMedia.twitter),
       };
       // If all fields are undefined, set to undefined
       if (!cleanedSocialMedia.facebook && !cleanedSocialMedia.instagram &&
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
       description,
       address: cleanedAddress,
       coordinates: coordinates || undefined,
-      website: website?.trim() || undefined,
+      website: normalizeUrl(website),
       contact: cleanedContact,
       socialMedia: cleanedSocialMedia,
       offeredActivities: offeredActivities || [],
@@ -180,7 +181,7 @@ export async function PUT(request: NextRequest) {
 
     if (name) company.name = name;
     if (description !== undefined) company.description = description;
-    if (website !== undefined) company.website = website;
+    if (website !== undefined) company.website = normalizeUrl(website);
 
     // Update contact
     if (contact !== undefined) {
@@ -211,11 +212,11 @@ export async function PUT(request: NextRequest) {
 
     if (socialMedia !== undefined) {
       if (!company.socialMedia) company.socialMedia = {};
-      if (socialMedia.facebook !== undefined) company.socialMedia.facebook = socialMedia.facebook?.trim() || undefined;
-      if (socialMedia.instagram !== undefined) company.socialMedia.instagram = socialMedia.instagram?.trim() || undefined;
-      if (socialMedia.tiktok !== undefined) company.socialMedia.tiktok = socialMedia.tiktok?.trim() || undefined;
-      if (socialMedia.youtube !== undefined) company.socialMedia.youtube = socialMedia.youtube?.trim() || undefined;
-      if (socialMedia.twitter !== undefined) company.socialMedia.twitter = socialMedia.twitter?.trim() || undefined;
+      if (socialMedia.facebook !== undefined) company.socialMedia.facebook = normalizeUrl(socialMedia.facebook);
+      if (socialMedia.instagram !== undefined) company.socialMedia.instagram = normalizeUrl(socialMedia.instagram);
+      if (socialMedia.tiktok !== undefined) company.socialMedia.tiktok = normalizeUrl(socialMedia.tiktok);
+      if (socialMedia.youtube !== undefined) company.socialMedia.youtube = normalizeUrl(socialMedia.youtube);
+      if (socialMedia.twitter !== undefined) company.socialMedia.twitter = normalizeUrl(socialMedia.twitter);
       company.markModified('socialMedia');
     }
 

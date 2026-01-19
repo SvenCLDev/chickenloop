@@ -12,6 +12,7 @@ import {
 import { OFFERED_ACTIVITIES_LIST } from '@/lib/offeredActivities';
 import { OFFERED_SERVICES_LIST } from '@/lib/offeredServices';
 import dynamic from 'next/dynamic';
+import UrlInput from '../../../components/form/UrlInput';
 
 // Dynamically import map component to avoid SSR issues
 const DraggableMap = dynamic(
@@ -748,19 +749,13 @@ export default function NewCompanyPage() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact</h3>
               
               <div className="space-y-4">
-                <div>
-                  <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">
-                    Website
-                  </label>
-                  <input
-                    id="website"
-                    type="url"
-                    value={formData.website}
-                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    placeholder="https://example.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  />
-                </div>
+                <UrlInput
+                  label="Website"
+                  name="website"
+                  value={formData.website}
+                  onChange={(value) => setFormData({ ...formData, website: value })}
+                  placeholder="example.com"
+                />
 
                 <div>
                   <label htmlFor="contact-email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -825,96 +820,41 @@ export default function NewCompanyPage() {
             <div className="border-t pt-4 mt-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Social Media</h3>
               <div className="space-y-4">
-                <div>
-                  <label htmlFor="facebook" className="block text-sm font-medium text-gray-700 mb-1">
-                    Facebook URL
-                  </label>
-                  <input
-                    id="facebook"
-                    type="url"
-                    value={formData.socialMedia.facebook}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        socialMedia: { ...formData.socialMedia, facebook: e.target.value },
-                      })
-                    }
-                    placeholder="https://facebook.com/yourpage"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="instagram" className="block text-sm font-medium text-gray-700 mb-1">
-                    Instagram URL
-                  </label>
-                  <input
-                    id="instagram"
-                    type="url"
-                    value={formData.socialMedia.instagram}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        socialMedia: { ...formData.socialMedia, instagram: e.target.value },
-                      })
-                    }
-                    placeholder="https://instagram.com/yourpage"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="tiktok" className="block text-sm font-medium text-gray-700 mb-1">
-                    TikTok URL
-                  </label>
-                  <input
-                    id="tiktok"
-                    type="url"
-                    value={formData.socialMedia.tiktok}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        socialMedia: { ...formData.socialMedia, tiktok: e.target.value },
-                      })
-                    }
-                    placeholder="https://tiktok.com/@yourpage"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="youtube" className="block text-sm font-medium text-gray-700 mb-1">
-                    YouTube URL
-                  </label>
-                  <input
-                    id="youtube"
-                    type="url"
-                    value={formData.socialMedia.youtube}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        socialMedia: { ...formData.socialMedia, youtube: e.target.value },
-                      })
-                    }
-                    placeholder="https://youtube.com/@yourchannel"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="twitter" className="block text-sm font-medium text-gray-700 mb-1">
-                    X (Twitter) URL
-                  </label>
-                  <input
-                    id="twitter"
-                    type="url"
-                    value={formData.socialMedia.twitter}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        socialMedia: { ...formData.socialMedia, twitter: e.target.value },
-                      })
-                    }
-                    placeholder="https://x.com/yourhandle"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  />
-                </div>
+                <UrlInput
+                  label="Facebook URL"
+                  name="facebook"
+                  value={formData.socialMedia.facebook}
+                  onChange={(value) => setFormData({ ...formData, socialMedia: { ...formData.socialMedia, facebook: value } })}
+                  placeholder="facebook.com/yourpage"
+                />
+                <UrlInput
+                  label="Instagram URL"
+                  name="instagram"
+                  value={formData.socialMedia.instagram}
+                  onChange={(value) => setFormData({ ...formData, socialMedia: { ...formData.socialMedia, instagram: value } })}
+                  placeholder="instagram.com/yourpage"
+                />
+                <UrlInput
+                  label="TikTok URL"
+                  name="tiktok"
+                  value={formData.socialMedia.tiktok}
+                  onChange={(value) => setFormData({ ...formData, socialMedia: { ...formData.socialMedia, tiktok: value } })}
+                  placeholder="tiktok.com/@yourpage"
+                />
+                <UrlInput
+                  label="YouTube URL"
+                  name="youtube"
+                  value={formData.socialMedia.youtube}
+                  onChange={(value) => setFormData({ ...formData, socialMedia: { ...formData.socialMedia, youtube: value } })}
+                  placeholder="youtube.com/@yourchannel"
+                />
+                <UrlInput
+                  label="X (Twitter) URL"
+                  name="twitter"
+                  value={formData.socialMedia.twitter}
+                  onChange={(value) => setFormData({ ...formData, socialMedia: { ...formData.socialMedia, twitter: value } })}
+                  placeholder="x.com/yourhandle"
+                />
               </div>
             </div>
 
