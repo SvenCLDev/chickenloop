@@ -1,6 +1,6 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
 import Navbar from '../../components/Navbar';
 import ShareJobButton from '../../components/ShareJobButton';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
@@ -14,6 +14,7 @@ import JobFavouriteButton from './JobFavouriteButton';
 import JobApplySection from './JobApplySection';
 import JobSpamButton from './JobSpamButton';
 import JobImageGallery from './JobImageGallery';
+import { verifyToken } from '@/lib/jwt';
 
 export interface CompanyInfo {
   _id?: string;
@@ -94,6 +95,20 @@ function formatDate(date: Date | string | undefined): string {
     month: 'long',
     day: 'numeric',
   });
+}
+
+async function getUserFromCookies(): Promise<{ role: string } | null> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token')?.value;
+    if (!token) {
+      return null;
+    }
+    const payload = verifyToken(token);
+    return { role: payload.role };
+  } catch {
+    return null;
+  }
 }
 
 async function getJob(id: string): Promise<Job | null> {
@@ -219,6 +234,10 @@ export default async function JobDetailPage({ params }: PageProps) {
   if (!job) {
     notFound();
   }
+
+  // Get user info from cookies to determine viewer role
+  const user = await getUserFromCookies();
+  const isRecruiterView = user?.role === 'recruiter';
 
   // Generate current URL for JSON-LD (server-side)
   const headersList = await headers();
@@ -408,6 +427,7 @@ export default async function JobDetailPage({ params }: PageProps) {
                 applicationEmail={job.applicationEmail}
                 applicationWebsite={job.applicationWebsite}
                 applicationWhatsApp={job.applicationWhatsApp}
+                isRecruiterView={isRecruiterView}
               />
 
               <p className="mt-4 text-sm text-gray-500 italic">

@@ -17,6 +17,7 @@ interface JobApplySectionProps {
   applicationEmail?: string;
   applicationWebsite?: string;
   applicationWhatsApp?: string;
+  isRecruiterView?: boolean;
 }
 
 export default function JobApplySection({
@@ -30,6 +31,7 @@ export default function JobApplySection({
   applicationEmail,
   applicationWebsite,
   applicationWhatsApp,
+  isRecruiterView = false,
 }: JobApplySectionProps) {
   const { user } = useAuth();
   const router = useRouter();
@@ -156,6 +158,9 @@ export default function JobApplySection({
 
   // Determine if user can apply based on all conditions
   const canApply = useMemo(() => {
+    // Recruiters cannot apply
+    if (isRecruiterView === true) return false;
+    
     // ATS must be enabled
     if (applyViaATS === false) return false;
     
@@ -179,10 +184,15 @@ export default function JobApplySection({
     
     // Allow if no application or status is 'withdrawn'
     return applicationStatus === null || applicationStatus === 'withdrawn';
-  }, [user, jobPublished, cv, applicationStatus, applyViaATS]);
+  }, [user, jobPublished, cv, applicationStatus, applyViaATS, isRecruiterView]);
 
   // Determine the reason why user cannot apply (for helper text)
   const getCannotApplyReason = useMemo(() => {
+    // Recruiters cannot apply
+    if (isRecruiterView === true) {
+      return 'Recruiters cannot apply for jobs.';
+    }
+    
     // ATS is disabled - show specific message
     if (applyViaATS === false) {
       return 'This recruiter is not accepting instant applications via Chickenloop.';
@@ -231,9 +241,11 @@ export default function JobApplySection({
     }
 
     return null; // Can apply
-  }, [user, jobPublished, cv, applicationStatus, checkingApplication, loadingCv, applyViaATS]);
+  }, [user, jobPublished, cv, applicationStatus, checkingApplication, loadingCv, applyViaATS, isRecruiterView]);
 
   const handleOpenApplicationModal = () => {
+    // Prevent execution for recruiters
+    if (isRecruiterView === true) return;
     if (!canApply || applying || checkingApplication || loadingCv) return;
     setShowApplicationModal(true);
     setApplicationError('');
@@ -304,45 +316,52 @@ export default function JobApplySection({
 
   return (
     <>
-      {/* ATS Apply Button - Show for job seekers and anonymous users */}
-      {(user?.role === 'job-seeker' || !user) && (
-        <div className="mb-4">
-          {user && user.role === 'job-seeker' && (checkingApplication || loadingCv) ? (
+      {/* ATS Apply Button - Always visible for all viewers */}
+      <div className="mb-4">
+        {user && user.role === 'job-seeker' && (checkingApplication || loadingCv) ? (
+          <button
+            disabled
+            className="px-6 py-3 bg-gray-400 text-white rounded-lg font-semibold cursor-not-allowed opacity-50"
+          >
+            Checking...
+          </button>
+        ) : canApply && !isRecruiterView ? (
+          <button
+            onClick={handleOpenApplicationModal}
+            disabled={applying || isRecruiterView}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {applying ? 'Submitting...' : 'Instant Application'}
+          </button>
+        ) : (
+          <div className="space-y-2">
             <button
               disabled
               className="px-6 py-3 bg-gray-400 text-white rounded-lg font-semibold cursor-not-allowed opacity-50"
+              title={getCannotApplyReason || ''}
             >
-              Checking...
+              Instant Application
             </button>
-          ) : canApply ? (
-            <button
-              onClick={handleOpenApplicationModal}
-              disabled={applying}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {applying ? 'Submitting...' : 'Instant Application'}
-            </button>
-          ) : (
-            <div className="space-y-2">
-              <button
-                disabled
-                className="px-6 py-3 bg-gray-400 text-white rounded-lg font-semibold cursor-not-allowed opacity-50"
-                title={getCannotApplyReason || ''}
-              >
-                Instant Application
-              </button>
-              {getCannotApplyReason && (
-                <p className="text-sm text-gray-600 italic">
-                  {getCannotApplyReason}
-                </p>
-              )}
-            </div>
-          )}
-          {applicationError && (
-            <p className="mt-2 text-sm text-red-600">{applicationError}</p>
-          )}
-        </div>
-      )}
+            {/* Only show getCannotApplyReason for non-recruiters */}
+            {getCannotApplyReason && !isRecruiterView && (
+              <p className="text-sm text-gray-600 italic">
+                {getCannotApplyReason}
+              </p>
+            )}
+          </div>
+        )}
+        {applicationError && (
+          <p className="mt-2 text-sm text-red-600">{applicationError}</p>
+        )}
+        {/* Recruiter-specific explanatory text */}
+        {isRecruiterView === true && (
+          <p className="mt-2 text-sm text-gray-500">
+            {applyViaATS === true
+              ? 'Only registered job seekers can send instant applications.'
+              : 'This recruiter is not accepting instant applications via Chickenloop.'}
+          </p>
+        )}
+      </div>
 
       {/* Application Modal */}
       <ApplicationModal
