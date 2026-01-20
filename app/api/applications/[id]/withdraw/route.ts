@@ -4,7 +4,7 @@ import Application from '@/models/Application';
 import User from '@/models/User';
 import Job from '@/models/Job';
 import { requireRole } from '@/lib/auth';
-import { sendEmail } from '@/lib/email';
+import { sendEmail, EmailCategory } from '@/lib/email';
 import { getApplicationWithdrawnEmail } from '@/lib/emailTemplates';
 import { guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
 import { validateTransition, ApplicationStatus, TERMINAL_STATES } from '@/lib/applicationStatusTransitions';
@@ -101,6 +101,9 @@ export async function POST(
           subject: emailTemplate.subject,
           html: emailTemplate.html,
           text: emailTemplate.text,
+          category: EmailCategory.IMPORTANT_TRANSACTIONAL,
+          eventType: 'application_withdrawn',
+          userId: recruiter._id?.toString(),
           tags: [
             { name: 'type', value: 'application' },
             { name: 'event', value: 'application_withdrawn' },
