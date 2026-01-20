@@ -6,6 +6,7 @@
 import mongoose from 'mongoose';
 import Job, { IJob } from '@/models/Job';
 import { ISavedSearch } from '@/models/SavedSearch';
+import { WorkArea } from '@/lib/domainTypes';
 
 interface PopulatedJob extends Omit<IJob, 'recruiter'> {
   recruiter?: {
@@ -96,7 +97,7 @@ export async function findMatchingJobs(
 
     // Filter by category (occupationalAreas)
     if (jobMatches && savedSearch.category) {
-      if (!job.occupationalAreas || !job.occupationalAreas.includes(savedSearch.category)) {
+      if (!job.occupationalAreas || !job.occupationalAreas.includes(savedSearch.category as WorkArea)) {
         jobMatches = false;
       } else {
         matchReasons.push(`Category: ${savedSearch.category}`);
