@@ -18,12 +18,50 @@ interface Statistics {
 
 type CategoryType = 'job-seekers' | 'recruiters' | 'jobs' | 'cvs' | 'companies' | null;
 
+// Helper function to format time ago
+function getTimeAgo(date: string | undefined | null): string {
+  if (!date) return '—';
+  
+  const now = new Date();
+  const past = new Date(date);
+  const diffInSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+
+  if (diffInSeconds < 60) {
+    return 'Just now';
+  }
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
+  }
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 30) {
+    return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
+  }
+
+  const diffInMonths = Math.floor(diffInDays / 30);
+  if (diffInMonths < 12) {
+    return `${diffInMonths} ${diffInMonths === 1 ? 'month' : 'months'} ago`;
+  }
+
+  const diffInYears = Math.floor(diffInDays / 365);
+  return `${diffInYears} ${diffInYears === 1 ? 'year' : 'years'} ago`;
+}
+
 interface User {
   id: string;
   name: string;
   email: string;
   role: string;
   createdAt: string;
+  updatedAt?: string;
+  lastOnline?: string;
   jobs?: any[];
   cv?: any;
 }
@@ -304,6 +342,12 @@ export default function AdminDashboard() {
     router.push(`/admin/jobs/${jobId}/edit`);
   };
 
+  const handleEditUser = (userId: string) => {
+    // Navigate to admin user edit page (if exists) or show user details
+    // For now, navigate to a user detail/edit page
+    router.push(`/admin/users/${userId}/edit`);
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
@@ -481,7 +525,16 @@ export default function AdminDashboard() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        {selectedCategory === 'job-seekers' || selectedCategory === 'recruiters' ? (
+                        {selectedCategory === 'job-seekers' ? (
+                          <>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last active</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Has CV</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Availability</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          </>
+                        ) : selectedCategory === 'recruiters' ? (
                           <>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
@@ -522,7 +575,42 @@ export default function AdminDashboard() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {currentEntries.map((entry: any) => (
                         <tr key={entry.id} className="hover:bg-gray-50">
-                          {selectedCategory === 'job-seekers' || selectedCategory === 'recruiters' ? (
+                          {selectedCategory === 'job-seekers' ? (
+                            <>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.name}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.email}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {getTimeAgo(entry.lastOnline || entry.updatedAt)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                {entry.cv ? (
+                                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                    Yes
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                                    No
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.cv?.availability ? (
+                                  <span className="capitalize">{entry.cv.availability.replace(/-/g, ' ')}</span>
+                                ) : (
+                                  '—'
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button
+                                  onClick={() => handleEditUser(entry.id)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
+                                  title="Edit user"
+                                >
+                                  Edit
+                                </button>
+                              </td>
+                            </>
+                          ) : selectedCategory === 'recruiters' ? (
                             <>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.name}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.email}</td>

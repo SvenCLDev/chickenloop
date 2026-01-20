@@ -89,6 +89,7 @@ export async function GET(request: NextRequest) {
       role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      lastOnline: user.lastOnline,
       jobs: user.jobs || [],
       cv: user.cv || null,
     }));
