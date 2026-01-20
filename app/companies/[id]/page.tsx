@@ -496,7 +496,9 @@ export default function CompanyPage() {
               company.socialMedia.youtube ||
               company.socialMedia.twitter) && (
               <div className="border-t pt-6">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">Follow Us</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  Follow {company.name || 'us'}
+                </h2>
                 <div className="flex gap-4 flex-wrap">
                   {company.socialMedia.facebook && (
                     <a
