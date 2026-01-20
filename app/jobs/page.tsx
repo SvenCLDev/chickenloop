@@ -222,20 +222,28 @@ function JobsPageContent() {
       const filteredData = await jobsApi.getAll(endpoint);
       const filteredJobsList = filteredData.jobs || [];
 
-      // Sort filtered jobs: featured first, then by posting date descending
+      // Sort filtered jobs: featured first, then jobs with pictures, then jobs without pictures
+      // Within each group, sort by last edited date (updatedAt) descending, fallback to createdAt
       const sortedFilteredJobs = [...filteredJobsList].sort((a, b) => {
-        // Featured jobs come first
+        // Primary sort: Featured jobs come first
         const aFeatured = Boolean(a.featured);
         const bFeatured = Boolean(b.featured);
-
-        // If one is featured and the other isn't, featured comes first
         if (aFeatured && !bFeatured) return -1;
         if (!aFeatured && bFeatured) return 1;
 
-        // Within each group (both featured or both non-featured), sort by posting date (createdAt) descending
-        const dateA = new Date(a.createdAt || 0).getTime();
-        const dateB = new Date(b.createdAt || 0).getTime();
-        return dateB - dateA; // Descending (newest first)
+        // Secondary sort: For non-featured jobs, jobs with pictures come before jobs without pictures
+        if (!aFeatured && !bFeatured) {
+          const aHasPictures = Boolean(a.pictures && a.pictures.length > 0);
+          const bHasPictures = Boolean(b.pictures && b.pictures.length > 0);
+          if (aHasPictures && !bHasPictures) return -1;
+          if (!aHasPictures && bHasPictures) return 1;
+        }
+
+        // Tertiary sort: Within each group, sort by last edited date (updatedAt) descending
+        // Fallback to createdAt if updatedAt doesn't exist
+        const aDate = a.updatedAt ? new Date(a.updatedAt).getTime() : new Date(a.createdAt || 0).getTime();
+        const bDate = b.updatedAt ? new Date(b.updatedAt).getTime() : new Date(b.createdAt || 0).getTime();
+        return bDate - aDate; // Descending (newest first)
       });
 
       setJobs(sortedFilteredJobs);
