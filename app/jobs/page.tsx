@@ -739,13 +739,17 @@ function JobsPageContent() {
                   {/* Mobile Filter Toggle Button */}
               <button
                     onClick={() => setSidebarOpen(true)}
-                    className="lg:hidden px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                    aria-label="Open filters"
+                    className="lg:hidden min-w-[44px] min-h-[44px] px-3 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 bg-white flex flex-col items-center justify-center gap-0.5"
+                    aria-label="More filters"
                   >
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    {/* Hamburger icon */}
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
-                    <span className="hidden xs:inline">Filters</span>
+                    {/* "More" text */}
+                    <span className="text-xs font-medium leading-tight">More</span>
+                    {/* "Filters" text */}
+                    <span className="text-xs font-medium leading-tight">Filters</span>
                   </button>
                   <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900">
                     We have {jobs.length} {jobs.length === 1 ? 'job' : 'jobs'} meeting these criteria
