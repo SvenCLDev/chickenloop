@@ -63,6 +63,14 @@ interface Job {
   applicationEmail?: string;
   applicationWebsite?: string;
   applicationWhatsApp?: string;
+  companyForSummary?: {
+    address?: {
+      city?: string;
+      country?: string;
+    };
+    offeredActivities?: string[];
+    offeredServices?: string[];
+  };
 }
 
 function formatCompanyAddress(address?: CompanyAddress): string | null {
