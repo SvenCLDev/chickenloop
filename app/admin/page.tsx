@@ -110,6 +110,12 @@ export default function AdminDashboard() {
   const [togglingFeatured, setTogglingFeatured] = useState<string | null>(null);
   const [deletingCompany, setDeletingCompany] = useState<string | null>(null);
   const [deletingJob, setDeletingJob] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<string>('lastActive');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
+  const [emailFilter, setEmailFilter] = useState<string>('');
+  const [debouncedEmailFilter, setDebouncedEmailFilter] = useState<string>('');
   const entriesPerPage = 20;
 
   useEffect(() => {
@@ -126,6 +132,29 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   }, [user]);
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Debounce email filter
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedEmailFilter(emailFilter);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [emailFilter]);
+
+  // Refetch job-seekers data when sort, search, or email filter changes
+  useEffect(() => {
+    if (selectedCategory === 'job-seekers') {
+      loadCategoryData('job-seekers');
+    }
+  }, [sortColumn, sortDirection, debouncedSearchQuery, debouncedEmailFilter]);
 
   const loadStatistics = async () => {
     try {
@@ -148,7 +177,22 @@ export default function AdminDashboard() {
       
       switch (category) {
         case 'job-seekers':
-          const usersData = await adminApi.getUsers();
+          // Map UI column names to API sortBy values
+          const sortByMap: Record<string, string> = {
+            'name': 'name',
+            'email': 'email',
+            'lastActive': 'lastActive',
+            'hasCV': 'hasCV',
+            'availability': 'availability',
+          };
+          const apiSortBy = sortByMap[sortColumn] || 'lastActive';
+          
+          const usersData = await adminApi.getUsers({
+            search: debouncedSearchQuery.trim() || undefined,
+            email: debouncedEmailFilter.trim() || undefined,
+            sortBy: apiSortBy,
+            sortOrder: sortDirection,
+          });
           data = usersData.users.filter((u: User) => u.role === 'job-seeker');
           break;
         case 'recruiters':
@@ -185,9 +229,14 @@ export default function AdminDashboard() {
       // If clicking the same card, close the table
       setSelectedCategory(null);
       setTableData([]);
+      setSearchQuery('');
+      setEmailFilter('');
     } else {
       // Open new category
       setSelectedCategory(category);
+      // Reset search query and email filter when switching categories
+      setSearchQuery('');
+      setEmailFilter('');
       loadCategoryData(category);
     }
   };
@@ -346,6 +395,24 @@ export default function AdminDashboard() {
     // Navigate to admin user edit page (if exists) or show user details
     // For now, navigate to a user detail/edit page
     router.push(`/admin/users/${userId}/edit`);
+  };
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column: reset to ASC
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIndicator = (column: string) => {
+    if (sortColumn !== column) {
+      return null; // No indicator for inactive columns
+    }
+    return sortDirection === 'asc' ? '▲' : '▼';
   };
 
   if (authLoading || loading) {
@@ -511,6 +578,33 @@ export default function AdminDashboard() {
               </p>
             </div>
 
+            {/* Search and email filter inputs for job-seekers */}
+            {selectedCategory === 'job-seekers' && (
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search candidates…"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      id="email-filter"
+                      type="text"
+                      value={emailFilter}
+                      onChange={(e) => setEmailFilter(e.target.value)}
+                      placeholder="Filter by email"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {tableLoading ? (
               <div className="p-8 text-center">
                 <p className="text-gray-600">Loading...</p>
@@ -527,11 +621,61 @@ export default function AdminDashboard() {
                       <tr>
                         {selectedCategory === 'job-seekers' ? (
                           <>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last active</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Has CV</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Availability</th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('name')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Name
+                                {getSortIndicator('name') && (
+                                  <span className="text-gray-400">{getSortIndicator('name')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('email')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Email
+                                {getSortIndicator('email') && (
+                                  <span className="text-gray-400">{getSortIndicator('email')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('lastActive')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Last active
+                                {getSortIndicator('lastActive') && (
+                                  <span className="text-gray-400">{getSortIndicator('lastActive')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('hasCV')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Has CV
+                                {getSortIndicator('hasCV') && (
+                                  <span className="text-gray-400">{getSortIndicator('hasCV')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('availability')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Availability
+                                {getSortIndicator('availability') && (
+                                  <span className="text-gray-400">{getSortIndicator('availability')}</span>
+                                )}
+                              </div>
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                           </>
                         ) : selectedCategory === 'recruiters' ? (

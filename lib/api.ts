@@ -214,7 +214,15 @@ export const accountApi = {
 };
 
 export const adminApi = {
-  getUsers: () => apiRequest('/admin/users'),
+  getUsers: (params?: { search?: string; email?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.set('search', params.search);
+    if (params?.email) queryParams.set('email', params.email);
+    if (params?.sortBy) queryParams.set('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+    const queryString = queryParams.toString();
+    return apiRequest(`/admin/users${queryString ? `?${queryString}` : ''}`);
+  },
   getUser: (id: string) => apiRequest(`/admin/users/${id}`),
   updateUser: (id: string, data: any) =>
     apiRequest(`/admin/users/${id}`, {
