@@ -50,6 +50,7 @@ interface Job {
     name: string;
     email: string;
   };
+  recruiterId?: string;
   createdAt: Date | string;
   updatedAt?: Date | string;
   datePosted?: Date | string;
@@ -97,7 +98,7 @@ function formatDate(date: Date | string | undefined): string {
   });
 }
 
-async function getUserFromCookies(): Promise<{ role: string } | null> {
+async function getUserFromCookies(): Promise<{ userId: string; role: string } | null> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
@@ -105,7 +106,7 @@ async function getUserFromCookies(): Promise<{ role: string } | null> {
       return null;
     }
     const payload = verifyToken(token);
-    return { role: payload.role };
+    return { userId: payload.userId, role: payload.role };
   } catch {
     return null;
   }
@@ -160,6 +161,14 @@ async function getJob(id: string): Promise<Job | null> {
           email: '',
         };
     
+    // Extract recruiter ID (ObjectId) for permission checks
+    // The recruiter field is populated, but the original ObjectId is still in the jobObject
+    const recruiterId = jobObject.recruiter 
+      ? (typeof jobObject.recruiter === 'object' && '_id' in jobObject.recruiter
+          ? String((jobObject.recruiter as any)._id)
+          : String(jobObject.recruiter))
+      : undefined;
+    
     // Convert ObjectIds to strings for Client Component compatibility
     // Also extract full company data for summary generation
     const companyId = jobObject.companyId;
@@ -213,6 +222,7 @@ async function getJob(id: string): Promise<Job | null> {
       city: jobObject.city,
       country: countryValue,
       recruiter,
+      recruiterId, // Include recruiter ID for permission checks
       companyId: serializedCompanyId,
       companyForSummary, // Include company data for summary generation
       published: jobObject.published !== undefined ? jobObject.published : true, // Include published status
@@ -235,9 +245,14 @@ export default async function JobDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  // Get user info from cookies to determine viewer role
+  // Get user info from cookies to determine viewer role and permissions
   const user = await getUserFromCookies();
   const isRecruiterView = user?.role === 'recruiter';
+  
+  // Determine if user can edit this job
+  const isJobOwner = user?.role === 'recruiter' && job.recruiterId && user.userId === job.recruiterId;
+  const isAdmin = user?.role === 'admin';
+  const canEditJob = isJobOwner || isAdmin;
 
   // Generate current URL for JSON-LD (server-side)
   const headersList = await headers();
@@ -448,8 +463,16 @@ export default async function JobDetailPage({ params }: PageProps) {
                   </p>
                 </div>
                 
-                {/* Right Column - Report Spam Button */}
-                <div className="flex-shrink-0">
+                {/* Right Column - Report Spam and Edit Job Buttons */}
+                <div className="flex-shrink-0 flex items-center gap-3">
+                  {canEditJob && (
+                    <Link
+                      href={isAdmin ? `/admin/jobs/${job._id}/edit` : `/recruiter/jobs/${job._id}/edit`}
+                      className="px-4 py-2 text-sm rounded-lg font-medium transition-colors bg-gray-200 text-gray-600 hover:bg-gray-300"
+                    >
+                      Edit job
+                    </Link>
+                  )}
                   <JobSpamButton jobId={job._id} spamStatus={job.spam} />
                 </div>
               </div>
