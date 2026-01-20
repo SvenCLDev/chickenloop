@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { ExperienceLevel, Availability, WorkArea } from '@/lib/domainTypes';
 
 export interface ICV extends Document {
   fullName: string;
@@ -26,11 +27,11 @@ export interface ICV extends Document {
   professionalCertifications?: string[];
   experienceAndSkill?: string[];
   languages?: string[];
-  lookingForWorkInAreas?: string[];
+  lookingForWorkInAreas?: WorkArea[];
   pictures?: string[];
   published?: boolean;
-  experienceLevel?: 'entry' | 'intermediate' | 'experienced' | 'senior';
-  availability?: 'available_now' | 'available_soon' | 'seasonal' | 'not_available';
+  experienceLevel?: ExperienceLevel;
+  availability?: Availability;
   jobSeeker: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;

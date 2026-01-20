@@ -5,9 +5,11 @@ import Navbar from '../../components/Navbar';
 import ShareJobButton from '../../components/ShareJobButton';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { buildJobJsonLd } from '@/lib/seo/jobJsonLd';
+import { generateCompanySummary } from '@/lib/companySummary';
 import Link from 'next/link';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
+import Company from '@/models/Company';
 import JobFavouriteButton from './JobFavouriteButton';
 import JobApplySection from './JobApplySection';
 import JobSpamButton from './JobSpamButton';
@@ -54,6 +56,7 @@ interface Job {
   companyId?: CompanyInfo;
   spam?: 'yes' | 'no';
   published?: boolean;
+  applyViaATS?: boolean;
   applyByEmail?: boolean;
   applyByWebsite?: boolean;
   applyByWhatsApp?: boolean;
@@ -91,7 +94,7 @@ async function getJob(id: string): Promise<Job | null> {
     
     const job = await Job.findById(id)
       .populate('recruiter', 'name email')
-      .populate('companyId');
+      .populate('companyId', 'name logo address.city address.country offeredActivities offeredServices');
     
     if (!job) {
       return null;
@@ -109,7 +112,7 @@ async function getJob(id: string): Promise<Job | null> {
     // Reload the job to get the updated visit count
     const updatedJob = await Job.findById(id)
       .populate('recruiter', 'name email')
-      .populate('companyId');
+      .populate('companyId', 'name logo address.city address.country offeredActivities offeredServices');
     
     if (!updatedJob) {
       return null;
@@ -135,19 +138,49 @@ async function getJob(id: string): Promise<Job | null> {
         };
     
     // Convert ObjectIds to strings for Client Component compatibility
+    // Also extract full company data for summary generation
     const companyId = jobObject.companyId;
     let serializedCompanyId: CompanyInfo | undefined;
+    let companyForSummary: { address?: { city?: string; country?: string }; offeredActivities?: string[]; offeredServices?: string[] } | undefined;
     
     if (companyId && typeof companyId === 'object' && companyId !== null && '_id' in companyId) {
       // Type guard: ensure it's a populated object, not just an ObjectId
       const populatedCompany = companyId as unknown as Record<string, unknown>;
+      
+      // Extract address for summary
+      const address = populatedCompany.address && typeof populatedCompany.address === 'object'
+        ? {
+            city: 'city' in populatedCompany.address && typeof populatedCompany.address.city === 'string' 
+              ? populatedCompany.address.city 
+              : undefined,
+            country: 'country' in populatedCompany.address && typeof populatedCompany.address.country === 'string'
+              ? populatedCompany.address.country
+              : undefined,
+          }
+        : undefined;
+      
+      // Extract activities and services for summary
+      const offeredActivities = Array.isArray(populatedCompany.offeredActivities)
+        ? populatedCompany.offeredActivities.filter((a): a is string => typeof a === 'string')
+        : undefined;
+      const offeredServices = Array.isArray(populatedCompany.offeredServices)
+        ? populatedCompany.offeredServices.filter((s): s is string => typeof s === 'string')
+        : undefined;
+      
       serializedCompanyId = {
         _id: populatedCompany._id ? String(populatedCompany._id) : undefined,
         id: populatedCompany._id ? String(populatedCompany._id) : undefined,
         name: typeof populatedCompany.name === 'string' ? populatedCompany.name : undefined,
         logo: typeof populatedCompany.logo === 'string' ? populatedCompany.logo : undefined,
-        city: typeof populatedCompany.city === 'string' ? populatedCompany.city : undefined,
-        country: typeof populatedCompany.country === 'string' ? populatedCompany.country : undefined,
+        city: address?.city,
+        country: address?.country,
+      };
+      
+      // Store full company data for summary generation
+      companyForSummary = {
+        address,
+        offeredActivities,
+        offeredServices,
       };
     }
     
@@ -158,6 +191,7 @@ async function getJob(id: string): Promise<Job | null> {
       country: countryValue,
       recruiter,
       companyId: serializedCompanyId,
+      companyForSummary, // Include company data for summary generation
       published: jobObject.published !== undefined ? jobObject.published : true, // Include published status
     } as Job;
   } catch (error) {
@@ -191,6 +225,11 @@ export default async function JobDetailPage({ params }: PageProps) {
     country: job.country ?? undefined,
   };
   const jsonLd = buildJobJsonLd(jobForJsonLd, currentUrl);
+
+  // Generate company summary for display (computed, not stored)
+  const companySummary = job.companyForSummary 
+    ? generateCompanySummary(job.companyForSummary)
+    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
@@ -325,6 +364,14 @@ export default async function JobDetailPage({ params }: PageProps) {
             {job.companyId && (
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-3">Company Info</h2>
+                
+                {/* Company Summary - neutral, factual description */}
+                {companySummary && (
+                  <p className="text-gray-700 mb-4 leading-relaxed">
+                    {companySummary}
+                  </p>
+                )}
+                
                 {job.companyId && (job.companyId.id || job.companyId._id) && (
                   <div className="mt-4 text-right">
                     <Link
@@ -346,6 +393,7 @@ export default async function JobDetailPage({ params }: PageProps) {
                 jobId={job._id}
                 companyName={job.company}
                 jobPublished={job.published !== false}
+                applyViaATS={job.applyViaATS}
                 applyByEmail={job.applyByEmail}
                 applyByWebsite={job.applyByWebsite}
                 applyByWhatsApp={job.applyByWhatsApp}

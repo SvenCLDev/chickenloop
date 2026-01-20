@@ -3,23 +3,16 @@
  * 
  * Defines allowed status transitions for the ATS workflow.
  * Terminal states (rejected, withdrawn, hired) cannot be transitioned from.
+ * 
+ * Note: ApplicationStatus type is now defined in @/lib/domainTypes
+ * This file re-exports it for backward compatibility.
  */
 
-export type ApplicationStatus = 
-  | 'applied' 
-  | 'viewed' 
-  | 'contacted' 
-  | 'interviewing' 
-  | 'offered' 
-  | 'hired' 
-  | 'accepted' 
-  | 'rejected' 
-  | 'withdrawn';
+import { ApplicationStatus, TERMINAL_STATES } from './domainTypes';
 
-/**
- * Terminal states that cannot be transitioned from
- */
-export const TERMINAL_STATES: ApplicationStatus[] = ['rejected', 'withdrawn', 'hired'];
+// Re-export for backward compatibility
+export type { ApplicationStatus };
+export { TERMINAL_STATES };
 
 /**
  * Allowed status transitions map

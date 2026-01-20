@@ -874,54 +874,58 @@ export default function NewCVPage() {
 
             {/* Pictures Section */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="pictures" className="block text-sm font-medium text-gray-700 mb-1">
                 Pictures (up to 3)
               </label>
-              <div className="space-y-4">
-                {/* New Picture Previews */}
-                {picturePreviews.length > 0 && (
-                  <div className="flex flex-wrap gap-4">
-                    {picturePreviews.map((preview, index) => (
-                      <div key={index} className="relative">
-                        <img
-                          src={preview}
-                          alt={`Preview ${index + 1}`}
-                          className="w-32 h-32 object-cover rounded-lg border border-gray-300"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeNewPicture(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
+              <div className="relative">
+                <input
+                  id="pictures"
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  multiple
+                  onChange={handlePictureChange}
+                  disabled={selectedPictures.length >= 3 || uploadingPictures}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
+                />
+                {selectedPictures.length >= 3 ? (
+                  <div className="block w-full px-3 py-2 border border-gray-200 rounded-md text-sm text-center bg-gray-100 text-gray-400">
+                    Image limit reached (3 of 3)
                   </div>
+                ) : (
+                  <label
+                    htmlFor="pictures"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-center cursor-pointer transition-colors bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+                  >
+                    {selectedPictures.length === 0
+                      ? 'Choose images (up to 3)'
+                      : `Choose another image (${selectedPictures.length} of 3)`}
+                  </label>
                 )}
-
-                {/* Upload Input */}
-                <div>
-                  {selectedPictures.length < 3 ? (
-                    <>
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
-                        multiple
-                        onChange={handlePictureChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Maximum 3 pictures. Each file must be less than 5MB.
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-600">
-                      Maximum of 3 pictures reached. Remove a picture to add a new one.
-                    </p>
-                  )}
-                </div>
               </div>
+              <p className="text-sm text-gray-500 mt-1">
+                Maximum 3 pictures, 5MB each. Supported formats: JPEG, PNG, WEBP, GIF
+              </p>
+              {selectedPictures.length > 0 && (
+                <div className="mt-4 grid grid-cols-3 gap-4">
+                  {picturePreviews.map((preview, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={preview}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg border border-gray-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeNewPicture(index)}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-sm font-bold"
+                        aria-label="Remove picture"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Error banner near submit button */}

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import CV from '@/models/CV';
 import { requireRole } from '@/lib/auth';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORIES, type JobCategory } from '@/src/constants/jobCategories';
+import { isExperienceLevel, isAvailability, isWorkArea } from '@/lib/domainTypes';
 
 // GET - Get current user's CV (job seekers only)
 export async function GET(request: NextRequest) {
@@ -73,10 +74,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate lookingForWorkInAreas against JOB_CATEGORIES
+    // Validate lookingForWorkInAreas against JOB_CATEGORIES using type guard
     if (lookingForWorkInAreas && Array.isArray(lookingForWorkInAreas)) {
       const invalidCategories = lookingForWorkInAreas.filter(
-        (category: string) => !JOB_CATEGORIES.includes(category as any)
+        (category: unknown) => !isWorkArea(category) && !JOB_CATEGORIES.includes(category as JobCategory)
       );
       if (invalidCategories.length > 0) {
         return NextResponse.json(
@@ -86,20 +87,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate experienceLevel enum
-    const validExperienceLevels = ['entry', 'intermediate', 'experienced', 'senior'];
-    if (experienceLevel && !validExperienceLevels.includes(experienceLevel)) {
+    // Validate experienceLevel enum using shared type guard
+    if (experienceLevel && !isExperienceLevel(experienceLevel)) {
       return NextResponse.json(
-        { error: `Invalid experienceLevel. Valid values are: ${validExperienceLevels.join(', ')}` },
+        { error: `Invalid experienceLevel. Valid values are: entry, intermediate, experienced, senior` },
         { status: 400 }
       );
     }
 
-    // Validate availability enum
-    const validAvailability = ['available_now', 'available_soon', 'seasonal', 'not_available'];
-    if (availability && !validAvailability.includes(availability)) {
+    // Validate availability enum using shared type guard
+    if (availability && !isAvailability(availability)) {
       return NextResponse.json(
-        { error: `Invalid availability. Valid values are: ${validAvailability.join(', ')}` },
+        { error: `Invalid availability. Valid values are: available_now, available_soon, seasonal, not_available` },
         { status: 400 }
       );
     }
@@ -197,10 +196,10 @@ export async function PUT(request: NextRequest) {
       cv.markModified('languages');
     }
     if (lookingForWorkInAreas !== undefined) {
-      // Validate lookingForWorkInAreas against JOB_CATEGORIES
+      // Validate lookingForWorkInAreas against JOB_CATEGORIES using type guard
       if (Array.isArray(lookingForWorkInAreas)) {
         const invalidCategories = lookingForWorkInAreas.filter(
-          (category: string) => !JOB_CATEGORIES.includes(category as any)
+          (category: unknown) => !isWorkArea(category) && !JOB_CATEGORIES.includes(category as JobCategory)
         );
         if (invalidCategories.length > 0) {
           return NextResponse.json(
@@ -217,22 +216,20 @@ export async function PUT(request: NextRequest) {
       cv.markModified('pictures');
     }
     if (experienceLevel !== undefined) {
-      // Validate experienceLevel enum
-      const validExperienceLevels = ['entry', 'intermediate', 'experienced', 'senior'];
-      if (experienceLevel && !validExperienceLevels.includes(experienceLevel)) {
+      // Validate experienceLevel enum using shared type guard
+      if (experienceLevel && !isExperienceLevel(experienceLevel)) {
         return NextResponse.json(
-          { error: `Invalid experienceLevel. Valid values are: ${validExperienceLevels.join(', ')}` },
+          { error: `Invalid experienceLevel. Valid values are: entry, intermediate, experienced, senior` },
           { status: 400 }
         );
       }
       cv.experienceLevel = experienceLevel || undefined;
     }
     if (availability !== undefined) {
-      // Validate availability enum
-      const validAvailability = ['available_now', 'available_soon', 'seasonal', 'not_available'];
-      if (availability && !validAvailability.includes(availability)) {
+      // Validate availability enum using shared type guard
+      if (availability && !isAvailability(availability)) {
         return NextResponse.json(
-          { error: `Invalid availability. Valid values are: ${validAvailability.join(', ')}` },
+          { error: `Invalid availability. Valid values are: available_now, available_soon, seasonal, not_available` },
           { status: 400 }
         );
       }

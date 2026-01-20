@@ -4,7 +4,7 @@ import Application from '@/models/Application';
 import Job from '@/models/Job';
 import User from '@/models/User';
 import { requireRole, requireAuth } from '@/lib/auth';
-import { sendEmail } from '@/lib/email';
+import { sendEmailAsync, EmailCategory } from '@/lib/email';
 import { getCandidateAppliedEmail, getRecruiterContactedEmail } from '@/lib/emailTemplates';
 import { guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
 import mongoose from 'mongoose';
@@ -383,11 +383,15 @@ export async function POST(request: NextRequest) {
             applicationDate: now,
           });
 
-          await sendEmail({
+          // Send email asynchronously (fire-and-forget)
+          sendEmailAsync({
             to: recruiter.email,
             subject: emailTemplate.subject,
             html: emailTemplate.html,
             text: emailTemplate.text,
+            category: EmailCategory.IMPORTANT_TRANSACTIONAL,
+            eventType: 'candidate_applied',
+            userId: typeof recruiterId === 'object' ? recruiterId.toString() : String(recruiterId),
             tags: [
               { name: 'type', value: 'application' },
               { name: 'event', value: 'candidate_applied' },
@@ -536,12 +540,16 @@ export async function POST(request: NextRequest) {
             jobCity,
           });
 
-          await sendEmail({
+          // Send email asynchronously (fire-and-forget)
+          sendEmailAsync({
             to: candidate.email,
             subject: emailTemplate.subject,
             html: emailTemplate.html,
             text: emailTemplate.text,
             replyTo: recruiter.email,
+            category: EmailCategory.IMPORTANT_TRANSACTIONAL,
+            eventType: 'recruiter_contacted',
+            userId: user.userId.toString(),
             tags: [
               { name: 'type', value: 'application' },
               { name: 'event', value: 'recruiter_contacted' },

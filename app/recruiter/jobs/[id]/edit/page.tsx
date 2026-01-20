@@ -31,6 +31,7 @@ export default function EditJobPage() {
     qualifications: [] as string[],
     sports: [] as string[],
     occupationalAreas: [] as string[],
+    applyViaATS: true,
     applyByEmail: false,
     applyByWebsite: false,
     applyByWhatsApp: false,
@@ -101,6 +102,7 @@ export default function EditJobPage() {
         qualifications: (job as any).qualifications || [],
         sports: (job as any).sports || [],
         occupationalAreas: (job as any).occupationalAreas || [],
+        applyViaATS: (job as any).applyViaATS !== undefined ? (job as any).applyViaATS : true,
         applyByEmail: (job as any).applyByEmail || false,
         applyByWebsite: (job as any).applyByWebsite || false,
         applyByWhatsApp: (job as any).applyByWhatsApp || false,
@@ -232,6 +234,11 @@ export default function EditJobPage() {
     }
     if (!formData.occupationalAreas || formData.occupationalAreas.length === 0) {
       validationErrors.push('Job Category is required');
+    }
+    
+    // Validate at least one application method is selected
+    if (!formData.applyViaATS && !formData.applyByEmail && !formData.applyByWebsite && !formData.applyByWhatsApp) {
+      validationErrors.push('Please select at least one way for candidates to apply.');
     }
 
     if (validationErrors.length > 0) {
@@ -742,16 +749,75 @@ export default function EditJobPage() {
                   </div>
                 </div>
               )}
-              <p className="text-sm text-red-600 mt-2 font-medium">
-                Job posts without picture will be less visible and shown below posts with pictures
-              </p>
+              {existingPictures.length + selectedPictures.length === 0 && (
+                <p className="text-sm text-red-600 mt-2 font-medium">
+                  Job posts without picture will be less visible and shown below posts with pictures
+                </p>
+              )}
             </div>
 
             {/* How to Apply Section */}
             <div className="border-t pt-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">How to Apply</h2>
 
+              {/* Application method validation error */}
+              {error && error.includes('Please select at least one way for candidates to apply') && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-700">
+                    Please select at least one way for candidates to apply.
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-4">
+                {/* Chickenloop ATS Checkbox */}
+                <div className="flex items-start">
+                  <input
+                    type="checkbox"
+                    id="applyViaATS"
+                    checked={formData.applyViaATS}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        applyViaATS: e.target.checked,
+                      });
+                    }}
+                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div className="ml-3 flex-1">
+                    <label htmlFor="applyViaATS" className="block text-sm font-medium text-gray-700 mb-1">
+                      Chickenloop ATS (recommended)
+                    </label>
+                    <p className="text-sm text-gray-500 mt-1">
+                      The Chickenloop Application Tracking System lets you receive and manage applications directly in your dashboard. Applicants can apply instantly, increasing response rates.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Warning when ATS is disabled */}
+                {!formData.applyViaATS && (
+                  <div className="ml-7 mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-amber-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-amber-800 mb-1">
+                          Disabling the Chickenloop ATS means:
+                        </p>
+                        <ul className="text-sm text-amber-700 space-y-0.5 list-disc list-inside">
+                          <li>Job seekers cannot apply instantly</li>
+                          <li>Applications will not appear in your dashboard</li>
+                          <li>You will not be able to track candidates</li>
+                        </ul>
+                        <p className="text-sm text-amber-800 mt-2 font-medium">
+                          We strongly recommend keeping ATS enabled.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* By Email Checkbox */}
                 <div className="flex items-start">
                   <input

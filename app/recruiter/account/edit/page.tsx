@@ -8,7 +8,6 @@ import { accountApi, apiRequest } from '@/lib/api';
 import Link from 'next/link';
 
 interface EmailPreferences {
-  jobAlerts: 'daily' | 'weekly' | 'never';
   applicationUpdates: boolean;
   marketing: boolean;
 }
@@ -21,7 +20,6 @@ export default function EditAccountPage() {
     email: '',
   });
   const [emailPreferences, setEmailPreferences] = useState<EmailPreferences>({
-    jobAlerts: 'weekly',
     applicationUpdates: true,
     marketing: false,
   });
@@ -41,7 +39,6 @@ export default function EditAccountPage() {
       const response = await apiRequest('/email-preferences');
       if (response.success && response.preferences) {
         setEmailPreferences({
-          jobAlerts: response.preferences.jobAlerts || 'weekly',
           applicationUpdates: response.preferences.applicationUpdates ?? true,
           marketing: response.preferences.marketing ?? false,
         });
@@ -81,8 +78,8 @@ export default function EditAccountPage() {
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
-    } else if (user && user.role !== 'job-seeker') {
-      router.push(`/${user.role === 'admin' ? 'admin' : 'recruiter'}`);
+    } else if (user && user.role !== 'recruiter') {
+      router.push(`/${user.role === 'admin' ? 'admin' : 'job-seeker'}`);
     } else if (user) {
       setFormData({
         name: user.name || '',
@@ -111,7 +108,7 @@ export default function EditAccountPage() {
 
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emailPreferences.jobAlerts, emailPreferences.applicationUpdates, emailPreferences.marketing]);
+  }, [emailPreferences.applicationUpdates, emailPreferences.marketing]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +124,7 @@ export default function EditAccountPage() {
       setSuccess('Account updated successfully!');
       await refreshUser();
       setTimeout(() => {
-        router.push('/job-seeker');
+        router.push('/recruiter');
       }, 1500);
     } catch (err: any) {
       setError(err.message || 'Failed to update account');
@@ -153,13 +150,13 @@ export default function EditAccountPage() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-6">
           <Link
-            href="/job-seeker"
+            href="/recruiter"
             className="text-blue-600 hover:text-blue-800 mb-4 inline-block"
           >
             ← Back to Dashboard
           </Link>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Edit Account</h1>
-          <p className="text-gray-600">Update your account information</p>
+          <p className="text-gray-600">Update your account information and email preferences</p>
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6">
@@ -215,57 +212,12 @@ export default function EditAccountPage() {
                 <div className="text-sm text-gray-500 mb-4">Loading preferences...</div>
               )}
 
-              {/* Job Alerts */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Job Alerts
-                </label>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="jobAlerts"
-                      value="daily"
-                      checked={emailPreferences.jobAlerts === 'daily'}
-                      onChange={(e) => setEmailPreferences({ ...emailPreferences, jobAlerts: e.target.value as 'daily' | 'weekly' | 'never' })}
-                      className="mr-2 text-blue-600 focus:ring-blue-500"
-                      disabled={savingPreferences || loadingPreferences}
-                    />
-                    <span className="text-gray-700">Daily</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="jobAlerts"
-                      value="weekly"
-                      checked={emailPreferences.jobAlerts === 'weekly'}
-                      onChange={(e) => setEmailPreferences({ ...emailPreferences, jobAlerts: e.target.value as 'daily' | 'weekly' | 'never' })}
-                      className="mr-2 text-blue-600 focus:ring-blue-500"
-                      disabled={savingPreferences || loadingPreferences}
-                    />
-                    <span className="text-gray-700">Weekly</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="jobAlerts"
-                      value="never"
-                      checked={emailPreferences.jobAlerts === 'never'}
-                      onChange={(e) => setEmailPreferences({ ...emailPreferences, jobAlerts: e.target.value as 'daily' | 'weekly' | 'never' })}
-                      className="mr-2 text-blue-600 focus:ring-blue-500"
-                      disabled={savingPreferences || loadingPreferences}
-                    />
-                    <span className="text-gray-700">Never</span>
-                  </label>
-                </div>
-              </div>
-
               {/* Application Updates Toggle */}
               <div className="mb-6">
                 <label className="flex items-center justify-between">
                   <div>
                     <span className="block text-sm font-medium text-gray-700">Application Updates</span>
-                    <span className="text-xs text-gray-500">Receive notifications when your application status changes</span>
+                    <span className="text-xs text-gray-500">Receive notifications when candidates apply to your jobs</span>
                   </div>
                   <button
                     type="button"
@@ -338,7 +290,7 @@ export default function EditAccountPage() {
                 {loading ? 'Updating...' : 'Update Account'}
               </button>
               <Link
-                href="/job-seeker"
+                href="/recruiter"
                 className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 font-semibold text-center"
               >
                 Cancel
@@ -350,12 +302,3 @@ export default function EditAccountPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-

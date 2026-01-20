@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import { ApplicationStatus, normalizeApplicationStatus } from '@/lib/domainTypes';
 
 /**
  * Application Status Lifecycle (ATS Workflow):
@@ -39,7 +40,7 @@ export interface IApplication extends Document {
   candidateId: mongoose.Types.ObjectId;
   // ATS Workflow Status: applied -> viewed -> contacted -> interviewing -> offered -> hired
   // Alternative outcomes: rejected (at any stage) or withdrawn (by candidate)
-  status: 'applied' | 'viewed' | 'contacted' | 'interviewing' | 'offered' | 'hired' | 'accepted' | 'rejected' | 'withdrawn';
+  status: ApplicationStatus;
   appliedAt: Date;
   coverNote?: string;
   internalNotes?: string;
@@ -48,6 +49,8 @@ export interface IApplication extends Document {
   lastActivityAt: Date;
   withdrawnAt?: Date;
   viewedAt?: Date;
+  lastStatusEmailSentAt?: Date; // Timestamp of last status email sent
+  lastStatusNotified?: string; // Last status that triggered an email notification
   archivedByJobSeeker: boolean;
   archivedByRecruiter: boolean;
   archivedByAdmin: boolean; // Admin soft archive
@@ -107,8 +110,8 @@ const ApplicationSchema: Schema = new Schema(
         // Legacy migration values (automatically converted via statusMigrationMap):
         'new',          // Maps to 'applied'
         'interviewed',  // Maps to 'interviewing'
-      ],
-      default: 'applied',
+      ] as ApplicationStatus[],
+      default: 'applied' as ApplicationStatus,
       required: true,
     },
     appliedAt: {
@@ -142,6 +145,12 @@ const ApplicationSchema: Schema = new Schema(
     },
     viewedAt: {
       type: Date,
+    },
+    lastStatusEmailSentAt: {
+      type: Date,
+    },
+    lastStatusNotified: {
+      type: String,
     },
     archivedByJobSeeker: {
       type: Boolean,
@@ -189,28 +198,16 @@ const ApplicationSchema: Schema = new Schema(
 );
 
 /**
- * Status migration mapping for backward compatibility
- * Maps legacy status values to current ATS workflow statuses
- */
-const statusMigrationMap: { [key: string]: string } = {
-  'new': 'applied',        // Legacy: new applications -> applied
-  'interviewed': 'interviewing', // Legacy: interviewed -> interviewing (new ATS status)
-  // Note: 'contacted' and 'offered' are now valid statuses, no migration needed
-  // 'contacted' was previously mapped to 'viewed', but is now a distinct status
-  // 'offered' was previously mapped to 'accepted', but is now a distinct status
-  'rejected': 'rejected', // Already correct
-  'withdrawn': 'withdrawn', // Already correct
-};
-
-/**
  * Pre-validate hook: Migrate old status values to new status lifecycle
  * This handles backward compatibility with old status values in the database
+ * Uses normalizeApplicationStatus from domainTypes for type-safe normalization
  */
 ApplicationSchema.pre('validate', function(next) {
-  // Migrate old status values to new status lifecycle
+  // Migrate old status values to new status lifecycle using shared normalization
   const currentStatus = this.status as string | undefined;
-  if (currentStatus && statusMigrationMap[currentStatus]) {
-    this.status = statusMigrationMap[currentStatus] as any;
+  if (currentStatus) {
+    const normalized = normalizeApplicationStatus(currentStatus);
+    this.status = normalized;
   }
   next();
 });

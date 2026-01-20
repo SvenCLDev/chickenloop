@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendEmail, isEmailConfigured } from '@/lib/email';
+import { sendEmailAsync, isEmailConfigured, EmailCategory } from '@/lib/email';
 
 // POST - Send contact/feedback email using Resend
 export async function POST(request: NextRequest) {
@@ -66,6 +66,8 @@ export async function POST(request: NextRequest) {
         </div>
       `,
       text: `Feedback from ${name} (${email})\n\nDate: ${new Date().toLocaleString()}\n\nMessage:\n${message}`,
+      category: EmailCategory.SYSTEM,
+      eventType: 'contact_form_submission',
       tags: [
         { name: 'type', value: 'contact' },
         { name: 'source', value: 'contact-form' },

@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { EmploymentType, SpamFlag, WorkArea } from '@/lib/domainTypes';
 
 export interface IJob extends Document {
   title: string;
@@ -8,21 +9,22 @@ export interface IJob extends Document {
   city: string;
   country?: string | null;
   salary?: string;
-  type: 'full-time' | 'part-time' | 'contract' | 'freelance';
+  type: EmploymentType;
   recruiter: mongoose.Types.ObjectId;
   companyId?: mongoose.Types.ObjectId;
   languages?: string[];
   qualifications?: string[];
   sports?: string[];
-  occupationalAreas?: string[];
+  occupationalAreas?: WorkArea[];
   pictures?: string[];
-  spam?: 'yes' | 'no';
+  spam?: SpamFlag;
   published?: boolean;
   featured?: boolean;
   visitCount?: number;
   applyByEmail?: boolean;
   applyByWebsite?: boolean;
   applyByWhatsApp?: boolean;
+  applyViaATS?: boolean;
   applicationEmail?: string;
   applicationWebsite?: string;
   applicationWhatsApp?: string;
@@ -121,6 +123,10 @@ const JobSchema: Schema = new Schema(
       type: Boolean,
       default: false,
     },
+    applyViaATS: {
+      type: Boolean,
+      default: true,
+    },
     applicationEmail: {
       type: String,
     },
@@ -150,6 +156,15 @@ const JobSchema: Schema = new Schema(
 // Mongoose strict mode (enabled by default) will ignore fields not in the schema,
 // but we add explicit hooks as an additional safeguard
 
+// Post-init hook: Set default applyViaATS for existing jobs loaded from database
+JobSchema.post('init', function() {
+  const doc = this as any;
+  // Set default to true if field is missing (for backward compatibility with existing jobs)
+  if (doc.applyViaATS === undefined) {
+    doc.applyViaATS = true;
+  }
+});
+
 // Pre-save hook: Manage system-managed date fields and remove deprecated fields
 JobSchema.pre('save', function(next) {
   const doc = this as any;
@@ -157,6 +172,11 @@ JobSchema.pre('save', function(next) {
   // Remove `location` field if present (should not happen due to strict mode + API validation)
   if (doc.location !== undefined) {
     delete doc.location;
+  }
+  
+  // Default applyViaATS to true for existing jobs that don't have this field
+  if (doc.applyViaATS === undefined) {
+    doc.applyViaATS = true;
   }
   
   // System-managed date fields for Google Jobs SEO
@@ -260,6 +280,13 @@ JobSchema.pre(['updateOne', 'findOneAndUpdate', 'updateMany'], function() {
     if (update.$set?.location !== undefined || update.location !== undefined) {
       update.$unset = update.$unset || {};
       update.$unset.location = '';
+    }
+    
+    // Ensure applyViaATS defaults to true for existing jobs if not explicitly set
+    // Only set default if the field is not being explicitly updated
+    if (update.$set && update.$set.applyViaATS === undefined && update.applyViaATS === undefined) {
+      // Check if the document exists and doesn't have the field
+      // We'll handle this at query time via a getter instead to avoid modifying updates
     }
   }
 });

@@ -3,7 +3,13 @@
  * 
  * Generates schema.org JobPosting structured data for Google Jobs indexing.
  * This helps jobs appear in Google Jobs search results.
+ * 
+ * Note: Job descriptions are sanitized (HTML stripped) at this JSON-LD boundary
+ * to ensure clean text-only content as required by Google Jobs. This does NOT
+ * affect how descriptions are stored or displayed in the UI.
  */
+
+import { stripHtmlToText } from '@/lib/sanitizeText';
 
 interface JobForJsonLd {
   _id: string;
@@ -81,11 +87,15 @@ export function buildJobJsonLd(job: JobForJsonLd | null, jobUrl?: string): objec
 
   // Build the base JobPosting object
   // datePosted is required by Google Jobs, so we ensure it's always present
+  // 
+  // IMPORTANT: Description is sanitized (HTML stripped) ONLY at this JSON-LD boundary.
+  // This ensures Google Jobs receives clean text-only content, even if descriptions
+  // accidentally contain HTML. UI rendering remains unchanged (plain text with whitespace-pre-wrap).
   const jsonLd: any = {
     '@context': 'https://schema.org',
     '@type': 'JobPosting',
     title: job.title,
-    description: job.description,
+    description: stripHtmlToText(job.description),
     identifier: {
       '@type': 'PropertyValue',
       name: job.company,

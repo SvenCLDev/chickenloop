@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { jobsApi, companyApi, candidatesApi } from '@/lib/api';
 import Link from 'next/link';
@@ -47,10 +47,11 @@ interface Candidate {
 export default function RecruiterDashboard() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [hasCompany, setHasCompany] = useState<boolean | null>(null);
+  const [hasCompany, setHasCompany] = useState<boolean | undefined>(undefined);
   const [companyName, setCompanyName] = useState<string>('');
   const [companyId, setCompanyId] = useState<string>('');
   const [showContactModal, setShowContactModal] = useState(false);
@@ -62,6 +63,8 @@ export default function RecruiterDashboard() {
   const [loadingApplications, setLoadingApplications] = useState(false);
   const [removingApplication, setRemovingApplication] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [unsubscribedCategory, setUnsubscribedCategory] = useState<string | null>(null);
+  const [showUnsubscribedNotification, setShowUnsubscribedNotification] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -79,6 +82,21 @@ export default function RecruiterDashboard() {
       loadApplications();
     }
   }, [user]);
+
+  // Handle unsubscribe notification
+  useEffect(() => {
+    const unsubscribed = searchParams.get('unsubscribed');
+    const category = searchParams.get('category');
+    if (unsubscribed === 'true' && category) {
+      setUnsubscribedCategory(category);
+      setShowUnsubscribedNotification(true);
+      // Remove query params from URL without reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete('unsubscribed');
+      url.searchParams.delete('category');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams]);
 
   const checkCompany = async () => {
     try {
@@ -282,7 +300,7 @@ export default function RecruiterDashboard() {
     }
   };
 
-  if (authLoading || loading || hasCompany === null) {
+  if (authLoading || loading || hasCompany === undefined) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
         <Navbar />
@@ -299,6 +317,42 @@ export default function RecruiterDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
         <Navbar />
         <main className="max-w-3xl mx-auto px-4 py-12">
+          {/* Unsubscribe Notification */}
+          {showUnsubscribedNotification && (
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center mb-2">
+                  <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h3 className="text-sm font-semibold text-blue-900">Email Preferences Updated</h3>
+                </div>
+                <p className="text-sm text-blue-700 mb-3">
+                  {unsubscribedCategory === 'important_transactional' 
+                    ? 'You have been unsubscribed from application update emails. You can re-enable these emails from your account settings.'
+                    : unsubscribedCategory === 'user_notification'
+                    ? 'You have been unsubscribed from job alert emails. You can re-enable these emails from your account settings.'
+                    : 'Your email preferences have been updated. You can manage your preferences from your account settings.'
+                  }
+                </p>
+                <Link
+                  href="/recruiter/account/edit"
+                  className="inline-block text-sm font-medium text-blue-600 hover:text-blue-800 underline"
+                >
+                  Manage Email Preferences →
+                </Link>
+              </div>
+              <button
+                onClick={() => setShowUnsubscribedNotification(false)}
+                className="ml-4 text-blue-400 hover:text-blue-600"
+                aria-label="Dismiss notification"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
           <div className="bg-white rounded-lg shadow-lg p-8 text-center">
             <h1 className="text-3xl font-bold mb-4 text-gray-900">Company Profile Required</h1>
             <p className="text-gray-600 mb-6">

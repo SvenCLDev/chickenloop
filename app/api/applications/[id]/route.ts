@@ -7,10 +7,12 @@ import Company from '@/models/Company';
 import CV from '@/models/CV';
 import { requireAuth } from '@/lib/auth';
 import { requireRole } from '@/lib/auth';
-import { sendEmail } from '@/lib/email';
+import { sendEmailAsync, EmailCategory } from '@/lib/email';
 import { getStatusChangedEmail } from '@/lib/emailTemplates';
 import { sanitizeApplicationForRole, guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
 import { validateTransition, ApplicationStatus, TERMINAL_STATES } from '@/lib/applicationStatusTransitions';
+import { isApplicationStatus } from '@/lib/domainTypes';
+import { shouldSuppressStatusEmail, shouldNotifyStatus } from '@/lib/applicationStatusPriority';
 
 // GET - Get a single application by ID
 export async function GET(
@@ -73,8 +75,13 @@ export async function GET(
 
     // Get company data if job has companyId
     let companyData = null;
-    if (application.jobId && (application.jobId as any).companyId) {
-      const company = await Company.findById((application.jobId as any).companyId).select('name description address website logo').lean();
+    // Type guard for populated jobId
+    const jobId = application.jobId;
+    if (jobId && typeof jobId === 'object' && 'companyId' in jobId && jobId.companyId) {
+      const companyIdValue = typeof jobId.companyId === 'object' && '_id' in jobId.companyId 
+        ? jobId.companyId._id 
+        : jobId.companyId;
+      const company = await Company.findById(companyIdValue).select('name description address website logo').lean();
       if (company) {
         companyData = company;
       }
@@ -109,15 +116,19 @@ export async function GET(
       published: application.published,
       createdAt: application.createdAt,
       updatedAt: application.updatedAt,
-      job: application.jobId ? {
-        _id: (application.jobId as any)._id,
-        title: (application.jobId as any).title,
-        description: (application.jobId as any).description,
-        company: (application.jobId as any).company,
-        city: (application.jobId as any).city,
-        country: (application.jobId as any).country,
-        type: (application.jobId as any).type,
-        createdAt: (application.jobId as any).createdAt,
+      job: application.jobId && typeof application.jobId === 'object' ? {
+        _id: '_id' in application.jobId ? String(application.jobId._id) : String(application.jobId),
+        title: 'title' in application.jobId ? String(application.jobId.title) : '',
+        description: 'description' in application.jobId ? String(application.jobId.description) : '',
+        company: 'company' in application.jobId ? String(application.jobId.company) : '',
+        city: 'city' in application.jobId ? String(application.jobId.city) : '',
+        country: 'country' in application.jobId ? String(application.jobId.country) : undefined,
+        type: 'type' in application.jobId ? String(application.jobId.type) : '',
+        createdAt: 'createdAt' in application.jobId 
+          ? (application.jobId.createdAt instanceof Date 
+              ? application.jobId.createdAt 
+              : new Date(String(application.jobId.createdAt)))
+          : new Date(),
       } : null,
       company: companyData,
       candidate: application.candidateId ? {
@@ -233,15 +244,10 @@ export async function GET(
 
     // Update status if provided
     if (status !== undefined) {
-      // Validate status is a valid ApplicationStatus
-      const validStatuses: ApplicationStatus[] = [
-        'applied', 'viewed', 'contacted', 'interviewing', 'offered', 'hired',
-        'accepted', 'rejected', 'withdrawn'
-      ];
-      
-      if (!validStatuses.includes(status as ApplicationStatus)) {
+      // Validate status is a valid ApplicationStatus using type guard
+      if (!isApplicationStatus(status)) {
         return NextResponse.json(
-          { error: `Invalid status "${status}". Must be one of: ${validStatuses.join(', ')}` },
+          { error: `Invalid status "${status}". Must be a valid ApplicationStatus.` },
           { status: 400 }
         );
       }
@@ -257,8 +263,8 @@ export async function GET(
       }
 
       // Validate status transition using centralized transition rules
-      const currentStatus = application.status as ApplicationStatus;
-      const newStatus = status as ApplicationStatus;
+      const currentStatus = isApplicationStatus(application.status) ? application.status : 'applied';
+      const newStatus = status;
       
       const transitionError = validateTransition(currentStatus, newStatus);
       if (transitionError) {
@@ -381,40 +387,94 @@ export async function GET(
     // Send email notification to candidate if status changed to specific statuses (non-blocking)
     // Only send emails for: contacted, interviewing, offered, rejected
     // Do NOT send emails for: viewed, applied, withdrawn, hired
+    // Suppression: Only send highest priority status within 30-minute window
+    // Safety: Assert that only one status email is sent per request
     if (statusChanged) {
-      const statusesToNotify = ['contacted', 'interviewing', 'offered', 'rejected'];
-      const shouldSendEmail = statusesToNotify.includes(application.status);
+      const currentStatus = isApplicationStatus(application.status) ? application.status : 'applied';
+      const shouldSendEmail = shouldNotifyStatus(currentStatus);
       
       if (shouldSendEmail) {
         try {
-          const candidate = await User.findById(application.candidateId).select('name email');
-          const recruiter = await User.findById(application.recruiterId).select('name email');
+          // Safety check: Assert only one status email per request
+          // This prevents accidental multiple emails from code bugs
+          const statusEmailSentInRequest = (application as any).__statusEmailSentInRequest;
+          if (statusEmailSentInRequest) {
+            console.error(
+              `[Email Safety Violation] Multiple status emails attempted in single request: ` +
+              `applicationId=${application._id}, status=${currentStatus}. ` +
+              `This should never happen - check for duplicate email sending logic. ` +
+              `Second email suppressed to prevent spam.`
+            );
+            // Don't send second email, but don't fail the request
+            // (This is a safety net, not a user-facing error)
+            return; // Exit early, request continues normally
+          }
           
-          if (candidate && recruiter && candidate.email) {
-            const job = application.jobId ? await Job.findById(application.jobId).select('title company city') : null;
+          // Mark that we're sending a status email in this request
+          (application as any).__statusEmailSentInRequest = true;
+          
+          // Check suppression window and priority
+          const suppressionCheck = shouldSuppressStatusEmail(
+            application.lastStatusEmailSentAt,
+            currentStatus,
+            application.lastStatusNotified
+          );
 
-            const emailTemplate = getStatusChangedEmail({
-              candidateName: candidate.name,
-              candidateEmail: candidate.email,
-              recruiterName: recruiter.name,
-              recruiterEmail: recruiter.email,
-              jobTitle: job?.title,
-              jobCompany: job?.company,
-              status: application.status,
-            });
+          if (suppressionCheck.shouldSuppress) {
+            console.log(
+              `[Status Email Suppressed] applicationId=${application._id}, ` +
+              `currentStatus=${currentStatus}, ` +
+              `lastStatusNotified=${application.lastStatusNotified || 'none'}, ` +
+              `lastEmailSentAt=${application.lastStatusEmailSentAt?.toISOString() || 'never'}, ` +
+              `reason=${suppressionCheck.reason}`
+            );
+          } else {
+            // Send email for this status
+            const candidate = await User.findById(application.candidateId).select('name email');
+            const recruiter = await User.findById(application.recruiterId).select('name email');
+            
+            if (candidate && recruiter && candidate.email) {
+              const job = application.jobId ? await Job.findById(application.jobId).select('title company city') : null;
 
-            await sendEmail({
-              to: candidate.email,
-              subject: emailTemplate.subject,
-              html: emailTemplate.html,
-              text: emailTemplate.text,
-              replyTo: recruiter.email,
-              tags: [
-                { name: 'type', value: 'application' },
-                { name: 'event', value: 'status_changed' },
-                { name: 'status', value: application.status },
-              ],
-            });
+              const emailTemplate = getStatusChangedEmail({
+                candidateName: candidate.name,
+                candidateEmail: candidate.email,
+                recruiterName: recruiter.name,
+                recruiterEmail: recruiter.email,
+                jobTitle: job?.title,
+                jobCompany: job?.company,
+                status: application.status,
+              });
+
+              // Update last email sent timestamp and status (optimistically)
+              // Email is sent asynchronously, so we update tracking immediately
+              application.lastStatusEmailSentAt = new Date();
+              application.lastStatusNotified = currentStatus;
+              await application.save();
+
+              // Send email asynchronously (fire-and-forget)
+              sendEmailAsync({
+                to: candidate.email,
+                subject: emailTemplate.subject,
+                html: emailTemplate.html,
+                text: emailTemplate.text,
+                replyTo: recruiter.email,
+                category: EmailCategory.IMPORTANT_TRANSACTIONAL,
+                eventType: 'status_changed',
+                userId: application.candidateId.toString(),
+                tags: [
+                  { name: 'type', value: 'application' },
+                  { name: 'event', value: 'status_changed' },
+                  { name: 'status', value: application.status },
+                ],
+              });
+
+              console.log(
+                `[Status Email Queued] applicationId=${application._id}, ` +
+                `status=${currentStatus}, ` +
+                `to=${candidate.email}`
+              );
+            }
           }
         } catch (emailError) {
           // Log but don't fail the request if email fails

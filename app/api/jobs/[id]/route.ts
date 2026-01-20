@@ -107,7 +107,7 @@ export async function PUT(
       );
     }
 
-    const { title, description, company, city, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, published, featured, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
+    const { title, description, company, city, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, published, featured, applyViaATS, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
 
     // Validate job categories - ensure all categories are in JOB_CATEGORIES
     if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
@@ -249,6 +249,9 @@ export async function PUT(
     // (featured field is intentionally not updated here)
     
     // Update application fields
+    if (applyViaATS !== undefined) {
+      job.applyViaATS = applyViaATS === true;
+    }
     if (applyByEmail !== undefined) {
       job.applyByEmail = applyByEmail === true;
     }

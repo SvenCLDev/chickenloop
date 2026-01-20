@@ -4,7 +4,7 @@ import Application from '@/models/Application';
 import Job from '@/models/Job';
 import User from '@/models/User';
 import { requireRole } from '@/lib/auth';
-import { sendEmail } from '@/lib/email';
+import { sendEmailAsync, EmailCategory } from '@/lib/email';
 import { getRecruiterContactedEmail } from '@/lib/emailTemplates';
 
 // POST - Send contact email to candidate (recruiters only)
@@ -65,22 +65,26 @@ export async function POST(
         jobCity,
       });
 
-      await sendEmail({
+      // Update lastActivityAt first (commit DB changes)
+      application.lastActivityAt = new Date();
+      await application.save();
+
+      // Send email asynchronously (fire-and-forget)
+      sendEmailAsync({
         to: candidate.email,
         subject: emailTemplate.subject,
         html: emailTemplate.html,
         text: emailTemplate.text,
         replyTo: recruiter.email,
+        category: EmailCategory.IMPORTANT_TRANSACTIONAL,
+        eventType: 'recruiter_contacted',
+        userId: application.candidateId.toString(),
         tags: [
           { name: 'type', value: 'application' },
           { name: 'event', value: 'recruiter_contacted' },
           { name: 'application_id', value: id },
         ],
       });
-
-      // Update lastActivityAt
-      application.lastActivityAt = new Date();
-      await application.save();
 
       return NextResponse.json(
         {

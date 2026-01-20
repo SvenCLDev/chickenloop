@@ -10,6 +10,7 @@ interface JobApplySectionProps {
   jobId: string;
   companyName?: string;
   jobPublished?: boolean;
+  applyViaATS?: boolean;
   applyByEmail?: boolean;
   applyByWebsite?: boolean;
   applyByWhatsApp?: boolean;
@@ -22,6 +23,7 @@ export default function JobApplySection({
   jobId,
   companyName,
   jobPublished = true,
+  applyViaATS = true,
   applyByEmail,
   applyByWebsite,
   applyByWhatsApp,
@@ -154,6 +156,9 @@ export default function JobApplySection({
 
   // Determine if user can apply based on all conditions
   const canApply = useMemo(() => {
+    // ATS must be enabled
+    if (applyViaATS === false) return false;
+    
     // Must be a job seeker
     if (!user || user.role !== 'job-seeker') return false;
     
@@ -174,10 +179,15 @@ export default function JobApplySection({
     
     // Allow if no application or status is 'withdrawn'
     return applicationStatus === null || applicationStatus === 'withdrawn';
-  }, [user, jobPublished, cv, applicationStatus]);
+  }, [user, jobPublished, cv, applicationStatus, applyViaATS]);
 
   // Determine the reason why user cannot apply (for helper text)
   const getCannotApplyReason = useMemo(() => {
+    // ATS is disabled - show specific message
+    if (applyViaATS === false) {
+      return 'This recruiter is not accepting instant applications via Chickenloop.';
+    }
+    
     // Anonymous users (not logged in)
     if (!user) {
       return 'Please log in to send an instant application.';
@@ -221,7 +231,7 @@ export default function JobApplySection({
     }
 
     return null; // Can apply
-  }, [user, jobPublished, cv, applicationStatus, checkingApplication, loadingCv]);
+  }, [user, jobPublished, cv, applicationStatus, checkingApplication, loadingCv, applyViaATS]);
 
   const handleOpenApplicationModal = () => {
     if (!canApply || applying || checkingApplication || loadingCv) return;

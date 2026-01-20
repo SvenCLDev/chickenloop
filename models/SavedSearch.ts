@@ -12,6 +12,7 @@ export interface ISavedSearch extends Document {
   frequency: 'daily' | 'weekly' | 'never';
   active: boolean;
   lastSent?: Date;
+  lastHeartbeatSent?: Date; // Timestamp of last heartbeat email sent
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,6 +65,9 @@ const SavedSearchSchema: Schema = new Schema(
       required: true,
     },
     lastSent: {
+      type: Date,
+    },
+    lastHeartbeatSent: {
       type: Date,
     },
   },

@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
+import EmailPreferences from '@/models/EmailPreferences';
 import { generateToken } from '@/lib/jwt';
+import { sendEmailAsync, EmailCategory } from '@/lib/email';
+import { getWelcomeEmail } from '@/lib/emailTemplates';
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +43,52 @@ export async function POST(request: NextRequest) {
       name,
       role,
     });
+
+    // Create default email preferences for new user
+    await EmailPreferences.create({
+      userId: user._id,
+      jobAlerts: 'weekly',
+      applicationUpdates: true,
+      marketing: false,
+    });
+
+    // Send welcome email asynchronously (fire-and-forget)
+    // Email goes through canSendEmail() to check preferences
+    // Failures are logged but don't block registration
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+      
+      // Determine dashboard URL based on role
+      const dashboardUrl = user.role === 'recruiter' 
+        ? `${baseUrl}/recruiter`
+        : user.role === 'admin'
+        ? `${baseUrl}/admin`
+        : `${baseUrl}/job-seeker`;
+
+      const welcomeTemplate = getWelcomeEmail({
+        userName: user.name,
+        dashboardUrl,
+      });
+
+      sendEmailAsync({
+        to: user.email,
+        subject: welcomeTemplate.subject,
+        html: welcomeTemplate.html,
+        text: welcomeTemplate.text,
+        category: EmailCategory.IMPORTANT_TRANSACTIONAL,
+        eventType: 'user_welcome',
+        userId: user._id.toString(),
+        tags: [
+          { name: 'type', value: 'welcome' },
+          { name: 'event', value: 'user_welcome' },
+          { name: 'role', value: user.role },
+        ],
+      });
+    } catch (emailError) {
+      // Log but don't fail registration if email fails
+      console.error('[Registration] Failed to queue welcome email:', emailError);
+    }
 
     const token = generateToken(user);
 

@@ -360,6 +360,66 @@ This is a ${frequencyText} job alert. You're receiving this because you have an 
 }
 
 /**
+ * Email: Job alert heartbeat (monthly confirmation that search is still active)
+ * Sent to: Job seeker with active saved search
+ */
+export interface JobAlertHeartbeatEmailData {
+  userName: string;
+  userEmail: string;
+  searchName?: string;
+}
+
+export function getJobAlertHeartbeatEmail(data: JobAlertHeartbeatEmailData): { subject: string; html: string; text: string } {
+  const { userName, searchName } = data;
+  
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+  const dashboardUrl = `${baseUrl}/job-seeker`;
+
+  const subject = searchName
+    ? `Your job search "${searchName}" is still active`
+    : 'Your job search is still active';
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #2563eb; margin-bottom: 20px;">Your Job Search is Active</h2>
+      
+      <p>Hello ${userName},</p>
+      
+      <p>This is a quick update to let you know that your saved search${searchName ? ` "${searchName}"` : ''} is still active on Chickenloop.</p>
+
+      <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; border-left: 4px solid #2563eb; margin: 20px 0;">
+        <p style="margin: 0; color: #1e40af; font-size: 14px;">
+          <strong>What this means:</strong> We're continuously monitoring new job postings and will notify you when we find matches. You'll receive job alerts based on your selected frequency (daily or weekly).
+        </p>
+      </div>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${dashboardUrl}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">Manage My Searches</a>
+      </div>
+
+      <p style="margin-top: 30px; color: #6b7280; font-size: 12px;">
+        You're receiving this monthly update because you have an active saved search on Chickenloop. If you no longer wish to receive job alerts, you can disable them in your email preferences.
+      </p>
+    </div>
+  `;
+
+  const text = `Your Job Search is Active
+
+Hello ${userName},
+
+This is a quick update to let you know that your saved search${searchName ? ` "${searchName}"` : ''} is still active on Chickenloop.
+
+What this means: We're continuously monitoring new job postings and will notify you when we find matches. You'll receive job alerts based on your selected frequency (daily or weekly).
+
+Manage My Searches: ${dashboardUrl}
+
+You're receiving this monthly update because you have an active saved search on Chickenloop. If you no longer wish to receive job alerts, you can disable them in your email preferences.`;
+
+  return { subject, html, text };
+}
+
+/**
  * Email: Application withdrawn by candidate
  * Sent to: Recruiter
  */
@@ -418,6 +478,92 @@ ${jobCompany ? `Company: ${jobCompany}\n` : ''}${jobCity ? `City: ${jobCity}\n` 
 Status: Application Withdrawn
 
 You can view all applications in your Chickenloop recruiter dashboard.`;
+
+  return { subject, html, text };
+}
+
+/**
+ * Email: Welcome email for new user registration
+ * Sent to: Newly registered user
+ */
+export interface WelcomeEmailData {
+  userName?: string;
+  dashboardUrl: string;
+}
+
+export function getWelcomeEmail(data: WelcomeEmailData): { subject: string; html: string; text: string } {
+  const { userName, dashboardUrl } = data;
+  
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+  // Note: Welcome email uses dashboardUrl which is already role-specific
+  // For the preferences link in the welcome email, we'll use a generic approach
+  // Users can access preferences from their dashboard
+  // Job-seekers: /job-seeker/account/edit
+  // Recruiters: /recruiter/account/edit
+  // Since dashboardUrl is already role-specific, derive preferences URL from it
+  const preferencesUrl = dashboardUrl.includes('/recruiter')
+    ? `${baseUrl}/recruiter/account/edit`
+    : dashboardUrl.includes('/admin')
+    ? `${baseUrl}/job-seeker/account/edit` // Admins can use job-seeker URL as fallback
+    : `${baseUrl}/job-seeker/account/edit`; // Default for job-seekers
+
+  const subject = 'Welcome to ChickenLoop';
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #2563eb; margin-bottom: 20px;">Welcome to ChickenLoop!</h2>
+      
+      <p>Hello${userName ? ` ${userName}` : ''},</p>
+      
+      <p>Thank you for joining ChickenLoop! We're excited to have you on board.</p>
+
+      <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; border-left: 4px solid #2563eb; margin: 20px 0;">
+        <p style="margin: 0; color: #1e40af; font-size: 14px; line-height: 1.6;">
+          <strong>What is ChickenLoop?</strong><br />
+          ChickenLoop connects sports professionals with job opportunities. Whether you're looking for your next role in sports or recruiting talent for your organization, we're here to help you succeed.
+        </p>
+      </div>
+
+      <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #374151; margin-top: 0;">Get Started</h3>
+        <p style="margin: 0 0 10px 0; color: #4b5563;">
+          Start exploring opportunities or managing your profile in your dashboard.
+        </p>
+        <div style="text-align: center; margin: 15px 0;">
+          <a href="${dashboardUrl}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">Go to Dashboard</a>
+        </div>
+      </div>
+
+      <p style="margin-top: 30px; color: #6b7280; font-size: 12px; line-height: 1.5;">
+        <strong>Email Preferences:</strong> You can manage your email notifications and preferences at any time from your account settings.
+      </p>
+
+      <p style="margin-top: 15px; color: #6b7280; font-size: 12px;">
+        Welcome aboard!<br />
+        The ChickenLoop Team
+      </p>
+    </div>
+  `;
+
+  const text = `Welcome to ChickenLoop!
+
+Hello${userName ? ` ${userName}` : ''},
+
+Thank you for joining ChickenLoop! We're excited to have you on board.
+
+What is ChickenLoop?
+ChickenLoop connects sports professionals with job opportunities. Whether you're looking for your next role in sports or recruiting talent for your organization, we're here to help you succeed.
+
+Get Started
+Start exploring opportunities or managing your profile in your dashboard.
+
+Go to Dashboard: ${dashboardUrl}
+
+Email Preferences: You can manage your email notifications and preferences at any time from your account settings.
+
+Welcome aboard!
+The ChickenLoop Team`;
 
   return { subject, html, text };
 }
