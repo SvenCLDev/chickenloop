@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
         text: welcomeTemplate.text,
         category: EmailCategory.IMPORTANT_TRANSACTIONAL,
         eventType: 'user_welcome',
-        userId: user._id.toString(),
+        userId: String(user._id),
         tags: [
           { name: 'type', value: 'welcome' },
           { name: 'event', value: 'user_welcome' },
