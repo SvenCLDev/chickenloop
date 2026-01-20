@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendEmailAsync, isEmailConfigured, EmailCategory } from '@/lib/email';
+import { sendEmail, isEmailConfigured, EmailCategory } from '@/lib/email';
 
 // POST - Send contact/feedback email using Resend
 export async function POST(request: NextRequest) {
