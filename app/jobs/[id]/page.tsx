@@ -1,5 +1,5 @@
 import React from 'react';
-import { notFound, redirect } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { headers, cookies } from 'next/headers';
 import Navbar from '../../components/Navbar';
 import ShareJobButton from '../../components/ShareJobButton';
@@ -274,7 +274,7 @@ export default async function JobDetailPage({ params }: PageProps) {
   
   // Redirect to canonical URL with query params preserved if available
   const redirectUrl = searchParams ? `${canonicalPath}${searchParams}` : canonicalPath;
-  redirect(redirectUrl, 308);
+  permanentRedirect(redirectUrl); // 308 Permanent Redirect (SEO-safe)
 
   // Generate JSON-LD for Google Jobs
   // Convert null country to undefined for buildJobJsonLd

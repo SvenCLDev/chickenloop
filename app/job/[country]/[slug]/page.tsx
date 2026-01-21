@@ -1,5 +1,5 @@
 import React from 'react';
-import { notFound, redirect } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { headers, cookies } from 'next/headers';
 import type { Metadata } from 'next';
 import Navbar from '../../../components/Navbar';
@@ -343,7 +343,7 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
   
   // If the slug or country doesn't match, redirect to canonical URL
   if (slug !== canonicalJobSlug || countrySlug !== canonicalCountrySlug) {
-    redirect(canonicalPath, 308); // 308 Permanent Redirect (SEO-safe)
+    permanentRedirect(canonicalPath); // 308 Permanent Redirect (SEO-safe)
   }
   
   // Get user info from cookies to determine viewer role and permissions
