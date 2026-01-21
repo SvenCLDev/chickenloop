@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { jobsApi, companyApi, candidatesApi } from '@/lib/api';
+import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
 
 interface Job {
@@ -462,7 +463,7 @@ function RecruiterDashboardClient() {
                       <tr key={job._id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           <Link
-                            href={`/jobs/${job._id}`}
+                            href={getJobUrl(job)}
                             className="text-blue-600 hover:text-blue-900 hover:underline"
                           >
                             {job.title}

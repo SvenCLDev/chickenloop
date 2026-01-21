@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
+import { getJobUrl } from '@/lib/jobSlug';
 
 interface JobCardProps {
   job: {
@@ -31,7 +32,7 @@ export default function JobCard({ job }: JobCardProps) {
 
   return (
     <Link
-      href={`/jobs/${job._id}`}
+      href={getJobUrl(job)}
       className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer block overflow-hidden transform hover:-translate-y-1 border border-gray-100"
     >
       {/* Thumbnail Image */}

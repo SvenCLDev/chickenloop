@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { OFFERED_ACTIVITIES_LIST } from '@/lib/offeredActivities';
 import { OFFERED_SERVICES_LIST } from '@/lib/offeredServices';
+import { getJobUrl } from '@/lib/jobSlug';
 
 // Dynamically import Map component to avoid SSR issues
 const MapComponent = dynamic(
@@ -398,7 +399,7 @@ export default function CompanyPage() {
                   return (
                     <li key={job._id} className="text-gray-700">
                       <Link
-                        href={`/jobs/${job._id}`}
+                        href={getJobUrl(job)}
                         className="text-blue-600 hover:text-blue-800 hover:underline"
                       >
                         {job.title}

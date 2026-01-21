@@ -1,22 +1,24 @@
 import React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { headers, cookies } from 'next/headers';
-import Navbar from '../../components/Navbar';
-import ShareJobButton from '../../components/ShareJobButton';
+import type { Metadata } from 'next';
+import Navbar from '../../../components/Navbar';
+import ShareJobButton from '../../../components/ShareJobButton';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { buildJobJsonLd } from '@/lib/seo/jobJsonLd';
 import { generateCompanySummary } from '@/lib/companySummary';
-import { generateJobUrlPath } from '@/lib/jobSlug';
+import { generateJobSlug, generateCountrySlug, generateJobUrlPath } from '@/lib/jobSlug';
 import Link from 'next/link';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import Company from '@/models/Company';
-import JobFavouriteButton from './JobFavouriteButton';
-import JobApplySection from './JobApplySection';
-import JobSpamButton from './JobSpamButton';
-import JobImageGallery from './JobImageGallery';
+import JobFavouriteButton from '../../../jobs/[id]/JobFavouriteButton';
+import JobApplySection from '../../../jobs/[id]/JobApplySection';
+import JobSpamButton from '../../../jobs/[id]/JobSpamButton';
+import JobImageGallery from '../../../jobs/[id]/JobImageGallery';
 import { verifyToken } from '@/lib/jwt';
 
+// Reuse interfaces from existing job details page
 export interface CompanyInfo {
   _id?: string;
   id?: string;
@@ -113,6 +115,48 @@ async function getUserFromCookies(): Promise<{ userId: string; role: string } | 
   }
 }
 
+/**
+ * Find a job by slug and country
+ * Returns the job ID if found, null otherwise
+ */
+async function findJobBySlug(slug: string, countrySlug: string): Promise<string | null> {
+  try {
+    await connectDB();
+    
+    // Find all published jobs
+    const jobs = await Job.find({ published: { $ne: false } })
+      .select('_id title country')
+      .lean();
+    
+    // Find job where slug matches and country slug matches
+    for (const job of jobs) {
+      const jobSlug = generateJobSlug(job.title);
+      const jobCountrySlug = generateCountrySlug(job.country);
+      
+      if (jobSlug === slug && jobCountrySlug === countrySlug) {
+        return String(job._id);
+      }
+    }
+    
+    // Fallback: try to find by slug only (if country doesn't match but slug does)
+    // This handles edge cases where country might be missing or different
+    for (const job of jobs) {
+      const jobSlug = generateJobSlug(job.title);
+      if (jobSlug === slug) {
+        return String(job._id);
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error finding job by slug:', error);
+    return null;
+  }
+}
+
+/**
+ * Get job by ID (reused from existing job details page)
+ */
 async function getJob(id: string): Promise<Job | null> {
   try {
     await connectDB();
@@ -163,7 +207,6 @@ async function getJob(id: string): Promise<Job | null> {
         };
     
     // Extract recruiter ID (ObjectId) for permission checks
-    // The recruiter field is populated, but the original ObjectId is still in the jobObject
     const recruiterId = jobObject.recruiter 
       ? (typeof jobObject.recruiter === 'object' && '_id' in jobObject.recruiter
           ? String((jobObject.recruiter as any)._id)
@@ -235,46 +278,88 @@ async function getJob(id: string): Promise<Job | null> {
 }
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: Promise<{ country: string; slug: string }>;
 }
 
-export default async function JobDetailPage({ params }: PageProps) {
-  const { id } = await params;
-  const job = await getJob(id);
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { country: countrySlug, slug } = await params;
+  
+  // Find job by slug and country
+  const jobId = await findJobBySlug(slug, countrySlug);
+  
+  if (!jobId) {
+    return {};
+  }
+  
+  // Get the job data (minimal fetch for metadata)
+  try {
+    await connectDB();
+    const job = await Job.findById(jobId).select('title company country').lean();
+    
+    if (!job) {
+      return {};
+    }
+    
+    // Generate canonical URL
+    const canonicalPath = generateJobUrlPath(job.title, job.country);
+    const headersList = await headers();
+    const host = headersList.get('host') || 'chickenloop.vercel.app';
+    const protocol = headersList.get('x-forwarded-proto') || 'https';
+    const canonicalUrl = `${protocol}://${host}${canonicalPath}`;
+    
+    return {
+      title: `${job.title} at ${job.company} | Chickenloop`,
+      description: `Apply for ${job.title} at ${job.company}. Find watersports jobs on Chickenloop.`,
+      alternates: {
+        canonical: canonicalUrl,
+      },
+    };
+  } catch {
+    return {};
+  }
+}
 
+export default async function CanonicalJobDetailPage({ params }: PageProps) {
+  const { country: countrySlug, slug } = await params;
+  
+  // Find job by slug and country
+  const jobId = await findJobBySlug(slug, countrySlug);
+  
+  if (!jobId) {
+    notFound();
+  }
+  
+  // Get the job data
+  const job = await getJob(jobId);
+  
   if (!job) {
     notFound();
   }
-
-  // Generate canonical URL path
+  
+  // Verify the slug matches the canonical slug (redirect if not)
+  const canonicalJobSlug = generateJobSlug(job.title);
+  const canonicalCountrySlug = generateCountrySlug(job.country);
   const canonicalPath = generateJobUrlPath(job.title, job.country);
   
-  // Get query parameters from request headers if available
-  const headersList = await headers();
-  // Try to get query string from various header sources
-  const referer = headersList.get('referer') || '';
-  const xUrl = headersList.get('x-url') || '';
-  const xOriginalUrl = headersList.get('x-original-url') || '';
-  
-  // Extract query string from any available source
-  let searchParams = '';
-  const urlSources = [referer, xUrl, xOriginalUrl].filter(Boolean);
-  for (const urlSource of urlSources) {
-    try {
-      const url = new URL(urlSource);
-      if (url.search) {
-        searchParams = url.search;
-        break;
-      }
-    } catch {
-      // Invalid URL, continue to next source
-      continue;
-    }
+  // If the slug or country doesn't match, redirect to canonical URL
+  if (slug !== canonicalJobSlug || countrySlug !== canonicalCountrySlug) {
+    redirect(canonicalPath, 308); // 308 Permanent Redirect (SEO-safe)
   }
   
-  // Redirect to canonical URL with query params preserved if available
-  const redirectUrl = searchParams ? `${canonicalPath}${searchParams}` : canonicalPath;
-  redirect(redirectUrl, 308);
+  // Get user info from cookies to determine viewer role and permissions
+  const user = await getUserFromCookies();
+  const isRecruiterView = user?.role === 'recruiter';
+  
+  // Determine if user can edit this job
+  const isJobOwner = user?.role === 'recruiter' && job.recruiterId && user.userId === job.recruiterId;
+  const isAdmin = user?.role === 'admin';
+  const canEditJob = isJobOwner || isAdmin;
+
+  // Generate current URL for JSON-LD (server-side)
+  const headersList = await headers();
+  const host = headersList.get('host') || 'chickenloop.vercel.app';
+  const protocol = headersList.get('x-forwarded-proto') || 'https';
+  const currentUrl = `${protocol}://${host}${canonicalPath}`;
 
   // Generate JSON-LD for Google Jobs
   // Convert null country to undefined for buildJobJsonLd
@@ -291,14 +376,14 @@ export default async function JobDetailPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
-      {/* Google Jobs JSON-LD structured data */}
-      {jsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-      )}
-      <Navbar />
+        {/* Google Jobs JSON-LD structured data */}
+        {jsonLd && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+        )}
+        <Navbar />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Link
           href="/jobs"

@@ -6,6 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import Navbar from '@/app/components/Navbar';
 import { applicationsApi } from '@/lib/api';
 import { ApplicationJobSnapshot } from '@/lib/applicationTypes';
+import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
 
 interface Application {
@@ -372,7 +373,7 @@ export default function RecruiterApplicationDetailPage() {
                     <p className="text-sm text-gray-500 mb-1">Job Title</p>
                     <p className="text-lg font-medium text-gray-900">
                       <Link
-                        href={`/jobs/${application.job._id}`}
+                        href={getJobUrl(application.job)}
                         className="text-blue-600 hover:text-blue-800 hover:underline"
                       >
                         {application.job.title}

@@ -168,18 +168,23 @@ export async function GET(request: NextRequest) {
         }
 
         // Prepare jobs for email
-        const jobsForEmail = matches.map((match) => ({
-          _id: String(match.job._id),
-          title: match.job.title,
-          company: match.job.company,
-          city: match.job.city,
-          country: match.job.country || undefined,
-          description: match.job.description || '',
-          type: match.job.type,
-          featured: match.job.featured || false,
-          createdAt: match.job.createdAt,
-          url: `${process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://chickenloop.com')}/jobs/${match.job._id}`,
-        }));
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://chickenloop.com');
+        const { generateJobUrlPath } = await import('@/lib/jobSlug');
+        const jobsForEmail = matches.map((match) => {
+          const canonicalPath = generateJobUrlPath(match.job.title, match.job.country);
+          return {
+            _id: String(match.job._id),
+            title: match.job.title,
+            company: match.job.company,
+            city: match.job.city,
+            country: match.job.country || undefined,
+            description: match.job.description || '',
+            type: match.job.type,
+            featured: match.job.featured || false,
+            createdAt: match.job.createdAt,
+            url: `${baseUrl}${canonicalPath}`,
+          };
+        });
 
         // Send email with jobs
         const emailTemplate = getJobAlertEmail({

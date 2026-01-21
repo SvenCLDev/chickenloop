@@ -2,6 +2,8 @@
  * Email templates for ATS (Applicant Tracking System) events
  */
 
+import { generateJobUrlPath } from './jobSlug';
+
 export interface ApplicationEmailData {
   candidateName: string;
   candidateEmail: string;
@@ -269,7 +271,9 @@ export function getJobAlertEmail(data: JobAlertEmailData): { subject: string; ht
     : `New Jobs Matching Your Search - ${jobCount} ${jobCount === 1 ? 'job' : 'jobs'} found`;
 
   const jobsHtml = jobs.map((job) => {
-    const jobUrl = job.url || `https://chickenloop.com/jobs/${job._id}`;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://chickenloop.com');
+    const canonicalPath = generateJobUrlPath(job.title, job.country);
+    const jobUrl = job.url || `${baseUrl}${canonicalPath}`;
     const dateStr = new Date(job.createdAt).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -334,7 +338,9 @@ Hello ${userName},
 We found ${jobCount} new ${jobCount === 1 ? 'job' : 'jobs'} that match your saved search${searchName ? ` "${searchName}"` : ''}.
 
 ${jobs.length > 0 ? jobs.map((job) => {
-    const jobUrl = job.url || `https://chickenloop.com/jobs/${job._id}`;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://chickenloop.com');
+    const canonicalPath = generateJobUrlPath(job.title, job.country);
+    const jobUrl = job.url || `${baseUrl}${canonicalPath}`;
     const dateStr = new Date(job.createdAt).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',

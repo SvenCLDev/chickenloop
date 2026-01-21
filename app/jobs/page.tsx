@@ -7,6 +7,7 @@ import Navbar from '../components/Navbar';
 import { jobsApi, savedSearchesApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { parseJobSearchParams, buildJobSearchQuery, buildJobSearchUrl, type JobSearchParams } from '@/lib/jobSearchParams';
+import { getJobUrl } from '@/lib/jobSlug';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
@@ -930,7 +931,7 @@ function JobsPageContent() {
                       return (
                         <Link
                           key={job._id}
-                          href={`/jobs/${job._id}`}
+                          href={getJobUrl(job)}
                           className={`rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block ${job.featured
                             ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300'
                             : 'bg-white'

@@ -8,6 +8,7 @@ import Breadcrumbs from '@/app/components/Breadcrumbs';
 import { applicationsApi } from '@/lib/api';
 import { ApplicationJobSnapshot } from '@/lib/applicationTypes';
 import { ApplicationStatus, getAllowedTransitions, TERMINAL_STATES, validateTransition } from '@/lib/applicationStatusTransitions';
+import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
 
 interface AdminAction {
@@ -644,7 +645,7 @@ export default function AdminApplicationDetailPage() {
                     <p className="text-sm text-gray-500 mb-1">Job Title</p>
                     <p className="text-lg font-medium text-gray-900">
                       <Link
-                        href={`/jobs/${application.job._id}`}
+                        href={getJobUrl(application.job)}
                         className="text-blue-600 hover:text-blue-800 hover:underline"
                       >
                         {application.job.title}

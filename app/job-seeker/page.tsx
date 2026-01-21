@@ -8,6 +8,7 @@ import { jobsApi, cvApi, savedSearchesApi, applicationsApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { ApplicationStatus, TERMINAL_STATES, getAllowedTransitions } from '@/lib/applicationStatusTransitions';
 import { isApplicationStatus } from '@/lib/domainTypes';
+import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
 
 interface Job {
@@ -565,7 +566,7 @@ function JobSeekerDashboardClient() {
                             {application.job ? (
                               <div className="flex flex-col gap-1">
                                 <Link
-                                  href={`/jobs/${application.job._id}`}
+                                  href={getJobUrl(application.job)}
                                   className={isInactive 
                                     ? 'text-gray-400 hover:text-gray-500 hover:underline font-medium' 
                                     : 'text-blue-600 hover:text-blue-900 hover:underline font-medium'
@@ -934,7 +935,7 @@ function JobSeekerDashboardClient() {
                       <tr key={job._id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           <Link
-                            href={`/jobs/${job._id}`}
+                            href={getJobUrl(job)}
                             className="text-blue-600 hover:text-blue-900 hover:underline"
                           >
                             {job.title}
