@@ -23,18 +23,19 @@ export async function GET(request: NextRequest) {
       throw new Error('Database object not available');
     }
 
-    // Parse query parameters for filtering and pagination
+    // Parse query parameters for filtering, sorting, and pagination
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const company = searchParams.get('company');
-    const jobTitle = searchParams.get('jobTitle');
     const jobSeeker = searchParams.get('jobSeeker');
+    const sortBy = searchParams.get('sortBy') || 'applied';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
     const pageParam = searchParams.get('page');
     const page = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
     const limit = 20;
     const skip = (page - 1) * limit;
 
-    console.log('[API /admin/applications] Fetching applications with filters:', { status, company, jobTitle, jobSeeker, page, limit, skip });
+    console.log('[API /admin/applications] Fetching applications with filters:', { status, company, jobSeeker, sortBy, sortOrder, page, limit, skip });
     const queryStart = Date.now();
 
     // Build filter query for applications
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch ALL applications matching status filter (we'll filter and paginate after population)
-    // This is necessary because company/jobTitle/jobSeeker filters require populated data
+    // This is necessary because company/jobSeeker filters require populated data
     // For production, consider using MongoDB aggregation with $lookup for better performance
     let applications = await dbConnection.collection('applications')
       .find(applicationFilter)
@@ -115,17 +116,12 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Apply client-side filters (company, jobTitle, jobSeeker) after population
+    // Apply client-side filters (company, jobSeeker) after population
     // This is necessary because these fields come from populated data
     let filteredApplications = applicationsWithData;
     if (company) {
       filteredApplications = filteredApplications.filter((app: any) =>
         app.company.toLowerCase().includes(company.toLowerCase())
-      );
-    }
-    if (jobTitle) {
-      filteredApplications = filteredApplications.filter((app: any) =>
-        app.jobTitle.toLowerCase().includes(jobTitle.toLowerCase())
       );
     }
     if (jobSeeker) {
@@ -136,10 +132,49 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Apply sorting to filtered applications
+    // Map sortBy values to actual data fields
+    const sortFieldMap: Record<string, string> = {
+      'jobTitle': 'jobTitle',
+      'company': 'company',
+      'jobSeeker': 'candidateName',
+      'status': 'status',
+      'applied': 'appliedAt',
+      'updated': 'lastActivityAt',
+    };
+    
+    const sortField = sortFieldMap[sortBy] || 'appliedAt';
+    const sortDirection = sortOrder.toLowerCase() === 'asc' ? 1 : -1;
+    
+    filteredApplications.sort((a: any, b: any) => {
+      let aValue = a[sortField];
+      let bValue = b[sortField];
+      
+      // Handle null/undefined values
+      if (aValue == null) aValue = '';
+      if (bValue == null) bValue = '';
+      
+      // Handle date fields
+      if (sortField === 'appliedAt' || sortField === 'lastActivityAt') {
+        aValue = aValue ? new Date(aValue).getTime() : 0;
+        bValue = bValue ? new Date(bValue).getTime() : 0;
+      }
+      
+      // Handle string fields (case-insensitive)
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+      
+      if (aValue < bValue) return -1 * sortDirection;
+      if (aValue > bValue) return 1 * sortDirection;
+      return 0;
+    });
+
     // Get total count of filtered applications
     const totalCount = filteredApplications.length;
     
-    // Apply pagination to filtered results
+    // Apply pagination to filtered and sorted results
     const paginatedApplications = filteredApplications.slice(skip, skip + limit);
     
     // Calculate total pages

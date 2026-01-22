@@ -6,10 +6,14 @@ import mongoose from 'mongoose';
 
 // GET - Get all jobs (admin only)
 export async function GET(request: NextRequest) {
-  const startTime = Date.now();
-  console.log('[API /admin/jobs] Starting request');
   try {
     requireRole(request, ['admin']);
+    
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search')?.trim() || '';
+    const sortBy = searchParams.get('sortBy')?.trim() || 'created';
+    const sortOrder = searchParams.get('sortOrder')?.trim() || 'desc';
     
     // Add timeout for database connection
     const dbPromise = connectDB();
@@ -17,60 +21,127 @@ export async function GET(request: NextRequest) {
       setTimeout(() => reject(new Error('Database connection timeout after 10 seconds')), 10000)
     );
     await Promise.race([dbPromise, timeoutPromise]);
-    console.log(`[API /admin/jobs] Database connected in ${Date.now() - startTime}ms`);
 
     const dbConnection = mongoose.connection.db;
     if (!dbConnection) {
       throw new Error('Database object not available');
     }
 
-    console.log('[API /admin/jobs] Fetching jobs with simple query...');
-    const queryStart = Date.now();
+    // Build aggregation pipeline for efficient filtering and sorting
+    const pipeline: any[] = [];
 
-    // Use simple find query instead of complex aggregation - much faster
-    const jobs = await dbConnection.collection('jobs')
-      .find({})
-      .sort({ createdAt: -1 })
-      .limit(1000) // Reasonable limit
-      .maxTimeMS(10000) // 10 second timeout
-      .toArray();
+    // Stage 1: Project only required fields
+    pipeline.push({
+      $project: {
+        _id: 1,
+        title: 1,
+        city: 1,
+        country: 1,
+        featured: 1,
+        recruiter: 1,
+        createdAt: 1,
+      }
+    });
+
+    // Stage 2: Lookup recruiter info
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'recruiter',
+        foreignField: '_id',
+        as: 'recruiterInfo',
+        pipeline: [
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              email: 1,
+            }
+          }
+        ]
+      }
+    });
+
+    // Stage 3: Unwind recruiter info (should be single element)
+    pipeline.push({
+      $unwind: {
+        path: '$recruiterInfo',
+        preserveNullAndEmptyArrays: true,
+      }
+    });
+
+    // Stage 4: Apply search filter (if provided)
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { title: { $regex: search, $options: 'i' } },
+            { city: { $regex: search, $options: 'i' } },
+            { country: { $regex: search, $options: 'i' } },
+            { 'recruiterInfo.name': { $regex: search, $options: 'i' } },
+            { 'recruiterInfo.email': { $regex: search, $options: 'i' } },
+          ]
+        }
+      });
+    }
+
+    // Stage 5: Add computed fields for sorting
+    pipeline.push({
+      $addFields: {
+        recruiterName: { $ifNull: ['$recruiterInfo.name', ''] },
+        location: { $ifNull: ['$city', ''] }, // Use city as primary location field
+      }
+    });
+
+    // Stage 6: Sort based on sortBy parameter
+    const sortDirection = sortOrder.toLowerCase() === 'asc' ? 1 : -1;
+    let sortField: string;
     
-    // Manually populate recruiter info
-    const recruiterIds = [...new Set(jobs.map((j: any) => j.recruiter).filter(Boolean))];
-    const recruiters = recruiterIds.length > 0
-      ? await dbConnection.collection('users')
-          .find({ _id: { $in: recruiterIds } }, { projection: { name: 1, email: 1 } })
-          .maxTimeMS(5000)
-          .toArray()
-      : [];
-    const recruiterMap = new Map(recruiters.map((r: any) => [r._id.toString(), { name: r.name, email: r.email }]));
+    // Map UI sort keys to database fields
+    switch (sortBy) {
+      case 'title':
+        sortField = 'title';
+        break;
+      case 'location':
+        sortField = 'location'; // This is the computed field from city
+        break;
+      case 'recruiter':
+        sortField = 'recruiterName'; // This is the computed field from recruiterInfo.name
+        break;
+      case 'featured':
+        sortField = 'featured';
+        break;
+      case 'created':
+        sortField = 'createdAt';
+        break;
+      default:
+        sortField = 'createdAt';
+    }
+    
+    pipeline.push({
+      $sort: { [sortField]: sortDirection }
+    });
 
-    const queryTime = Date.now() - queryStart;
-    console.log(`[API /admin/jobs] Fetched ${jobs.length} jobs in ${queryTime}ms`);
+    // Stage 7: Limit results
+    pipeline.push({
+      $limit: 1000
+    });
+
+    // Execute aggregation
+    const jobs = await dbConnection.collection('jobs')
+      .aggregate(pipeline)
+      .maxTimeMS(10000)
+      .toArray();
 
     const jobsWithData = jobs.map((job: any) => ({
       id: job._id.toString(),
       title: job.title,
-      description: job.description,
-      company: job.company,
       city: job.city,
       country: job.country,
-      salary: job.salary,
-      type: job.type,
-      languages: job.languages,
-      qualifications: job.qualifications,
-      sports: job.sports,
-      occupationalAreas: job.occupationalAreas,
-      pictures: job.pictures,
-      published: job.published !== false, // Default to true if not explicitly false
       featured: job.featured || false,
-      recruiter: job.recruiter ? (recruiterMap.get(job.recruiter.toString()) || { name: 'Unknown', email: 'unknown@example.com' }) : null,
+      recruiter: job.recruiterInfo || { name: 'Unknown', email: 'unknown@example.com' },
       createdAt: job.createdAt,
-      updatedAt: job.updatedAt,
     }));
-
-    const totalTime = Date.now() - startTime;
-    console.log(`[API /admin/jobs] Total time: ${totalTime}ms`);
 
     return NextResponse.json({ jobs: jobsWithData }, { status: 200 });
   } catch (error: unknown) {

@@ -9,6 +9,12 @@ export async function GET(request: NextRequest) {
   try {
     requireRole(request, ['admin']);
     
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search')?.trim() || '';
+    const sortBy = searchParams.get('sortBy')?.trim() || 'created';
+    const sortOrder = searchParams.get('sortOrder')?.trim() || 'desc';
+    
     // Add timeout for database connection
     const dbPromise = connectDB();
     const timeoutPromise = new Promise((_, reject) =>
@@ -21,30 +27,111 @@ export async function GET(request: NextRequest) {
       throw new Error('Database object not available');
     }
 
-    // Fetch CVs with job seeker info
+    // Build aggregation pipeline for efficient filtering and sorting
+    const pipeline: any[] = [];
+
+    // Stage 1: Match CVs (with projection for minimal fields)
+    pipeline.push({
+      $project: {
+        _id: 1,
+        jobSeeker: 1,
+        published: 1,
+        createdAt: 1,
+      }
+    });
+
+    // Stage 2: Lookup job seeker info
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'jobSeeker',
+        foreignField: '_id',
+        as: 'jobSeekerInfo',
+        pipeline: [
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              email: 1,
+            }
+          }
+        ]
+      }
+    });
+
+    // Stage 3: Unwind job seeker info (should be single element)
+    pipeline.push({
+      $unwind: {
+        path: '$jobSeekerInfo',
+        preserveNullAndEmptyArrays: true,
+      }
+    });
+
+    // Stage 4: Apply search filter (if provided)
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'jobSeekerInfo.name': { $regex: search, $options: 'i' } },
+            { 'jobSeekerInfo.email': { $regex: search, $options: 'i' } },
+          ]
+        }
+      });
+    }
+
+    // Stage 5: Add computed fields for sorting
+    pipeline.push({
+      $addFields: {
+        jobSeekerName: { $ifNull: ['$jobSeekerInfo.name', ''] },
+        jobSeekerEmail: { $ifNull: ['$jobSeekerInfo.email', ''] },
+      }
+    });
+
+    // Stage 6: Sort based on sortBy parameter
+    const sortDirection = sortOrder.toLowerCase() === 'asc' ? 1 : -1;
+    let sortField: string;
+    
+    // Map UI sort keys to database fields
+    switch (sortBy) {
+      case 'jobSeeker':
+        sortField = 'jobSeekerName';
+        break;
+      case 'email':
+        sortField = 'jobSeekerEmail';
+        break;
+      case 'published':
+        sortField = 'published';
+        break;
+      case 'created':
+        sortField = 'createdAt';
+        break;
+      default:
+        sortField = 'createdAt';
+    }
+    
+    pipeline.push({
+      $sort: { [sortField]: sortDirection }
+    });
+
+    // Stage 7: Limit results
+    pipeline.push({
+      $limit: 1000
+    });
+
+    // Execute aggregation
     const cvs = await dbConnection.collection('cvs')
-      .find({})
-      .sort({ createdAt: -1 })
-      .limit(1000) // Reasonable limit
+      .aggregate(pipeline)
       .maxTimeMS(10000)
       .toArray();
 
-    // Get job seeker IDs
-    const jobSeekerIds = [...new Set(cvs.map((cv: any) => cv.jobSeeker).filter(Boolean))];
-    const jobSeekers = jobSeekerIds.length > 0
-      ? await dbConnection.collection('users')
-          .find({ _id: { $in: jobSeekerIds } }, { projection: { name: 1, email: 1 } })
-          .maxTimeMS(5000)
-          .toArray()
-      : [];
-    const jobSeekerMap = new Map(jobSeekers.map((js: any) => [js._id.toString(), { name: js.name, email: js.email }]));
-
+    // Map results to expected format
     const cvsWithData = cvs.map((cv: any) => ({
       id: cv._id.toString(),
-      jobSeeker: cv.jobSeeker ? (jobSeekerMap.get(cv.jobSeeker.toString()) || { name: 'Unknown', email: 'unknown@example.com' }) : null,
+      jobSeeker: cv.jobSeekerInfo
+        ? { name: cv.jobSeekerInfo.name || 'Unknown', email: cv.jobSeekerInfo.email || 'unknown@example.com' }
+        : null,
       published: cv.published || false,
       createdAt: cv.createdAt,
-      updatedAt: cv.updatedAt,
     }));
 
     return NextResponse.json({ cvs: cvsWithData }, { status: 200 });

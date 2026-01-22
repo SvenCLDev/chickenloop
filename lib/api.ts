@@ -233,7 +233,14 @@ export const adminApi = {
     apiRequest(`/admin/users/${id}`, {
       method: 'DELETE',
     }),
-  getJobs: () => apiRequest('/admin/jobs'),
+  getJobs: (params?: { search?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.set('search', params.search);
+    if (params?.sortBy) queryParams.set('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+    const queryString = queryParams.toString();
+    return apiRequest(`/admin/jobs${queryString ? `?${queryString}` : ''}`);
+  },
   getJob: (id: string) => apiRequest(`/admin/jobs/${id}`),
   updateJob: (id: string, data: any) =>
     apiRequest(`/admin/jobs/${id}`, {
@@ -244,7 +251,14 @@ export const adminApi = {
     apiRequest(`/admin/jobs/${id}`, {
       method: 'DELETE',
     }),
-  getCompanies: () => apiRequest('/admin/companies'),
+  getCompanies: (params?: { search?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.set('search', params.search);
+    if (params?.sortBy) queryParams.set('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+    const queryString = queryParams.toString();
+    return apiRequest(`/admin/companies${queryString ? `?${queryString}` : ''}`);
+  },
   getCompany: (id: string) => apiRequest(`/admin/companies/${id}`),
   updateCompany: (id: string, data: any) =>
     apiRequest(`/admin/companies/${id}`, {
@@ -287,18 +301,35 @@ export const adminApi = {
     return apiRequest(endpoint);
   },
   getStatistics: () => apiRequest('/admin/statistics'),
-  getCVs: () => apiRequest('/admin/cvs'),
+  getCVs: (params?: { search?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.set('search', params.search);
+    if (params?.sortBy) queryParams.set('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+    const queryString = queryParams.toString();
+    return apiRequest(`/admin/cvs${queryString ? `?${queryString}` : ''}`);
+  },
+  getCV: (id: string) => apiRequest(`/admin/cvs/${id}`),
+  updateCV: (id: string, data: any) =>
+    apiRequest(`/admin/cvs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   getApplications: (filters?: {
     status?: string;
     company?: string;
     jobTitle?: string;
     jobSeeker?: string;
     page?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
   }) => {
     const queryParams = new URLSearchParams();
     if (filters) {
       if (filters.status) queryParams.append('status', filters.status);
       if (filters.company) queryParams.append('company', filters.company);
+      if (filters.sortBy) queryParams.append('sortBy', filters.sortBy);
+      if (filters.sortOrder) queryParams.append('sortOrder', filters.sortOrder);
       if (filters.jobTitle) queryParams.append('jobTitle', filters.jobTitle);
       if (filters.jobSeeker) queryParams.append('jobSeeker', filters.jobSeeker);
       if (filters.page) queryParams.append('page', filters.page.toString());

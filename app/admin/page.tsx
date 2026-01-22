@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import { adminApi } from '@/lib/api';
@@ -16,7 +16,62 @@ interface Statistics {
   applications: number;
 }
 
-type CategoryType = 'job-seekers' | 'recruiters' | 'jobs' | 'cvs' | 'companies' | null;
+type CategoryType = 'job-seekers' | 'recruiters' | 'jobs' | 'cvs' | 'companies' | 'applications' | null;
+
+// Helper functions for applications status
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'applied':
+      return 'bg-blue-100 text-blue-800';
+    case 'viewed':
+      return 'bg-purple-100 text-purple-800';
+    case 'contacted':
+      return 'bg-cyan-100 text-cyan-800';
+    case 'interviewing':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'offered':
+      return 'bg-orange-100 text-orange-800';
+    case 'hired':
+      return 'bg-green-100 text-green-800';
+    case 'accepted':
+      return 'bg-green-100 text-green-800';
+    case 'rejected':
+      return 'bg-red-100 text-red-800';
+    case 'withdrawn':
+      return 'bg-gray-100 text-gray-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+}
+
+function getStatusLabel(status: string) {
+  switch (status) {
+    case 'applied':
+      return 'Applied';
+    case 'viewed':
+      return 'Viewed';
+    case 'contacted':
+      return 'Contacted';
+    case 'interviewing':
+      return 'Interviewing';
+    case 'offered':
+      return 'Offered';
+    case 'hired':
+      return 'Hired';
+    case 'accepted':
+      return 'Accepted';
+    case 'rejected':
+      return 'Rejected';
+    case 'withdrawn':
+      return 'Withdrawn';
+    default:
+      return status;
+  }
+}
+
+function shortenId(id: string) {
+  return id.length > 8 ? `${id.substring(0, 8)}...` : id;
+}
 
 // Helper function to format time ago
 function getTimeAgo(date: string | undefined | null): string {
@@ -101,7 +156,7 @@ interface Company {
   createdAt: string;
 }
 
-export default function AdminDashboard() {
+function AdminDashboard() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [statistics, setStatistics] = useState<Statistics | null>(null);
@@ -120,6 +175,16 @@ export default function AdminDashboard() {
   const [emailFilter, setEmailFilter] = useState<string>('');
   const [debouncedEmailFilter, setDebouncedEmailFilter] = useState<string>('');
   const entriesPerPage = 20;
+  
+  // Applications-specific state
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [companyFilter, setCompanyFilter] = useState<string>('');
+  const [jobSeekerFilter, setJobSeekerFilter] = useState<string>('');
+  const [applicationsTotalCount, setApplicationsTotalCount] = useState(0);
+  const [applicationsTotalPages, setApplicationsTotalPages] = useState(1);
+  
+  // Track if section query param has been processed
+  const sectionProcessedRef = useRef(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -129,12 +194,26 @@ export default function AdminDashboard() {
     }
   }, [user, authLoading, router]);
 
+  const searchParams = useSearchParams();
+
   useEffect(() => {
     if (user && user.role === 'admin') {
       loadStatistics();
       setLoading(false);
     }
   }, [user]);
+
+  // Handle section query parameter separately after component mounts
+  useEffect(() => {
+    if (user && user.role === 'admin' && !loading && statistics && !sectionProcessedRef.current) {
+      const section = searchParams.get('section');
+      if (section && ['job-seekers', 'recruiters', 'jobs', 'cvs', 'companies', 'applications'].includes(section)) {
+        sectionProcessedRef.current = true;
+        setSelectedCategory(section as CategoryType);
+        loadCategoryData(section as CategoryType);
+      }
+    }
+  }, [user, searchParams, loading, statistics]);
 
   // Debounce search query
   useEffect(() => {
@@ -165,6 +244,34 @@ export default function AdminDashboard() {
       loadCategoryData('recruiters');
     }
   }, [sortColumn, sortDirection, debouncedSearchQuery, debouncedEmailFilter]);
+
+  // Refetch CVs data when sort or search changes
+  useEffect(() => {
+    if (selectedCategory === 'cvs') {
+      loadCategoryData('cvs');
+    }
+  }, [sortColumn, sortDirection, debouncedSearchQuery]);
+
+  // Refetch companies data when search or sort changes
+  useEffect(() => {
+    if (selectedCategory === 'companies') {
+      loadCategoryData('companies');
+    }
+  }, [debouncedSearchQuery, sortColumn, sortDirection]);
+
+  // Refetch jobs data when search or sort changes
+  useEffect(() => {
+    if (selectedCategory === 'jobs') {
+      loadCategoryData('jobs');
+    }
+  }, [debouncedSearchQuery, sortColumn, sortDirection]);
+
+  // Refetch applications data when category, filters, sort, or page changes
+  useEffect(() => {
+    if (selectedCategory === 'applications') {
+      loadCategoryData('applications');
+    }
+  }, [selectedCategory, statusFilter, companyFilter, jobSeekerFilter, sortColumn, sortDirection, currentPage]);
 
   const loadStatistics = async () => {
     try {
@@ -225,16 +332,80 @@ export default function AdminDashboard() {
           data = recruitersData.users.filter((u: User) => u.role === 'recruiter');
           break;
         case 'jobs':
-          const jobsData = await adminApi.getJobs();
+          // Map UI column names to API sortBy values
+          const jobSortByMap: Record<string, string> = {
+            'title': 'title',
+            'location': 'location',
+            'recruiter': 'recruiter',
+            'featured': 'featured',
+            'created': 'created',
+          };
+          const jobApiSortBy = jobSortByMap[sortColumn] || 'created';
+          
+          const jobsData = await adminApi.getJobs({
+            search: debouncedSearchQuery.trim() || undefined,
+            sortBy: jobApiSortBy,
+            sortOrder: sortDirection,
+          });
           data = jobsData.jobs || [];
           break;
         case 'cvs':
-          const cvsData = await adminApi.getCVs();
+          // Map UI column names to API sortBy values
+          const cvSortByMap: Record<string, string> = {
+            'jobSeeker': 'jobSeeker',
+            'email': 'email',
+            'published': 'published',
+            'created': 'created',
+          };
+          const cvApiSortBy = cvSortByMap[sortColumn] || 'created';
+          
+          const cvsData = await adminApi.getCVs({
+            search: debouncedSearchQuery.trim() || undefined,
+            sortBy: cvApiSortBy,
+            sortOrder: sortDirection,
+          });
           data = cvsData.cvs || [];
           break;
         case 'companies':
-          const companiesData = await adminApi.getCompanies();
+          // Map UI column names to API sortBy values
+          const companySortByMap: Record<string, string> = {
+            'name': 'name',
+            'featured': 'featured',
+            'created': 'created',
+          };
+          const companyApiSortBy = companySortByMap[sortColumn] || 'created';
+          
+          const companiesData = await adminApi.getCompanies({
+            search: debouncedSearchQuery.trim() || undefined,
+            sortBy: companyApiSortBy,
+            sortOrder: sortDirection,
+          });
           data = companiesData.companies || [];
+          break;
+        case 'applications':
+          const applicationsFilters: any = {};
+          if (statusFilter) applicationsFilters.status = statusFilter;
+          if (companyFilter) applicationsFilters.company = companyFilter;
+          if (jobSeekerFilter) applicationsFilters.jobSeeker = jobSeekerFilter;
+          applicationsFilters.page = currentPage;
+          
+          // Map UI sort keys to API sortBy values
+          const applicationsSortByMap: Record<string, string> = {
+            'jobTitle': 'jobTitle',
+            'company': 'company',
+            'jobSeeker': 'jobSeeker',
+            'status': 'status',
+            'applied': 'applied',
+            'updated': 'updated',
+          };
+          const applicationsApiSortBy = applicationsSortByMap[sortColumn] || 'applied';
+          applicationsFilters.sortBy = applicationsApiSortBy;
+          applicationsFilters.sortOrder = sortDirection;
+          
+          const applicationsData = await adminApi.getApplications(applicationsFilters);
+          data = applicationsData.applications || [];
+          setApplicationsTotalCount(applicationsData.totalCount || 0);
+          setApplicationsTotalPages(applicationsData.totalPages || 1);
           break;
         default:
           data = [];
@@ -256,21 +427,55 @@ export default function AdminDashboard() {
       setTableData([]);
       setSearchQuery('');
       setEmailFilter('');
+      // Reset applications filters
+      setStatusFilter('');
+      setCompanyFilter('');
+      setJobSeekerFilter('');
     } else {
       // Open new category
       setSelectedCategory(category);
       // Reset search query and email filter when switching categories
       setSearchQuery('');
       setEmailFilter('');
+      // Reset applications filters when switching away from applications
+      if (category !== 'applications') {
+        setStatusFilter('');
+        setCompanyFilter('');
+        setJobSeekerFilter('');
+      }
+      // Set default sort based on category
+      if (category === 'cvs') {
+        setSortColumn('created');
+        setSortDirection('desc');
+      } else if (category === 'job-seekers' || category === 'recruiters') {
+        setSortColumn('lastActive');
+        setSortDirection('desc');
+      } else if (category === 'companies' || category === 'jobs') {
+        setSortColumn('created');
+        setSortDirection('desc');
+      } else if (category === 'applications') {
+        setSortColumn('applied');
+        setSortDirection('desc');
+      }
+      setCurrentPage(1); // Reset to page 1 when switching categories
       loadCategoryData(category);
     }
   };
 
   // Calculate pagination
-  const totalPages = Math.ceil(tableData.length / entriesPerPage);
-  const indexOfLastEntry = currentPage * entriesPerPage;
-  const indexOfFirstEntry = indexOfLastEntry - entriesPerPage;
-  const currentEntries = tableData.slice(indexOfFirstEntry, indexOfLastEntry);
+  // For applications, use server-side pagination; for others, use client-side
+  const totalPages = selectedCategory === 'applications' 
+    ? applicationsTotalPages 
+    : Math.ceil(tableData.length / entriesPerPage);
+  const indexOfLastEntry = selectedCategory === 'applications'
+    ? Math.min(currentPage * 20, applicationsTotalCount)
+    : currentPage * entriesPerPage;
+  const indexOfFirstEntry = selectedCategory === 'applications'
+    ? applicationsTotalCount > 0 ? ((currentPage - 1) * 20 + 1) : 0
+    : indexOfLastEntry - entriesPerPage;
+  const currentEntries = selectedCategory === 'applications'
+    ? tableData // Applications data is already paginated from server
+    : tableData.slice(indexOfFirstEntry, indexOfLastEntry);
 
   const handleToggleFeatured = async (companyId: string, currentFeatured: boolean) => {
     if (togglingFeatured === companyId) {
@@ -422,6 +627,11 @@ export default function AdminDashboard() {
     router.push(`/admin/users/${userId}/edit`);
   };
 
+  const handleEditCV = (cvId: string) => {
+    // Navigate to admin CV edit page
+    router.push(`/admin/cvs/${cvId}/edit`);
+  };
+
   const handleSort = (column: string) => {
     if (sortColumn === column) {
       // Toggle direction if clicking the same column
@@ -569,9 +779,11 @@ export default function AdminDashboard() {
             </button>
 
             {/* Applications Card */}
-            <Link
-              href="/dashboard/admin/applications"
-              className="bg-white rounded-lg shadow-md p-6 border-l-4 border-teal-500 text-left transition-all hover:shadow-lg cursor-pointer"
+            <button
+              onClick={() => handleCardClick('applications')}
+              className={`bg-white rounded-lg shadow-md p-6 border-l-4 border-teal-500 text-left transition-all hover:shadow-lg cursor-pointer ${
+                selectedCategory === 'applications' ? 'ring-2 ring-teal-500' : ''
+              }`}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -584,7 +796,7 @@ export default function AdminDashboard() {
                   </svg>
                 </div>
               </div>
-            </Link>
+            </button>
           </div>
         )}
 
@@ -596,10 +808,18 @@ export default function AdminDashboard() {
                 {selectedCategory === 'job-seekers' ? 'Job Seekers' : 
                  selectedCategory === 'recruiters' ? 'Recruiters' :
                  selectedCategory === 'jobs' ? 'Jobs' : 
-                 selectedCategory === 'cvs' ? 'CVs' : 'Companies'}
+                 selectedCategory === 'cvs' ? 'CVs' : 
+                 selectedCategory === 'companies' ? 'Companies' :
+                 selectedCategory === 'applications' ? 'Applications' : ''}
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                Showing {indexOfFirstEntry + 1} to {Math.min(indexOfLastEntry, tableData.length)} of {tableData.length} entries
+                {selectedCategory === 'applications' ? (
+                  applicationsTotalCount > 0 
+                    ? `Showing ${indexOfFirstEntry} to ${indexOfLastEntry} of ${applicationsTotalCount} ${applicationsTotalCount === 1 ? 'entry' : 'entries'}`
+                    : 'No entries'
+                ) : (
+                  `Showing ${indexOfFirstEntry + 1} to ${Math.min(indexOfLastEntry, tableData.length)} of ${tableData.length} entries`
+                )}
               </p>
             </div>
 
@@ -657,6 +877,135 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            {/* Search input for CVs */}
+            {selectedCategory === 'cvs' && (
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search CVs by name or email…"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Search input for Companies */}
+            {selectedCategory === 'companies' && (
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search companies by name, location, website, or owner…"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Search input for Jobs */}
+            {selectedCategory === 'jobs' && (
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search jobs by title, location, or recruiter…"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Filters for Applications */}
+            {selectedCategory === 'applications' && (
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-gray-900">Filters</h3>
+                  {(statusFilter || companyFilter || jobSeekerFilter) && (
+                    <button
+                      onClick={() => {
+                        setStatusFilter('');
+                        setCompanyFilter('');
+                        setJobSeekerFilter('');
+                        setCurrentPage(1);
+                      }}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Status
+                    </label>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => {
+                        setStatusFilter(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    >
+                      <option value="">All Statuses</option>
+                      <option value="applied">Applied</option>
+                      <option value="viewed">Viewed</option>
+                      <option value="contacted">Contacted</option>
+                      <option value="interviewing">Interviewing</option>
+                      <option value="offered">Offered</option>
+                      <option value="hired">Hired</option>
+                      <option value="accepted">Accepted</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="withdrawn">Withdrawn</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Company
+                    </label>
+                    <input
+                      type="text"
+                      value={companyFilter}
+                      onChange={(e) => setCompanyFilter(e.target.value)}
+                      onBlur={() => setCurrentPage(1)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          setCurrentPage(1);
+                        }
+                      }}
+                      placeholder="Search company..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Job Seeker
+                    </label>
+                    <input
+                      type="text"
+                      value={jobSeekerFilter}
+                      onChange={(e) => setJobSeekerFilter(e.target.value)}
+                      onBlur={() => setCurrentPage(1)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          setCurrentPage(1);
+                        }
+                      }}
+                      placeholder="Name or email..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {tableLoading ? (
               <div className="p-8 text-center">
                 <p className="text-gray-600">Loading...</p>
@@ -668,7 +1017,7 @@ export default function AdminDashboard() {
             ) : (
               <>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200 table-fixed">
                     <thead className="bg-gray-50">
                       <tr>
                         {selectedCategory === 'job-seekers' ? (
@@ -791,30 +1140,225 @@ export default function AdminDashboard() {
                           </>
                         ) : selectedCategory === 'jobs' ? (
                           <>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recruiter</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Featured</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none w-0"
+                              style={{ maxWidth: '400px', width: '30%' }}
+                              onClick={() => handleSort('title')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Title
+                                {getSortIndicator('title') && (
+                                  <span className="text-gray-400">{getSortIndicator('title')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('location')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Location
+                                {getSortIndicator('location') && (
+                                  <span className="text-gray-400">{getSortIndicator('location')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('recruiter')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Recruiter
+                                {getSortIndicator('recruiter') && (
+                                  <span className="text-gray-400">{getSortIndicator('recruiter')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('featured')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Featured
+                                {getSortIndicator('featured') && (
+                                  <span className="text-gray-400">{getSortIndicator('featured')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('created')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Created
+                                {getSortIndicator('created') && (
+                                  <span className="text-gray-400">{getSortIndicator('created')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                              style={{ width: '160px', minWidth: '160px' }}
+                            >
+                              Actions
+                            </th>
                           </>
                         ) : selectedCategory === 'cvs' ? (
                           <>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Seeker</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('jobSeeker')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Job Seeker
+                                {getSortIndicator('jobSeeker') && (
+                                  <span className="text-gray-400">{getSortIndicator('jobSeeker')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('email')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Email
+                                {getSortIndicator('email') && (
+                                  <span className="text-gray-400">{getSortIndicator('email')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('published')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Published
+                                {getSortIndicator('published') && (
+                                  <span className="text-gray-400">{getSortIndicator('published')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('created')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Created
+                                {getSortIndicator('created') && (
+                                  <span className="text-gray-400">{getSortIndicator('created')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          </>
+                        ) : selectedCategory === 'applications' ? (
+                          <>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('jobTitle')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Job Title
+                                {getSortIndicator('jobTitle') && (
+                                  <span className="text-gray-400">{getSortIndicator('jobTitle')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('company')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Company
+                                {getSortIndicator('company') && (
+                                  <span className="text-gray-400">{getSortIndicator('company')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('jobSeeker')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Job Seeker
+                                {getSortIndicator('jobSeeker') && (
+                                  <span className="text-gray-400">{getSortIndicator('jobSeeker')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('status')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Status
+                                {getSortIndicator('status') && (
+                                  <span className="text-gray-400">{getSortIndicator('status')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('applied')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Date Applied
+                                {getSortIndicator('applied') && (
+                                  <span className="text-gray-400">{getSortIndicator('applied')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('updated')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Last Updated
+                                {getSortIndicator('updated') && (
+                                  <span className="text-gray-400">{getSortIndicator('updated')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
                           </>
                         ) : (
                           <>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('name')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Name
+                                {getSortIndicator('name') && (
+                                  <span className="text-gray-400">{getSortIndicator('name')}</span>
+                                )}
+                              </div>
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Website</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Featured</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('featured')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Featured
+                                {getSortIndicator('featured') && (
+                                  <span className="text-gray-400">{getSortIndicator('featured')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('created')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Created
+                                {getSortIndicator('created') && (
+                                  <span className="text-gray-400">{getSortIndicator('created')}</span>
+                                )}
+                              </div>
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                           </>
                         )}
@@ -883,10 +1427,10 @@ export default function AdminDashboard() {
                             </>
                           ) : selectedCategory === 'jobs' ? (
                             <>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.title}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.company}</td>
+                              <td className="px-6 py-4 text-sm font-medium text-gray-900" style={{ maxWidth: '400px' }}>
+                                <div className="truncate" title={entry.title}>{entry.title}</div>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.city}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.type}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.recruiter?.name || 'Unknown'}
                               </td>
@@ -907,7 +1451,7 @@ export default function AdminDashboard() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {new Date(entry.createdAt).toLocaleDateString()}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" style={{ width: '160px', minWidth: '160px' }}>
                                 <div className="flex space-x-2">
                                   <button
                                     onClick={() => handleEditJob(entry.id)}
@@ -949,26 +1493,23 @@ export default function AdminDashboard() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {new Date(entry.createdAt).toLocaleDateString()}
                               </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button
+                                  onClick={() => handleEditCV(entry.id)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
+                                  title="Edit CV"
+                                >
+                                  Edit
+                                </button>
+                              </td>
                             </>
-                          ) : (
+                          ) : selectedCategory === 'companies' ? (
                             <>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.name}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.address 
                                   ? `${entry.address.city || ''}${entry.address.city && entry.address.state ? ', ' : ''}${entry.address.state || ''}${entry.address.country ? `, ${entry.address.country}` : ''}`.trim() || 'N/A'
                                   : 'N/A'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {entry.website ? (
-                                  <a href={entry.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                    {entry.website}
-                                  </a>
-                                ) : (
-                                  'N/A'
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {entry.owner?.name ? `${entry.owner.name} (${entry.owner.email})` : 'Unknown'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 <button
@@ -987,7 +1528,7 @@ export default function AdminDashboard() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {new Date(entry.createdAt).toLocaleDateString()}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div className="flex items-center space-x-2">
                                   <button
                                     onClick={() => handleEditCompany(entry.id)}
@@ -1011,7 +1552,49 @@ export default function AdminDashboard() {
                                 </div>
                               </td>
                             </>
-                          )}
+                          ) : selectedCategory === 'applications' ? (
+                            <>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {entry.jobTitle || 'N/A'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.company || 'N/A'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-gray-900">{entry.candidateName || 'Unknown'}</span>
+                                  <span className="text-xs text-gray-400">{entry.candidateEmail || ''}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(entry.status || '')}`}>
+                                  {getStatusLabel(entry.status || '')}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.appliedAt ? new Date(entry.appliedAt).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                }) : 'N/A'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.lastActivityAt ? new Date(entry.lastActivityAt).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                }) : 'N/A'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <Link
+                                  href={`/dashboard/admin/applications/${entry.id}`}
+                                  className="text-blue-600 hover:text-blue-900 hover:underline"
+                                >
+                                  View
+                                </Link>
+                              </td>
+                            </>
+                          ) : null}
                         </tr>
                       ))}
                     </tbody>
@@ -1020,34 +1603,54 @@ export default function AdminDashboard() {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                    <div className="text-sm text-gray-600">
-                      Page {currentPage} of {totalPages}
+                  <div className="px-6 py-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-600">
+                        Page {currentPage} of {totalPages}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                            currentPage === 1
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                          }`}
+                        >
+                          Previous
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                          className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                            currentPage === totalPages
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                          }`}
+                        >
+                          Next
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                        disabled={currentPage === 1}
-                        className={`px-4 py-2 rounded-md font-medium ${
-                          currentPage === 1
-                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                        disabled={currentPage === totalPages}
-                        className={`px-4 py-2 rounded-md font-medium ${
-                          currentPage === totalPages
-                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
-                      >
-                        Next
-                      </button>
-                    </div>
+                    {/* Page numbers - show for applications or when totalPages <= 10 */}
+                    {(selectedCategory === 'applications' || totalPages <= 10) && totalPages > 1 && (
+                      <div className="flex justify-center gap-1 mt-4">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                              pageNum === currentPage
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -1059,3 +1662,22 @@ export default function AdminDashboard() {
   );
 }
 
+function AdminDashboardWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+        <Navbar />
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-lg text-gray-600">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <AdminDashboard />
+    </Suspense>
+  );
+}
+
+export default AdminDashboardWrapper;
