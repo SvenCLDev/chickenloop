@@ -64,6 +64,9 @@ interface User {
   lastOnline?: string;
   jobs?: any[];
   cv?: any;
+  companyName?: string | null;
+  lastActive?: string | null;
+  jobCount?: number;
 }
 
 interface Job {
@@ -156,6 +159,13 @@ export default function AdminDashboard() {
     }
   }, [sortColumn, sortDirection, debouncedSearchQuery, debouncedEmailFilter]);
 
+  // Refetch recruiters data when sort, search, or email filter changes
+  useEffect(() => {
+    if (selectedCategory === 'recruiters') {
+      loadCategoryData('recruiters');
+    }
+  }, [sortColumn, sortDirection, debouncedSearchQuery, debouncedEmailFilter]);
+
   const loadStatistics = async () => {
     try {
       const data = await adminApi.getStatistics();
@@ -196,7 +206,22 @@ export default function AdminDashboard() {
           data = usersData.users.filter((u: User) => u.role === 'job-seeker');
           break;
         case 'recruiters':
-          const recruitersData = await adminApi.getUsers();
+          // Map UI column names to API sortBy values
+          const recruiterSortByMap: Record<string, string> = {
+            'name': 'name',
+            'email': 'email',
+            'companyName': 'companyName',
+            'lastActive': 'lastActive',
+            'jobCount': 'jobCount',
+          };
+          const recruiterApiSortBy = recruiterSortByMap[sortColumn] || 'lastActive';
+          
+          const recruitersData = await adminApi.getUsers({
+            search: debouncedSearchQuery.trim() || undefined,
+            email: debouncedEmailFilter.trim() || undefined,
+            sortBy: recruiterApiSortBy,
+            sortOrder: sortDirection,
+          });
           data = recruitersData.users.filter((u: User) => u.role === 'recruiter');
           break;
         case 'jobs':
@@ -605,6 +630,33 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            {/* Search and email filter inputs for recruiters */}
+            {selectedCategory === 'recruiters' && (
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search recruiters…"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      id="recruiter-email-filter"
+                      type="text"
+                      value={emailFilter}
+                      onChange={(e) => setEmailFilter(e.target.value)}
+                      placeholder="Filter by email"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {tableLoading ? (
               <div className="p-8 text-center">
                 <p className="text-gray-600">Loading...</p>
@@ -680,10 +732,62 @@ export default function AdminDashboard() {
                           </>
                         ) : selectedCategory === 'recruiters' ? (
                           <>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('name')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Name
+                                {getSortIndicator('name') && (
+                                  <span className="text-gray-400">{getSortIndicator('name')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('email')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Email
+                                {getSortIndicator('email') && (
+                                  <span className="text-gray-400">{getSortIndicator('email')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('companyName')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Company
+                                {getSortIndicator('companyName') && (
+                                  <span className="text-gray-400">{getSortIndicator('companyName')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('lastActive')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Last active
+                                {getSortIndicator('lastActive') && (
+                                  <span className="text-gray-400">{getSortIndicator('lastActive')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('jobCount')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Number of jobs
+                                {getSortIndicator('jobCount') && (
+                                  <span className="text-gray-400">{getSortIndicator('jobCount')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                           </>
                         ) : selectedCategory === 'jobs' ? (
                           <>
@@ -758,13 +862,23 @@ export default function AdminDashboard() {
                             <>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.name}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.email}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                  {entry.role}
-                                </span>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.companyName || '—'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {new Date(entry.createdAt).toLocaleDateString()}
+                                {getTimeAgo(entry.lastActive)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.jobCount ?? 0}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button
+                                  onClick={() => handleEditUser(entry.id)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
+                                  title="Edit recruiter"
+                                >
+                                  Edit
+                                </button>
                               </td>
                             </>
                           ) : selectedCategory === 'jobs' ? (
