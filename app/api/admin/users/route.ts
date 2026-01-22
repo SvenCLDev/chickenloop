@@ -10,6 +10,26 @@ import mongoose from 'mongoose';
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   console.log('[API /admin/users] Starting request');
+  
+  // Diagnostic logging for Job Seekers (dev/staging only)
+  const isDevOrStaging = process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'preview';
+  const enableJobSeekerDiagnostics = isDevOrStaging;
+  let queryCount = 0;
+  const queryLogs: Array<{ type: string; collection: string; time?: number; description: string }> = [];
+  
+  const logQuery = (type: string, collection: string, description: string, startTime?: number) => {
+    if (enableJobSeekerDiagnostics) {
+      queryCount++;
+      const queryTime = startTime ? Date.now() - startTime : undefined;
+      queryLogs.push({ type, collection, time: queryTime, description });
+      if (queryTime !== undefined) {
+        console.log(`[Admin JobSeekers] Query #${queryCount}: ${type} on ${collection} - ${description} (${queryTime}ms)`);
+      } else {
+        console.log(`[Admin JobSeekers] Query #${queryCount}: ${type} on ${collection} - ${description}`);
+      }
+    }
+  };
+  
   try {
     requireRole(request, ['admin']);
     
@@ -20,6 +40,9 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy')?.trim() || '';
     const sortOrder = searchParams.get('sortOrder')?.trim() || 'desc';
     const roleFilter = searchParams.get('role')?.trim(); // Optional role filter for sorting context
+    
+    // Check if this is likely a job-seekers request (will be filtered client-side, but we can detect by checking if no recruiter-specific sort)
+    const isJobSeekerRequest = !sortBy || ['name', 'email', 'lastActive', 'hasCV', 'availability'].includes(sortBy);
     
     // Add timeout for database connection
     const dbPromise = connectDB();
@@ -53,10 +76,14 @@ export async function GET(request: NextRequest) {
     let recruiterIdsFromCompanySearch: any[] = [];
     if (search) {
       // First, find companies matching the search term (for recruiter company name search)
+      const companySearchStart = enableJobSeekerDiagnostics ? Date.now() : undefined;
       const matchingCompanies = await dbConnection.collection('companies')
         .find({ name: { $regex: search, $options: 'i' } }, { projection: { owner: 1 } })
         .maxTimeMS(5000)
         .toArray();
+      if (enableJobSeekerDiagnostics && companySearchStart) {
+        logQuery('FIND', 'companies', `Search companies by name (${matchingCompanies.length} results)`, companySearchStart);
+      }
       
       recruiterIdsFromCompanySearch = matchingCompanies.map((c: any) => c.owner);
       
@@ -103,38 +130,95 @@ export async function GET(request: NextRequest) {
       dbSort = { lastOnline: -1, updatedAt: -1, createdAt: -1 };
     }
 
-    // Use simple find query with sorting where possible
+    // Optimized: Select only fields needed for admin table (pure inclusion projection)
+    // Required fields: _id, name, email, role, lastOnline, updatedAt, createdAt
+    // Note: password, favouriteJobs, favouriteCandidates, notesEnabled are not included (pure inclusion = they won't be returned)
+    const usersQueryStart = enableJobSeekerDiagnostics ? Date.now() : undefined;
     const users = await dbConnection.collection('users')
-      .find(queryFilter, { projection: { password: 0 } })
+      .find(queryFilter, { 
+        projection: { 
+          _id: 1,
+          name: 1,
+          email: 1,
+          role: 1,
+          lastOnline: 1,
+          updatedAt: 1,
+          createdAt: 1,
+          // Pure inclusion: only these fields will be returned
+          // password and other fields are automatically excluded
+        } 
+      })
       .sort(dbSort)
       .limit(200) // Limit to prevent timeout
       .maxTimeMS(10000) // 10 second timeout
       .toArray();
+    if (enableJobSeekerDiagnostics && usersQueryStart) {
+      logQuery('FIND', 'users', `Fetch users with filters (${users.length} results) - optimized projection`, usersQueryStart);
+    }
     
     // Manually populate jobs and CVs for recruiters and job-seekers
     const recruiterIds = users.filter((u: any) => u.role === 'recruiter').map((u: any) => u._id);
     const jobSeekerIds = users.filter((u: any) => u.role === 'job-seeker').map((u: any) => u._id);
     
+    // Track parallel queries for diagnostics
+    const parallelQueriesStart = enableJobSeekerDiagnostics ? Date.now() : undefined;
     const [jobsByRecruiter, cvsByJobSeeker, companiesByOwner] = await Promise.all([
       recruiterIds.length > 0
-        ? dbConnection.collection('jobs')
-            .find({ recruiter: { $in: recruiterIds } })
-            .maxTimeMS(5000)
-            .toArray()
+        ? (async () => {
+            const queryStart = enableJobSeekerDiagnostics ? Date.now() : undefined;
+            const result = await dbConnection.collection('jobs')
+              .find({ recruiter: { $in: recruiterIds } })
+              .maxTimeMS(5000)
+              .toArray();
+            if (enableJobSeekerDiagnostics && queryStart) {
+              logQuery('FIND', 'jobs', `Fetch jobs for ${recruiterIds.length} recruiters (${result.length} results)`, queryStart);
+            }
+            return result;
+          })()
         : [],
       jobSeekerIds.length > 0
-        ? dbConnection.collection('cvs')
-            .find({ jobSeeker: { $in: jobSeekerIds } })
-            .maxTimeMS(5000)
-            .toArray()
+        ? (async () => {
+            const queryStart = Date.now();
+            console.log(`[Admin JobSeekers] CV Query START - Fetching CV existence for ${jobSeekerIds.length} job seekers`);
+            
+            // Optimized: Only fetch jobSeeker ID and availability (minimal fields needed)
+            // This is much faster than fetching full CV documents
+            const result = await dbConnection.collection('cvs')
+              .find(
+                { jobSeeker: { $in: jobSeekerIds } },
+                { projection: { jobSeeker: 1, availability: 1, _id: 0 } } // Only fetch jobSeeker and availability
+              )
+              .maxTimeMS(5000)
+              .toArray();
+            
+            const queryEnd = Date.now();
+            const queryDuration = queryEnd - queryStart;
+            console.log(`[Admin JobSeekers] CV Query END - Fetched ${result.length} CV records in ${queryDuration}ms`);
+            
+            if (enableJobSeekerDiagnostics && queryStart) {
+              logQuery('FIND', 'cvs', `Fetch CV existence for ${jobSeekerIds.length} job seekers (${result.length} results)`, queryStart);
+            }
+            return result;
+          })()
         : [],
       recruiterIds.length > 0
-        ? dbConnection.collection('companies')
-            .find({ owner: { $in: recruiterIds } }, { projection: { name: 1, owner: 1 } })
-            .maxTimeMS(5000)
-            .toArray()
+        ? (async () => {
+            const queryStart = enableJobSeekerDiagnostics ? Date.now() : undefined;
+            const result = await dbConnection.collection('companies')
+              .find({ owner: { $in: recruiterIds } }, { projection: { name: 1, owner: 1 } })
+              .maxTimeMS(5000)
+              .toArray();
+            if (enableJobSeekerDiagnostics && queryStart) {
+              logQuery('FIND', 'companies', `Fetch companies for ${recruiterIds.length} recruiters (${result.length} results)`, queryStart);
+            }
+            return result;
+          })()
         : []
     ]);
+    if (enableJobSeekerDiagnostics && parallelQueriesStart) {
+      const parallelTime = Date.now() - parallelQueriesStart;
+      console.log(`[Admin JobSeekers] Parallel queries completed in ${parallelTime}ms`);
+    }
     
     // Group jobs by recruiter and CVs by job seeker
     const jobsMap = new Map<string, any[]>();
@@ -159,16 +243,31 @@ export async function GET(request: NextRequest) {
       jobCountMap.set(recruiterId, jobs.length);
     });
     
-    const cvMap = new Map<string, any>();
+    // Optimized: Create a Set of job seeker IDs that have CVs (for hasCV check)
+    // Also create a Map for availability data (minimal data needed)
+    const cvExistenceSet = new Set<string>();
+    const cvAvailabilityMap = new Map<string, string>();
     cvsByJobSeeker.forEach((cv: any) => {
-      cvMap.set(cv.jobSeeker.toString(), cv);
+      const jobSeekerId = cv.jobSeeker.toString();
+      cvExistenceSet.add(jobSeekerId);
+      // Store availability if present (for sorting/filtering)
+      if (cv.availability) {
+        cvAvailabilityMap.set(jobSeekerId, cv.availability);
+      }
     });
     
-    const usersWithData = users.map((user: any) => ({
-      ...user,
-      jobs: user.role === 'recruiter' ? (jobsMap.get(user._id.toString()) || []) : undefined,
-      cv: user.role === 'job-seeker' ? (cvMap.get(user._id.toString()) || null) : undefined,
-    }));
+    const usersWithData = users.map((user: any) => {
+      const userId = user._id.toString();
+      return {
+        ...user,
+        jobs: user.role === 'recruiter' ? (jobsMap.get(userId) || []) : undefined,
+        // Optimized: Only store hasCv boolean and availability for job seekers
+        hasCv: user.role === 'job-seeker' ? cvExistenceSet.has(userId) : undefined,
+        cvAvailability: user.role === 'job-seeker' ? (cvAvailabilityMap.get(userId) || null) : undefined,
+        // Keep cv: null for backward compatibility (frontend might expect it)
+        cv: user.role === 'job-seeker' ? (cvExistenceSet.has(userId) ? { availability: cvAvailabilityMap.get(userId) || null } : null) : undefined,
+      };
+    });
 
     // Transform to match expected format
     let formattedUsers = usersWithData.map((user: any) => {
@@ -182,6 +281,9 @@ export async function GET(request: NextRequest) {
         lastOnline: user.lastOnline,
         jobs: user.jobs || [],
         cv: user.cv || null,
+        // Add hasCv field for job seekers (optimized)
+        hasCv: user.hasCv !== undefined ? user.hasCv : (user.cv ? true : false),
+        cvAvailability: user.cvAvailability || null,
       };
       
       // Add recruiter-specific fields
@@ -256,13 +358,15 @@ export async function GET(request: NextRequest) {
           break;
         case 'hasCV':
           // Job-seeker-specific: Boolean: true (has CV) comes before false (no CV)
-          aValue = a.cv ? 1 : 0;
-          bValue = b.cv ? 1 : 0;
+          // Use hasCv field if available, otherwise fallback to cv check
+          aValue = (a.hasCv !== undefined ? a.hasCv : a.cv ? true : false) ? 1 : 0;
+          bValue = (b.hasCv !== undefined ? b.hasCv : b.cv ? true : false) ? 1 : 0;
           break;
         case 'availability':
           // Job-seeker-specific: Sort by availability string, empty/null comes last
-          aValue = a.cv?.availability || '';
-          bValue = b.cv?.availability || '';
+          // Use cvAvailability field if available, otherwise fallback to cv?.availability
+          aValue = a.cvAvailability || a.cv?.availability || '';
+          bValue = b.cvAvailability || b.cv?.availability || '';
           break;
         default:
           // Default: lastActive DESC
@@ -286,6 +390,25 @@ export async function GET(request: NextRequest) {
 
     const totalTime = Date.now() - startTime;
     console.log(`[API /admin/users] Total time: ${totalTime}ms`);
+
+    // Job Seekers diagnostic logging
+    if (enableJobSeekerDiagnostics && isJobSeekerRequest) {
+      const jobSeekersCount = formattedUsers.filter((u: any) => u.role === 'job-seeker').length;
+      console.log(`[Admin JobSeekers] ========================================`);
+      console.log(`[Admin JobSeekers] DIAGNOSTIC SUMMARY`);
+      console.log(`[Admin JobSeekers] Total queries: ${queryCount}`);
+      console.log(`[Admin JobSeekers] Total time: ${totalTime}ms`);
+      console.log(`[Admin JobSeekers] Job seekers returned: ${jobSeekersCount}`);
+      console.log(`[Admin JobSeekers] Total users fetched: ${formattedUsers.length}`);
+      if (queryLogs.length > 0) {
+        console.log(`[Admin JobSeekers] Query breakdown:`);
+        queryLogs.forEach((log, idx) => {
+          const timeStr = log.time !== undefined ? ` (${log.time}ms)` : '';
+          console.log(`[Admin JobSeekers]   ${idx + 1}. ${log.type} on ${log.collection}${timeStr} - ${log.description}`);
+        });
+      }
+      console.log(`[Admin JobSeekers] ========================================`);
+    }
 
     return NextResponse.json({ users: formattedUsers }, { status: 200 });
   } catch (error: unknown) {

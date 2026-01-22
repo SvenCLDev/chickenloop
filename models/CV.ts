@@ -118,8 +118,8 @@ const CV: Model<ICV> = mongoose.models.CV || mongoose.model<ICV>('CV', CVSchema)
 CVSchema.index({ createdAt: -1 });
 // Compound index for published + createdAt queries (used in candidates-list)
 CVSchema.index({ published: 1, createdAt: -1 });
-// Index on jobSeeker for efficient $lookup operations
-CVSchema.index({ jobSeeker: 1 });
+// Index on jobSeeker for efficient $lookup operations and admin queries
+CVSchema.index({ jobSeeker: 1 }, { name: 'idx_cvs_jobSeeker' });
 // Indexes for search/filtering on new fields
 CVSchema.index({ experienceLevel: 1 });
 CVSchema.index({ availability: 1 });
