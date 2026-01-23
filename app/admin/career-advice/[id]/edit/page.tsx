@@ -158,7 +158,7 @@ export default function EditCareerAdvicePage() {
         published: formData.published,
       });
 
-      router.push('/admin/career-advice');
+      router.push('/admin?section=career-advice');
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to update article';
       setError(errorMessage);

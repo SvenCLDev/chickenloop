@@ -14,9 +14,10 @@ interface Statistics {
   cvs: number;
   companies: number;
   applications: number;
+  careerAdvice: number;
 }
 
-type CategoryType = 'job-seekers' | 'recruiters' | 'jobs' | 'cvs' | 'companies' | 'applications' | null;
+type CategoryType = 'job-seekers' | 'recruiters' | 'jobs' | 'cvs' | 'companies' | 'applications' | 'career-advice' | null;
 
 // Helper functions for applications status
 function getStatusColor(status: string) {
@@ -207,7 +208,7 @@ function AdminDashboard() {
   useEffect(() => {
     if (user && user.role === 'admin' && !loading && statistics && !sectionProcessedRef.current) {
       const section = searchParams.get('section');
-      if (section && ['job-seekers', 'recruiters', 'jobs', 'cvs', 'companies', 'applications'].includes(section)) {
+      if (section && ['job-seekers', 'recruiters', 'jobs', 'cvs', 'companies', 'applications', 'career-advice'].includes(section)) {
         sectionProcessedRef.current = true;
         setSelectedCategory(section as CategoryType);
         loadCategoryData(section as CategoryType);
@@ -263,6 +264,13 @@ function AdminDashboard() {
   useEffect(() => {
     if (selectedCategory === 'jobs') {
       loadCategoryData('jobs');
+    }
+  }, [debouncedSearchQuery, sortColumn, sortDirection]);
+
+  // Refetch career advice data when search or sort changes
+  useEffect(() => {
+    if (selectedCategory === 'career-advice') {
+      loadCategoryData('career-advice');
     }
   }, [debouncedSearchQuery, sortColumn, sortDirection]);
 
@@ -407,6 +415,20 @@ function AdminDashboard() {
           setApplicationsTotalCount(applicationsData.totalCount || 0);
           setApplicationsTotalPages(applicationsData.totalPages || 1);
           break;
+        case 'career-advice':
+          const careerAdviceSortByMap: Record<string, string> = {
+            'title': 'title',
+            'author': 'author',
+            'created': 'created',
+          };
+          const careerAdviceApiSortBy = careerAdviceSortByMap[sortColumn] || 'created';
+          const careerAdviceData = await adminApi.getCareerAdvice({
+            search: debouncedSearchQuery.trim() || undefined,
+            sortBy: careerAdviceApiSortBy,
+            sortOrder: sortDirection,
+          });
+          data = careerAdviceData.articles || [];
+          break;
         default:
           data = [];
       }
@@ -455,6 +477,9 @@ function AdminDashboard() {
         setSortDirection('desc');
       } else if (category === 'applications') {
         setSortColumn('applied');
+        setSortDirection('desc');
+      } else if (category === 'career-advice') {
+        setSortColumn('created');
         setSortDirection('desc');
       }
       setCurrentPage(1); // Reset to page 1 when switching categories
@@ -632,6 +657,11 @@ function AdminDashboard() {
     router.push(`/admin/cvs/${cvId}/edit`);
   };
 
+  const handleEditCareerAdvice = (articleId: string) => {
+    // Navigate to admin career advice edit page
+    router.push(`/admin/career-advice/${articleId}/edit`);
+  };
+
   const handleSort = (column: string) => {
     if (sortColumn === column) {
       // Toggle direction if clicking the same column
@@ -665,19 +695,13 @@ function AdminDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex justify-between items-center mb-8">
+        <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900">Admin Dashboard</h1>
-          <Link
-            href="/admin/career-advice"
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            Manage Career Advice
-          </Link>
         </div>
 
         {/* Statistics Cards */}
         {statistics && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-6 mb-8">
             {/* Job Seekers Card */}
             <button
               onClick={() => handleCardClick('job-seekers')}
@@ -797,6 +821,26 @@ function AdminDashboard() {
                 </div>
               </div>
             </button>
+
+            {/* Career Advice Card */}
+            <button
+              onClick={() => handleCardClick('career-advice')}
+              className={`bg-white rounded-lg shadow-md p-6 border-l-4 border-pink-500 text-left transition-all hover:shadow-lg cursor-pointer ${
+                selectedCategory === 'career-advice' ? 'ring-2 ring-pink-500' : ''
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Career Advice</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{statistics.careerAdvice}</p>
+                </div>
+                <div className="bg-pink-100 rounded-full p-3">
+                  <svg className="w-8 h-8 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+              </div>
+            </button>
           </div>
         )}
 
@@ -810,10 +854,13 @@ function AdminDashboard() {
                  selectedCategory === 'jobs' ? 'Jobs' : 
                  selectedCategory === 'cvs' ? 'CVs' : 
                  selectedCategory === 'companies' ? 'Companies' :
-                 selectedCategory === 'applications' ? 'Applications' : ''}
+                 selectedCategory === 'applications' ? 'Applications' :
+                 selectedCategory === 'career-advice' ? 'Career Advice' : ''}
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                {selectedCategory === 'applications' ? (
+                {selectedCategory === 'career-advice' ? (
+                  'Manage career advice articles and content'
+                ) : selectedCategory === 'applications' ? (
                   applicationsTotalCount > 0 
                     ? `Showing ${indexOfFirstEntry} to ${indexOfLastEntry} of ${applicationsTotalCount} ${applicationsTotalCount === 1 ? 'entry' : 'entries'}`
                     : 'No entries'
@@ -916,6 +963,21 @@ function AdminDashboard() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search jobs by title, location, or recruiter…"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Search input for Career Advice */}
+            {selectedCategory === 'career-advice' && (
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search articles by title or author…"
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   />
                 </div>
@@ -1323,6 +1385,45 @@ function AdminDashboard() {
                               Actions
                             </th>
                           </>
+                        ) : selectedCategory === 'career-advice' ? (
+                          <>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('title')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Title
+                                {getSortIndicator('title') && (
+                                  <span className="text-gray-400">{getSortIndicator('title')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('author')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Author
+                                {getSortIndicator('author') && (
+                                  <span className="text-gray-400">{getSortIndicator('author')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('created')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Created
+                                {getSortIndicator('created') && (
+                                  <span className="text-gray-400">{getSortIndicator('created')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </>
                         ) : (
                           <>
                             <th 
@@ -1592,6 +1693,27 @@ function AdminDashboard() {
                                 >
                                   View
                                 </Link>
+                              </td>
+                            </>
+                          ) : selectedCategory === 'career-advice' ? (
+                            <>
+                              <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                                {entry.title || 'Untitled'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.author?.name || 'Unknown'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {new Date(entry.createdAt).toLocaleDateString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button
+                                  onClick={() => handleEditCareerAdvice(entry.id)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
+                                  title="Edit article"
+                                >
+                                  Edit
+                                </button>
                               </td>
                             </>
                           ) : null}

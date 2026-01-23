@@ -3,6 +3,7 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import Job from '@/models/Job';
 import CV from '@/models/CV';
+import CareerAdvice from '@/models/CareerAdvice';
 import { requireRole } from '@/lib/auth';
 import mongoose from 'mongoose';
 
@@ -24,13 +25,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Get counts using native MongoDB driver for better performance
-    const [jobSeekersCount, recruitersCount, jobsCount, cvsCount, companiesCount, applicationsCount] = await Promise.all([
+    const collectionName = CareerAdvice.collection.name;
+    const [jobSeekersCount, recruitersCount, jobsCount, cvsCount, companiesCount, applicationsCount, careerAdviceCount] = await Promise.all([
       dbConnection.collection('users').countDocuments({ role: 'job-seeker' }),
       dbConnection.collection('users').countDocuments({ role: 'recruiter' }),
       dbConnection.collection('jobs').countDocuments({}),
       dbConnection.collection('cvs').countDocuments({}),
       dbConnection.collection('companies').countDocuments({}),
       dbConnection.collection('applications').countDocuments({}),
+      dbConnection.collection(collectionName).countDocuments({}),
     ]);
 
     return NextResponse.json({
@@ -41,6 +44,7 @@ export async function GET(request: NextRequest) {
         cvs: cvsCount,
         companies: companiesCount,
         applications: applicationsCount,
+        careerAdvice: careerAdviceCount,
       },
     }, { status: 200 });
   } catch (error: unknown) {

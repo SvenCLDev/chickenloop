@@ -338,6 +338,14 @@ export const adminApi = {
     const endpoint = queryString ? `/admin/applications?${queryString}` : '/admin/applications';
     return apiRequest(endpoint);
   },
+  getCareerAdvice: (params?: { search?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.set('search', params.search);
+    if (params?.sortBy) queryParams.set('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+    const queryString = queryParams.toString();
+    return apiRequest(`/admin/career-advice${queryString ? `?${queryString}` : ''}`);
+  },
 };
 
 export const careerAdviceApi = {

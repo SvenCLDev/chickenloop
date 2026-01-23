@@ -125,7 +125,7 @@ export default function NewCareerAdvicePage() {
         published: formData.published,
       });
 
-      router.push('/admin/career-advice');
+      router.push('/admin?section=career-advice');
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to create article';
       setError(errorMessage);
