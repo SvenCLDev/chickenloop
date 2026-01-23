@@ -46,6 +46,7 @@ export default function NewJobPage() {
   const [selectedPictures, setSelectedPictures] = useState<File[]>([]);
   const [picturePreviews, setPicturePreviews] = useState<string[]>([]);
   const [uploadingPictures, setUploadingPictures] = useState(false);
+  const [heroImageIndex, setHeroImageIndex] = useState<number | null>(null);
   const previewCountryCode = normalizeCountryForStorage(formData.country);
 
   useEffect(() => {
@@ -128,6 +129,11 @@ export default function NewJobPage() {
     // Create preview URLs
     const newPreviews = files.map(file => URL.createObjectURL(file));
     setPicturePreviews([...picturePreviews, ...newPreviews]);
+    
+    // Auto-select first image as hero if it's the only image
+    if (newPictures.length === 1 && heroImageIndex === null) {
+      setHeroImageIndex(0);
+    }
   };
 
   const removePicture = (index: number) => {
@@ -139,6 +145,15 @@ export default function NewJobPage() {
     
     setSelectedPictures(newPictures);
     setPicturePreviews(newPreviews);
+    
+    // Update hero image index if removed image was hero
+    if (heroImageIndex === index) {
+      // If there are remaining images, select the first one as hero
+      setHeroImageIndex(newPictures.length > 0 ? 0 : null);
+    } else if (heroImageIndex !== null && heroImageIndex > index) {
+      // Adjust hero index if an image before it was removed
+      setHeroImageIndex(heroImageIndex - 1);
+    }
   };
 
   const uploadPictures = async (): Promise<string[]> => {
@@ -240,6 +255,7 @@ export default function NewJobPage() {
         sports: formData.sports,
         occupationalAreas: formData.occupationalAreas,
         pictures: picturePaths,
+        heroImageIndex: heroImageIndex !== null ? heroImageIndex : undefined,
       });
 
       // Clean up preview URLs
@@ -669,24 +685,52 @@ export default function NewJobPage() {
                 Maximum 3 pictures, 5MB each. Supported formats: JPEG, PNG, WEBP, GIF
               </p>
               {selectedPictures.length > 0 && (
-                <div className="mt-4 grid grid-cols-3 gap-4">
-                  {picturePreviews.map((preview, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={preview}
-                        alt={`Preview ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-lg border border-gray-300"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removePicture(index)}
-                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-sm font-bold"
-                        aria-label="Remove picture"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
+                <div className="mt-4">
+                  <div className="mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Header image
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      This image will be shown as the main image at the top of the job post.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    {picturePreviews.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className={`w-full h-32 object-cover rounded-lg border-2 ${
+                            heroImageIndex === index
+                              ? 'border-blue-600 ring-2 ring-blue-300'
+                              : 'border-gray-300'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePicture(index)}
+                          className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-sm font-bold"
+                          aria-label="Remove picture"
+                        >
+                          ×
+                        </button>
+                        <div className="absolute bottom-1 left-1 right-1">
+                          <label className="flex items-center justify-center bg-white/90 rounded px-2 py-1 cursor-pointer hover:bg-white transition-colors">
+                            <input
+                              type="radio"
+                              name="heroImage"
+                              checked={heroImageIndex === index}
+                              onChange={() => setHeroImageIndex(index)}
+                              className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                            />
+                            <span className="text-xs font-medium text-gray-700">
+                              {heroImageIndex === index ? 'Header image' : 'Set as header'}
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               {selectedPictures.length === 0 && (

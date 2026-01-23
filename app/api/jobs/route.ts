@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
+import JobImage from '@/models/JobImage';
 import Company from '@/models/Company';
 import { requireAuth, requireRole } from '@/lib/auth';
 import mongoose from 'mongoose';
@@ -294,6 +295,35 @@ export async function GET(request: NextRequest) {
       jobsWithoutPopulate = jobsWithoutPopulate.filter((job: any) => job.published !== false);
       console.log(`[API /jobs] Filtered to ${jobsWithoutPopulate.length} published jobs`);
 
+      // Diagnostic: Log image data for job cards
+      const imageStats = {
+        totalJobs: jobsWithoutPopulate.length,
+        jobsWithImages: 0,
+        jobsWithoutImages: 0,
+        totalImages: 0,
+        imageCounts: {} as Record<number, number>, // Count of jobs with N images
+      };
+      
+      jobsWithoutPopulate.forEach((job: any) => {
+        const imageCount = job.pictures ? (Array.isArray(job.pictures) ? job.pictures.length : 0) : 0;
+        if (imageCount > 0) {
+          imageStats.jobsWithImages++;
+          imageStats.totalImages += imageCount;
+          imageStats.imageCounts[imageCount] = (imageStats.imageCounts[imageCount] || 0) + 1;
+        } else {
+          imageStats.jobsWithoutImages++;
+        }
+      });
+      
+      console.log('[API /jobs] Image Statistics:');
+      console.log(`  Total jobs: ${imageStats.totalJobs}`);
+      console.log(`  Jobs with images: ${imageStats.jobsWithImages}`);
+      console.log(`  Jobs without images: ${imageStats.jobsWithoutImages}`);
+      console.log(`  Total images across all jobs: ${imageStats.totalImages}`);
+      console.log(`  Average images per job: ${imageStats.totalJobs > 0 ? (imageStats.totalImages / imageStats.totalJobs).toFixed(2) : 0}`);
+      console.log(`  Image count distribution:`, imageStats.imageCounts);
+      console.log(`  Source: Job.pictures array (inline in query)`);
+
       // Convert ObjectIds to strings
       jobsWithoutPopulate = jobsWithoutPopulate.map((job: any) => ({
         ...job,
@@ -426,6 +456,7 @@ export async function POST(request: NextRequest) {
       sports,
       occupationalAreas,
       pictures,
+      heroImageIndex,
       applyViaATS,
       applyByEmail,
       applyByWebsite,
@@ -516,6 +547,38 @@ export async function POST(request: NextRequest) {
       datePosted: now, // System-managed: set when first published
       validThrough: validThroughDate, // System-managed: datePosted + 90 days
     });
+
+    // Save images to JobImage collection with isHero flag
+    if (pictures && Array.isArray(pictures) && pictures.length > 0) {
+      // Validate: ensure only one hero image (keep last if multiple specified)
+      let heroIndex: number | null = null;
+      if (heroImageIndex !== undefined && heroImageIndex !== null) {
+        // Validate heroImageIndex is within bounds
+        if (heroImageIndex >= 0 && heroImageIndex < pictures.length) {
+          heroIndex = heroImageIndex;
+        }
+      }
+      
+      const jobImages = pictures.map((imageUrl: string, index: number) => ({
+        jobId: job._id,
+        imageUrl,
+        order: index,
+        isHero: heroIndex !== null && index === heroIndex,
+      }));
+      
+      await JobImage.insertMany(jobImages);
+      
+      // Validation safeguard: ensure only one hero image exists (keep last if multiple)
+      const heroImages = await JobImage.find({ jobId: job._id, isHero: true }).sort({ order: -1 });
+      if (heroImages.length > 1) {
+        // Keep the last one (highest order), unset others
+        const lastHero = heroImages[0];
+        await JobImage.updateMany(
+          { jobId: job._id, isHero: true, _id: { $ne: lastHero._id } },
+          { $set: { isHero: false } }
+        );
+      }
+    }
 
     const populatedJob = await Job.findById(job._id).populate('recruiter', 'name email');
 

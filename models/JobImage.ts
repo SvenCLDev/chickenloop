@@ -4,6 +4,7 @@ export interface IJobImage extends Document {
     jobId: mongoose.Types.ObjectId;
     imageUrl: string;
     order: number;
+    isHero?: boolean;
     createdAt: Date;
 }
 
@@ -22,6 +23,10 @@ const JobImageSchema: Schema = new Schema(
         order: {
             type: Number,
             default: 0,
+        },
+        isHero: {
+            type: Boolean,
+            default: false,
         },
     },
     {

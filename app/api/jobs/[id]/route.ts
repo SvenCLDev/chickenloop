@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
+import JobImage from '@/models/JobImage';
 import { requireAuth, requireRole } from '@/lib/auth';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+import mongoose from 'mongoose';
 
 // GET - Get a single job (accessible to all users, including anonymous)
 export async function GET(
@@ -107,7 +109,7 @@ export async function PUT(
       );
     }
 
-    const { title, description, company, city, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, published, featured, applyViaATS, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
+    const { title, description, company, city, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, heroImageUrl, published, featured, applyViaATS, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
 
     // Validate job categories - ensure all categories are in JOB_CATEGORIES
     if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
@@ -291,6 +293,61 @@ export async function PUT(
     }
 
     await job.save();
+
+    // Update JobImage collection with isHero flag
+    if (pictures !== undefined && Array.isArray(pictures)) {
+      // Delete existing JobImage records for this job
+      await JobImage.deleteMany({ jobId: job._id });
+      
+      // Create new JobImage records with isHero flag
+      if (pictures.length > 0) {
+        // Validate: ensure only one hero image
+        // Find the last matching heroImageUrl in the array (if multiple matches, keep last)
+        let heroImageIndex: number | null = null;
+        if (heroImageUrl !== undefined && heroImageUrl !== null) {
+          // Find last occurrence of heroImageUrl in pictures array
+          for (let i = pictures.length - 1; i >= 0; i--) {
+            if (pictures[i] === heroImageUrl) {
+              heroImageIndex = i;
+              break;
+            }
+          }
+        }
+        
+        const jobImages = pictures.map((imageUrl: string, index: number) => ({
+          jobId: job._id,
+          imageUrl,
+          order: index,
+          isHero: heroImageIndex !== null && index === heroImageIndex,
+        }));
+        
+        await JobImage.insertMany(jobImages);
+        
+        // Validation safeguard: ensure only one hero image exists (keep last if multiple)
+        const heroImages = await JobImage.find({ jobId: job._id, isHero: true }).sort({ order: -1 });
+        if (heroImages.length > 1) {
+          // Keep the last one (highest order), unset others
+          const lastHero = heroImages[0];
+          await JobImage.updateMany(
+            { jobId: job._id, isHero: true, _id: { $ne: lastHero._id } },
+            { $set: { isHero: false } }
+          );
+        }
+      }
+    } else if (heroImageUrl !== undefined && heroImageUrl !== null) {
+      // If only heroImageUrl is provided without pictures array, update existing JobImage records
+      // Validation: ensure only one hero image (silently unset others)
+      await JobImage.updateMany(
+        { jobId: job._id },
+        { $set: { isHero: false } }
+      );
+      // Set the specified image as hero (if it exists)
+      const updateResult = await JobImage.updateOne(
+        { jobId: job._id, imageUrl: heroImageUrl },
+        { $set: { isHero: true } }
+      );
+      // If the specified image doesn't exist, that's okay - we just won't set any hero
+    }
 
     const updatedJob = await Job.findById(job._id)
       .populate('recruiter', 'name email')

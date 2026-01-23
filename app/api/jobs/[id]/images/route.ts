@@ -25,7 +25,7 @@ export async function GET(
         const images = await db.collection('job_images')
             .find({ jobId: new mongoose.Types.ObjectId(id) })
             .sort({ order: 1 })
-            .project({ imageUrl: 1, order: 1, _id: 0 })
+            .project({ imageUrl: 1, order: 1, isHero: 1, _id: 0 })
             .toArray();
 
         // Also check if job still has pictures field (for backwards compatibility)
@@ -34,12 +34,21 @@ export async function GET(
             { projection: { pictures: 1 } }
         );
 
-        // Combine both sources
-        let allImages = images.map(img => img.imageUrl);
+        // Combine both sources - return full image objects with isHero flag
+        let allImages = images.map((img: any) => ({
+            imageUrl: img.imageUrl,
+            isHero: img.isHero === true,
+            order: img.order || 0,
+        }));
 
         // If job still has pictures array and job_images is empty, use those
         if (allImages.length === 0 && job?.pictures && Array.isArray(job.pictures)) {
-            allImages = job.pictures.filter((p: string) => !p.startsWith('data:')); // Exclude Base64
+            const filteredPictures = job.pictures.filter((p: string) => !p.startsWith('data:')); // Exclude Base64
+            allImages = filteredPictures.map((imgUrl: string, index: number) => ({
+                imageUrl: imgUrl,
+                isHero: index === 0, // First image is hero by default for legacy jobs
+                order: index,
+            }));
         }
 
         return NextResponse.json({ images: allImages }, { status: 200 });

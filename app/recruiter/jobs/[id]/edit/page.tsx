@@ -48,6 +48,8 @@ export default function EditJobPage() {
   const [selectedPictures, setSelectedPictures] = useState<File[]>([]);
   const [picturePreviews, setPicturePreviews] = useState<string[]>([]);
   const [uploadingPictures, setUploadingPictures] = useState(false);
+  const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
+  const [heroImageIndex, setHeroImageIndex] = useState<number | null>(null);
   const previewCountryCode = normalizeCountryForStorage(formData.country);
 
   useEffect(() => {
@@ -110,7 +112,25 @@ export default function EditJobPage() {
         applicationWebsite: (job as any).applicationWebsite || (companyData?.website || ''),
         applicationWhatsApp: (job as any).applicationWhatsApp || '',
       });
-      setExistingPictures((job as any).pictures || []);
+      // Load images with hero info
+      try {
+        const imagesResponse = await fetch(`/api/jobs/${jobId}/images`);
+        if (imagesResponse.ok) {
+          const imagesData = await imagesResponse.json();
+          const imageUrls = imagesData.images?.map((img: any) => img.imageUrl) || [];
+          const heroImage = imagesData.images?.find((img: any) => img.isHero === true);
+          setExistingPictures(imageUrls);
+          setHeroImageUrl(heroImage?.imageUrl || (imageUrls.length > 0 ? imageUrls[0] : null));
+        } else {
+          // Fallback to job.pictures if images API fails
+          setExistingPictures((job as any).pictures || []);
+          setHeroImageUrl((job as any).pictures?.[0] || null);
+        }
+      } catch (err) {
+        // Fallback to job.pictures if images API fails
+        setExistingPictures((job as any).pictures || []);
+        setHeroImageUrl((job as any).pictures?.[0] || null);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load job');
     } finally {
@@ -155,8 +175,15 @@ export default function EditJobPage() {
   };
 
   const removeExistingPicture = (index: number) => {
+    const removedUrl = existingPictures[index];
     const newPictures = existingPictures.filter((_, i) => i !== index);
     setExistingPictures(newPictures);
+    
+    // Update hero image if removed image was hero
+    if (heroImageUrl === removedUrl) {
+      // If there are remaining images, select the first one as hero
+      setHeroImageUrl(newPictures.length > 0 ? newPictures[0] : (selectedPictures.length > 0 ? null : null));
+    }
   };
 
   const removeNewPicture = (index: number) => {
@@ -168,6 +195,16 @@ export default function EditJobPage() {
 
     setSelectedPictures(newPictures);
     setPicturePreviews(newPreviews);
+    
+    // Update hero image index if removed image was hero
+    if (heroImageIndex === index) {
+      // If there are remaining new images, select the first one as hero
+      // Otherwise, keep existing hero or clear
+      setHeroImageIndex(newPictures.length > 0 ? 0 : null);
+    } else if (heroImageIndex !== null && heroImageIndex > index) {
+      // Adjust hero index if an image before it was removed
+      setHeroImageIndex(heroImageIndex - 1);
+    }
   };
 
   const uploadPictures = async (): Promise<string[]> => {
@@ -260,6 +297,24 @@ export default function EditJobPage() {
       // Upload new pictures first, merge with existing ones
       const allPicturePaths = await uploadPictures();
 
+      // Determine hero image: either existing hero URL or newly uploaded image
+      let finalHeroImageUrl: string | undefined;
+      if (heroImageUrl) {
+        // Hero is an existing image
+        finalHeroImageUrl = heroImageUrl;
+      } else if (heroImageIndex !== null && selectedPictures.length > 0) {
+        // Hero is a newly uploaded image - find it in the uploaded paths
+        // New images are appended after existing ones
+        const newImageStartIndex = existingPictures.length;
+        const heroPathIndex = newImageStartIndex + heroImageIndex;
+        if (heroPathIndex < allPicturePaths.length) {
+          finalHeroImageUrl = allPicturePaths[heroPathIndex];
+        }
+      } else if (allPicturePaths.length > 0 && !heroImageUrl && heroImageIndex === null) {
+        // No hero selected, use first image as fallback
+        finalHeroImageUrl = allPicturePaths[0];
+      }
+
       // Update job with picture paths
       const normalizedCountry = normalizeCountryForStorage(formData.country);
 
@@ -268,6 +323,7 @@ export default function EditJobPage() {
         country: normalizedCountry,
         sports: formData.sports,
         pictures: allPicturePaths,
+        heroImageUrl: finalHeroImageUrl,
       });
 
       // Clean up preview URLs
@@ -673,6 +729,16 @@ export default function EditJobPage() {
               <label htmlFor="pictures" className="block text-sm font-medium text-gray-700 mb-1">
                 Pictures (up to 3 total)
               </label>
+              {(existingPictures.length > 0 || selectedPictures.length > 0) && (
+                <div className="mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Header image
+                  </label>
+                  <p className="text-xs text-gray-500">
+                    This image will be shown as the main image at the top of the job post.
+                  </p>
+                </div>
+              )}
               {existingPictures.length > 0 && (
                 <div className="mb-4">
                   <p className="text-sm text-gray-600 mb-2">Existing Pictures:</p>
@@ -682,7 +748,11 @@ export default function EditJobPage() {
                         <img
                           src={picture}
                           alt={`Existing ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg border border-gray-300"
+                          className={`w-full h-32 object-cover rounded-lg border-2 ${
+                            heroImageUrl === picture
+                              ? 'border-blue-600 ring-2 ring-blue-300'
+                              : 'border-gray-300'
+                          }`}
                         />
                         <button
                           type="button"
@@ -692,6 +762,23 @@ export default function EditJobPage() {
                         >
                           ×
                         </button>
+                        <div className="absolute bottom-1 left-1 right-1">
+                          <label className="flex items-center justify-center bg-white/90 rounded px-2 py-1 cursor-pointer hover:bg-white transition-colors">
+                            <input
+                              type="radio"
+                              name="heroImageExisting"
+                              checked={heroImageUrl === picture}
+                              onChange={() => {
+                                setHeroImageUrl(picture);
+                                setHeroImageIndex(null); // Clear new hero when selecting existing
+                              }}
+                              className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                            />
+                            <span className="text-xs font-medium text-gray-700">
+                              {heroImageUrl === picture ? 'Header image' : 'Set as header'}
+                            </span>
+                          </label>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -734,7 +821,11 @@ export default function EditJobPage() {
                         <img
                           src={preview}
                           alt={`Preview ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg border border-gray-300"
+                          className={`w-full h-32 object-cover rounded-lg border-2 ${
+                            heroImageIndex === index
+                              ? 'border-blue-600 ring-2 ring-blue-300'
+                              : 'border-gray-300'
+                          }`}
                         />
                         <button
                           type="button"
@@ -744,6 +835,23 @@ export default function EditJobPage() {
                         >
                           ×
                         </button>
+                        <div className="absolute bottom-1 left-1 right-1">
+                          <label className="flex items-center justify-center bg-white/90 rounded px-2 py-1 cursor-pointer hover:bg-white transition-colors">
+                            <input
+                              type="radio"
+                              name="heroImageNew"
+                              checked={heroImageIndex === index}
+                              onChange={() => {
+                                setHeroImageIndex(index);
+                                setHeroImageUrl(null); // Clear existing hero when selecting new
+                              }}
+                              className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                            />
+                            <span className="text-xs font-medium text-gray-700">
+                              {heroImageIndex === index ? 'Header image' : 'Set as header'}
+                            </span>
+                          </label>
+                        </div>
                       </div>
                     ))}
                   </div>

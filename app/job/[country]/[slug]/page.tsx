@@ -12,6 +12,8 @@ import Link from 'next/link';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import Company from '@/models/Company';
+import JobImage from '@/models/JobImage';
+import mongoose from 'mongoose';
 import JobFavouriteButton from '../../../jobs/[id]/JobFavouriteButton';
 import JobApplySection from '../../../jobs/[id]/JobApplySection';
 import JobSpamButton from '../../../jobs/[id]/JobSpamButton';
@@ -77,6 +79,7 @@ interface Job {
     offeredActivities?: string[];
     offeredServices?: string[];
   };
+  heroImageUrl?: string;
 }
 
 function formatCompanyAddress(address?: CompanyAddress): string | null {
@@ -214,6 +217,41 @@ async function getJob(id: string): Promise<Job | null> {
           : String(jobObject.recruiter))
       : undefined;
     
+    // Get all images from JobImage collection (for complete list including hero)
+    let allImages: string[] = [];
+    let heroImageUrl: string | undefined;
+    try {
+      const jobImages = await JobImage.find({ 
+        jobId: new mongoose.Types.ObjectId(id)
+      })
+      .sort({ order: 1 })
+      .lean();
+      
+      if (jobImages && jobImages.length > 0) {
+        // Extract all image URLs
+        allImages = jobImages.map((img: any) => img.imageUrl);
+        
+        // Find hero image
+        const heroImage = jobImages.find((img: any) => img.isHero === true);
+        if (heroImage && heroImage.imageUrl) {
+          heroImageUrl = heroImage.imageUrl;
+        }
+      }
+    } catch (error) {
+      // If JobImage query fails, fall back to pictures array
+      console.error('Error fetching images from JobImage collection:', error);
+    }
+    
+    // Fallback to job.pictures array if JobImage collection is empty
+    if (allImages.length === 0 && jobObject.pictures && Array.isArray(jobObject.pictures) && jobObject.pictures.length > 0) {
+      allImages = jobObject.pictures;
+    }
+    
+    // Fallback hero image: use first image if no explicit hero found
+    if (!heroImageUrl && allImages.length > 0) {
+      heroImageUrl = allImages[0];
+    }
+    
     // Convert ObjectIds to strings for Client Component compatibility
     // Also extract full company data for summary generation
     const companyId = jobObject.companyId;
@@ -271,6 +309,8 @@ async function getJob(id: string): Promise<Job | null> {
       companyId: serializedCompanyId,
       companyForSummary, // Include company data for summary generation
       published: jobObject.published !== undefined ? jobObject.published : true, // Include published status
+      heroImageUrl, // Include hero image URL (explicit isHero or first image fallback)
+      pictures: allImages.length > 0 ? allImages : (jobObject.pictures || []), // Use images from JobImage collection, fallback to job.pictures
     } as Job;
   } catch (error) {
     console.error('Error fetching job:', error);
@@ -395,8 +435,8 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
 
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {/* Hero Image - Main featured image at the top */}
-          {job.pictures && job.pictures.length > 0 && (
-            <JobHeroImage imageUrl={job.pictures[0]} jobTitle={job.title} />
+          {job.heroImageUrl && (
+            <JobHeroImage imageUrl={job.heroImageUrl} jobTitle={job.title} />
           )}
 
           <div className="p-8">
