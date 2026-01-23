@@ -15,7 +15,8 @@ import Company from '@/models/Company';
 import JobFavouriteButton from '../../../jobs/[id]/JobFavouriteButton';
 import JobApplySection from '../../../jobs/[id]/JobApplySection';
 import JobSpamButton from '../../../jobs/[id]/JobSpamButton';
-import JobImageGallery from '../../../jobs/[id]/JobImageGallery';
+import JobThumbnailGallery from '../../../jobs/[id]/JobThumbnailGallery';
+import JobHeroImage from '../../../jobs/[id]/JobHeroImage';
 import { verifyToken } from '@/lib/jwt';
 
 // Reuse interfaces from existing job details page
@@ -393,8 +394,10 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
         </Link>
 
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          {/* Job Pictures */}
-          <JobImageGallery pictures={job.pictures || []} jobTitle={job.title} />
+          {/* Hero Image - Main featured image at the top */}
+          {job.pictures && job.pictures.length > 0 && (
+            <JobHeroImage imageUrl={job.pictures[0]} jobTitle={job.title} />
+          )}
 
           <div className="p-8">
             {/* Job Title and Company */}
@@ -550,6 +553,17 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                 Please mention that you found this job on chickenloop.com
               </p>
             </div>
+
+            {/* Job Pictures Gallery - All images (up to 3, including the hero) */}
+            {job.pictures && job.pictures.length > 0 && (
+              <div className="mb-6">
+                <JobThumbnailGallery 
+                  pictures={job.pictures.slice(0, 3)} 
+                  jobTitle={job.title}
+                  allPictures={job.pictures}
+                />
+              </div>
+            )}
 
             {/* Posted Info and Report Spam */}
             <div className="pt-6 border-t border-gray-200">
