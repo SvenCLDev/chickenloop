@@ -270,59 +270,161 @@ export async function GET(request: NextRequest) {
       listProjection.description = 1;
     }
 
-    console.log('[API /jobs] Executing find query with projection (excluding heavy fields)...');
-    console.log('[API /jobs] Creating query cursor...');
-    const queryCursor = collection.find(queryFilter)
-      .project(listProjection)
-      .hint({ published: 1, createdAt: -1 }) // Use the compound index for better performance
-      .maxTimeMS(10000); // 10 second timeout should be plenty for local DB
+    console.log('[API /jobs] Building aggregation pipeline for optimized image selection...');
+    
+    // Build aggregation pipeline to select only one image per job
+    const aggregationPipeline: any[] = [];
+    
+    // Stage 1: Match jobs with same filter as before
+    aggregationPipeline.push({ $match: queryFilter });
+    
+    // Stage 2: Project only needed fields (same as listProjection)
+    const projectStage: any = {
+      _id: 1,
+      title: 1,
+      company: 1,
+      city: 1,
+      country: 1,
+      salary: 1,
+      type: 1,
+      recruiter: 1,
+      companyId: 1,
+      sports: 1,
+      occupationalAreas: 1,
+      published: 1,
+      featured: 1,
+      pictures: 1, // Keep for fallback
+      createdAt: 1,
+      updatedAt: 1,
+      languages: 1,
+    };
+    if (filters.keyword) {
+      projectStage.description = 1;
+    }
+    aggregationPipeline.push({ $project: projectStage });
+    
+    // Stage 3: Lookup JobImage records for each job
+    // Get collection name from model (MongoDB pluralizes and lowercases)
+    const jobImageCollectionName = JobImage.collection.name;
+    aggregationPipeline.push({
+      $lookup: {
+        from: jobImageCollectionName,
+        localField: '_id',
+        foreignField: 'jobId',
+        as: 'jobImages',
+        pipeline: [
+          {
+            $project: {
+              imageUrl: 1,
+              isHero: 1,
+              order: 1,
+            }
+          },
+          {
+            $sort: {
+              isHero: -1, // Hero images first (true = 1, false = 0, so -1 puts true first)
+              order: 1,    // Then by order
+            }
+          }
+        ]
+      }
+    });
+    
+    // Stage 4: Select the optimal image (hero or first)
+    // First, extract imageUrl from jobImages array (already sorted: hero first, then by order)
+    aggregationPipeline.push({
+      $addFields: {
+        jobImageUrls: {
+          $map: {
+            input: '$jobImages',
+            as: 'img',
+            in: '$$img.imageUrl'
+          }
+        }
+      }
+    });
+    
+    // Stage 5: Select the optimal image URL
+    aggregationPipeline.push({
+      $addFields: {
+        selectedImage: {
+          $cond: {
+            if: { $gt: [{ $size: '$jobImageUrls' }, 0] },
+            then: {
+              // Use JobImage collection: hero image (first after sort) or first image by order
+              $arrayElemAt: ['$jobImageUrls', 0]
+            },
+            else: {
+              // Fallback to first image from pictures array
+              $cond: {
+                if: { $and: [{ $isArray: '$pictures' }, { $gt: [{ $size: '$pictures' }, 0] }] },
+                then: { $arrayElemAt: ['$pictures', 0] },
+                else: null
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    // Stage 6: Replace pictures array with single image (or empty array)
+    const finalProjection: any = {
+      _id: 1,
+      title: 1,
+      company: 1,
+      city: 1,
+      country: 1,
+      salary: 1,
+      type: 1,
+      recruiter: 1,
+      companyId: 1,
+      sports: 1,
+      occupationalAreas: 1,
+      published: 1,
+      featured: 1,
+      pictures: {
+        $cond: {
+          if: { $ne: ['$selectedImage', null] },
+          then: ['$selectedImage'], // Array with single image
+          else: [] // Empty array
+        }
+      },
+      createdAt: 1,
+      updatedAt: 1,
+      languages: 1,
+    };
+    
+    // Include description only if keyword filter is present
+    if (filters.keyword) {
+      finalProjection.description = 1;
+    }
+    
+    aggregationPipeline.push({
+      $project: finalProjection
+    });
+    
+    // Stage 7: Sort by updatedAt descending (same as before)
+    aggregationPipeline.push({ $sort: { updatedAt: -1, createdAt: -1 } });
+    
+    console.log('[API /jobs] Executing aggregation pipeline...');
+    const aggregationPromise = collection.aggregate(aggregationPipeline)
+      .maxTimeMS(10000)
+      .toArray();
 
-    console.log('[API /jobs] Query cursor created, calling toArray()...');
-    const simplestQueryPromise = queryCursor.toArray();
-
-    const simplestTimeout = new Promise<any[]>((_, reject) =>
-      setTimeout(() => reject(new Error('Query timeout after 5 seconds')), 5000)
+    const aggregationTimeout = new Promise<any[]>((_, reject) =>
+      setTimeout(() => reject(new Error('Aggregation timeout after 10 seconds')), 10000)
     );
 
     let jobsWithoutPopulate: any[];
     try {
       console.log('[API /jobs] Starting Promise.race...');
-      jobsWithoutPopulate = await Promise.race([simplestQueryPromise, simplestTimeout]);
+      jobsWithoutPopulate = await Promise.race([aggregationPromise, aggregationTimeout]);
       const fetchTime = Date.now() - fetchStart;
-      console.log(`[API /jobs] Simplest query succeeded, got ${jobsWithoutPopulate.length} jobs in ${fetchTime}ms`);
+      console.log(`[API /jobs] Aggregation pipeline succeeded, got ${jobsWithoutPopulate.length} jobs in ${fetchTime}ms`);
 
       // Filter on client side
       jobsWithoutPopulate = jobsWithoutPopulate.filter((job: any) => job.published !== false);
       console.log(`[API /jobs] Filtered to ${jobsWithoutPopulate.length} published jobs`);
-
-      // Diagnostic: Log image data for job cards
-      const imageStats = {
-        totalJobs: jobsWithoutPopulate.length,
-        jobsWithImages: 0,
-        jobsWithoutImages: 0,
-        totalImages: 0,
-        imageCounts: {} as Record<number, number>, // Count of jobs with N images
-      };
-      
-      jobsWithoutPopulate.forEach((job: any) => {
-        const imageCount = job.pictures ? (Array.isArray(job.pictures) ? job.pictures.length : 0) : 0;
-        if (imageCount > 0) {
-          imageStats.jobsWithImages++;
-          imageStats.totalImages += imageCount;
-          imageStats.imageCounts[imageCount] = (imageStats.imageCounts[imageCount] || 0) + 1;
-        } else {
-          imageStats.jobsWithoutImages++;
-        }
-      });
-      
-      console.log('[API /jobs] Image Statistics:');
-      console.log(`  Total jobs: ${imageStats.totalJobs}`);
-      console.log(`  Jobs with images: ${imageStats.jobsWithImages}`);
-      console.log(`  Jobs without images: ${imageStats.jobsWithoutImages}`);
-      console.log(`  Total images across all jobs: ${imageStats.totalImages}`);
-      console.log(`  Average images per job: ${imageStats.totalJobs > 0 ? (imageStats.totalImages / imageStats.totalJobs).toFixed(2) : 0}`);
-      console.log(`  Image count distribution:`, imageStats.imageCounts);
-      console.log(`  Source: Job.pictures array (inline in query)`);
 
       // Convert ObjectIds to strings
       jobsWithoutPopulate = jobsWithoutPopulate.map((job: any) => ({
@@ -385,6 +487,61 @@ export async function GET(request: NextRequest) {
         console.error('[API /jobs] Populate error:', populateError.message);
         // Continue without populate if it fails
         jobs = jobsWithoutPopulate;
+      }
+    }
+
+    // Optimize images: Select only one image per job (hero if exists, otherwise first)
+    if (jobs.length > 0) {
+      const imageOptimizeStart = Date.now();
+      try {
+        const db = mongoose.connection.db;
+        if (db) {
+          const jobImageCollection = db.collection('jobimages');
+          const jobIds = jobs.map((j: any) => new mongoose.Types.ObjectId(j._id));
+          
+          // Batch-fetch all hero images in one query
+          const heroImages = await jobImageCollection.find({
+            jobId: { $in: jobIds },
+            isHero: true,
+          })
+            .project({ jobId: 1, imageUrl: 1 })
+            .maxTimeMS(3000)
+            .toArray();
+          
+          // Create map: jobId -> hero image URL
+          const heroImageMap = new Map<string, string>();
+          heroImages.forEach((img: any) => {
+            const jobIdStr = img.jobId.toString();
+            heroImageMap.set(jobIdStr, img.imageUrl);
+          });
+          
+          // Transform jobs: replace pictures array with single selected image
+          jobs = jobs.map((job: any) => {
+            const jobIdStr = job._id.toString();
+            let selectedImage: string | null = null;
+            
+            // Rule 1: If hero image exists, use it
+            if (heroImageMap.has(jobIdStr)) {
+              selectedImage = heroImageMap.get(jobIdStr)!;
+            } 
+            // Rule 2: Otherwise, use first image from Job.pictures array
+            else if (job.pictures && Array.isArray(job.pictures) && job.pictures.length > 0) {
+              selectedImage = job.pictures[0];
+            }
+            
+            // Return job with optimized pictures array (0 or 1 image)
+            return {
+              ...job,
+              pictures: selectedImage ? [selectedImage] : [],
+            };
+          });
+          
+          const imageOptimizeTime = Date.now() - imageOptimizeStart;
+          console.log(`[API /jobs] Optimized images for ${jobs.length} jobs in ${imageOptimizeTime}ms`);
+        }
+      } catch (imageError: any) {
+        console.error('[API /jobs] Image optimization error:', imageError.message);
+        // Continue without optimization if it fails (fallback to original behavior)
       }
     }
 

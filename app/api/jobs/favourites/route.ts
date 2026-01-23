@@ -3,6 +3,7 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import Job from '@/models/Job';
 import { requireRole } from '@/lib/auth';
+import mongoose from 'mongoose';
 
 // GET - Get all favourite jobs for the current user (job seekers only)
 export async function GET(request: NextRequest) {
@@ -34,27 +35,116 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Map jobs to include id field
-    const jobsWithData = jobs.map((job: any) => ({
-      _id: job._id,
-      id: job._id,
-      title: job.title,
-      description: job.description,
-      company: job.company,
-      city: job.city,
-      country: job.country,
-      salary: job.salary,
-      type: job.type,
-      languages: job.languages || [],
-      qualifications: job.qualifications || [],
-      sports: job.sports || [],
-      occupationalAreas: job.occupationalAreas || [],
-      pictures: job.pictures || [],
-      recruiter: job.recruiter,
-      companyId: job.companyId,
-      createdAt: job.createdAt,
-      updatedAt: job.updatedAt,
-    }));
+    // Optimize images: Select only one image per job (hero if exists, otherwise first)
+    let jobsWithData: any[];
+    if (jobs.length > 0) {
+      try {
+        const db = mongoose.connection.db;
+        if (db) {
+          const jobImageCollection = db.collection('jobimages');
+          const jobIds = jobs.map((j: any) => j._id);
+          
+          // Batch-fetch all hero images in one query
+          const heroImages = await jobImageCollection.find({
+            jobId: { $in: jobIds },
+            isHero: true,
+          })
+            .project({ jobId: 1, imageUrl: 1 })
+            .maxTimeMS(3000)
+            .toArray();
+          
+          // Create map: jobId -> hero image URL
+          const heroImageMap = new Map<string, string>();
+          heroImages.forEach((img: any) => {
+            const jobIdStr = img.jobId.toString();
+            heroImageMap.set(jobIdStr, img.imageUrl);
+          });
+          
+          // Map jobs with optimized images
+          jobsWithData = jobs.map((job: any) => {
+            const jobIdStr = job._id.toString();
+            let selectedImage: string | null = null;
+            
+            // Rule 1: If hero image exists, use it
+            if (heroImageMap.has(jobIdStr)) {
+              selectedImage = heroImageMap.get(jobIdStr)!;
+            } 
+            // Rule 2: Otherwise, use first image from Job.pictures array
+            else if (job.pictures && Array.isArray(job.pictures) && job.pictures.length > 0) {
+              selectedImage = job.pictures[0];
+            }
+            
+            return {
+              _id: job._id,
+              id: job._id,
+              title: job.title,
+              description: job.description,
+              company: job.company,
+              city: job.city,
+              country: job.country,
+              salary: job.salary,
+              type: job.type,
+              languages: job.languages || [],
+              qualifications: job.qualifications || [],
+              sports: job.sports || [],
+              occupationalAreas: job.occupationalAreas || [],
+              pictures: selectedImage ? [selectedImage] : [], // Optimized: 0 or 1 image
+              recruiter: job.recruiter,
+              companyId: job.companyId,
+              createdAt: job.createdAt,
+              updatedAt: job.updatedAt,
+            };
+          });
+        } else {
+          // Fallback if db not available
+          jobsWithData = jobs.map((job: any) => ({
+            _id: job._id,
+            id: job._id,
+            title: job.title,
+            description: job.description,
+            company: job.company,
+            city: job.city,
+            country: job.country,
+            salary: job.salary,
+            type: job.type,
+            languages: job.languages || [],
+            qualifications: job.qualifications || [],
+            sports: job.sports || [],
+            occupationalAreas: job.occupationalAreas || [],
+            pictures: job.pictures || [],
+            recruiter: job.recruiter,
+            companyId: job.companyId,
+            createdAt: job.createdAt,
+            updatedAt: job.updatedAt,
+          }));
+        }
+      } catch (imageError: any) {
+        console.error('[API /jobs/favourites] Image optimization error:', imageError.message);
+        // Fallback to original behavior if optimization fails
+        jobsWithData = jobs.map((job: any) => ({
+          _id: job._id,
+          id: job._id,
+          title: job.title,
+          description: job.description,
+          company: job.company,
+          city: job.city,
+          country: job.country,
+          salary: job.salary,
+          type: job.type,
+          languages: job.languages || [],
+          qualifications: job.qualifications || [],
+          sports: job.sports || [],
+          occupationalAreas: job.occupationalAreas || [],
+          pictures: job.pictures || [],
+          recruiter: job.recruiter,
+          companyId: job.companyId,
+          createdAt: job.createdAt,
+          updatedAt: job.updatedAt,
+        }));
+      }
+    } else {
+      jobsWithData = [];
+    }
 
     return NextResponse.json({ jobs: jobsWithData }, { status: 200 });
   } catch (error: unknown) {
