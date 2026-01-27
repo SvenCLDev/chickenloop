@@ -7,6 +7,7 @@ import { requireRole, requireAuth } from '@/lib/auth';
 import { sendEmailAsync, EmailCategory } from '@/lib/email';
 import { getCandidateAppliedEmail, getRecruiterContactedEmail } from '@/lib/emailTemplates';
 import { guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
+import { ApplicationStatus } from '@/lib/applicationStatusTransitions';
 import mongoose from 'mongoose';
 
 // GET - Get applications
