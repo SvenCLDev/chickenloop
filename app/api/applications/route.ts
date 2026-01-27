@@ -139,7 +139,8 @@ export async function GET(request: NextRequest) {
 
 // POST - Create a new application
 // For job seekers: Create job application (requires jobId, status='applied')
-// For recruiters: Contact candidate (candidateId required, jobId optional, status='applied')
+// For recruiters: Contact candidate (candidateId required, jobId optional, status='contacted')
+//                 NOTE: Recruiter contact MUST use "contacted" status, NOT "applied"
 export async function POST(request: NextRequest) {
   let user: any = null;
   try {
@@ -412,7 +413,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Recruiter contacting a candidate
+    // ============================================================================
+    // RECRUITER CONTACTING A CANDIDATE
+    // ============================================================================
+    // 
+    // This flow handles when a recruiter initiates contact with a candidate.
+    // 
+    // STATUS ASSIGNMENT RULE (CRITICAL):
+    // - Status MUST be "contacted" (NOT "applied")
+    // - "applied" = candidate-initiated action (candidate applied to job)
+    // - "contacted" = recruiter-initiated action (recruiter reached out to candidate)
+    // 
+    // This distinction is important for:
+    // - ATS workflow accuracy (who initiated the contact?)
+    // - Status transitions (contacted → interviewing → offered → hired)
+    // - Reporting and analytics (recruiter outreach vs candidate applications)
+    //
+    // SAFEGUARD: Runtime assertions prevent accidental use of "applied" status.
+    // ============================================================================
     if (user.role === 'recruiter' || user.role === 'admin') {
       if (!candidateId) {
         return NextResponse.json(
@@ -481,28 +499,141 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Check for duplicate contact (recruiter + candidate, regardless of jobId)
+      // Check for existing application (recruiter + candidate, regardless of jobId)
       const existingContact = await Application.findOne({
         recruiterId: user.userId,
         candidateId: candidateId,
       });
 
       if (existingContact) {
+        // If application already exists, check if we should update it
+        // Do NOT downgrade or overwrite a more advanced status
+        const { getStatusPriority } = await import('@/lib/applicationStatusPriority');
+        const currentPriority = getStatusPriority(existingContact.status as any);
+        const contactedPriority = getStatusPriority('contacted');
+        
+        // If current status is more advanced than "contacted", don't modify
+        if (currentPriority > contactedPriority) {
+          return NextResponse.json(
+            { error: 'You have already contacted this candidate' },
+            { status: 400 }
+          );
+        }
+        
+        // If current status is terminal (rejected, withdrawn, hired), don't modify
+        const { TERMINAL_STATES } = await import('@/lib/domainTypes');
+        if (TERMINAL_STATES.includes(existingContact.status as any)) {
+          return NextResponse.json(
+            { error: 'You have already contacted this candidate' },
+            { status: 400 }
+          );
+        }
+        
+        // Application exists but status is less advanced or equal - update to "contacted"
+        // 
+        // IMPORTANT: Status must be "contacted" (NOT "applied") for recruiter-initiated contact.
+        // See rationale in the new application creation section above.
+        const wasAlreadyContacted = existingContact.status === 'contacted';
+        existingContact.status = 'contacted'; // MUST be "contacted" for recruiter-initiated contact
+        existingContact.lastActivityAt = new Date();
+        
+        // Runtime safeguard: Assert that status is NOT "applied" to prevent accidental regression
+        if (existingContact.status === 'applied') {
+          throw new Error('CRITICAL: Status must be "contacted" for recruiter-initiated contact, not "applied". This indicates a code error.');
+        }
+        // Update jobId if provided and not already set
+        if (finalJobId && !existingContact.jobId) {
+          existingContact.jobId = finalJobId;
+        }
+        await existingContact.save();
+        
+        // Send email notification if status was updated (not already "contacted")
+        if (!wasAlreadyContacted) {
+          try {
+            const candidate = await User.findById(candidateId).select('name email');
+            const recruiter = await User.findById(user.userId).select('name email');
+            
+            if (candidate && recruiter && candidate.email) {
+              let jobTitle: string | undefined;
+              let jobCompany: string | undefined;
+              let jobCity: string | undefined;
+
+              if (finalJobId) {
+                const job = await Job.findById(finalJobId).select('title company city');
+                if (job) {
+                  jobTitle = job.title;
+                  jobCompany = job.company;
+                  jobCity = job.city;
+                }
+              }
+
+              const emailTemplate = getRecruiterContactedEmail({
+                candidateName: candidate.name,
+                candidateEmail: candidate.email,
+                recruiterName: recruiter.name,
+                recruiterEmail: recruiter.email,
+                jobTitle,
+                jobCompany,
+                jobCity,
+              });
+
+              // Send email asynchronously (fire-and-forget)
+              sendEmailAsync({
+                to: candidate.email,
+                subject: emailTemplate.subject,
+                html: emailTemplate.html,
+                text: emailTemplate.text,
+                replyTo: recruiter.email,
+                category: EmailCategory.IMPORTANT_TRANSACTIONAL,
+                eventType: 'recruiter_contacted',
+                userId: user.userId.toString(),
+                tags: [
+                  { name: 'type', value: 'application' },
+                  { name: 'event', value: 'recruiter_contacted' },
+                ],
+              });
+            }
+          } catch (emailError) {
+            // Log but don't fail the request if email fails
+            console.error('Failed to send recruiter contact notification email:', emailError);
+          }
+        }
+        
+        // Return success with updated application
         return NextResponse.json(
-          { error: 'You have already contacted this candidate' },
-          { status: 400 }
+          {
+            message: 'Candidate contacted successfully',
+            application: existingContact,
+          },
+          { status: 200 }
         );
       }
 
-      // Create new contact application
+      // Create new contact application with status "contacted"
+      // 
+      // IMPORTANT: Status must be "contacted" (NOT "applied") for recruiter-initiated contact.
+      // 
+      // Rationale:
+      // - "applied" status indicates a candidate-initiated action (candidate applied to a job)
+      // - "contacted" status indicates a recruiter-initiated action (recruiter reached out to candidate)
+      // - Using "applied" here would incorrectly represent the workflow state and confuse the ATS
+      // - The status reflects WHO initiated the contact: candidate = "applied", recruiter = "contacted"
+      //
+      // SAFEGUARD: Do NOT use "applied" status in this recruiter contact flow.
+      // If you need to change this, ensure it aligns with the ATS workflow semantics.
       const now = new Date();
       const applicationData: any = {
         recruiterId: user.userId,
         candidateId: candidateId,
-        status: 'applied',
+        status: 'contacted', // MUST be "contacted" for recruiter-initiated contact (see comment above)
         appliedAt: now,
         lastActivityAt: now,
       };
+      
+      // Runtime safeguard: Assert that status is NOT "applied" to prevent accidental regression
+      if (applicationData.status === 'applied') {
+        throw new Error('CRITICAL: Status must be "contacted" for recruiter-initiated contact, not "applied". This indicates a code error.');
+      }
       
       // Only include jobId if it exists
       if (finalJobId) {

@@ -599,14 +599,16 @@ function RecruiterDashboardClient() {
                                 // New status lifecycle values
                                 applied: 'bg-blue-100 text-blue-800',
                                 viewed: 'bg-purple-100 text-purple-800',
+                                contacted: 'bg-yellow-100 text-yellow-800',
+                                interviewing: 'bg-purple-100 text-purple-800',
+                                offered: 'bg-green-100 text-green-800',
+                                hired: 'bg-green-100 text-green-800',
                                 accepted: 'bg-green-100 text-green-800',
                                 rejected: 'bg-red-100 text-red-800',
                                 withdrawn: 'bg-gray-100 text-gray-800',
                                 // Legacy values (for backward compatibility during migration)
                                 new: 'bg-blue-100 text-blue-800',
-                                contacted: 'bg-yellow-100 text-yellow-800',
                                 interviewed: 'bg-purple-100 text-purple-800',
-                                offered: 'bg-green-100 text-green-800',
                               };
 
                               const getStatusLabel = (status: string) => {
@@ -617,6 +619,10 @@ function RecruiterDashboardClient() {
                                 const statusLabels: { [key: string]: string } = {
                                   applied: 'Applied',
                                   viewed: 'Viewed',
+                                  contacted: 'Contacted',
+                                  interviewing: 'Interviewing',
+                                  offered: 'Offered',
+                                  hired: 'Hired',
                                   accepted: 'Accepted',
                                   rejected: 'Rejected',
                                 };

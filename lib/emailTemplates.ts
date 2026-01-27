@@ -103,7 +103,7 @@ export function getRecruiterContactedEmail(data: ApplicationEmailData): { subjec
 
       <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; border-left: 4px solid #2563eb; margin: 20px 0;">
         <p style="margin: 0; color: #1e40af;">
-          <strong>What's Next?</strong> The recruiter may contact you directly to discuss opportunities. Keep an eye on your email and the Chickenloop platform for updates.
+          <strong>What's next?</strong> Take a look at this job on <a href="http://chickenloop.com" style="color: #2563eb; text-decoration: underline;">Chickenloop.com</a>. If you're interested, you can apply directly through the platform or contact the recruiter by email to start the conversation.
         </p>
       </div>
 
@@ -123,7 +123,7 @@ ${jobTitle ? `Position of Interest:
 Position: ${jobTitle}
 ${jobCompany ? `Company: ${jobCompany}\n` : ''}${jobCity ? `City: ${jobCity}\n` : ''}` : ''}
 
-What's Next? The recruiter may contact you directly to discuss opportunities. Keep an eye on your email and the Chickenloop platform for updates.
+What's next? Take a look at this job on Chickenloop.com (http://chickenloop.com). If you're interested, you can apply directly through the platform or contact the recruiter by email to start the conversation.
 
 You can contact the recruiter at: ${recruiterEmail}`;
 

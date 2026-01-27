@@ -267,7 +267,15 @@ export default function RecruiterApplicationDetailPage() {
   };
 
   // Get allowed next statuses for dropdown
-  const allowedNextStatuses = application ? getAllowedNextStatuses(application.status) : [];
+  // IMPORTANT: Recruiters must NOT see "withdrawn" as an option
+  // "withdrawn" is a candidate-initiated action and cannot be set by recruiters
+  let allowedNextStatuses = application ? getAllowedNextStatuses(application.status) : [];
+  
+  // Filter out "withdrawn" for recruiters (admins can still see it)
+  if (user?.role === 'recruiter') {
+    allowedNextStatuses = allowedNextStatuses.filter(status => status !== 'withdrawn');
+  }
+  
   const isWithdrawn = application && application.status === 'withdrawn';
   const isTerminal = Boolean(
     application && TERMINAL_STATES.includes(application.status)

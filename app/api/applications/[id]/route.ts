@@ -254,8 +254,16 @@ export async function GET(
 
       // Authorization: Only recruiters can set accepted/rejected/hired status
       // Only job seekers can set withdrawn status (enforced in withdraw endpoint)
-      // Prevent recruiters from setting withdrawn status (job seekers must use withdraw endpoint)
+      // SAFEGUARD: Prevent recruiters from setting withdrawn status (job seekers must use withdraw endpoint)
+      // "withdrawn" is a candidate-initiated action and cannot be set by recruiters
       if (status === 'withdrawn') {
+        if (user.role === 'recruiter') {
+          return NextResponse.json(
+            { error: 'Recruiters cannot set application status to "withdrawn". This status can only be set by candidates when they withdraw their application.' },
+            { status: 403 }
+          );
+        }
+        // Admins also cannot set withdrawn via this endpoint (job seekers must use withdraw endpoint)
         return NextResponse.json(
           { error: 'Cannot set status to withdrawn via this endpoint. Job seekers must use the withdraw endpoint.' },
           { status: 400 }

@@ -64,6 +64,7 @@ export default function CVDetailPage() {
   const [contacting, setContacting] = useState(false);
   const [showJobModal, setShowJobModal] = useState(false);
   const [availableJobs, setAvailableJobs] = useState<any[]>([]);
+  const [showContactSuccessModal, setShowContactSuccessModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -144,7 +145,7 @@ export default function CVDetailPage() {
 
       if (response.ok) {
         setHasContacted(true);
-        alert('Candidate contacted successfully!');
+        setShowContactSuccessModal(true);
         setShowJobModal(false);
         setAvailableJobs([]);
       } else if (data.jobs && Array.isArray(data.jobs)) {
@@ -577,6 +578,38 @@ export default function CVDetailPage() {
         }}
         candidateName={cv?.fullName}
       />
+
+      {/* Contact Success Modal */}
+      {showContactSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+            <div className="mb-4 flex justify-center items-center" style={{ minHeight: '200px' }}>
+              <img
+                src="/success-chicken.gif"
+                alt="Success"
+                className="max-w-xs w-auto h-auto"
+                style={{ maxHeight: '300px', display: 'block', objectFit: 'contain' }}
+                onError={(e) => {
+                  console.error('Failed to load success GIF:', e);
+                }}
+              />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Candidate contacted
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Chickenloop has sent an email to this candidate letting them know that you are interested in their profile.
+              The candidate has been invited to contact you directly or submit an application.
+            </p>
+            <button
+              onClick={() => setShowContactSuccessModal(false)}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 font-semibold transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
