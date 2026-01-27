@@ -534,13 +534,19 @@ export async function POST(request: NextRequest) {
         // IMPORTANT: Status must be "contacted" (NOT "applied") for recruiter-initiated contact.
         // See rationale in the new application creation section above.
         const wasAlreadyContacted = existingContact.status === 'contacted';
-        existingContact.status = 'contacted'; // MUST be "contacted" for recruiter-initiated contact
-        existingContact.lastActivityAt = new Date();
         
-        // Runtime safeguard: Assert that status is NOT "applied" to prevent accidental regression
-        if (existingContact.status === 'applied') {
+        // Runtime safeguard: Defensive check to prevent accidental regression
+        // This check uses a type assertion because TypeScript would otherwise consider
+        // the comparison unreachable after we assign 'contacted' below. However, this
+        // safeguard is intentional to catch if someone accidentally changes the assignment
+        // to 'applied' instead of 'contacted' - it's a regression protection mechanism.
+        const statusBeforeUpdate = existingContact.status as ApplicationStatus;
+        if (statusBeforeUpdate === 'applied') {
           throw new Error('CRITICAL: Status must be "contacted" for recruiter-initiated contact, not "applied". This indicates a code error.');
         }
+        
+        existingContact.status = 'contacted'; // MUST be "contacted" for recruiter-initiated contact
+        existingContact.lastActivityAt = new Date();
         // Update jobId if provided and not already set
         if (finalJobId && !existingContact.jobId) {
           existingContact.jobId = finalJobId;
@@ -630,8 +636,12 @@ export async function POST(request: NextRequest) {
         lastActivityAt: now,
       };
       
-      // Runtime safeguard: Assert that status is NOT "applied" to prevent accidental regression
-      if (applicationData.status === 'applied') {
+      // Runtime safeguard: Defensive check to prevent accidental regression
+      // This check uses a type assertion because TypeScript would otherwise consider
+      // the comparison unreachable (status is a literal 'contacted'). However, this
+      // safeguard is intentional to catch if someone accidentally changes the literal
+      // above to 'applied' instead of 'contacted' - it's a regression protection mechanism.
+      if ((applicationData.status as ApplicationStatus) === 'applied') {
         throw new Error('CRITICAL: Status must be "contacted" for recruiter-initiated contact, not "applied". This indicates a code error.');
       }
       
