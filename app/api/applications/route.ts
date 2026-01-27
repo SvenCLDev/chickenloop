@@ -550,7 +550,14 @@ export async function POST(request: NextRequest) {
         existingContact.lastActivityAt = new Date();
         // Update jobId if provided and not already set
         if (finalJobId && !existingContact.jobId) {
-          existingContact.jobId = finalJobId;
+          // Convert string to ObjectId for proper type matching
+          if (!mongoose.Types.ObjectId.isValid(finalJobId)) {
+            return NextResponse.json(
+              { error: 'Invalid job ID' },
+              { status: 400 }
+            );
+          }
+          existingContact.jobId = new mongoose.Types.ObjectId(finalJobId);
         }
         await existingContact.save();
         
@@ -648,7 +655,14 @@ export async function POST(request: NextRequest) {
       
       // Only include jobId if it exists
       if (finalJobId) {
-        applicationData.jobId = finalJobId;
+        // Convert string to ObjectId for proper type matching
+        if (!mongoose.Types.ObjectId.isValid(finalJobId)) {
+          return NextResponse.json(
+            { error: 'Invalid job ID' },
+            { status: 400 }
+          );
+        }
+        applicationData.jobId = new mongoose.Types.ObjectId(finalJobId);
       }
       
       const application = await Application.create(applicationData);
