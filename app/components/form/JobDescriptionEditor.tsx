@@ -31,6 +31,12 @@ export default function JobDescriptionEditor({
   const lastEmittedRef = useRef<string>(value);
   const isInternalChangeRef = useRef(false);
 
+  const editorAttributes: Record<string, string> = {
+    'aria-label': ariaLabel,
+    'data-placeholder': placeholder,
+  };
+  if (required) editorAttributes['aria-required'] = 'true';
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -45,11 +51,7 @@ export default function JobDescriptionEditor({
     ],
     content: sanitizeJobDescription(value || ''),
     editorProps: {
-      attributes: {
-        'aria-label': ariaLabel,
-        'aria-required': required ? 'true' : undefined,
-        'data-placeholder': placeholder,
-      },
+      attributes: editorAttributes,
       handlePaste: (view, event) => {
         event.preventDefault();
         const text = event.clipboardData?.getData('text/plain') ?? '';
