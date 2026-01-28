@@ -577,16 +577,16 @@ function JobsPageContent() {
                   <label htmlFor="country-filter" className="block text-sm font-medium text-gray-700 mb-2">
                     Country
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
             <select
               id="country-filter"
               value={selectedCountry}
                       onChange={(e) => handleFilterChange('country', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                      className="flex-1 min-w-0 w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
             >
               <option value="">All Countries</option>
               {getUniqueCountries().map((country) => (
-                <option key={country.code} value={country.code}>
+                <option key={country.code} value={country.code} title={country.name}>
                   {country.name}
                 </option>
               ))}
@@ -594,7 +594,7 @@ function JobsPageContent() {
                     {selectedCountry && (
                       <button
                         onClick={() => handleFilterChange('country', '')}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-gray-400 hover:text-gray-600 flex-shrink-0"
                         aria-label="Clear country filter"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -610,16 +610,16 @@ function JobsPageContent() {
                   <label htmlFor="city-filter" className="block text-sm font-medium text-gray-700 mb-2">
                     City
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <select
                       id="city-filter"
                       value={selectedCity}
                       onChange={(e) => handleFilterChange('city', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                      className="flex-1 min-w-0 w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
                     >
                       <option value="">All Cities</option>
                       {getUniqueCities().map((city) => (
-                        <option key={city} value={city}>
+                        <option key={city} value={city} title={city}>
                           {city}
                         </option>
                       ))}
@@ -627,7 +627,7 @@ function JobsPageContent() {
                     {selectedCity && (
                       <button
                         onClick={() => handleFilterChange('city', '')}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-gray-400 hover:text-gray-600 flex-shrink-0"
                         aria-label="Clear city filter"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -643,16 +643,16 @@ function JobsPageContent() {
                   <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700 mb-2">
                     Job Type
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
             <select
               id="category-filter"
               value={selectedCategory}
                       onChange={(e) => handleFilterChange('category', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                      className="flex-1 min-w-0 w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
             >
               <option value="">All Categories</option>
                       {getAvailableCategories().map((category) => (
-                <option key={category} value={category}>
+                <option key={category} value={category} title={category}>
                   {category}
                 </option>
               ))}
@@ -660,7 +660,7 @@ function JobsPageContent() {
                     {selectedCategory && (
                       <button
                         onClick={() => handleFilterChange('category', '')}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-gray-400 hover:text-gray-600 flex-shrink-0"
                         aria-label="Clear category filter"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -676,16 +676,16 @@ function JobsPageContent() {
                   <label htmlFor="activity-filter" className="block text-sm font-medium text-gray-700 mb-2">
                     Activity Type
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
             <select
                       id="activity-filter"
                       value={selectedActivity}
                       onChange={(e) => handleFilterChange('activity', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                      className="flex-1 min-w-0 w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
                     >
                       <option value="">All Activities</option>
               {getUniqueSports().map((sport) => (
-                <option key={sport} value={sport}>
+                <option key={sport} value={sport} title={sport}>
                   {sport}
                 </option>
               ))}
@@ -693,7 +693,7 @@ function JobsPageContent() {
                     {selectedActivity && (
                       <button
                         onClick={() => handleFilterChange('activity', '')}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-gray-400 hover:text-gray-600 flex-shrink-0"
                         aria-label="Clear activity filter"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -709,16 +709,16 @@ function JobsPageContent() {
                   <label htmlFor="language-filter" className="block text-sm font-medium text-gray-700 mb-2">
                     Language
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
             <select
               id="language-filter"
               value={selectedLanguage}
                       onChange={(e) => handleFilterChange('language', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                      className="flex-1 min-w-0 w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
             >
               <option value="">All Languages</option>
               {getUniqueLanguages().map((language) => (
-                <option key={language} value={language}>
+                <option key={language} value={language} title={language}>
                   {language}
                 </option>
               ))}
@@ -726,7 +726,7 @@ function JobsPageContent() {
                     {selectedLanguage && (
                       <button
                         onClick={() => handleFilterChange('language', '')}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-gray-400 hover:text-gray-600 flex-shrink-0"
                         aria-label="Clear language filter"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -791,11 +791,11 @@ function JobsPageContent() {
                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center sm:justify-between">
                   <div className="flex flex-wrap gap-2 items-center">
                   {keyword && (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      <span>Keyword: <strong>{keyword}</strong></span>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium max-w-full">
+                      <span className="truncate" title={`Keyword: ${keyword}`}>Keyword: <strong>{keyword}</strong></span>
                       <button
                         onClick={() => handleRemoveSearchFilter('keyword')}
-                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none flex-shrink-0"
                         aria-label="Remove keyword filter"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -805,11 +805,11 @@ function JobsPageContent() {
                     </div>
                   )}
                   {location && (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      <span>Location: <strong>{location}</strong></span>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium max-w-full">
+                      <span className="truncate" title={`Location: ${location}`}>Location: <strong>{location}</strong></span>
                       <button
                         onClick={() => handleRemoveSearchFilter('location')}
-                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none flex-shrink-0"
                         aria-label="Remove location filter"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -819,11 +819,11 @@ function JobsPageContent() {
                     </div>
                   )}
             {selectedCountry && (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      <span>Country: <strong>{getCountryNameFromCode(selectedCountry)}</strong></span>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium max-w-full">
+                      <span className="truncate" title={`Country: ${getCountryNameFromCode(selectedCountry)}`}>Country: <strong>{getCountryNameFromCode(selectedCountry)}</strong></span>
                       <button
                         onClick={() => handleFilterChange('country', '')}
-                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none flex-shrink-0"
                         aria-label="Remove country filter"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -833,11 +833,11 @@ function JobsPageContent() {
                     </div>
             )}
             {selectedCategory && (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      <span>Job Type: <strong>{selectedCategory}</strong></span>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium max-w-full">
+                      <span className="truncate" title={`Job Type: ${selectedCategory}`}>Job Type: <strong>{selectedCategory}</strong></span>
                       <button
                         onClick={() => handleFilterChange('category', '')}
-                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none flex-shrink-0"
                         aria-label="Remove category filter"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -847,11 +847,11 @@ function JobsPageContent() {
                     </div>
                   )}
                   {selectedActivity && (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      <span>Activity: <strong>{selectedActivity}</strong></span>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium max-w-full">
+                      <span className="truncate" title={`Activity: ${selectedActivity}`}>Activity: <strong>{selectedActivity}</strong></span>
                       <button
                         onClick={() => handleFilterChange('activity', '')}
-                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none flex-shrink-0"
                         aria-label="Remove activity filter"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -861,11 +861,11 @@ function JobsPageContent() {
                     </div>
             )}
             {selectedLanguage && (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      <span>Language: <strong>{selectedLanguage}</strong></span>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium max-w-full">
+                      <span className="truncate" title={`Language: ${selectedLanguage}`}>Language: <strong>{selectedLanguage}</strong></span>
                       <button
                         onClick={() => handleFilterChange('language', '')}
-                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none flex-shrink-0"
                         aria-label="Remove language filter"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -875,11 +875,11 @@ function JobsPageContent() {
                     </div>
                   )}
                   {selectedCity && (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      <span>City: <strong>{selectedCity}</strong></span>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium max-w-full">
+                      <span className="truncate" title={`City: ${selectedCity}`}>City: <strong>{selectedCity}</strong></span>
                       <button
                         onClick={() => handleFilterChange('city', '')}
-                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none flex-shrink-0"
                         aria-label="Remove city filter"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1104,13 +1104,13 @@ function JobsPageContent() {
                 <div className="mb-4 p-3 bg-gray-50 rounded-md">
                   <p className="text-sm font-medium text-gray-700 mb-2">Current Search Criteria:</p>
                   <ul className="text-sm text-gray-600 space-y-1">
-                    {keyword && <li>• Keyword: <strong>{keyword}</strong></li>}
-                    {location && <li>• Location: <strong>{location}</strong></li>}
-                    {selectedCountry && <li>• Country: <strong>{getCountryNameFromCode(selectedCountry)}</strong></li>}
-                    {selectedCategory && <li>• Category: <strong>{selectedCategory}</strong></li>}
-                    {selectedActivity && <li>• Activity: <strong>{selectedActivity}</strong></li>}
-                    {selectedLanguage && <li>• Language: <strong>{selectedLanguage}</strong></li>}
-                    {selectedCity && <li>• City: <strong>{selectedCity}</strong></li>}
+                    {keyword && <li className="truncate" title={`Keyword: ${keyword}`}>• Keyword: <strong>{keyword}</strong></li>}
+                    {location && <li className="truncate" title={`Location: ${location}`}>• Location: <strong>{location}</strong></li>}
+                    {selectedCountry && <li className="truncate" title={`Country: ${getCountryNameFromCode(selectedCountry)}`}>• Country: <strong>{getCountryNameFromCode(selectedCountry)}</strong></li>}
+                    {selectedCategory && <li className="truncate" title={`Category: ${selectedCategory}`}>• Category: <strong>{selectedCategory}</strong></li>}
+                    {selectedActivity && <li className="truncate" title={`Activity: ${selectedActivity}`}>• Activity: <strong>{selectedActivity}</strong></li>}
+                    {selectedLanguage && <li className="truncate" title={`Language: ${selectedLanguage}`}>• Language: <strong>{selectedLanguage}</strong></li>}
+                    {selectedCity && <li className="truncate" title={`City: ${selectedCity}`}>• City: <strong>{selectedCity}</strong></li>}
                     {!keyword && !location && !selectedCountry && !selectedCategory && !selectedActivity && !selectedLanguage && !selectedCity && (
                       <li className="text-gray-500">No filters applied</li>
                     )}
