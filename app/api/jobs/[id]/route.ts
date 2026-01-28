@@ -5,6 +5,7 @@ import JobImage from '@/models/JobImage';
 import { requireAuth, requireRole } from '@/lib/auth';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import mongoose from 'mongoose';
 
 // GET - Get a single job (accessible to all users, including anonymous)
@@ -163,7 +164,9 @@ export async function PUT(
     }
 
     if (title) job.title = title;
-    if (description) job.description = description;
+    if (description) {
+      job.description = sanitizeJobDescription(description);
+    }
     if (company) job.company = company;
     if (city) job.city = city;
     if (country !== undefined) {

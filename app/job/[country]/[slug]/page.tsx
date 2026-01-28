@@ -544,7 +544,11 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
             {/* Job Description */}
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Job Description</h2>
-              <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{job.description}</p>
+              <div
+                className="text-gray-700 leading-relaxed"
+                // Description HTML is sanitized on the backend using sanitize-html
+                dangerouslySetInnerHTML={{ __html: job.description || '' }}
+              />
             </div>
 
             {job.companyId && (

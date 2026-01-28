@@ -10,6 +10,7 @@ import { parseJobSearchParams } from '@/lib/jobSearchParams';
 import { getCountryCodeFromName } from '@/lib/countryUtils';
 import { JOB_CATEGORIES, categorySlugToLabel } from '@/src/constants/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 export async function GET(request: NextRequest) {
@@ -680,7 +681,7 @@ export async function POST(request: NextRequest) {
 
     const job = await Job.create({
       title,
-      description,
+      description: sanitizeJobDescription(description),
       company,
       city,
       country: normalizedCountry,
