@@ -615,7 +615,7 @@ function JobsPageContent() {
                       id="city-filter"
                       value={selectedCity}
                       onChange={(e) => handleFilterChange('city', e.target.value)}
-                      className="flex-1 min-w-0 w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                      className="flex-1 min-w-0 w-full max-w-full truncate px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
                     >
                       <option value="">All Cities</option>
                       {getUniqueCities().map((city) => (

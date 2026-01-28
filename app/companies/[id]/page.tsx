@@ -252,7 +252,7 @@ export default function CompanyPage() {
 
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="flex items-center gap-6 mb-4">
-            {company.logo && (
+            {company.logo && company.logo.trim() && (
               <img
                 src={company.logo}
                 alt={`${company.name} Logo`}
