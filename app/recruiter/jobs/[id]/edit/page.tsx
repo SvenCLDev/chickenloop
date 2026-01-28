@@ -14,6 +14,7 @@ import {
 import { SPORTS_LIST } from '@/lib/sports';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import UrlInput from '../../../../components/form/UrlInput';
+import JobDescriptionEditor from '../../../../components/form/JobDescriptionEditor';
 
 export default function EditJobPage() {
   const { user, loading: authLoading } = useAuth();
@@ -471,13 +472,12 @@ export default function EditJobPage() {
               <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
                 Description *
               </label>
-              <textarea
+              <JobDescriptionEditor
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(html) => setFormData({ ...formData, description: html })}
                 required
-                rows={8}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                className="mt-1"
               />
             </div>
             <div>
