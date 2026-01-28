@@ -65,3 +65,4 @@ exports/
 # Backup files (prevent .bak files from being committed)
 *.bak
 *.bak.*
+SESSION_MEMORY.md

@@ -523,28 +523,27 @@ function JobSeekerDashboardClient() {
           ) : (
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Job Title
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Company
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Applied
+                      </th>
+                      <th className="px-4 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Last Updated
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Application Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {myApplications.map((application) => {
+                  {myApplications.map((application) => {
                       const currentStatus = isApplicationStatus(application.status) ? application.status : 'applied';
                       const isWithdrawn = currentStatus === 'withdrawn';
                       const isRejected = currentStatus === 'rejected';
@@ -556,135 +555,143 @@ function JobSeekerDashboardClient() {
                       // Find current status position in timeline
                       const currentStatusIndex = TIMELINE_STATUSES.indexOf(currentStatus);
                       const isInTimeline = currentStatusIndex !== -1;
-                      
+
+                      const visibleColumnCount = 5;
+
                       return (
-                        <tr 
-                          key={application._id}
-                          className={isInactive ? 'opacity-60' : ''}
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            {application.job ? (
-                              <div className="flex flex-col gap-1">
-                                <Link
-                                  href={getJobUrl(application.job)}
-                                  className={isInactive 
-                                    ? 'text-gray-400 hover:text-gray-500 hover:underline font-medium' 
-                                    : 'text-blue-600 hover:text-blue-900 hover:underline font-medium'
-                                  }
-                                >
-                                  {application.job.title}
-                                </Link>
-                              </div>
-                            ) : (
-                              <span className="text-gray-400">Job no longer available</span>
-                            )}
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap text-sm ${isInactive ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {application.company ? (
-                              application.company.name
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap text-sm ${isInactive ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {application.updatedAt
-                              ? new Date(application.updatedAt).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric',
-                                })
-                              : application.lastActivityAt
-                                ? new Date(application.lastActivityAt).toLocaleDateString('en-US', {
+                        <tbody key={application._id} className="group border-b border-gray-200 last:border-b-0 bg-white">
+                          <tr
+                            className={`border-b-0 group-hover:bg-gray-50 ${isInactive ? 'opacity-60' : ''}`}
+                          >
+                            <td className="px-4 py-3 sm:px-6 sm:py-4 min-w-0 max-w-[50%] sm:max-w-none text-sm font-medium">
+                              {application.job ? (
+                                <div className="min-w-0 truncate">
+                                  <Link
+                                    href={getJobUrl(application.job)}
+                                    className={`block truncate ${isInactive 
+                                      ? 'text-gray-400 hover:text-gray-500 hover:underline font-medium' 
+                                      : 'text-blue-600 hover:text-blue-900 hover:underline font-medium'
+                                    }`}
+                                  >
+                                    {application.job.title}
+                                  </Link>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">Job no longer available</span>
+                              )}
+                            </td>
+                            <td className={`px-4 py-3 sm:px-6 sm:py-4 min-w-0 max-w-[30%] sm:max-w-none text-sm truncate ${isInactive ? 'text-gray-400' : 'text-gray-500'}`}>
+                              {application.company ? (
+                                <span className="block truncate">{application.company.name}</span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className={`px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm ${isInactive ? 'text-gray-400' : 'text-gray-500'}`}>
+                              {(application.appliedAt ?? application.createdAt)
+                                ? new Date(application.appliedAt ?? application.createdAt).toLocaleDateString('en-US', {
                                     year: 'numeric',
                                     month: 'short',
                                     day: 'numeric',
                                   })
-                                : new Date(application.appliedAt).toLocaleDateString('en-US', {
+                                : '-'}
+                            </td>
+                            <td className={`px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm ${isInactive ? 'text-gray-400' : 'text-gray-500'}`}>
+                              {application.updatedAt
+                                ? new Date(application.updatedAt).toLocaleDateString('en-US', {
                                     year: 'numeric',
                                     month: 'short',
                                     day: 'numeric',
-                                  })}
-                          </td>
-                          <td className="px-6 py-4 text-sm">
-                            {isInTimeline ? (
-                              <div className="space-y-2">
-                                {/* Timeline */}
-                                <div className="flex items-center gap-1 flex-wrap">
-                                  {TIMELINE_STATUSES.map((status, index) => {
-                                    const isActive = status === currentStatus;
-                                    const isPast = currentStatusIndex !== -1 && index < currentStatusIndex;
-                                    const isFuture = index > currentStatusIndex;
-                                    
-                                    return (
-                                      <div key={status} className="flex items-center gap-1">
-                                        <div
-                                          className={`px-2 py-1 text-xs font-medium rounded ${
-                                            isActive
-                                              ? 'bg-blue-600 text-white ring-2 ring-blue-300'
-                                              : isPast
-                                              ? 'bg-gray-200 text-gray-700'
-                                              : 'bg-gray-100 text-gray-400'
-                                          }`}
-                                        >
-                                          {getStatusLabel(status)}
-                                        </div>
-                                        {index < TIMELINE_STATUSES.length - 1 && (
-                                          <span className={`text-xs ${
-                                            isPast || isActive ? 'text-gray-400' : 'text-gray-300'
-                                          }`}>
-                                            →
-                            </span>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                                {/* Helper text */}
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Recruiters may contact you outside the platform.
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                {/* Terminal state display */}
-                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(currentStatus)}`}>
-                                  {getStatusLabel(currentStatus)}
+                                  })
+                                : application.lastActivityAt
+                                  ? new Date(application.lastActivityAt).toLocaleDateString('en-US', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                    })
+                                  : application.appliedAt
+                                    ? new Date(application.appliedAt).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                      })
+                                    : '-'}
+                            </td>
+                            <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm font-medium">
+                              {canRemove ? (
+                                <button
+                                  onClick={() => handleRemoveFromList(application._id)}
+                                  disabled={archivingApplication === application._id}
+                                  className="text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {archivingApplication === application._id ? 'Removing...' : 'Remove from list'}
+                                </button>
+                              ) : canWithdraw ? (
+                                <button
+                                  onClick={() => handleWithdrawApplication(application._id, application.job?.title || 'this job')}
+                                  disabled={withdrawingApplication === application._id}
+                                  className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {withdrawingApplication === application._id ? 'Withdrawing...' : 'Withdraw application'}
+                                </button>
+                              ) : (
+                                <span className="text-gray-400 text-xs">
+                                  Cannot withdraw
                                 </span>
-                                {isTerminal && (
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    This application is in a final state.
-                                  </p>
+                              )}
+                            </td>
+                          </tr>
+                          <tr className="group-hover:bg-gray-50">
+                            <td colSpan={visibleColumnCount} className="px-4 py-4 sm:px-6 min-w-0 align-top border-t-0">
+                              <div className="application-pipeline-row min-w-0 w-full">
+                                {isInTimeline ? (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-1 flex-wrap min-w-0">
+                                      {TIMELINE_STATUSES.map((status, index) => {
+                                        const isActive = status === currentStatus;
+                                        const isPast = currentStatusIndex !== -1 && index < currentStatusIndex;
+                                        return (
+                                          <div key={status} className="flex items-center gap-1">
+                                            <div
+                                              className={`px-2 py-1 text-xs font-medium rounded ${
+                                                isActive
+                                                  ? 'bg-blue-600 text-white ring-2 ring-blue-300'
+                                                  : isPast
+                                                  ? 'bg-gray-200 text-gray-700'
+                                                  : 'bg-gray-100 text-gray-400'
+                                              }`}
+                                            >
+                                              {getStatusLabel(status)}
+                                            </div>
+                                            {index < TIMELINE_STATUSES.length - 1 && (
+                                              <span className={`text-xs ${isPast || isActive ? 'text-gray-400' : 'text-gray-300'}`}>→</span>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Recruiters may contact you outside the platform.
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2">
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(currentStatus)}`}>
+                                      {getStatusLabel(currentStatus)}
+                                    </span>
+                                    {isTerminal && (
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        This application is in a final state.
+                                      </p>
+                                    )}
+                                  </div>
                                 )}
                               </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            {canRemove ? (
-                              <button
-                                onClick={() => handleRemoveFromList(application._id)}
-                                disabled={archivingApplication === application._id}
-                                className="text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {archivingApplication === application._id ? 'Removing...' : 'Remove from list'}
-                              </button>
-                            ) : canWithdraw ? (
-                              <button
-                                onClick={() => handleWithdrawApplication(application._id, application.job?.title || 'this job')}
-                                disabled={withdrawingApplication === application._id}
-                                className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {withdrawingApplication === application._id ? 'Withdrawing...' : 'Withdraw application'}
-                              </button>
-                            ) : (
-                              <span className="text-gray-400 text-xs">
-                                Cannot withdraw
-                              </span>
-                            )}
-                          </td>
-                        </tr>
+                            </td>
+                          </tr>
+                        </tbody>
                       );
                     })}
-                  </tbody>
                 </table>
               </div>
             </div>
