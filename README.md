@@ -60,6 +60,10 @@ BLOB_READ_WRITE_TOKEN=your-vercel-blob-token  # Optional for local dev - get fro
 RESEND_API_KEY=re_your_api_key_here  # Get from https://resend.com/api-keys
 RESEND_FROM_EMAIL=noreply@yourdomain.com  # Optional, defaults to onboarding@resend.dev
 CONTACT_EMAIL=hello@chickenloop.com  # Optional, contact form recipient email
+
+# Stripe (payments / boosts)
+STRIPE_SECRET_KEY=sk_test_...  # Get from https://dashboard.stripe.com/apikeys
+STRIPE_WEBHOOK_SECRET=whsec_...  # Get from Stripe Dashboard → Developers → Webhooks
 ```
 
 **Note:** For local development, image uploads require a Vercel Blob Storage token. You can get one from your Vercel dashboard under Settings → Storage → Blob. For production deployments on Vercel, this token is automatically available.
