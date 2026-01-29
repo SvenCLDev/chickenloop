@@ -32,6 +32,7 @@ export interface ICompany extends Document {
   logo?: string; // Company logo image URL
   pictures?: string[]; // Array of image paths (max 3)
   featured?: boolean; // Featured flag: true if featured, false otherwise
+  featuredUntil?: Date | null; // Time-limited featuring: expiry date for paid boost
   owner: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -144,6 +145,10 @@ const CompanySchema: Schema = new Schema(
       type: Boolean,
       default: false,
     },
+    featuredUntil: {
+      type: Date,
+      default: null,
+    },
     owner: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -156,9 +161,25 @@ const CompanySchema: Schema = new Schema(
   }
 );
 
+// Instance method: true if time-limited featuring is active (featuredUntil set and in the future)
+CompanySchema.methods.isCurrentlyFeatured = function(): boolean {
+  return !!(this as any).featuredUntil && (this as any).featuredUntil > new Date();
+};
+
+// Pre-save hook: sync featured from featuredUntil (time-limited featuring); leave featured unchanged when featuredUntil absent
+CompanySchema.pre('save', function(next) {
+  const doc = this as any;
+  if (doc.featuredUntil != null && doc.featuredUntil !== undefined) {
+    const until = doc.featuredUntil instanceof Date ? doc.featuredUntil : new Date(doc.featuredUntil);
+    doc.featured = until > new Date();
+  }
+  next();
+});
+
 // Create indexes for efficient querying
 // Note: owner field already has unique: true which creates an index automatically
 CompanySchema.index({ featured: 1 }); // For featured company filtering
+CompanySchema.index({ featuredUntil: 1 }); // For time-limited featuring queries
 CompanySchema.index({ createdAt: -1 }); // For sorting by creation date
 
 const Company: Model<ICompany> = mongoose.models.Company || mongoose.model<ICompany>('Company', CompanySchema);

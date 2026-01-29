@@ -71,10 +71,15 @@ export async function PUT(
       experienceLevel,
       availability,
       published,
+      featured,
     } = body;
 
-    // Validate required fields
-    if (!fullName || !email) {
+    // Allow featured-only update (admin toggle from list)
+    const updateKeys = Object.keys(body).filter((key) => body[key] !== undefined);
+    const isFeaturedOnlyUpdate = updateKeys.length === 1 && updateKeys[0] === 'featured';
+
+    // Validate required fields (skip for featured-only update)
+    if (!isFeaturedOnlyUpdate && (!fullName || !email)) {
       return NextResponse.json(
         { error: 'Full name and email are required' },
         { status: 400 }
@@ -127,6 +132,11 @@ export async function PUT(
     if (availability !== undefined) cv.availability = availability;
     if (published !== undefined) cv.published = published;
     if (body.pictures !== undefined) cv.pictures = body.pictures || [];
+
+    // Update featured flag (admin can feature/unfeature any CV)
+    if (featured !== undefined) {
+      cv.featured = featured === true;
+    }
 
     await cv.save();
 

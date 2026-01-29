@@ -30,12 +30,13 @@ export async function GET(request: NextRequest) {
     // Build aggregation pipeline for efficient filtering and sorting
     const pipeline: any[] = [];
 
-    // Stage 1: Match CVs (with projection for minimal fields)
+    // Stage 1: Project minimal fields before lookup/sort to reduce memory
     pipeline.push({
       $project: {
         _id: 1,
         jobSeeker: 1,
         published: 1,
+        featured: 1,
         createdAt: 1,
       }
     });
@@ -102,6 +103,9 @@ export async function GET(request: NextRequest) {
       case 'published':
         sortField = 'published';
         break;
+      case 'featured':
+        sortField = 'featured';
+        break;
       case 'created':
         sortField = 'createdAt';
         break;
@@ -118,10 +122,9 @@ export async function GET(request: NextRequest) {
       $limit: 1000
     });
 
-    // Execute aggregation
+    // Execute aggregation (allowDiskUse for stability on large collections)
     const cvs = await dbConnection.collection('cvs')
-      .aggregate(pipeline)
-      .maxTimeMS(10000)
+      .aggregate(pipeline, { allowDiskUse: true, maxTimeMS: 10000 })
       .toArray();
 
     // Map results to expected format
@@ -131,6 +134,7 @@ export async function GET(request: NextRequest) {
         ? { name: cv.jobSeekerInfo.name || 'Unknown', email: cv.jobSeekerInfo.email || 'unknown@example.com' }
         : null,
       published: cv.published || false,
+      featured: cv.featured === true,
       createdAt: cv.createdAt,
     }));
 

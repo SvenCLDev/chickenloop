@@ -140,6 +140,7 @@ interface CV {
   id: string;
   jobSeeker: any;
   published: boolean;
+  featured?: boolean;
   createdAt: string;
 }
 
@@ -363,6 +364,7 @@ function AdminDashboard() {
             'jobSeeker': 'jobSeeker',
             'email': 'email',
             'published': 'published',
+            'featured': 'featured',
             'created': 'created',
           };
           const cvApiSortBy = cvSortByMap[sortColumn] || 'created';
@@ -655,6 +657,32 @@ function AdminDashboard() {
   const handleEditCV = (cvId: string) => {
     // Navigate to admin CV edit page
     router.push(`/admin/cvs/${cvId}/edit`);
+  };
+
+  const handleToggleCVFeatured = async (cvId: string, currentFeatured: boolean) => {
+    if (togglingFeatured === cvId) {
+      console.log(`[Admin] Already toggling featured for CV ${cvId}, ignoring duplicate click`);
+      return;
+    }
+    const newFeaturedStatus = !currentFeatured;
+    setTableData((prev) => prev.map((entry) =>
+      entry.id === cvId ? { ...entry, featured: newFeaturedStatus } : entry
+    ));
+    setTogglingFeatured(cvId);
+    try {
+      await adminApi.updateCV(cvId, { featured: newFeaturedStatus });
+      if (selectedCategory === 'cvs') {
+        await loadCategoryData('cvs');
+      }
+    } catch (err: any) {
+      console.error('[Admin] Error updating CV featured status:', err);
+      setTableData((prev) => prev.map((entry) =>
+        entry.id === cvId ? { ...entry, featured: currentFeatured } : entry
+      ));
+      alert(`Failed to update featured status: ${err.message || 'Unknown error'}`);
+    } finally {
+      setTogglingFeatured(null);
+    }
   };
 
   const handleEditCareerAdvice = (articleId: string) => {
@@ -1590,6 +1618,20 @@ function AdminDashboard() {
                                 }`}>
                                   {entry.published ? 'Published' : 'Draft'}
                                 </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                <button
+                                  onClick={() => handleToggleCVFeatured(entry.id, entry.featured || false)}
+                                  disabled={togglingFeatured === entry.id}
+                                  className={`px-3 py-1 rounded-md text-xs font-medium ${
+                                    entry.featured
+                                      ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                  } ${togglingFeatured === entry.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  title={entry.featured ? 'Click to unfeature' : 'Click to feature'}
+                                >
+                                  {togglingFeatured === entry.id ? 'Updating...' : (entry.featured ? '⭐ Featured' : 'Not Featured')}
+                                </button>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {new Date(entry.createdAt).toLocaleDateString()}

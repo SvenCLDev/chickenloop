@@ -27,6 +27,7 @@ interface CV {
   lookingForWorkInAreas?: string[];
   professionalCertifications?: string[];
   pictures?: string[];
+  featured?: boolean;
   jobSeeker: {
     _id: string;
     name: string;
@@ -1109,10 +1110,18 @@ function CandidatesContent() {
                       <Link
                         key={cv._id}
                         href={`/candidates/${cv._id}`}
-                        className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block"
+                        className={`rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block ${cv.featured
+                          ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300'
+                          : 'bg-white'
+                          }`}
                       >
                         {/* CV Picture */}
                         <div className="w-full h-48 bg-gray-200 relative overflow-hidden">
+                          {cv.featured && (
+                            <div className="absolute top-2 right-2 z-10 bg-yellow-400 text-yellow-900 px-2 py-1 rounded-md text-xs font-bold shadow-md">
+                              ⭐ Featured
+                            </div>
+                          )}
                           {firstPicture ? (
                             <Image
                               src={firstPicture}

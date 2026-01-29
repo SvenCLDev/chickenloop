@@ -107,6 +107,10 @@ const JobSchema: Schema = new Schema(
       type: Boolean,
       default: false,
     },
+    featuredUntil: {
+      type: Date,
+      default: null,
+    },
     visitCount: {
       type: Number,
       default: 0,
@@ -151,6 +155,11 @@ const JobSchema: Schema = new Schema(
     timestamps: true,
   }
 );
+
+// Instance method: true if time-limited featuring is active (featuredUntil set and in the future)
+JobSchema.methods.isCurrentlyFeatured = function(): boolean {
+  return !!(this as any).featuredUntil && (this as any).featuredUntil > new Date();
+};
 
 // Schema-level safeguard: Prevent reintroduction of deprecated `location` field
 // Mongoose strict mode (enabled by default) will ignore fields not in the schema,
@@ -299,6 +308,7 @@ JobSchema.index({ createdAt: -1 }); // For sorting by creation date
 JobSchema.index({ updatedAt: -1 }); // For sorting by update date
 JobSchema.index({ published: 1, createdAt: -1 }); // Compound index for published jobs sorted by date
 JobSchema.index({ featured: 1, published: 1 }); // For featured published jobs
+JobSchema.index({ featuredUntil: 1 }); // For time-limited featuring queries
 JobSchema.index({ recruiter: 1 }); // For recruiter's job queries
 JobSchema.index({ companyId: 1 }); // For company-specific job queries
 JobSchema.index({ country: 1 }); // For country-based filtering (semantic location search)

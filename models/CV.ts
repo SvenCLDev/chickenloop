@@ -30,6 +30,8 @@ export interface ICV extends Document {
   lookingForWorkInAreas?: WorkArea[];
   pictures?: string[];
   published?: boolean;
+  featured?: boolean;
+  featuredUntil?: Date | null;
   experienceLevel?: ExperienceLevel;
   availability?: Availability;
   jobSeeker: mongoose.Types.ObjectId;
@@ -93,6 +95,14 @@ const CVSchema: Schema = new Schema(
       type: Boolean,
       default: true,
     },
+    featured: {
+      type: Boolean,
+      default: false,
+    },
+    featuredUntil: {
+      type: Date,
+      default: null,
+    },
     experienceLevel: {
       type: String,
       enum: ['entry', 'intermediate', 'experienced', 'senior'],
@@ -118,6 +128,9 @@ const CV: Model<ICV> = mongoose.models.CV || mongoose.model<ICV>('CV', CVSchema)
 CVSchema.index({ createdAt: -1 });
 // Compound index for published + createdAt queries (used in candidates-list)
 CVSchema.index({ published: 1, createdAt: -1 });
+// Compound index for sorting (featured first) and filtering (published), then by updatedAt (schema has timestamps)
+CVSchema.index({ featured: -1, published: 1, updatedAt: -1 });
+CVSchema.index({ featuredUntil: 1 }); // For time-limited featuring queries
 // Index on jobSeeker for efficient $lookup operations and admin queries
 CVSchema.index({ jobSeeker: 1 }, { name: 'idx_cvs_jobSeeker' });
 // Indexes for search/filtering on new fields

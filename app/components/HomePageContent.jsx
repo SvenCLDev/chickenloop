@@ -40,6 +40,8 @@ export default function HomePageContent() {
   const [careerAdviceLoading, setCareerAdviceLoading] = useState(true);
   const [topCandidates, setTopCandidates] = useState([]);
   const [candidatesLoading, setCandidatesLoading] = useState(true);
+  const [featuredCandidates, setFeaturedCandidates] = useState([]);
+  const [featuredCandidatesLoading, setFeaturedCandidatesLoading] = useState(true);
   
   // Hero image rotation state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -55,9 +57,10 @@ export default function HomePageContent() {
     loadFeaturedCompanies();
     // Load career advice articles
     loadCareerAdvice();
-    // Load top candidates (only if user is recruiter or admin)
+    // Load top candidates and featured candidates (only if user is recruiter or admin)
     if (user && (user.role === 'recruiter' || user.role === 'admin')) {
       loadTopCandidates();
+      loadFeaturedCandidates();
     }
   }, [user]);
 
@@ -310,6 +313,34 @@ export default function HomePageContent() {
           </section>
         )}
         
+        {/* Featured Candidates Section - Only visible to recruiters and admins; mirrors Featured Jobs/Companies */}
+        {user && (user.role === 'recruiter' || user.role === 'admin') && featuredCandidates.length > 0 && (
+          <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <SectionHeader
+                title="Featured Candidates"
+                actionLabel="View All CVs"
+                actionHref="/candidates"
+              />
+              {featuredCandidatesLoading ? (
+                <div className="text-center py-16">
+                  <p className="text-gray-600 text-lg">Loading featured candidates...</p>
+                </div>
+              ) : featuredCandidates.length === 0 ? (
+                <div className="text-center py-16">
+                  <p className="text-gray-600 text-lg">No featured candidates at the moment.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                  {featuredCandidates.map((candidate) => (
+                    <CandidateCard key={candidate._id} candidate={candidate} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Featured Companies Section */}
         <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
