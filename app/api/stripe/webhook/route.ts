@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripeSecretKey, getStripeWebhookSecret } from '@/lib/env';
+import connectDB from '@/lib/db';
+import StripeEvent from '@/models/StripeEvent';
 
 export async function POST(request: NextRequest) {
   const webhookSecret = getStripeWebhookSecret();
@@ -77,7 +79,29 @@ export async function POST(request: NextRequest) {
       targetId,
     });
   }
+
+  const logPayload = {
+    eventId: event.id,
+    items: extracted.map((e) => ({
+      type: e.type,
+      targetId: e.targetId,
+      duration_days: e.duration_days,
+      oldFeaturedUntil: null as string | null,
+      newFeaturedUntil: null as string | null,
+    })),
+  };
+  console.info('[Stripe webhook] checkout.session.completed', JSON.stringify(logPayload));
+
   // TODO: use extracted to apply boost (e.g. set featuredUntil on Job/CV/Company by targetId)
 
+  try {
+    await StripeEvent.create({ eventId: event.id });
+  } catch (err: unknown) {
+    if (err && typeof err === 'object' && 'code' in err && (err as { code: number }).code === 11000) {
+      // Duplicate key: another request already saved this event; idempotent
+    } else {
+      throw err;
+    }
+  }
   return NextResponse.json({ received: true }, { status: 200 });
 }
