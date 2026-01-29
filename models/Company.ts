@@ -166,13 +166,18 @@ CompanySchema.methods.isCurrentlyFeatured = function(): boolean {
   return !!(this as any).featuredUntil && (this as any).featuredUntil > new Date();
 };
 
-// Pre-save hook: sync featured from featuredUntil (time-limited featuring); leave featured unchanged when featuredUntil absent
+// Static helper: query filter for "currently featured" (featuredUntil in the future)
+CompanySchema.statics.isFeaturedQuery = function(): { featuredUntil: { $gt: Date } } {
+  return { featuredUntil: { $gt: new Date() } };
+};
+
+// Pre-save hook: unified featured expiry — featuredUntil is source of truth; sync featured for legacy compatibility
 CompanySchema.pre('save', function(next) {
   const doc = this as any;
-  if (doc.featuredUntil != null && doc.featuredUntil !== undefined) {
-    const until = doc.featuredUntil instanceof Date ? doc.featuredUntil : new Date(doc.featuredUntil);
-    doc.featured = until > new Date();
-  }
+  const until = (doc.featuredUntil != null && doc.featuredUntil !== undefined)
+    ? (doc.featuredUntil instanceof Date ? doc.featuredUntil : new Date(doc.featuredUntil))
+    : null;
+  doc.featured = !!(until && until > new Date());
   next();
 });
 
@@ -182,7 +187,10 @@ CompanySchema.index({ featured: 1 }); // For featured company filtering
 CompanySchema.index({ featuredUntil: 1 }); // For time-limited featuring queries
 CompanySchema.index({ createdAt: -1 }); // For sorting by creation date
 
-const Company: Model<ICompany> = mongoose.models.Company || mongoose.model<ICompany>('Company', CompanySchema);
+interface ICompanyModel extends Model<ICompany> {
+  isFeaturedQuery(): { featuredUntil: { $gt: Date } };
+}
+const Company: ICompanyModel = mongoose.models.Company || mongoose.model<ICompany, ICompanyModel>('Company', CompanySchema);
 
 export default Company;
 

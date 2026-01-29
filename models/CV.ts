@@ -122,7 +122,30 @@ const CVSchema: Schema = new Schema(
   }
 );
 
-const CV: Model<ICV> = mongoose.models.CV || mongoose.model<ICV>('CV', CVSchema);
+// Instance method: true if time-limited featuring is active (featuredUntil set and in the future)
+CVSchema.methods.isCurrentlyFeatured = function(): boolean {
+  return !!(this as any).featuredUntil && (this as any).featuredUntil > new Date();
+};
+
+// Static helper: query filter for "currently featured" (featuredUntil in the future)
+CVSchema.statics.isFeaturedQuery = function(): { featuredUntil: { $gt: Date } } {
+  return { featuredUntil: { $gt: new Date() } };
+};
+
+// Pre-save hook: unified featured expiry — featuredUntil is source of truth; sync featured for legacy compatibility
+CVSchema.pre('save', function(next) {
+  const doc = this as any;
+  const until = (doc.featuredUntil != null && doc.featuredUntil !== undefined)
+    ? (doc.featuredUntil instanceof Date ? doc.featuredUntil : new Date(doc.featuredUntil))
+    : null;
+  doc.featured = !!(until && until > new Date());
+  next();
+});
+
+interface ICVModel extends Model<ICV> {
+  isFeaturedQuery(): { featuredUntil: { $gt: Date } };
+}
+const CV: ICVModel = mongoose.models.CV || mongoose.model<ICV, ICVModel>('CV', CVSchema);
 
 // Create indexes for efficient querying
 CVSchema.index({ createdAt: -1 });

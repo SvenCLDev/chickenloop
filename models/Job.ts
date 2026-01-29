@@ -161,6 +161,11 @@ JobSchema.methods.isCurrentlyFeatured = function(): boolean {
   return !!(this as any).featuredUntil && (this as any).featuredUntil > new Date();
 };
 
+// Static helper: query filter for "currently featured" (featuredUntil in the future)
+JobSchema.statics.isFeaturedQuery = function(): { featuredUntil: { $gt: Date } } {
+  return { featuredUntil: { $gt: new Date() } };
+};
+
 // Schema-level safeguard: Prevent reintroduction of deprecated `location` field
 // Mongoose strict mode (enabled by default) will ignore fields not in the schema,
 // but we add explicit hooks as an additional safeguard
@@ -256,6 +261,12 @@ JobSchema.pre('save', function(next) {
       doc.validThrough = validThroughDate;
     }
   }
+
+  // Unified featured expiry: featuredUntil is source of truth; sync featured for legacy compatibility
+  const until = (doc.featuredUntil != null && doc.featuredUntil !== undefined)
+    ? (doc.featuredUntil instanceof Date ? doc.featuredUntil : new Date(doc.featuredUntil))
+    : null;
+  doc.featured = !!(until && until > new Date());
   
   next();
 });
@@ -315,6 +326,9 @@ JobSchema.index({ country: 1 }); // For country-based filtering (semantic locati
 JobSchema.index({ city: 1 }); // For city-based filtering (semantic location search and exact city filter)
 JobSchema.index({ type: 1 }); // For job type filtering
 
-const Job: Model<IJob> = mongoose.models.Job || mongoose.model<IJob>('Job', JobSchema);
+interface IJobModel extends Model<IJob> {
+  isFeaturedQuery(): { featuredUntil: { $gt: Date } };
+}
+const Job: IJobModel = mongoose.models.Job || mongoose.model<IJob, IJobModel>('Job', JobSchema);
 
 export default Job;
