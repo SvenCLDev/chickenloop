@@ -145,7 +145,7 @@ CVSchema.pre('save', function(next) {
 interface ICVModel extends Model<ICV> {
   isFeaturedQuery(): { featuredUntil: { $gt: Date } };
 }
-const CV: ICVModel = mongoose.models.CV || mongoose.model<ICV, ICVModel>('CV', CVSchema);
+const CV = (mongoose.models.CV as ICVModel) || mongoose.model<ICV, ICVModel>('CV', CVSchema);
 
 // Create indexes for efficient querying
 CVSchema.index({ createdAt: -1 });

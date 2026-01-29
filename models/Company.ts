@@ -190,7 +190,7 @@ CompanySchema.index({ createdAt: -1 }); // For sorting by creation date
 interface ICompanyModel extends Model<ICompany> {
   isFeaturedQuery(): { featuredUntil: { $gt: Date } };
 }
-const Company: ICompanyModel = mongoose.models.Company || mongoose.model<ICompany, ICompanyModel>('Company', CompanySchema);
+const Company = (mongoose.models.Company as ICompanyModel) || mongoose.model<ICompany, ICompanyModel>('Company', CompanySchema);
 
 export default Company;
 

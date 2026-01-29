@@ -329,6 +329,6 @@ JobSchema.index({ type: 1 }); // For job type filtering
 interface IJobModel extends Model<IJob> {
   isFeaturedQuery(): { featuredUntil: { $gt: Date } };
 }
-const Job: IJobModel = mongoose.models.Job || mongoose.model<IJob, IJobModel>('Job', JobSchema);
+const Job = (mongoose.models.Job as IJobModel) || mongoose.model<IJob, IJobModel>('Job', JobSchema);
 
 export default Job;
