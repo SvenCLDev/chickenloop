@@ -204,6 +204,18 @@ export default function HomePageContent() {
     }
   };
 
+  const loadFeaturedCandidates = async () => {
+    try {
+      const response = await fetch('/api/candidates-list?featured=true');
+      const data = await response.json();
+      const candidates = data.cvs || [];
+      setFeaturedCandidates(candidates.slice(0, 4));
+    } catch (err) {
+      console.error('Failed to load featured candidates:', err);
+    } finally {
+      setFeaturedCandidatesLoading(false);
+    }
+  };
 
   // Get job categories from canonical source (JOB_CATEGORIES)
   // Filter to only show categories that exist in the loaded jobs

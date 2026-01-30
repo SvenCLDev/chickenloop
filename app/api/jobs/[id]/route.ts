@@ -8,6 +8,31 @@ import { normalizeUrl } from '@/lib/normalizeUrl';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import mongoose from 'mongoose';
 
+// Safeguard: Reject if request looks like a Stripe redirect (must not mutate jobs)
+function rejectIfStripeRedirect(
+  requestBody: Record<string, unknown>,
+  searchParams: URLSearchParams
+): { reject: true; message: string } | { reject: false } {
+  if (
+    requestBody.stripeSessionId !== undefined ||
+    requestBody.stripePriceId !== undefined ||
+    requestBody.lookup_key !== undefined
+  ) {
+    return {
+      reject: true,
+      message: 'Request must not contain Stripe session or price identifiers.',
+    };
+  }
+  const checkout = requestBody.checkout ?? searchParams.get('checkout');
+  if (checkout === 'success' || checkout === 'cancel' || checkout === 'cancelled') {
+    return {
+      reject: true,
+      message: 'Stripe redirects must not mutate jobs. Use the safe return page.',
+    };
+  }
+  return { reject: false };
+}
+
 // GET - Get a single job (accessible to all users, including anonymous)
 export async function GET(
   request: NextRequest,
@@ -93,7 +118,20 @@ export async function PUT(
     }
 
     const requestBody = await request.json();
-    
+
+    // Safeguard: Reject if request looks like a Stripe redirect (must not mutate jobs)
+    const stripeGuard = rejectIfStripeRedirect(
+      requestBody as Record<string, unknown>,
+      request.nextUrl.searchParams
+    );
+    if (stripeGuard.reject) {
+      console.warn(
+        '[jobs PUT] Rejected request: Stripe redirects must not mutate jobs.',
+        { message: stripeGuard.message }
+      );
+      return NextResponse.json({ error: stripeGuard.message }, { status: 400 });
+    }
+
     // Safeguard: Reject requests that include deprecated `location` field
     if (requestBody.location !== undefined) {
       return NextResponse.json(

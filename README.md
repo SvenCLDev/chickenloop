@@ -64,6 +64,7 @@ CONTACT_EMAIL=hello@chickenloop.com  # Optional, contact form recipient email
 # Stripe (payments / boosts)
 STRIPE_SECRET_KEY=sk_test_...  # Get from https://dashboard.stripe.com/apikeys
 STRIPE_WEBHOOK_SECRET=whsec_...  # Get from Stripe Dashboard → Developers → Webhooks
+# Price IDs are looked up dynamically by lookup_key (featured_job_7, featured_job_14, etc.) — no env vars needed.
 ```
 
 **Note:** For local development, image uploads require a Vercel Blob Storage token. You can get one from your Vercel dashboard under Settings → Storage → Blob. For production deployments on Vercel, this token is automatically available.
