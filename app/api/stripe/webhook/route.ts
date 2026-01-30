@@ -187,16 +187,24 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const Model = getModelForTargetType(targetType);
-  if (!Model) {
-    console.warn('[Stripe webhook] unknown targetType', { targetType });
-    await acknowledgeEvent(event.id);
-    return NextResponse.json({ received: true }, { status: 200 });
-  }
-
-  let doc: { featuredUntil?: Date | null } | null = null;
+  type DocWithFeaturedUntil = { featuredUntil?: Date | null } | null;
+  let doc: DocWithFeaturedUntil = null;
   try {
-    doc = await Model.findById(targetId).lean();
+    switch (targetType) {
+      case 'job':
+        doc = await Job.findById(targetId).lean() as DocWithFeaturedUntil;
+        break;
+      case 'cv':
+        doc = await CV.findById(targetId).lean() as DocWithFeaturedUntil;
+        break;
+      case 'company':
+        doc = await Company.findById(targetId).lean() as DocWithFeaturedUntil;
+        break;
+      default: {
+        const _exhaust: never = targetType;
+        throw new Error(`Unknown targetType: ${_exhaust}`);
+      }
+    }
   } catch (err) {
     console.error('[Stripe webhook] findById failed', { targetType, targetId, err });
     await acknowledgeEvent(event.id);
@@ -220,15 +228,37 @@ export async function POST(request: NextRequest) {
     currentUntil && currentUntil > now ? currentUntil.getTime() : now.getTime();
   const newFeaturedUntil = new Date(baseTime + durationMs);
 
-  let updatedDoc: { _id?: unknown; featured?: boolean; featuredUntil?: Date | null } | null = null;
+  type UpdatedDoc = { _id?: unknown; featured?: boolean; featuredUntil?: Date | null } | null;
+  let updatedDoc: UpdatedDoc = null;
   try {
     // Set both fields explicitly; do not rely on pre-save or other derived logic
-    updatedDoc = await Model.findByIdAndUpdate(
-      targetId,
-      { $set: { featured: true, featuredUntil: newFeaturedUntil } },
-      { new: true }
-    )
-      .lean() as { _id?: unknown; featured?: boolean; featuredUntil?: Date | null } | null;
+    switch (targetType) {
+      case 'job':
+        updatedDoc = await Job.findByIdAndUpdate(
+          targetId,
+          { $set: { featured: true, featuredUntil: newFeaturedUntil } },
+          { new: true }
+        ).lean() as UpdatedDoc;
+        break;
+      case 'cv':
+        updatedDoc = await CV.findByIdAndUpdate(
+          targetId,
+          { $set: { featured: true, featuredUntil: newFeaturedUntil } },
+          { new: true }
+        ).lean() as UpdatedDoc;
+        break;
+      case 'company':
+        updatedDoc = await Company.findByIdAndUpdate(
+          targetId,
+          { $set: { featured: true, featuredUntil: newFeaturedUntil } },
+          { new: true }
+        ).lean() as UpdatedDoc;
+        break;
+      default: {
+        const _exhaust: never = targetType;
+        throw new Error(`Unknown targetType: ${_exhaust}`);
+      }
+    }
   } catch (err) {
     console.error('[Stripe webhook] findByIdAndUpdate failed', {
       targetType,
@@ -266,21 +296,6 @@ export async function POST(request: NextRequest) {
 
   await acknowledgeEvent(event.id);
   return NextResponse.json({ received: true }, { status: 200 });
-}
-
-function getModelForTargetType(
-  targetType: TargetType
-): typeof Job | typeof CV | typeof Company | null {
-  switch (targetType) {
-    case 'job':
-      return Job;
-    case 'cv':
-      return CV;
-    case 'company':
-      return Company;
-    default:
-      return null;
-  }
 }
 
 async function acknowledgeEvent(eventId: string): Promise<void> {
