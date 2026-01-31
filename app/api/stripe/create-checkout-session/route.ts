@@ -32,11 +32,21 @@ function getDurationDaysFromPrice(price: Stripe.Price): string | undefined {
   return s === '' ? undefined : s;
 }
 
-function getBaseUrl(): string {
+/** Fallback base URL when Origin header is missing (e.g. server-to-server). */
+function getFallbackBaseUrl(): string {
   return (
     process.env.NEXT_PUBLIC_BASE_URL?.trim() ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
   );
+}
+
+/** Base URL for redirects: prefer request Origin (staging vs production), else fallback. */
+function getBaseUrlFromRequest(request: NextRequest): string {
+  const origin = request.headers.get('origin')?.trim();
+  if (origin && (origin.startsWith('https://') || origin.startsWith('http://'))) {
+    return origin.replace(/\/$/, '');
+  }
+  return getFallbackBaseUrl();
 }
 
 export async function POST(request: NextRequest) {
@@ -134,7 +144,8 @@ export async function POST(request: NextRequest) {
     sessionMetadata.durationDays = durationDays;
   }
 
-  const baseUrl = getBaseUrl();
+  // Use request Origin so Stripe redirects back to same host (staging vs production)
+  const baseUrl = getBaseUrlFromRequest(request);
   const stripe = new Stripe(secretKey);
 
   try {
