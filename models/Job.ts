@@ -20,6 +20,7 @@ export interface IJob extends Document {
   spam?: SpamFlag;
   published?: boolean;
   featured?: boolean;
+  featuredUntil?: Date | null;
   visitCount?: number;
   applyByEmail?: boolean;
   applyByWebsite?: boolean;
