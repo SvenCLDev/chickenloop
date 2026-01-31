@@ -55,6 +55,7 @@ function getDurationDays(
 }
 
 export async function POST(request: NextRequest) {
+  // Dynamic webhook secret: preview vs production (see getStripeWebhookSecret in lib/env.ts)
   const webhookSecret = getStripeWebhookSecret();
   if (!webhookSecret) {
     return NextResponse.json(
@@ -71,10 +72,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Raw body required for signature verification (do not use request.json())
   let rawBody: string;
   try {
     rawBody = await request.text();
-  } catch {
+  } catch (err) {
+    console.error('[Stripe webhook] Failed to read raw body', err);
     return NextResponse.json(
       { error: 'Invalid body' },
       { status: 400 }
@@ -95,6 +98,7 @@ export async function POST(request: NextRequest) {
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Invalid signature';
+    console.warn('[Stripe webhook] Signature verification failed', { message, err });
     return NextResponse.json(
       { error: message },
       { status: 400 }
