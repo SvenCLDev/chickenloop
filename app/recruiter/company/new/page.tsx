@@ -13,6 +13,7 @@ import { OFFERED_ACTIVITIES_LIST } from '@/lib/offeredActivities';
 import { OFFERED_SERVICES_LIST } from '@/lib/offeredServices';
 import dynamic from 'next/dynamic';
 import UrlInput from '../../../components/form/UrlInput';
+import RichTextLite from '../../../components/form/RichTextLite';
 
 // Dynamically import map component to avoid SSR issues
 const DraggableMap = dynamic(
@@ -433,15 +434,13 @@ export default function NewCompanyPage() {
               />
             </div>
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
+              <RichTextLite
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                onChange={(html) => setFormData({ ...formData, description: html })}
+                label="Description"
+                placeholder="Describe your company..."
+                className="mt-1"
               />
             </div>
 

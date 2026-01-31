@@ -4,6 +4,7 @@ import Company from '@/models/Company';
 import { requireRole } from '@/lib/auth';
 import { normalizeCountryForStorage } from '@/lib/countryUtils';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+import { sanitizeRichTextLite } from '@/utils/sanitizeRichTextLite';
 
 // GET - Get current recruiter's company
 export async function GET(request: NextRequest) {
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     const company = await Company.create({
       name,
-      description,
+      description: sanitizedDescription,
       address: cleanedAddress,
       coordinates: coordinates || undefined,
       website: normalizeUrl(website),
@@ -180,7 +181,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (name) company.name = name;
-    if (description !== undefined) company.description = description;
+    if (sanitizedDescription !== undefined) company.description = sanitizedDescription;
     if (website !== undefined) company.website = normalizeUrl(website);
 
     // Update contact

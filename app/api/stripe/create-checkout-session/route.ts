@@ -1,35 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripeSecretKey } from '@/lib/env';
-import type { PriceLookupKey } from '@/lib/stripe/prices';
-import { getCachedPrices } from '@/lib/stripe/prices';
 
-const PRODUCT_KEY_TO_LOOKUP_KEY: Record<string, PriceLookupKey> = {
-  FEATURED_JOB_7_DAYS: 'featured_job_7',
-  FEATURED_JOB_14_DAYS: 'featured_job_14',
-  FEATURED_JOB_30_DAYS: 'featured_job_30',
-  FEATURED_CV_7_DAYS: 'featured_cv_7',
-  FEATURED_CV_14_DAYS: 'featured_cv_14',
-  FEATURED_CV_30_DAYS: 'featured_cv_30',
-};
+const JOB_BOOST_LOOKUP_KEYS = ['featured_job_7', 'featured_job_14', 'featured_job_30'] as const;
+type JobBoostLookupKey = (typeof JOB_BOOST_LOOKUP_KEYS)[number];
 
-const VALID_PRODUCT_KEYS = Object.keys(PRODUCT_KEY_TO_LOOKUP_KEY).join(', ');
-
-const TARGET_TYPES = ['job', 'cv'] as const;
-type TargetType = (typeof TARGET_TYPES)[number];
-
-function isTargetType(s: unknown): s is TargetType {
-  return typeof s === 'string' && TARGET_TYPES.includes(s as TargetType);
+function isJobBoostLookupKey(value: unknown): value is JobBoostLookupKey {
+  return typeof value === 'string' && (JOB_BOOST_LOOKUP_KEYS as readonly string[]).includes(value);
 }
 
-/** Derive duration days from Stripe price metadata (e.g. duration_days or durationDays). */
-function getDurationDaysFromPrice(price: Stripe.Price): string | undefined {
-  const raw =
-    (price.metadata && typeof price.metadata === 'object' && (price.metadata.duration_days ?? price.metadata.durationDays)) ??
-    undefined;
-  if (raw === undefined || raw === null) return undefined;
-  const s = String(raw).trim();
-  return s === '' ? undefined : s;
+/** Parse duration days from lookup_key (e.g. featured_job_7 -> 7). */
+function durationDaysFromLookupKey(lookupKey: string): number {
+  const parts = lookupKey.split('_');
+  const last = parts[parts.length - 1];
+  const n = parseInt(last, 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 /** Fallback base URL when Origin header is missing (e.g. server-to-server). */
@@ -75,90 +60,71 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { productKey, entityType, entityId } = body as {
-    productKey?: unknown;
-    entityType?: unknown;
-    entityId?: unknown;
+  const { targetType, targetId, lookupKey } = body as {
+    targetType?: unknown;
+    targetId?: unknown;
+    lookupKey?: unknown;
   };
 
-  if (typeof productKey !== 'string' || !productKey.trim()) {
+  if (targetType !== 'job') {
     return NextResponse.json(
-      { error: 'productKey is required and must be a non-empty string' },
+      { error: 'targetType must be "job"' },
       { status: 400 }
     );
   }
 
-  const trimmedKey = productKey.trim();
-  const lookupKey = PRODUCT_KEY_TO_LOOKUP_KEY[trimmedKey];
-  if (!lookupKey) {
+  if (typeof targetId !== 'string' || !targetId.trim()) {
     return NextResponse.json(
-      {
-        error: `Unknown productKey: "${productKey}". Valid keys: ${VALID_PRODUCT_KEYS}`,
-      },
+      { error: 'targetId is required and must be a non-empty string' },
       { status: 400 }
     );
   }
 
-  let price: Stripe.Price;
-  try {
-    const prices = await getCachedPrices();
-    const p = prices[lookupKey];
-    if (p == null || p.id == null) {
-      throw new Error(
-        `Stripe price missing for lookup_key: "${lookupKey}". Create an active price with this lookup_key in the Stripe Dashboard.`
-      );
-    }
-    if (p.active === false) {
-      throw new Error(
-        `Stripe price is inactive for lookup_key: "${lookupKey}". Activate the price in the Stripe Dashboard or create a new active price with this lookup_key.`
-      );
-    }
-    price = p;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to resolve price';
-    return NextResponse.json({ error: message }, { status: 400 });
-  }
-
-  if (!isTargetType(entityType)) {
+  if (!isJobBoostLookupKey(lookupKey)) {
     return NextResponse.json(
-      { error: 'entityType must be "job" or "cv"' },
-      { status: 400 }
-    );
-  }
-  if (typeof entityId !== 'string' || !entityId.trim()) {
-    return NextResponse.json(
-      { error: 'entityId is required and must be a non-empty string' },
+      { error: `lookupKey must be one of: ${JOB_BOOST_LOOKUP_KEYS.join(', ')}` },
       { status: 400 }
     );
   }
 
-  const targetId = entityId.trim();
-  const targetType: TargetType = entityType;
-  const durationDays = getDurationDaysFromPrice(price);
-  const sessionMetadata: Record<string, string> = {
-    lookupKey,
-    targetType,
-    targetId,
-  };
-  if (durationDays !== undefined) {
-    sessionMetadata.durationDays = durationDays;
-  }
-
-  // Use request Origin so Stripe redirects back to same host (staging vs production)
   const baseUrl = getBaseUrlFromRequest(request);
   const stripe = new Stripe(secretKey);
+
+  let priceId: string;
+  try {
+    const response = await stripe.prices.list({
+      active: true,
+      lookup_keys: [lookupKey],
+    });
+    const price = response.data[0];
+    if (!price?.id) {
+      return NextResponse.json(
+        { error: `Stripe price not found for lookup_key: ${lookupKey}` },
+        { status: 502 }
+      );
+    }
+    priceId = price.id;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to resolve price';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+
+  const boostDurationDays = durationDaysFromLookupKey(lookupKey);
 
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [
         {
-          price: price.id,
+          price: priceId,
           quantity: 1,
         },
       ],
-      metadata: sessionMetadata,
-      // Safe return page only — no job create/edit or dashboard forms
+      metadata: {
+        jobId: targetId.trim(),
+        boostDurationDays: String(boostDurationDays),
+        type: 'job_boost',
+      },
       success_url: `${baseUrl}/stripe/return?checkout=success`,
       cancel_url: `${baseUrl}/stripe/return?checkout=cancel`,
     });
@@ -170,7 +136,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ url: session.url }, { status: 200 });
+    return NextResponse.json({ checkoutUrl: session.url }, { status: 200 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Stripe error';
     return NextResponse.json(

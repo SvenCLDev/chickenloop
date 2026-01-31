@@ -448,17 +448,14 @@ function RecruiterDashboardClient() {
           ) : (
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full table-fixed divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="w-[7.5rem] max-w-[7.5rem] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Title
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Location
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Posted
@@ -489,21 +486,17 @@ function RecruiterDashboardClient() {
                         : null;
                       return (
                       <tr key={job._id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="w-[10rem] max-w-[10rem] px-6 py-4 text-sm font-medium text-gray-900">
                           <Link
                             href={getJobUrl(job)}
-                            className="text-blue-600 hover:text-blue-900 hover:underline"
+                            className="block truncate text-blue-600 hover:text-blue-900 hover:underline"
+                            title={job.title}
                           >
                             {job.title}
                           </Link>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {job.city}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                            {job.type}
-                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(job.createdAt).toLocaleDateString()}
@@ -513,12 +506,12 @@ function RecruiterDashboardClient() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {isFeatured && featuredUntilDate ? (
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                               <p className="text-gray-600 text-xs">Featured until {featuredUntilDate}</p>
                               <button
                                 type="button"
                                 onClick={() => setFeatureModalJobId(job._id)}
-                                className="text-blue-600 hover:text-blue-900 font-medium text-sm"
+                                className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium text-sm hover:bg-blue-50 hover:border-blue-400"
                               >
                                 Extend
                               </button>
@@ -527,35 +520,39 @@ function RecruiterDashboardClient() {
                             <button
                               type="button"
                               onClick={() => setFeatureModalJobId(job._id)}
-                              className="text-blue-600 hover:text-blue-900 font-medium"
+                              className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium text-sm hover:bg-blue-50 hover:border-blue-400"
                             >
                               Feature job
                             </button>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => handleTogglePublish(job._id, job.published === true)}
-                            className={`mr-4 ${
-                              job.published === true
-                                ? 'text-orange-600 hover:text-orange-900'
-                                : 'text-green-600 hover:text-green-900'
-                            }`}
-                          >
-                            {job.published === true ? 'Unpublish' : 'Publish'}
-                          </button>
-                          <Link
-                            href={`/recruiter/jobs/${job._id}/edit`}
-                            className="text-blue-600 hover:text-blue-900 mr-4"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            onClick={() => handleDelete(job._id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Delete
-                          </button>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
+                          <span className="inline-flex flex-nowrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePublish(job._id, job.published === true)}
+                              className={`inline-flex items-center px-3 py-1.5 rounded border font-medium text-sm ${
+                                job.published === true
+                                  ? 'border-orange-300 bg-white text-orange-700 hover:bg-orange-50 hover:border-orange-400'
+                                  : 'border-green-300 bg-white text-green-700 hover:bg-green-50 hover:border-green-400'
+                              }`}
+                            >
+                              {job.published === true ? 'Unpublish' : 'Publish'}
+                            </button>
+                            <Link
+                              href={`/recruiter/jobs/${job._id}/edit`}
+                              className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium text-sm hover:bg-blue-50 hover:border-blue-400"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(job._id)}
+                              className="inline-flex items-center px-3 py-1.5 rounded border border-red-300 bg-white text-red-700 font-medium text-sm hover:bg-red-50 hover:border-red-400"
+                            >
+                              Delete
+                            </button>
+                          </span>
                         </td>
                       </tr>
                     );})}

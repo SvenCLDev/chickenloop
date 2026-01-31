@@ -64,13 +64,13 @@ export default function EditJobPage() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          productKey: 'FEATURED_JOB_14_DAYS',
-          entityType: 'job',
-          entityId: jobId,
+          targetType: 'job',
+          targetId: jobId,
+          lookupKey: 'featured_job_14',
         }),
       });
       const text = await res.text();
-      let data: { url?: string; error?: string } = {};
+      let data: { checkoutUrl?: string; error?: string } = {};
       if (text) {
         try {
           data = JSON.parse(text);
@@ -80,8 +80,8 @@ export default function EditJobPage() {
         }
       }
       if (!res.ok) throw new Error(data.error || text || res.statusText || 'Failed to create checkout session');
-      if (data.url) {
-        window.location.href = data.url;
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
         return;
       }
       throw new Error('No checkout URL returned');
@@ -519,9 +519,6 @@ export default function EditJobPage() {
               />
             </div>
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                Description *
-              </label>
               <JobDescriptionEditor
                 id="description"
                 value={formData.description}

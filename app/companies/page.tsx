@@ -22,6 +22,23 @@ interface Company {
   createdAt: string;
 }
 
+/** Only pass valid URLs or absolute paths to Next.js Image to avoid "Failed to construct URL". */
+function isValidImageSrc(src: unknown): src is string {
+  if (typeof src !== 'string') return false;
+  const s = src.trim();
+  if (s.length === 0) return false;
+  if (s.startsWith('/')) return s.length > 1;
+  if (s.startsWith('http://') || s.startsWith('https://')) {
+    try {
+      new URL(s);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 // Helper function to format time ago
 function getTimeAgo(date: string): string {
   const now = new Date();
@@ -340,7 +357,7 @@ function CompaniesPageContent() {
                                 ⭐ Featured
                               </div>
                             )}
-                            {firstPicture ? (
+                            {firstPicture && isValidImageSrc(firstPicture) ? (
                               <Image
                                 src={firstPicture}
                                 alt={company.name}

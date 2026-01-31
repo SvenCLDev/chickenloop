@@ -19,6 +19,7 @@ import JobApplySection from '../../../jobs/[id]/JobApplySection';
 import JobSpamButton from '../../../jobs/[id]/JobSpamButton';
 import JobThumbnailGallery from '../../../jobs/[id]/JobThumbnailGallery';
 import JobHeroImage from '../../../jobs/[id]/JobHeroImage';
+import JobOwnerActions from './JobOwnerActions';
 import { verifyToken } from '@/lib/jwt';
 
 // Reuse interfaces from existing job details page
@@ -64,6 +65,8 @@ interface Job {
   companyId?: CompanyInfo;
   spam?: 'yes' | 'no';
   published?: boolean;
+  featured?: boolean;
+  featuredUntil?: string | null;
   applyViaATS?: boolean;
   applyByEmail?: boolean;
   applyByWebsite?: boolean;
@@ -391,10 +394,11 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
   const user = await getUserFromCookies();
   const isRecruiterView = user?.role === 'recruiter';
   
-  // Determine if user can edit this job
+  // Job owner: recruiter who owns this job (for Job actions box)
   const isJobOwner = user?.role === 'recruiter' && job.recruiterId && user.userId === job.recruiterId;
-  const isAdmin = user?.role === 'admin';
-  const canEditJob = isJobOwner || isAdmin;
+
+  // Featured state: for Job actions (only shown to job owner)
+  const isFeatured = !!(job.featuredUntil && new Date(job.featuredUntil) > new Date()) || job.featured === true;
 
   // Generate current URL for JSON-LD (server-side)
   const headersList = await headers();
@@ -453,6 +457,14 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                 />
                 <JobFavouriteButton jobId={job._id} />
               </div>
+              {/* Job actions: Feature / Extend — only for recruiter who owns this job */}
+              {isJobOwner && (
+                <JobOwnerActions
+                  jobId={job._id}
+                  featuredUntil={job.featuredUntil ?? null}
+                  isFeatured={isFeatured}
+                />
+              )}
             </div>
 
             {/* Job Details */}
@@ -622,16 +634,8 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                   </p>
                 </div>
                 
-                {/* Right Column - Report Spam and Edit Job Buttons */}
+                {/* Right Column - Report Spam */}
                 <div className="flex-shrink-0 flex items-center gap-3">
-                  {canEditJob && (
-                    <Link
-                      href={isAdmin ? `/admin/jobs/${job._id}/edit` : `/recruiter/jobs/${job._id}/edit`}
-                      className="px-4 py-2 text-sm rounded-lg font-medium transition-colors bg-gray-200 text-gray-600 hover:bg-gray-300"
-                    >
-                      Edit job
-                    </Link>
-                  )}
                   <JobSpamButton jobId={job._id} spamStatus={job.spam} />
                 </div>
               </div>

@@ -1,10 +1,8 @@
 /**
  * Stripe webhook handler for checkout.session.completed.
  *
- * Pricing is lookup-key based: we do NOT use price IDs or env vars. We resolve
- * the product from session line_items[].price.lookup_key or metadata.lookupKey,
- * and read duration_days from Stripe price metadata (or session metadata).
- * We then apply featuredUntil to the target Job, CV, or Company.
+ * For job boost: read jobId and boostDurationDays from session.metadata only.
+ * Do NOT infer duration from product or price. Apply featuredUntil to the job and save.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
@@ -12,50 +10,15 @@ import { getStripeSecretKey, getStripeWebhookSecret } from '@/lib/env';
 import connectDB from '@/lib/db';
 import StripeEvent from '@/models/StripeEvent';
 import Job from '@/models/Job';
-import CV from '@/models/CV';
-import Company from '@/models/Company';
 
-const TARGET_TYPES = ['job', 'cv', 'company'] as const;
-type TargetType = (typeof TARGET_TYPES)[number];
-
-function isTargetType(s: unknown): s is TargetType {
-  return typeof s === 'string' && TARGET_TYPES.includes(s as TargetType);
-}
-
-/** Parse duration days from string (e.g. "7", "14"). Returns null if invalid. */
-function parseDurationDays(value: string | null | undefined): number | null {
+/** Convert boostDurationDays from session metadata (string) to number. Returns null if invalid. */
+function parseBoostDurationDays(value: string | null | undefined): number | null {
   if (value == null || String(value).trim() === '') return null;
   const n = parseInt(String(value).trim(), 10);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/**
- * Derive duration days from lookup_key when not in metadata (e.g. featured_job_7 -> 7).
- * Lookup-key based pricing uses keys like featured_job_7, featured_cv_14.
- */
-function durationDaysFromLookupKey(lookupKey: string | null): number | null {
-  if (!lookupKey || typeof lookupKey !== 'string') return null;
-  const parts = lookupKey.split('_');
-  const last = parts[parts.length - 1];
-  const n = parseInt(last, 10);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-/** Get duration_days from Stripe price metadata (duration_days or durationDays) or session metadata. */
-function getDurationDays(
-  priceMetadata: Record<string, string> | null,
-  sessionMetadata: Record<string, string>,
-  lookupKey: string | null
-): number | null {
-  const fromPrice =
-    priceMetadata?.duration_days ?? priceMetadata?.durationDays ?? null;
-  const parsed = parseDurationDays(fromPrice ?? sessionMetadata?.durationDays ?? null);
-  if (parsed != null) return parsed;
-  return durationDaysFromLookupKey(lookupKey);
-}
-
 export async function POST(request: NextRequest) {
-  // Dynamic webhook secret: preview vs production (see getStripeWebhookSecret in lib/env.ts)
   const webhookSecret = getStripeWebhookSecret();
   if (!webhookSecret) {
     return NextResponse.json(
@@ -72,7 +35,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Raw body required for signature verification (do not use request.json())
   let rawBody: string;
   try {
     rawBody = await request.text();
@@ -114,72 +76,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
-  // Retrieve session with line_items and price so we can read lookup_key and price metadata.
-  // Pricing is lookup-key based; we do not use price IDs or env vars.
-  const session = await stripe.checkout.sessions.retrieve(sessionId, {
-    expand: ['line_items', 'line_items.data.price'],
-  });
-
-  console.log('checkout.session.completed', {
-    'session.id': session.id,
-    'session.metadata': session.metadata,
-    'session.line_items?.data': session.line_items?.data,
-    'session.mode': session.mode,
-    'session.payment_status': session.payment_status,
-  });
-
-  const lineItems = session.line_items?.data ?? [];
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
   const sessionMetadata = (session.metadata ?? {}) as Record<string, string>;
 
-  // Resolve lookup_key from first line item price or session metadata (lookup-key based pricing).
-  const firstPrice = lineItems[0]?.price;
-  const priceObject =
-    firstPrice && typeof firstPrice === 'object' ? firstPrice : null;
-  const lookupKey =
-    (priceObject?.lookup_key as string | null) ?? sessionMetadata.lookupKey ?? null;
-
-  if (!lookupKey || typeof lookupKey !== 'string' || lookupKey.trim() === '') {
-    console.warn(
-      '[Stripe webhook] checkout.session.completed missing lookup_key (session.metadata and line_items[].price.lookup_key). Skipping boost.',
-      { sessionId, eventId: event.id }
-    );
+  // Only handle job boost: read jobId and boostDurationDays from metadata only.
+  if (sessionMetadata.type !== 'job_boost') {
     await acknowledgeEvent(event.id);
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
-  const targetType = sessionMetadata.targetType;
-  const targetId = sessionMetadata.targetId?.trim() ?? null;
+  const jobId = sessionMetadata.jobId?.trim() ?? null;
+  const boostDurationDays = parseBoostDurationDays(sessionMetadata.boostDurationDays ?? null);
 
-  if (!isTargetType(targetType) || !targetId) {
+  if (!jobId || boostDurationDays == null) {
     console.warn(
-      '[Stripe webhook] checkout.session.completed invalid targetType or targetId. Skipping boost.',
-      { sessionId, eventId: event.id, targetType, targetId }
+      '[Stripe webhook] checkout.session.completed job_boost missing jobId or invalid boostDurationDays. Skipping.',
+      { sessionId, eventId: event.id, jobId, boostDurationDays: sessionMetadata.boostDurationDays }
     );
     await acknowledgeEvent(event.id);
     return NextResponse.json({ received: true }, { status: 200 });
   }
-
-  const priceMetadata =
-    priceObject?.metadata && typeof priceObject.metadata === 'object'
-      ? (priceObject.metadata as Record<string, string>)
-      : null;
-  const durationDays = getDurationDays(
-    priceMetadata,
-    sessionMetadata,
-    lookupKey
-  );
-
-  if (durationDays == null || durationDays <= 0) {
-    console.warn(
-      '[Stripe webhook] checkout.session.completed could not determine duration_days from price metadata or lookup_key. Skipping boost.',
-      { sessionId, eventId: event.id, lookupKey }
-    );
-    await acknowledgeEvent(event.id);
-    return NextResponse.json({ received: true }, { status: 200 });
-  }
-
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const durationMs = durationDays * msPerDay;
 
   try {
     await connectDB();
@@ -191,112 +107,50 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  type DocWithFeaturedUntil = { featuredUntil?: Date | null } | null;
-  let doc: DocWithFeaturedUntil = null;
-  try {
-    switch (targetType) {
-      case 'job':
-        doc = await Job.findById(targetId).lean() as DocWithFeaturedUntil;
-        break;
-      case 'cv':
-        doc = await CV.findById(targetId).lean() as DocWithFeaturedUntil;
-        break;
-      case 'company':
-        doc = await Company.findById(targetId).lean() as DocWithFeaturedUntil;
-        break;
-      default: {
-        const _exhaust: never = targetType;
-        throw new Error(`Unknown targetType: ${_exhaust}`);
-      }
-    }
-  } catch (err) {
-    console.error('[Stripe webhook] findById failed', { targetType, targetId, err });
-    await acknowledgeEvent(event.id);
-    return NextResponse.json({ received: true }, { status: 200 });
-  }
-
-  if (!doc) {
-    console.warn('[Stripe webhook] target not found', { targetType, targetId });
+  const job = await Job.findById(jobId).lean();
+  if (!job) {
+    console.warn('[Stripe webhook] job not found', { jobId });
     await acknowledgeEvent(event.id);
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
   const now = new Date();
-  const currentUntil =
-    doc.featuredUntil instanceof Date
-      ? doc.featuredUntil
-      : doc.featuredUntil != null
-        ? new Date(doc.featuredUntil)
+  const existingFeaturedUntil =
+    job.featuredUntil instanceof Date
+      ? job.featuredUntil
+      : job.featuredUntil != null
+        ? new Date(job.featuredUntil)
         : null;
+
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const durationMs = boostDurationDays * msPerDay;
+
+  // If job.featuredUntil exists and is in the future: new = existing + duration. Else: new = now + duration.
   const baseTime =
-    currentUntil && currentUntil > now ? currentUntil.getTime() : now.getTime();
+    existingFeaturedUntil && existingFeaturedUntil > now
+      ? existingFeaturedUntil.getTime()
+      : now.getTime();
   const newFeaturedUntil = new Date(baseTime + durationMs);
 
-  type UpdatedDoc = { _id?: unknown; featured?: boolean; featuredUntil?: Date | null } | null;
-  let updatedDoc: UpdatedDoc = null;
+  const oldFeaturedUntil = existingFeaturedUntil ?? null;
+
   try {
-    // Set both fields explicitly; do not rely on pre-save or other derived logic
-    switch (targetType) {
-      case 'job':
-        updatedDoc = await Job.findByIdAndUpdate(
-          targetId,
-          { $set: { featured: true, featuredUntil: newFeaturedUntil } },
-          { new: true }
-        ).lean() as UpdatedDoc;
-        break;
-      case 'cv':
-        updatedDoc = await CV.findByIdAndUpdate(
-          targetId,
-          { $set: { featured: true, featuredUntil: newFeaturedUntil } },
-          { new: true }
-        ).lean() as UpdatedDoc;
-        break;
-      case 'company':
-        updatedDoc = await Company.findByIdAndUpdate(
-          targetId,
-          { $set: { featured: true, featuredUntil: newFeaturedUntil } },
-          { new: true }
-        ).lean() as UpdatedDoc;
-        break;
-      default: {
-        const _exhaust: never = targetType;
-        throw new Error(`Unknown targetType: ${_exhaust}`);
-      }
-    }
-  } catch (err) {
-    console.error('[Stripe webhook] findByIdAndUpdate failed', {
-      targetType,
-      targetId,
-      err,
+    await Job.findByIdAndUpdate(jobId, {
+      $set: { featured: true, featuredUntil: newFeaturedUntil },
     });
+  } catch (err) {
+    console.error('[Stripe webhook] findByIdAndUpdate failed', { jobId, err });
     return NextResponse.json(
       { error: 'Failed to apply featuredUntil' },
       { status: 500 }
     );
   }
 
-  if (updatedDoc) {
-    console.log('[Stripe webhook] document after save', {
-      _id: updatedDoc._id,
-      featured: updatedDoc.featured,
-      featuredUntil: updatedDoc.featuredUntil,
-      full: updatedDoc,
-    });
-  }
-
-  const logPayload = {
-    eventId: event.id,
-    lookupKey,
-    targetType,
-    targetId,
-    durationDays,
-    oldFeaturedUntil: currentUntil?.toISOString() ?? null,
+  console.log('[Stripe webhook] checkout.session.completed job boost applied', {
+    oldFeaturedUntil: oldFeaturedUntil?.toISOString() ?? null,
     newFeaturedUntil: newFeaturedUntil.toISOString(),
-  };
-  console.info(
-    '[Stripe webhook] checkout.session.completed applied boost',
-    JSON.stringify(logPayload)
-  );
+    boostDurationDays,
+  });
 
   await acknowledgeEvent(event.id);
   return NextResponse.json({ received: true }, { status: 200 });
