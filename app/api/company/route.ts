@@ -58,6 +58,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Sanitize description server-side so we never persist unsafe HTML
+    const sanitizedDescription = sanitizeRichTextLite(description ?? '');
+
     // Validate that coordinates are required
     if (!coordinates || !coordinates.latitude || !coordinates.longitude) {
       return NextResponse.json(
