@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '../components/Navbar';
+import FeatureJobModal from '../components/FeatureJobModal';
 import { jobsApi, companyApi, candidatesApi } from '@/lib/api';
 import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
@@ -19,6 +20,7 @@ interface Job {
   pictures?: string[];
   published?: boolean;
   featured?: boolean;
+  featuredUntil?: string | null;
   visitCount?: number;
   createdAt: string;
 }
@@ -81,6 +83,7 @@ function RecruiterDashboardClient() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [unsubscribedCategory, setUnsubscribedCategory] = useState<string | null>(null);
   const [showUnsubscribedNotification, setShowUnsubscribedNotification] = useState(false);
+  const [featureModalJobId, setFeatureModalJobId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -398,6 +401,16 @@ function RecruiterDashboardClient() {
           <span className="font-medium">{toastMessage}</span>
         </div>
       )}
+      {featureModalJobId && (() => {
+        const job = jobs.find((j) => j._id === featureModalJobId);
+        return (
+          <FeatureJobModal
+            jobId={featureModalJobId}
+            currentFeaturedUntil={job?.featuredUntil ?? null}
+            onClose={() => setFeatureModalJobId(null)}
+          />
+        );
+      })()}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex flex-wrap justify-between items-center gap-3 mb-8">
           <h1 className="text-4xl font-bold text-gray-900">
@@ -454,12 +467,27 @@ function RecruiterDashboardClient() {
                         Visits
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Promotion
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {jobs.map((job) => (
+                    {jobs.map((job) => {
+                      const isFeatured = !!(job.featuredUntil && new Date(job.featuredUntil) > new Date()) || job.featured === true;
+                      const featuredUntilDate = job.featuredUntil
+                        ? (() => {
+                            try {
+                              const d = new Date(job.featuredUntil);
+                              return isNaN(d.getTime()) ? job.featuredUntil : d.toLocaleDateString(undefined, { dateStyle: 'medium' });
+                            } catch {
+                              return job.featuredUntil;
+                            }
+                          })()
+                        : null;
+                      return (
                       <tr key={job._id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           <Link
@@ -482,6 +510,28 @@ function RecruiterDashboardClient() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {job.visitCount || 0}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {isFeatured && featuredUntilDate ? (
+                            <div className="space-y-1">
+                              <p className="text-gray-600 text-xs">Featured until {featuredUntilDate}</p>
+                              <button
+                                type="button"
+                                onClick={() => setFeatureModalJobId(job._id)}
+                                className="text-blue-600 hover:text-blue-900 font-medium text-sm"
+                              >
+                                Extend
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setFeatureModalJobId(job._id)}
+                              className="text-blue-600 hover:text-blue-900 font-medium"
+                            >
+                              Feature job
+                            </button>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
@@ -508,7 +558,7 @@ function RecruiterDashboardClient() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>
