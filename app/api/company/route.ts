@@ -175,6 +175,9 @@ export async function PUT(request: NextRequest) {
 
     const { name, description, address, coordinates, website, contact, socialMedia, offeredActivities, offeredServices, logo, pictures } = await request.json();
 
+    // Sanitize description server-side when provided so we never persist unsafe HTML
+    const sanitizedDescription = description !== undefined ? sanitizeRichTextLite(description ?? '') : undefined;
+
     // Validate that coordinates are required for updates
     if (coordinates === undefined || coordinates === null || !coordinates.latitude || !coordinates.longitude) {
       return NextResponse.json(
