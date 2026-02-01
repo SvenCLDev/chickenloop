@@ -95,6 +95,7 @@ const CVSchema: Schema = new Schema(
       type: Boolean,
       default: true,
     },
+    // Boosting: same semantics as Job — featuredUntil is source of truth; featured derived on save (no breaking changes for existing CVs)
     featured: {
       type: Boolean,
       default: false,

@@ -19,3 +19,18 @@ export function getStripeWebhookSecret(): string | undefined {
     : process.env.STRIPE_WEBHOOK_SECRET?.trim();
   return secret || undefined;
 }
+
+/** CV boost duration in days. Only 7, 14, 30 are supported. */
+export const CV_BOOST_DURATIONS = [7, 14, 30] as const;
+export type CvBoostDuration = (typeof CV_BOOST_DURATIONS)[number];
+
+/**
+ * Returns the Stripe price ID for CV boost for the given duration.
+ * Reads STRIPE_CV_BOOST_7_PRICE_ID, STRIPE_CV_BOOST_14_PRICE_ID, STRIPE_CV_BOOST_30_PRICE_ID.
+ * Returns undefined if the env var is missing or empty (same error-handling pattern as Job Boost).
+ */
+export function getCvBoostPriceId(duration: CvBoostDuration): string | undefined {
+  const key = `STRIPE_CV_BOOST_${duration}_PRICE_ID` as const;
+  const value = process.env[key]?.trim();
+  return value || undefined;
+}

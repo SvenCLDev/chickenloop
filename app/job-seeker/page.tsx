@@ -10,6 +10,7 @@ import { ApplicationStatus, TERMINAL_STATES, getAllowedTransitions } from '@/lib
 import { isApplicationStatus } from '@/lib/domainTypes';
 import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
+import BoostModal from '../components/BoostModal';
 
 interface Job {
   _id: string;
@@ -66,6 +67,7 @@ function JobSeekerDashboardClient() {
   const [archivingApplication, setArchivingApplication] = useState<string | null>(null);
   const [unsubscribedCategory, setUnsubscribedCategory] = useState<string | null>(null);
   const [showUnsubscribedNotification, setShowUnsubscribedNotification] = useState(false);
+  const [showBoostModal, setShowBoostModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -419,6 +421,17 @@ function JobSeekerDashboardClient() {
                   You have created a CV.<br />
                   Your CV is only visible to registered recruiters.
                 </p>
+                {cv.featuredUntil && (() => {
+                  const until = new Date(cv.featuredUntil);
+                  const isFuture = !isNaN(until.getTime()) && until > new Date();
+                  if (!isFuture) return null;
+                  const dateStr = until.toLocaleDateString(undefined, { dateStyle: 'medium' });
+                  return (
+                    <p className="text-sm text-amber-700 mb-3">
+                      Featured until {dateStr}
+                    </p>
+                  );
+                })()}
                 <div className="flex gap-4 flex-wrap">
                   <Link
                     href="/job-seeker/cv/view"
@@ -432,6 +445,13 @@ function JobSeekerDashboardClient() {
                   >
                     Edit CV
                   </Link>
+                  <button
+                    type="button"
+                    onClick={() => setShowBoostModal(true)}
+                    className="bg-amber-500 text-white px-4 py-2 rounded hover:bg-amber-600"
+                  >
+                    Boost CV
+                  </button>
                   <button
                     onClick={handleTogglePublish}
                     disabled={togglingPublish}
@@ -454,6 +474,15 @@ function JobSeekerDashboardClient() {
                   <p className="text-sm text-orange-600 mt-2">
                     Your CV is currently hidden, nobody except from you can see it.
                   </p>
+                )}
+                {showBoostModal && (
+                  <BoostModal
+                    type="cv"
+                    entityId={String(cv._id ?? cv.id ?? '')}
+                    currentFeaturedUntil={cv.featuredUntil ?? null}
+                    onClose={() => setShowBoostModal(false)}
+                    title="Boost your CV"
+                  />
                 )}
               </div>
             ) : (

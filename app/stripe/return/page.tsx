@@ -13,10 +13,12 @@ import Navbar from '../../components/Navbar';
 function StripeReturnContent() {
   const searchParams = useSearchParams();
   const checkout = searchParams.get('checkout');
+  const type = searchParams.get('type');
 
   const isSuccess = checkout === 'success';
   const isCancelled =
     checkout === 'cancel' || checkout === 'cancelled';
+  const isCvBoost = type === 'cv_boost';
 
   if (isSuccess) {
     return (
@@ -35,16 +37,16 @@ function StripeReturnContent() {
               />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Your job boost was successful.
+              {isCvBoost ? 'Your CV boost was successful.' : 'Your job boost was successful.'}
             </h1>
             <p className="text-gray-600 mb-8">
-              Your listing will be featured shortly.
+              {isCvBoost ? 'Your CV will be featured shortly.' : 'Your listing will be featured shortly.'}
             </p>
             <Link
-              href="/recruiter"
+              href={isCvBoost ? '/job-seeker' : '/recruiter'}
               className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
             >
-              Go to My Jobs
+              {isCvBoost ? 'Go to my dashboard' : 'Go to My Jobs'}
             </Link>
           </div>
         </main>
@@ -103,10 +105,10 @@ function StripeReturnContent() {
             Use the button below to return to your jobs.
           </p>
           <Link
-            href="/recruiter"
+            href={type === 'cv_boost' ? '/job-seeker' : '/recruiter'}
             className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
           >
-            Go to My Jobs
+            {type === 'cv_boost' ? 'Go to my dashboard' : 'Go to My Jobs'}
           </Link>
         </div>
       </main>

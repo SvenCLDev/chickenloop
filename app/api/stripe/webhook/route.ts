@@ -1,8 +1,9 @@
 /**
  * Stripe webhook handler for checkout.session.completed.
  *
- * For job boost: read jobId and boostDurationDays from session.metadata only.
- * Do NOT infer duration from product or price. Apply featuredUntil to the job and save.
+ * Job boost: read jobId and boostDurationDays from session.metadata only. Apply featuredUntil to the job.
+ * CV boost: read resumeId and boostDurationDays from session.metadata. Apply featuredUntil to the CV (Resume).
+ * Do NOT infer duration from product or price.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
@@ -10,6 +11,7 @@ import { getStripeSecretKey, getStripeWebhookSecret } from '@/lib/env';
 import connectDB from '@/lib/db';
 import StripeEvent from '@/models/StripeEvent';
 import Job from '@/models/Job';
+import CV from '@/models/CV';
 
 /** Convert boostDurationDays from session metadata (string) to number. Returns null if invalid. */
 function parseBoostDurationDays(value: string | null | undefined): number | null {
@@ -79,24 +81,6 @@ export async function POST(request: NextRequest) {
   const session = await stripe.checkout.sessions.retrieve(sessionId);
   const sessionMetadata = (session.metadata ?? {}) as Record<string, string>;
 
-  // Only handle job boost: read jobId and boostDurationDays from metadata only.
-  if (sessionMetadata.type !== 'job_boost') {
-    await acknowledgeEvent(event.id);
-    return NextResponse.json({ received: true }, { status: 200 });
-  }
-
-  const jobId = sessionMetadata.jobId?.trim() ?? null;
-  const boostDurationDays = parseBoostDurationDays(sessionMetadata.boostDurationDays ?? null);
-
-  if (!jobId || boostDurationDays == null) {
-    console.warn(
-      '[Stripe webhook] checkout.session.completed job_boost missing jobId or invalid boostDurationDays. Skipping.',
-      { sessionId, eventId: event.id, jobId, boostDurationDays: sessionMetadata.boostDurationDays }
-    );
-    await acknowledgeEvent(event.id);
-    return NextResponse.json({ received: true }, { status: 200 });
-  }
-
   try {
     await connectDB();
   } catch (err) {
@@ -107,50 +91,128 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const job = await Job.findById(jobId).lean();
-  if (!job) {
-    console.warn('[Stripe webhook] job not found', { jobId });
+  // Job boost: read jobId and boostDurationDays from metadata only. Logic unchanged.
+  if (sessionMetadata.type === 'job_boost') {
+    const jobId = sessionMetadata.jobId?.trim() ?? null;
+    const boostDurationDays = parseBoostDurationDays(sessionMetadata.boostDurationDays ?? null);
+
+    if (!jobId || boostDurationDays == null) {
+      console.warn(
+        '[Stripe webhook] checkout.session.completed job_boost missing jobId or invalid boostDurationDays. Skipping.',
+        { sessionId, eventId: event.id, jobId, boostDurationDays: sessionMetadata.boostDurationDays }
+      );
+      await acknowledgeEvent(event.id);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    const job = await Job.findById(jobId).lean();
+    if (!job) {
+      console.warn('[Stripe webhook] job not found', { jobId });
+      await acknowledgeEvent(event.id);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    const now = new Date();
+    const existingFeaturedUntil =
+      job.featuredUntil instanceof Date
+        ? job.featuredUntil
+        : job.featuredUntil != null
+          ? new Date(job.featuredUntil)
+          : null;
+
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const durationMs = boostDurationDays * msPerDay;
+
+    const baseTime =
+      existingFeaturedUntil && existingFeaturedUntil > now
+        ? existingFeaturedUntil.getTime()
+        : now.getTime();
+    const newFeaturedUntil = new Date(baseTime + durationMs);
+    const oldFeaturedUntil = existingFeaturedUntil ?? null;
+
+    try {
+      await Job.findByIdAndUpdate(jobId, {
+        $set: { featured: true, featuredUntil: newFeaturedUntil },
+      });
+    } catch (err) {
+      console.error('[Stripe webhook] findByIdAndUpdate failed', { jobId, err });
+      return NextResponse.json(
+        { error: 'Failed to apply featuredUntil' },
+        { status: 500 }
+      );
+    }
+
+    console.log('[Stripe webhook] checkout.session.completed job boost applied', {
+      oldFeaturedUntil: oldFeaturedUntil?.toISOString() ?? null,
+      newFeaturedUntil: newFeaturedUntil.toISOString(),
+      boostDurationDays,
+    });
+
     await acknowledgeEvent(event.id);
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
-  const now = new Date();
-  const existingFeaturedUntil =
-    job.featuredUntil instanceof Date
-      ? job.featuredUntil
-      : job.featuredUntil != null
-        ? new Date(job.featuredUntil)
-        : null;
+  // CV boost: read resumeId and boostDurationDays from metadata. Apply featuredUntil to the Resume (CV).
+  if (sessionMetadata.type === 'cv_boost') {
+    const resumeId = sessionMetadata.resumeId?.trim() ?? null;
+    const boostDurationDays = parseBoostDurationDays(sessionMetadata.boostDurationDays ?? null);
 
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const durationMs = boostDurationDays * msPerDay;
+    if (!resumeId || boostDurationDays == null) {
+      console.warn(
+        '[Stripe webhook] checkout.session.completed cv_boost missing resumeId or invalid boostDurationDays. Skipping.',
+        { sessionId, eventId: event.id, resumeId, boostDurationDays: sessionMetadata.boostDurationDays }
+      );
+      await acknowledgeEvent(event.id);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
 
-  // If job.featuredUntil exists and is in the future: new = existing + duration. Else: new = now + duration.
-  const baseTime =
-    existingFeaturedUntil && existingFeaturedUntil > now
-      ? existingFeaturedUntil.getTime()
-      : now.getTime();
-  const newFeaturedUntil = new Date(baseTime + durationMs);
+    const cv = await CV.findById(resumeId).lean();
+    if (!cv) {
+      console.warn('[Stripe webhook] resume (CV) not found', { resumeId });
+      await acknowledgeEvent(event.id);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
 
-  const oldFeaturedUntil = existingFeaturedUntil ?? null;
+    const now = new Date();
+    const rawUntil = (cv as { featuredUntil?: Date | string | null }).featuredUntil;
+    const existingFeaturedUntil =
+      rawUntil instanceof Date
+        ? rawUntil
+        : rawUntil != null
+          ? new Date(rawUntil)
+          : null;
 
-  try {
-    await Job.findByIdAndUpdate(jobId, {
-      $set: { featured: true, featuredUntil: newFeaturedUntil },
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const durationMs = boostDurationDays * msPerDay;
+
+    const baseTime =
+      existingFeaturedUntil && existingFeaturedUntil > now
+        ? existingFeaturedUntil.getTime()
+        : now.getTime();
+    const newFeaturedUntil = new Date(baseTime + durationMs);
+    const oldFeaturedUntil = existingFeaturedUntil ?? null;
+
+    try {
+      await CV.findByIdAndUpdate(resumeId, {
+        $set: { featured: true, featuredUntil: newFeaturedUntil },
+      });
+    } catch (err) {
+      console.error('[Stripe webhook] CV findByIdAndUpdate failed', { resumeId, err });
+      return NextResponse.json(
+        { error: 'Failed to apply CV featuredUntil' },
+        { status: 500 }
+      );
+    }
+
+    console.log('[Stripe webhook] checkout.session.completed CV boost applied', {
+      oldFeaturedUntil: oldFeaturedUntil?.toISOString() ?? null,
+      newFeaturedUntil: newFeaturedUntil.toISOString(),
+      boostDurationDays,
     });
-  } catch (err) {
-    console.error('[Stripe webhook] findByIdAndUpdate failed', { jobId, err });
-    return NextResponse.json(
-      { error: 'Failed to apply featuredUntil' },
-      { status: 500 }
-    );
-  }
 
-  console.log('[Stripe webhook] checkout.session.completed job boost applied', {
-    oldFeaturedUntil: oldFeaturedUntil?.toISOString() ?? null,
-    newFeaturedUntil: newFeaturedUntil.toISOString(),
-    boostDurationDays,
-  });
+    await acknowledgeEvent(event.id);
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
 
   await acknowledgeEvent(event.id);
   return NextResponse.json({ received: true }, { status: 200 });

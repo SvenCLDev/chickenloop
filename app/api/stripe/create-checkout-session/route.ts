@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { getStripeSecretKey } from '@/lib/env';
+import {
+  getStripeSecretKey,
+  getCvBoostPriceId,
+  CV_BOOST_DURATIONS,
+  type CvBoostDuration,
+} from '@/lib/env';
 
 const JOB_BOOST_LOOKUP_KEYS = ['featured_job_7', 'featured_job_14', 'featured_job_30'] as const;
 type JobBoostLookupKey = (typeof JOB_BOOST_LOOKUP_KEYS)[number];
 
 function isJobBoostLookupKey(value: unknown): value is JobBoostLookupKey {
   return typeof value === 'string' && (JOB_BOOST_LOOKUP_KEYS as readonly string[]).includes(value);
+}
+
+function isCvBoostDuration(value: unknown): value is CvBoostDuration {
+  return typeof value === 'number' && (CV_BOOST_DURATIONS as readonly number[]).includes(value);
 }
 
 /** Parse duration days from lookup_key (e.g. featured_job_7 -> 7). */
@@ -60,15 +69,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { targetType, targetId, lookupKey } = body as {
+  const { targetType, targetId, lookupKey, durationDays } = body as {
     targetType?: unknown;
     targetId?: unknown;
     lookupKey?: unknown;
+    durationDays?: unknown;
   };
 
-  if (targetType !== 'job') {
+  if (targetType !== 'job' && targetType !== 'cv') {
     return NextResponse.json(
-      { error: 'targetType must be "job"' },
+      { error: 'targetType must be "job" or "cv"' },
       { status: 400 }
     );
   }
@@ -80,36 +90,67 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!isJobBoostLookupKey(lookupKey)) {
-    return NextResponse.json(
-      { error: `lookupKey must be one of: ${JOB_BOOST_LOOKUP_KEYS.join(', ')}` },
-      { status: 400 }
-    );
-  }
-
   const baseUrl = getBaseUrlFromRequest(request);
   const stripe = new Stripe(secretKey);
 
   let priceId: string;
-  try {
-    const response = await stripe.prices.list({
-      active: true,
-      lookup_keys: [lookupKey],
-    });
-    const price = response.data[0];
-    if (!price?.id) {
+  let boostDurationDays: number;
+  let metadata: { type: string; [k: string]: string };
+
+  if (targetType === 'job') {
+    if (!isJobBoostLookupKey(lookupKey)) {
       return NextResponse.json(
-        { error: `Stripe price not found for lookup_key: ${lookupKey}` },
+        { error: `lookupKey must be one of: ${JOB_BOOST_LOOKUP_KEYS.join(', ')}` },
+        { status: 400 }
+      );
+    }
+    try {
+      const response = await stripe.prices.list({
+        active: true,
+        lookup_keys: [lookupKey],
+      });
+      const price = response.data[0];
+      if (!price?.id) {
+        return NextResponse.json(
+          { error: `Stripe price not found for lookup_key: ${lookupKey}` },
+          { status: 502 }
+        );
+      }
+      priceId = price.id;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to resolve price';
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+    boostDurationDays = durationDaysFromLookupKey(lookupKey);
+    metadata = {
+      jobId: targetId.trim(),
+      boostDurationDays: String(boostDurationDays),
+      type: 'job_boost',
+    };
+  } else {
+    if (!isCvBoostDuration(durationDays)) {
+      return NextResponse.json(
+        { error: `durationDays must be one of: ${CV_BOOST_DURATIONS.join(', ')}` },
+        { status: 400 }
+      );
+    }
+    const cvPriceId = getCvBoostPriceId(durationDays);
+    if (!cvPriceId) {
+      return NextResponse.json(
+        {
+          error: `Stripe price not configured for CV boost (${durationDays} days). Set STRIPE_CV_BOOST_${durationDays}_PRICE_ID in your environment.`,
+        },
         { status: 502 }
       );
     }
-    priceId = price.id;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to resolve price';
-    return NextResponse.json({ error: message }, { status: 500 });
+    priceId = cvPriceId;
+    boostDurationDays = durationDays;
+    metadata = {
+      cvId: targetId.trim(),
+      boostDurationDays: String(boostDurationDays),
+      type: 'cv_boost',
+    };
   }
-
-  const boostDurationDays = durationDaysFromLookupKey(lookupKey);
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -120,11 +161,7 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      metadata: {
-        jobId: targetId.trim(),
-        boostDurationDays: String(boostDurationDays),
-        type: 'job_boost',
-      },
+      metadata,
       success_url: `${baseUrl}/stripe/return?checkout=success`,
       cancel_url: `${baseUrl}/stripe/return?checkout=cancel`,
     });
