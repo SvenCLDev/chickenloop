@@ -27,15 +27,10 @@ export default function RichTextLite({
 }: RichTextLiteProps) {
   const editorRef = useRef<HTMLDivElement>(null);
 
-  const emitSanitized = useCallback(() => {
+  const emitRaw = () => {
     const el = editorRef.current;
-    if (!el) return;
-    const raw = el.innerHTML;
-    const sanitized = sanitizeRichTextLite(raw);
-    if (sanitized !== value) {
-      onChange(sanitized);
-    }
-  }, [onChange, value]);
+    if (el) onChange(el.innerHTML);
+  };
 
   // Initialize and sync editable div via innerHTML only (never use JSX value; never escape HTML)
   useEffect(() => {
@@ -44,8 +39,9 @@ export default function RichTextLite({
     }
   }, [value]);
 
+  // Do not sanitize or rewrite innerHTML during onInput — this breaks caret direction and causes RTL typing bugs in contentEditable.
   const handleInput = () => {
-    emitSanitized();
+    emitRaw();
   };
 
   const handleBlur = () => {
@@ -72,19 +68,19 @@ export default function RichTextLite({
     range.collapse(false);
     selection.removeAllRanges();
     selection.addRange(range);
-    emitSanitized();
+    emitRaw();
   };
 
   const applyBold = () => {
     editorRef.current?.focus();
     document.execCommand('bold', false);
-    emitSanitized();
+    emitRaw();
   };
 
   const applyBulletList = () => {
     editorRef.current?.focus();
     document.execCommand('insertUnorderedList', false);
-    emitSanitized();
+    emitRaw();
   };
 
   const baseInputClass =
