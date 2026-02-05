@@ -48,11 +48,11 @@ export async function GET(request: NextRequest) {
     if (search) {
       // First, find companies matching the search term (for recruiter company name search)
       const matchingCompanies = await dbConnection.collection('companies')
-        .find({ name: { $regex: search, $options: 'i' } }, { projection: { owner: 1 } })
+        .find({ name: { $regex: search, $options: 'i' } }, { projection: { ownerRecruiter: 1 } })
         .maxTimeMS(5000)
         .toArray();
       
-      recruiterIdsFromCompanySearch = matchingCompanies.map((c: any) => c.owner);
+      recruiterIdsFromCompanySearch = matchingCompanies.map((c: any) => c.ownerRecruiter);
       
       // Build search conditions for user fields
       const searchConditions: any[] = [
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
         : [],
       recruiterIds.length > 0
         ? dbConnection.collection('companies')
-            .find({ owner: { $in: recruiterIds } }, { projection: { name: 1, owner: 1 } })
+            .find({ ownerRecruiter: { $in: recruiterIds } }, { projection: { name: 1, ownerRecruiter: 1 } })
             .maxTimeMS(5000)
             .toArray()
         : []
@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
     // Map companies by owner (recruiter ID)
     const companyMap = new Map<string, string>();
     companiesByOwner.forEach((company: any) => {
-      const ownerId = company.owner.toString();
+      const ownerId = company.ownerRecruiter.toString();
       companyMap.set(ownerId, company.name);
     });
     

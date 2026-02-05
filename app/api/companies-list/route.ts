@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     const companies = await Company.find(queryFilter)
-      .populate('owner', 'name email')
+      .populate('ownerRecruiter', 'name email')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         offeredServices: company.offeredServices,
         logo: company.logo, // Keep logo for list display
         pictures: company.pictures && company.pictures.length > 0 ? [company.pictures[0]] : undefined, // Include first picture for card display
-        owner: company.owner,
+        owner: company.ownerRecruiter,
         featured: company.featured,
         createdAt: company.createdAt,
         updatedAt: company.updatedAt,

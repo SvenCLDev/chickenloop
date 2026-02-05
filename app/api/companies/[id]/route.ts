@@ -11,7 +11,7 @@ export async function GET(
     await connectDB();
     const { id } = await params;
 
-    const company = await Company.findById(id).populate('owner', 'name email');
+    const company = await Company.findById(id).populate('ownerRecruiter', 'name email');
 
     if (!company) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
@@ -49,7 +49,7 @@ export async function GET(
         offeredServices: company.offeredServices,
         logo: company.logo,
         pictures: company.pictures,
-        owner: company.owner,
+        owner: company.ownerRecruiter,
         createdAt: company.createdAt,
         updatedAt: company.updatedAt,
       },

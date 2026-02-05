@@ -9,6 +9,8 @@ export interface IUser extends Document {
   favouriteJobs?: mongoose.Types.ObjectId[];
   favouriteCandidates?: mongoose.Types.ObjectId[];
 
+  companyId?: mongoose.Types.ObjectId;
+
   lastOnline?: Date;
   notesEnabled?: boolean;
 
@@ -56,6 +58,12 @@ const UserSchema: Schema = new Schema(
         ref: 'User',
       },
     ],
+    companyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Company',
+      required: false,
+      index: true,
+    },
     lastOnline: Date,
     notesEnabled: {
       type: Boolean,

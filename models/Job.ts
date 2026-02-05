@@ -1,5 +1,31 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
-import { EmploymentType, SpamFlag, WorkArea } from '@/lib/domainTypes';
+
+export const EMPLOYMENT_TYPES = [
+  'full_time',
+  'part_time',
+  'freelance',
+  'internship',
+  'project',
+  'other',
+] as const;
+
+export const SPAM_FLAGS = [
+  'clean',
+  'suspected',
+  'confirmed',
+] as const;
+
+export const WORK_AREAS = [
+  'instructor',
+  'customer_support',
+  'sales',
+  'hospitality',
+  'marketing',
+  'it',
+  'management',
+  'operations',
+  'other',
+] as const;
 
 export interface IJob extends Document {
   title: string;
@@ -12,15 +38,15 @@ export interface IJob extends Document {
   country?: string | null;
 
   salary?: string;
-  type: EmploymentType;
+  type: (typeof EMPLOYMENT_TYPES)[number];
 
   languages?: string[];
   qualifications?: string[];
-  occupationalAreas?: WorkArea[];
+  occupationalAreas?: (typeof WORK_AREAS)[number][];
 
   pictures?: string[];
 
-  spam?: SpamFlag;
+  spam?: (typeof SPAM_FLAGS)[number];
   published?: boolean;
   featured?: boolean;
   featuredUntil?: Date | null;
@@ -89,7 +115,7 @@ const JobSchema: Schema = new Schema(
     salary: String,
     type: {
       type: String,
-      enum: Object.values(EmploymentType),
+      enum: EMPLOYMENT_TYPES,
       required: true,
     },
 
@@ -101,7 +127,7 @@ const JobSchema: Schema = new Schema(
 
     spam: {
       type: String,
-      enum: Object.values(SpamFlag),
+      enum: SPAM_FLAGS,
     },
 
     published: {

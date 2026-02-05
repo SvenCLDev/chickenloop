@@ -3,6 +3,7 @@ import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import JobImage from '@/models/JobImage';
 import Company from '@/models/Company';
+import User from '@/models/User';
 import { requireAuth, requireRole } from '@/lib/auth';
 import mongoose from 'mongoose';
 import { CachePresets } from '@/lib/cache';
@@ -704,9 +705,13 @@ export async function POST(request: NextRequest) {
     // Normalize country: trim and uppercase, or set to null if empty
     const normalizedCountry = country?.trim() ? country.trim().toUpperCase() : null;
 
-    // Find the recruiter's company to set companyId
-    const recruiterCompany = await Company.findOne({ owner: user.userId });
-    const companyId = recruiterCompany ? recruiterCompany._id : undefined;
+    // Use recruiter's companyId from User (optimized); fallback to Company lookup for legacy users
+    const userDoc = await User.findById(user.userId).select('companyId').lean();
+    let companyId = userDoc?.companyId ?? undefined;
+    if (companyId === undefined) {
+      const recruiterCompany = await Company.findOne({ ownerRecruiter: user.userId });
+      companyId = recruiterCompany ? recruiterCompany._id : undefined;
+    }
 
     // System-managed date fields for Google Jobs SEO
     // datePosted is set when job is first published

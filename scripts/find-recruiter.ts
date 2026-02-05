@@ -82,7 +82,7 @@ async function findOrCreateRecruiter() {
             const user = await User.findOne({ email }) as { _id: mongoose.Types.ObjectId } | null;
             if (user) {
                 const Company = mongoose.connection.db.collection('companies');
-                const company = await Company.findOne({ owner: user._id });
+                const company = await Company.findOne({ ownerRecruiter: user._id });
                 if (company) {
                     console.log('HAS_COMPANY=true');
                 } else {

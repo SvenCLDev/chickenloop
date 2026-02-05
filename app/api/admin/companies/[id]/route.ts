@@ -16,7 +16,7 @@ export async function GET(
     await connectDB();
     const { id } = await params;
 
-    const company = await Company.findById(id).populate('owner', 'name email');
+    const company = await Company.findById(id).populate('ownerRecruiter', 'name email');
 
     if (!company) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
@@ -37,7 +37,7 @@ export async function GET(
         pictures: company.pictures,
         logo: company.logo,
         featured: company.featured || false,
-        owner: company.owner,
+        owner: company.ownerRecruiter,
         createdAt: company.createdAt,
         updatedAt: company.updatedAt,
       },
@@ -191,7 +191,7 @@ export async function PUT(
     const savedCompany = await Company.findById(company._id);
     console.log(`[API /admin/companies/${id}] Company saved. Verified featured status in DB: ${savedCompany?.featured}`);
 
-    const updatedCompany = await Company.findById(company._id).populate('owner', 'name email');
+    const updatedCompany = await Company.findById(company._id).populate('ownerRecruiter', 'name email');
 
     if (!updatedCompany) {
       return NextResponse.json(
@@ -217,7 +217,7 @@ export async function PUT(
           pictures: updatedCompany.pictures,
           logo: updatedCompany.logo,
           featured: updatedCompany.featured || false,
-          owner: updatedCompany.owner,
+          owner: updatedCompany.ownerRecruiter,
           createdAt: updatedCompany.createdAt,
           updatedAt: updatedCompany.updatedAt,
         }
@@ -267,7 +267,7 @@ export async function DELETE(
     const companyData = {
       id: String(company._id),
       name: company.name,
-      owner: company.owner ? String(company.owner) : undefined,
+      owner: company.ownerRecruiter ? String(company.ownerRecruiter) : undefined,
       jobsCount,
     };
 

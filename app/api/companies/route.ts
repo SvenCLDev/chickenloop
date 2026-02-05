@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     // Build query
     let query = Company.find(queryFilter)
-      .populate('owner', 'name email')
+      .populate('ownerRecruiter', 'name email')
       .sort({ createdAt: -1 })
       .lean();
 

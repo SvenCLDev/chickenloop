@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
         address: 1,
         website: 1,
         featured: 1,
-        owner: 1,
+        ownerRecruiter: 1,
         createdAt: 1,
       }
     });
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     pipeline.push({
       $lookup: {
         from: 'users',
-        localField: 'owner',
+        localField: 'ownerRecruiter',
         foreignField: '_id',
         as: 'ownerInfo',
         pipeline: [

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/db';
 import Company from '@/models/Company';
+import User from '@/models/User';
 import { requireRole } from '@/lib/auth';
 import { normalizeCountryForStorage } from '@/lib/countryUtils';
 import { normalizeUrl } from '@/lib/normalizeUrl';
@@ -12,8 +14,12 @@ export async function GET(request: NextRequest) {
     const user = requireRole(request, ['recruiter']);
     await connectDB();
 
-    const company = await Company.findOne({ owner: user.userId });
+    const userDoc = await User.findById(user.userId).select('companyId').lean();
+    if (!Boolean(userDoc?.companyId)) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
 
+    const company = await Company.findById(userDoc.companyId);
     if (!company) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
@@ -40,9 +46,8 @@ export async function POST(request: NextRequest) {
     const user = requireRole(request, ['recruiter']);
     await connectDB();
 
-    // Check if recruiter already has a company
-    const existingCompany = await Company.findOne({ owner: user.userId });
-    if (existingCompany) {
+    const userDoc = await User.findById(user.userId).select('companyId').lean();
+    if (Boolean(userDoc?.companyId)) {
       return NextResponse.json(
         { error: 'You already have a company. You can only have one company.' },
         { status: 400 }
@@ -117,7 +122,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const company = await Company.create({
+    const companyData = {
       name,
       description: sanitizedDescription,
       address: cleanedAddress,
@@ -129,8 +134,31 @@ export async function POST(request: NextRequest) {
       offeredServices: offeredServices || [],
       logo: logo || undefined,
       pictures: pictures || [],
-      owner: user.userId,
-    });
+      ownerRecruiter: user.userId,
+    };
+
+    let company;
+    try {
+      const session = await mongoose.connection.startSession();
+      try {
+        await session.withTransaction(async () => {
+          company = await Company.create([companyData], { session });
+          const created = company[0];
+          await User.findByIdAndUpdate(
+            user.userId,
+            { $set: { companyId: created._id } },
+            { session }
+          );
+        });
+        company = company![0];
+      } finally {
+        await session.endSession();
+      }
+    } catch {
+      // Transaction not supported (e.g. standalone MongoDB); run sequentially
+      company = await Company.create(companyData);
+      await User.findByIdAndUpdate(user.userId, { $set: { companyId: company._id } });
+    }
 
     return NextResponse.json(
       { message: 'Company created successfully', company },
@@ -165,7 +193,15 @@ export async function PUT(request: NextRequest) {
     const user = requireRole(request, ['recruiter']);
     await connectDB();
 
-    const company = await Company.findOne({ owner: user.userId });
+    const userDoc = await User.findById(user.userId).select('companyId').lean();
+    if (!Boolean(userDoc?.companyId)) {
+      return NextResponse.json(
+        { error: 'Company not found' },
+        { status: 404 }
+      );
+    }
+
+    const company = await Company.findById(userDoc.companyId);
     if (!company) {
       return NextResponse.json(
         { error: 'Company not found' },
@@ -276,7 +312,15 @@ export async function DELETE(request: NextRequest) {
     const user = requireRole(request, ['recruiter']);
     await connectDB();
 
-    const company = await Company.findOne({ owner: user.userId });
+    const userDoc = await User.findById(user.userId).select('companyId').lean();
+    if (!Boolean(userDoc?.companyId)) {
+      return NextResponse.json(
+        { error: 'Company not found' },
+        { status: 404 }
+      );
+    }
+
+    const company = await Company.findById(userDoc.companyId);
     if (!company) {
       return NextResponse.json(
         { error: 'Company not found' },
@@ -290,6 +334,9 @@ export async function DELETE(request: NextRequest) {
 
     // Delete the company
     await Company.findByIdAndDelete(company._id);
+
+    // Clear recruiter's companyId so "has company" check stays correct
+    await User.findByIdAndUpdate(user.userId, { $unset: { companyId: 1 } });
 
     return NextResponse.json(
       { message: 'Company deleted successfully' },
