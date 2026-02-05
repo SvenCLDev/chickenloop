@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export interface ICompany extends Document {
   name: string;
   description?: string;
+
   address?: {
     street?: string;
     city?: string;
@@ -10,30 +11,33 @@ export interface ICompany extends Document {
     postalCode?: string;
     country?: string;
   };
+
   coordinates?: {
     latitude: number;
     longitude: number;
   };
+
   website?: string;
-  contact?: {
-    email?: string;
-    officePhone?: string;
-    whatsapp?: string;
+  email?: string;
+
+  featured?: boolean;
+  featuredUntil?: Date | null;
+
+  // 🔹 Ownership (explicit!)
+  ownerRecruiter: mongoose.Types.ObjectId;
+
+  // 🔹 Migration / review status
+  status: 'active' | 'needs_review' | 'placeholder';
+
+  legacy?: {
+    source: 'drupal7';
+    companyNodeId?: number;
+    recruiterUserId?: number;
+    inferred: boolean;
+    confidence: 'high' | 'medium' | 'low';
+    originalNames?: string[];
   };
-  socialMedia?: {
-    facebook?: string;
-    instagram?: string;
-    tiktok?: string;
-    youtube?: string;
-    twitter?: string;
-  };
-  offeredActivities?: string[]; // Array of offered activity strings
-  offeredServices?: string[]; // Array of offered service strings
-  logo?: string; // Company logo image URL
-  pictures?: string[]; // Array of image paths (max 3)
-  featured?: boolean; // Featured flag: true if featured, false otherwise
-  featuredUntil?: Date | null; // Time-limited featuring: expiry date for paid boost
-  owner: mongoose.Types.ObjectId;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,104 +47,26 @@ const CompanySchema: Schema = new Schema(
     name: {
       type: String,
       required: true,
-      trim: true,
+      index: true,
     },
-    description: {
-      type: String,
-      trim: true,
-    },
+    description: String,
+
     address: {
-      street: {
-        type: String,
-        trim: true,
-      },
-      city: {
-        type: String,
-        trim: true,
-      },
-      state: {
-        type: String,
-        trim: true,
-      },
-      postalCode: {
-        type: String,
-        trim: true,
-      },
-      country: {
-        type: String,
-        trim: true,
-        // ISO 3166-1 alpha-2 country code (e.g., 'US', 'GB', 'FR', 'DE')
-        // Stored in uppercase for consistency
-      },
+      street: String,
+      city: String,
+      state: String,
+      postalCode: String,
+      country: String,
     },
+
     coordinates: {
-      latitude: {
-        type: Number,
-      },
-      longitude: {
-        type: Number,
-      },
+      latitude: Number,
+      longitude: Number,
     },
-    website: {
-      type: String,
-      trim: true,
-    },
-    contact: {
-      email: {
-        type: String,
-        trim: true,
-        lowercase: true,
-      },
-      officePhone: {
-        type: String,
-        trim: true,
-      },
-      whatsapp: {
-        type: String,
-        trim: true,
-      },
-    },
-    socialMedia: {
-      facebook: {
-        type: String,
-        trim: true,
-      },
-      instagram: {
-        type: String,
-        trim: true,
-      },
-      tiktok: {
-        type: String,
-        trim: true,
-      },
-      youtube: {
-        type: String,
-        trim: true,
-      },
-      twitter: {
-        type: String,
-        trim: true,
-      },
-    },
-    offeredActivities: {
-      type: [String],
-    },
-    offeredServices: {
-      type: [String],
-    },
-    logo: {
-      type: String,
-      trim: true,
-    },
-    pictures: {
-      type: [String],
-      validate: {
-        validator: function(v: string[]) {
-          return v.length <= 3;
-        },
-        message: 'A company can have at most 3 pictures',
-      },
-    },
+
+    website: String,
+    email: String,
+
     featured: {
       type: Boolean,
       default: false,
@@ -149,49 +75,57 @@ const CompanySchema: Schema = new Schema(
       type: Date,
       default: null,
     },
-    owner: {
+
+    // 🔹 Explicit recruiter ownership
+    ownerRecruiter: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      unique: true,
+      index: true,
+    },
+
+    // 🔹 Status flag for migration + admin review
+    status: {
+      type: String,
+      enum: ['active', 'needs_review', 'placeholder'],
+      default: 'active',
+      index: true,
+    },
+
+    // 🔹 Legacy / migration metadata
+    legacy: {
+      source: {
+        type: String,
+        enum: ['drupal7'],
+      },
+      companyNodeId: Number,
+      recruiterUserId: Number,
+      inferred: Boolean,
+      confidence: {
+        type: String,
+        enum: ['high', 'medium', 'low'],
+      },
+      originalNames: [String],
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Instance method: true if time-limited featuring is active (featuredUntil set and in the future)
-CompanySchema.methods.isCurrentlyFeatured = function(): boolean {
-  return !!(this as any).featuredUntil && (this as any).featuredUntil > new Date();
-};
-
-// Static helper: query filter for "currently featured" (featuredUntil in the future)
-CompanySchema.statics.isFeaturedQuery = function(): { featuredUntil: { $gt: Date } } {
-  return { featuredUntil: { $gt: new Date() } };
-};
-
-// Pre-save hook: unified featured expiry — featuredUntil is source of truth; sync featured for legacy compatibility
-CompanySchema.pre('save', function(next) {
-  const doc = this as any;
-  const until = (doc.featuredUntil != null && doc.featuredUntil !== undefined)
-    ? (doc.featuredUntil instanceof Date ? doc.featuredUntil : new Date(doc.featuredUntil))
-    : null;
-  doc.featured = !!(until && until > new Date());
-  next();
-});
-
-// Create indexes for efficient querying
-// Note: owner field already has unique: true which creates an index automatically
-CompanySchema.index({ featured: 1 }); // For featured company filtering
-CompanySchema.index({ featuredUntil: 1 }); // For time-limited featuring queries
-CompanySchema.index({ createdAt: -1 }); // For sorting by creation date
+// Indexes for queries
+CompanySchema.index({ featured: 1 });
+CompanySchema.index({ featuredUntil: 1 });
+CompanySchema.index({ createdAt: -1 });
 
 interface ICompanyModel extends Model<ICompany> {
   isFeaturedQuery(): { featuredUntil: { $gt: Date } };
 }
-const Company = (mongoose.models.Company as ICompanyModel) || mongoose.model<ICompany, ICompanyModel>('Company', CompanySchema);
+
+CompanySchema.statics.isFeaturedQuery = function () {
+  return { featuredUntil: { $gt: new Date() } };
+};
+
+const Company =
+  (mongoose.models.Company as ICompanyModel) ||
+  mongoose.model<ICompany, ICompanyModel>('Company', CompanySchema);
 
 export default Company;
-
-
