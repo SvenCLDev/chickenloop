@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import connectDB from '@/lib/db';
-import Company from '@/models/Company';
+import Company, { ICompany } from '@/models/Company';
 import User from '@/models/User';
 import { requireRole } from '@/lib/auth';
+
+/** Company document shape for recruiter update; may include fields not on current ICompany (e.g. legacy). */
+type RecruiterCompanyDoc = ICompany & {
+  contact?: { email?: string; officePhone?: string; whatsapp?: string };
+  socialMedia?: Record<string, string | undefined>;
+  offeredActivities?: string[];
+  offeredServices?: string[];
+  logo?: string;
+  pictures?: string[];
+};
 import { normalizeCountryForStorage } from '@/lib/countryUtils';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import { sanitizeRichTextLite } from '@/utils/sanitizeRichTextLite';
@@ -15,7 +25,10 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const userDoc = await User.findById(user.userId).select('companyId').lean();
-    if (!Boolean(userDoc?.companyId)) {
+    if (!userDoc) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    if (!userDoc.companyId) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
@@ -47,7 +60,10 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const userDoc = await User.findById(user.userId).select('companyId').lean();
-    if (Boolean(userDoc?.companyId)) {
+    if (!userDoc) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    if (userDoc.companyId) {
       return NextResponse.json(
         { error: 'You already have a company. You can only have one company.' },
         { status: 400 }
@@ -194,7 +210,10 @@ export async function PUT(request: NextRequest) {
     await connectDB();
 
     const userDoc = await User.findById(user.userId).select('companyId').lean();
-    if (!Boolean(userDoc?.companyId)) {
+    if (!userDoc) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    if (!userDoc.companyId) {
       return NextResponse.json(
         { error: 'Company not found' },
         { status: 404 }
@@ -208,6 +227,8 @@ export async function PUT(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const companyDoc = company as RecruiterCompanyDoc;
 
     const { name, description, address, coordinates, website, contact, socialMedia, offeredActivities, offeredServices, logo, pictures } = await request.json();
 
@@ -226,13 +247,12 @@ export async function PUT(request: NextRequest) {
     if (sanitizedDescription !== undefined) company.description = sanitizedDescription;
     if (website !== undefined) company.website = normalizeUrl(website);
 
-    // Update contact
+    // Update contact (map to schema fields: email, website)
     if (contact !== undefined) {
-      if (!company.contact) company.contact = {};
-      if (contact.email !== undefined) company.contact.email = contact.email?.trim().toLowerCase() || undefined;
-      if (contact.officePhone !== undefined) company.contact.officePhone = contact.officePhone?.trim() || undefined;
-      if (contact.whatsapp !== undefined) company.contact.whatsapp = contact.whatsapp?.trim() || undefined;
-      company.markModified('contact');
+      if (contact.email !== undefined) company.email = contact.email?.trim().toLowerCase() || undefined;
+      if (contact.website !== undefined) company.website = normalizeUrl(contact.website);
+      company.markModified('email');
+      company.markModified('website');
     }
 
     // Update nested objects properly - normalize empty strings to undefined
@@ -254,34 +274,33 @@ export async function PUT(request: NextRequest) {
     }
 
     if (socialMedia !== undefined) {
-      if (!company.socialMedia) company.socialMedia = {};
-      if (socialMedia.facebook !== undefined) company.socialMedia.facebook = normalizeUrl(socialMedia.facebook);
-      if (socialMedia.instagram !== undefined) company.socialMedia.instagram = normalizeUrl(socialMedia.instagram);
-      if (socialMedia.tiktok !== undefined) company.socialMedia.tiktok = normalizeUrl(socialMedia.tiktok);
-      if (socialMedia.youtube !== undefined) company.socialMedia.youtube = normalizeUrl(socialMedia.youtube);
-      if (socialMedia.twitter !== undefined) company.socialMedia.twitter = normalizeUrl(socialMedia.twitter);
+      if (!companyDoc.socialMedia) companyDoc.socialMedia = {};
+      if (socialMedia.facebook !== undefined) companyDoc.socialMedia.facebook = normalizeUrl(socialMedia.facebook);
+      if (socialMedia.instagram !== undefined) companyDoc.socialMedia.instagram = normalizeUrl(socialMedia.instagram);
+      if (socialMedia.tiktok !== undefined) companyDoc.socialMedia.tiktok = normalizeUrl(socialMedia.tiktok);
+      if (socialMedia.youtube !== undefined) companyDoc.socialMedia.youtube = normalizeUrl(socialMedia.youtube);
+      if (socialMedia.twitter !== undefined) companyDoc.socialMedia.twitter = normalizeUrl(socialMedia.twitter);
       company.markModified('socialMedia');
     }
 
     if (offeredActivities !== undefined) {
-      company.offeredActivities = offeredActivities || [];
+      companyDoc.offeredActivities = offeredActivities || [];
       company.markModified('offeredActivities');
     }
 
     if (offeredServices !== undefined) {
-      company.offeredServices = offeredServices || [];
+      companyDoc.offeredServices = offeredServices || [];
       company.markModified('offeredServices');
     }
 
     if (logo !== undefined) {
-      // Only update logo if it's a non-empty string, otherwise clear it
       const trimmedLogo = logo?.trim();
-      company.logo = trimmedLogo && trimmedLogo.length > 0 ? trimmedLogo : undefined;
+      companyDoc.logo = trimmedLogo && trimmedLogo.length > 0 ? trimmedLogo : undefined;
       company.markModified('logo');
     }
 
     if (pictures !== undefined) {
-      company.pictures = pictures || [];
+      companyDoc.pictures = pictures || [];
       company.markModified('pictures');
     }
 
@@ -313,7 +332,10 @@ export async function DELETE(request: NextRequest) {
     await connectDB();
 
     const userDoc = await User.findById(user.userId).select('companyId').lean();
-    if (!Boolean(userDoc?.companyId)) {
+    if (!userDoc) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    if (!userDoc.companyId) {
       return NextResponse.json(
         { error: 'Company not found' },
         { status: 404 }

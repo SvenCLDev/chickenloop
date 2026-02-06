@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import Job from '@/models/Job';
+import Job, { IJob } from '@/models/Job';
 import JobImage from '@/models/JobImage';
 import { requireAuth, requireRole } from '@/lib/auth';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
@@ -117,6 +117,9 @@ export async function PUT(
       );
     }
 
+    type PublicJobDoc = IJob & { sports?: string[]; validThrough?: Date };
+    const jobDoc = job as PublicJobDoc;
+
     const requestBody = await request.json();
 
     // Safeguard: Reject if request looks like a Stripe redirect (must not mutate jobs)
@@ -231,7 +234,7 @@ export async function PUT(
       job.qualifications = qualifications || [];
     }
     if (sports !== undefined) {
-      job.sports = sports || [];
+      jobDoc.sports = sports || [];
     }
     if (occupationalAreas !== undefined) {
       job.occupationalAreas = occupationalAreas || [];
@@ -263,14 +266,14 @@ export async function PUT(
           // Set validThrough to datePosted + 90 days
           const validThroughDate = new Date(job.datePosted);
           validThroughDate.setDate(validThroughDate.getDate() + 90);
-          job.validThrough = validThroughDate;
+          jobDoc.validThrough = validThroughDate;
         } else {
           // Job was previously published, being republished
           // Keep existing datePosted, but ensure validThrough exists
-          if (!job.validThrough) {
+          if (!jobDoc.validThrough) {
             const validThroughDate = new Date(job.datePosted);
             validThroughDate.setDate(validThroughDate.getDate() + 90);
-            job.validThrough = validThroughDate;
+            jobDoc.validThrough = validThroughDate;
           }
         }
       } else if (isBeingPublished && wasPublished) {
@@ -279,10 +282,10 @@ export async function PUT(
           // Use createdAt as fallback for existing published jobs
           job.datePosted = job.createdAt || new Date();
         }
-        if (!job.validThrough) {
+        if (!jobDoc.validThrough) {
           const validThroughDate = new Date(job.datePosted);
           validThroughDate.setDate(validThroughDate.getDate() + 90);
-          job.validThrough = validThroughDate;
+          jobDoc.validThrough = validThroughDate;
         }
       }
       // If being unpublished, we don't change datePosted or validThrough
@@ -291,10 +294,10 @@ export async function PUT(
       if (!job.datePosted) {
         job.datePosted = job.createdAt || new Date();
       }
-      if (!job.validThrough) {
+      if (!jobDoc.validThrough) {
         const validThroughDate = new Date(job.datePosted);
         validThroughDate.setDate(validThroughDate.getDate() + 90);
-        job.validThrough = validThroughDate;
+        jobDoc.validThrough = validThroughDate;
       }
     }
     

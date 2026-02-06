@@ -17,14 +17,14 @@ export async function POST(
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
-    // Set spam flag to 'yes'
+    // Set spam flag to 'confirmed'
     // Skip validation since we're only updating the spam flag, not job content
-    job.spam = 'yes';
+    job.spam = 'confirmed';
     await job.save({ validateBeforeSave: false });
     
     // Verify the save worked
     const updatedJob = await Job.findById(id);
-    if ((updatedJob as any)?.spam !== 'yes') {
+    if (updatedJob?.spam !== 'confirmed') {
       console.error('Failed to save spam flag for job:', id);
     }
 

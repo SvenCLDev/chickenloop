@@ -710,7 +710,7 @@ export async function POST(request: NextRequest) {
     let companyId = userDoc?.companyId ?? undefined;
     if (companyId === undefined) {
       const recruiterCompany = await Company.findOne({ ownerRecruiter: user.userId });
-      companyId = recruiterCompany ? recruiterCompany._id : undefined;
+      companyId = recruiterCompany ? (recruiterCompany._id as mongoose.Types.ObjectId) : undefined;
     }
 
     // System-managed date fields for Google Jobs SEO

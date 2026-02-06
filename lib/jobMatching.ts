@@ -4,16 +4,30 @@
  */
 
 import mongoose from 'mongoose';
-import Job, { IJob } from '@/models/Job';
+import Job, { IJob, WORK_AREAS } from '@/models/Job';
 import { ISavedSearch } from '@/models/SavedSearch';
-import { WorkArea } from '@/lib/domainTypes';
 
-interface PopulatedJob extends Omit<IJob, 'recruiter'> {
+/** Company when populated: just name for display/keyword match */
+type PopulatedCompanyRef = { _id: mongoose.Types.ObjectId; name: string };
+
+interface PopulatedJob extends Omit<IJob, 'recruiter' | 'companyId'> {
   recruiter?: {
     _id: mongoose.Types.ObjectId;
     name: string;
     email: string;
   };
+  /** When populated, companyId is { _id, name }; otherwise ObjectId */
+  companyId?: mongoose.Types.ObjectId | PopulatedCompanyRef;
+  /** Optional; used for activity/sport filter in saved searches */
+  sports?: string[];
+}
+
+export function getCompanyName(job: PopulatedJob): string | undefined {
+  const ref = job.companyId;
+  if (ref && typeof ref === 'object' && 'name' in ref && typeof (ref as PopulatedCompanyRef).name === 'string') {
+    return (ref as PopulatedCompanyRef).name;
+  }
+  return undefined;
 }
 
 export interface JobMatch {
@@ -44,9 +58,10 @@ export async function findMatchingJobs(
     query.createdAt = { $gte: sinceDate };
   }
 
-  // Fetch all jobs that might match
+  // Fetch all jobs that might match (populate companyId for name in keyword match and display)
   const jobs = await Job.find(query)
     .populate('recruiter', 'name email')
+    .populate('companyId', 'name')
     .sort({ createdAt: -1 })
     .lean();
   
@@ -61,12 +76,13 @@ export async function findMatchingJobs(
     const matchReasons: string[] = [];
     let jobMatches = true;
 
-    // Filter by keyword (searches in title, description, company)
+    // Filter by keyword (searches in title, description, company name)
     if (savedSearch.keyword) {
       const keywordLower = savedSearch.keyword.toLowerCase();
       const titleMatch = job.title?.toLowerCase().includes(keywordLower);
       const descriptionMatch = job.description?.toLowerCase().includes(keywordLower);
-      const companyMatch = job.company?.toLowerCase().includes(keywordLower);
+      const companyName = getCompanyName(job);
+      const companyMatch = companyName?.toLowerCase().includes(keywordLower);
       
       if (!titleMatch && !descriptionMatch && !companyMatch) {
         jobMatches = false;
@@ -97,7 +113,9 @@ export async function findMatchingJobs(
 
     // Filter by category (occupationalAreas)
     if (jobMatches && savedSearch.category) {
-      if (!job.occupationalAreas || !job.occupationalAreas.includes(savedSearch.category as WorkArea)) {
+      const category = savedSearch.category;
+      const validCategory = category && (WORK_AREAS as readonly string[]).includes(category);
+      if (!job.occupationalAreas || !validCategory || !job.occupationalAreas.includes(category as (typeof WORK_AREAS)[number])) {
         jobMatches = false;
       } else {
         matchReasons.push(`Category: ${savedSearch.category}`);

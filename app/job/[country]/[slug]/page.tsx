@@ -310,6 +310,7 @@ async function getJob(id: string): Promise<Job | null> {
       recruiter,
       recruiterId, // Include recruiter ID for permission checks
       companyId: serializedCompanyId,
+      company: serializedCompanyId?.name ?? '', // Display name from populated companyId
       companyForSummary, // Include company data for summary generation
       published: jobObject.published !== undefined ? jobObject.published : true, // Include published status
       heroImageUrl, // Include hero image URL (explicit isHero or first image fallback)
@@ -338,11 +339,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // Get the job data (minimal fetch for metadata)
   try {
     await connectDB();
-    const job = await Job.findById(jobId).select('title company country').lean();
+    const job = await Job.findById(jobId).select('title companyId country').populate('companyId', 'name').lean();
     
     if (!job) {
       return {};
     }
+    
+    const companyName = (job.companyId && typeof job.companyId === 'object' && 'name' in job.companyId)
+      ? String((job.companyId as { name?: string }).name ?? '')
+      : '';
     
     // Generate canonical URL
     const canonicalPath = generateJobUrlPath(job.title, job.country);
@@ -352,8 +357,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const canonicalUrl = `${protocol}://${host}${canonicalPath}`;
     
     return {
-      title: `${job.title} at ${job.company} | Chickenloop`,
-      description: `Apply for ${job.title} at ${job.company}. Find watersports jobs on Chickenloop.`,
+      title: `${job.title} at ${companyName} | Chickenloop`,
+      description: `Apply for ${job.title} at ${companyName}. Find watersports jobs on Chickenloop.`,
       alternates: {
         canonical: canonicalUrl,
       },
