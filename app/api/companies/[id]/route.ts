@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import Company from '@/models/Company';
+import Company, { ICompany } from '@/models/Company';
+
+/** Document shape for public company response; may include fields not on current ICompany (e.g. legacy). */
+type PublicCompanyDoc = ICompany & {
+  offeredActivities?: string[];
+  offeredServices?: string[];
+  logo?: string;
+  pictures?: string[];
+};
 
 // GET - Get a company by ID (public endpoint)
 export async function GET(
@@ -17,41 +25,30 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    // Clean up social media: convert empty strings to undefined
-    let cleanedSocialMedia = company.socialMedia;
-    if (cleanedSocialMedia) {
-      cleanedSocialMedia = {
-        facebook: cleanedSocialMedia.facebook?.trim() || undefined,
-        instagram: cleanedSocialMedia.instagram?.trim() || undefined,
-        tiktok: cleanedSocialMedia.tiktok?.trim() || undefined,
-        youtube: cleanedSocialMedia.youtube?.trim() || undefined,
-        twitter: cleanedSocialMedia.twitter?.trim() || undefined,
-      };
-      // If all fields are undefined, set to undefined
-      if (!cleanedSocialMedia.facebook && !cleanedSocialMedia.instagram && 
-          !cleanedSocialMedia.tiktok && !cleanedSocialMedia.youtube && 
-          !cleanedSocialMedia.twitter) {
-        cleanedSocialMedia = undefined;
-      }
-    }
+    // Schema does not define socialMedia; expose stable empty value for response shape
+    const cleanedSocialMedia: null = null;
 
+    const doc = company as PublicCompanyDoc;
     return NextResponse.json({
       company: {
-        id: company._id,
-        name: company.name,
-        description: company.description,
-        address: company.address,
-        coordinates: company.coordinates,
-        website: company.website,
-        contact: company.contact,
+        id: doc._id,
+        name: doc.name,
+        description: doc.description,
+        address: doc.address,
+        coordinates: doc.coordinates,
+        website: doc.website,
+        contact: {
+          email: doc.email ?? null,
+          website: doc.website ?? null,
+        },
         socialMedia: cleanedSocialMedia,
-        offeredActivities: company.offeredActivities,
-        offeredServices: company.offeredServices,
-        logo: company.logo,
-        pictures: company.pictures,
-        owner: company.ownerRecruiter,
-        createdAt: company.createdAt,
-        updatedAt: company.updatedAt,
+        offeredActivities: doc.offeredActivities,
+        offeredServices: doc.offeredServices,
+        logo: doc.logo,
+        pictures: doc.pictures,
+        owner: doc.ownerRecruiter,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
       },
     });
   } catch (error: unknown) {
