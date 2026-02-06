@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import Company from '@/models/Company';
+import Company, { ICompany } from '@/models/Company';
 import Job from '@/models/Job';
 import { requireRole } from '@/lib/auth';
 import { createDeleteAuditLog } from '@/lib/audit';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+
+/** Document shape for admin responses; may include fields not on current ICompany (e.g. legacy or future). */
+type AdminCompanyDoc = ICompany & {
+  socialMedia?: Record<string, string | undefined>;
+  offeredActivities?: string[];
+  offeredServices?: string[];
+  pictures?: string[];
+  logo?: string;
+};
 
 // GET - Get a single company (admin only)
 export async function GET(
@@ -22,24 +31,28 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
+    const doc = company as AdminCompanyDoc;
     return NextResponse.json({
       company: {
-        id: company._id,
-        name: company.name,
-        description: company.description,
-        address: company.address,
-        coordinates: company.coordinates,
-        website: company.website,
-        contact: company.contact,
-        socialMedia: company.socialMedia,
-        offeredActivities: company.offeredActivities,
-        offeredServices: company.offeredServices,
-        pictures: company.pictures,
-        logo: company.logo,
-        featured: company.featured || false,
-        owner: company.ownerRecruiter,
-        createdAt: company.createdAt,
-        updatedAt: company.updatedAt,
+        id: doc._id,
+        name: doc.name,
+        description: doc.description,
+        address: doc.address,
+        coordinates: doc.coordinates,
+        website: doc.website,
+        contact: {
+          email: doc.email ?? null,
+          website: doc.website ?? null,
+        },
+        socialMedia: doc.socialMedia,
+        offeredActivities: doc.offeredActivities,
+        offeredServices: doc.offeredServices,
+        pictures: doc.pictures,
+        logo: doc.logo,
+        featured: doc.featured || false,
+        owner: doc.ownerRecruiter,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
       },
     });
   } catch (error: unknown) {
@@ -74,6 +87,8 @@ export async function PUT(
     if (!company) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
+
+    const companyDoc = company as AdminCompanyDoc;
 
     let updateData;
     try {
@@ -119,13 +134,12 @@ export async function PUT(
     if (description !== undefined) company.description = description;
     if (website !== undefined) company.website = normalizeUrl(website);
 
-    // Update contact
+    // Update contact (map to schema fields: email, website)
     if (contact !== undefined) {
-      if (!company.contact) company.contact = {};
-      if (contact.email !== undefined) company.contact.email = contact.email?.trim().toLowerCase() || undefined;
-      if (contact.officePhone !== undefined) company.contact.officePhone = contact.officePhone?.trim() || undefined;
-      if (contact.whatsapp !== undefined) company.contact.whatsapp = contact.whatsapp?.trim() || undefined;
-      company.markModified('contact');
+      if (contact.email !== undefined) company.email = contact.email?.trim().toLowerCase() || undefined;
+      if (contact.website !== undefined) company.website = normalizeUrl(contact.website);
+      company.markModified('email');
+      company.markModified('website');
     }
 
     // Update nested objects properly - normalize empty strings to undefined
@@ -147,32 +161,32 @@ export async function PUT(
     }
 
     if (socialMedia !== undefined) {
-      if (!company.socialMedia) company.socialMedia = {};
-      if (socialMedia.facebook !== undefined) company.socialMedia.facebook = normalizeUrl(socialMedia.facebook);
-      if (socialMedia.instagram !== undefined) company.socialMedia.instagram = normalizeUrl(socialMedia.instagram);
-      if (socialMedia.tiktok !== undefined) company.socialMedia.tiktok = normalizeUrl(socialMedia.tiktok);
-      if (socialMedia.youtube !== undefined) company.socialMedia.youtube = normalizeUrl(socialMedia.youtube);
-      if (socialMedia.twitter !== undefined) company.socialMedia.twitter = normalizeUrl(socialMedia.twitter);
+      if (!companyDoc.socialMedia) companyDoc.socialMedia = {};
+      if (socialMedia.facebook !== undefined) companyDoc.socialMedia.facebook = normalizeUrl(socialMedia.facebook);
+      if (socialMedia.instagram !== undefined) companyDoc.socialMedia.instagram = normalizeUrl(socialMedia.instagram);
+      if (socialMedia.tiktok !== undefined) companyDoc.socialMedia.tiktok = normalizeUrl(socialMedia.tiktok);
+      if (socialMedia.youtube !== undefined) companyDoc.socialMedia.youtube = normalizeUrl(socialMedia.youtube);
+      if (socialMedia.twitter !== undefined) companyDoc.socialMedia.twitter = normalizeUrl(socialMedia.twitter);
       company.markModified('socialMedia');
     }
 
     if (offeredActivities !== undefined) {
-      company.offeredActivities = offeredActivities || [];
+      companyDoc.offeredActivities = offeredActivities || [];
       company.markModified('offeredActivities');
     }
 
     if (offeredServices !== undefined) {
-      company.offeredServices = offeredServices || [];
+      companyDoc.offeredServices = offeredServices || [];
       company.markModified('offeredServices');
     }
 
     if (pictures !== undefined) {
-      company.pictures = pictures || [];
+      companyDoc.pictures = pictures || [];
       company.markModified('pictures');
     }
 
     if (logo !== undefined) {
-      company.logo = logo || undefined;
+      companyDoc.logo = logo || undefined;
       company.markModified('logo');
     }
 
@@ -200,26 +214,30 @@ export async function PUT(
       );
     }
 
+    const updatedDoc = updatedCompany as AdminCompanyDoc;
     return NextResponse.json(
       {
         message: 'Company updated successfully',
         company: {
-          id: String(updatedCompany._id),
-          name: updatedCompany.name,
-          description: updatedCompany.description,
-          address: updatedCompany.address,
-          coordinates: updatedCompany.coordinates,
-          website: updatedCompany.website,
-          contact: updatedCompany.contact,
-          socialMedia: updatedCompany.socialMedia,
-          offeredActivities: updatedCompany.offeredActivities,
-          offeredServices: updatedCompany.offeredServices,
-          pictures: updatedCompany.pictures,
-          logo: updatedCompany.logo,
-          featured: updatedCompany.featured || false,
-          owner: updatedCompany.ownerRecruiter,
-          createdAt: updatedCompany.createdAt,
-          updatedAt: updatedCompany.updatedAt,
+          id: String(updatedDoc._id),
+          name: updatedDoc.name,
+          description: updatedDoc.description,
+          address: updatedDoc.address,
+          coordinates: updatedDoc.coordinates,
+          website: updatedDoc.website,
+          contact: {
+            email: updatedDoc.email ?? null,
+            website: updatedDoc.website ?? null,
+          },
+          socialMedia: updatedDoc.socialMedia,
+          offeredActivities: updatedDoc.offeredActivities,
+          offeredServices: updatedDoc.offeredServices,
+          pictures: updatedDoc.pictures,
+          logo: updatedDoc.logo,
+          featured: updatedDoc.featured || false,
+          owner: updatedDoc.ownerRecruiter,
+          createdAt: updatedDoc.createdAt,
+          updatedAt: updatedDoc.updatedAt,
         }
       },
       { status: 200 }
