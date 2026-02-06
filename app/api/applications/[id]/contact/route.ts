@@ -45,10 +45,12 @@ export async function POST(
     let jobCity: string | undefined;
 
     if (application.jobId) {
-      const job = await Job.findById(application.jobId).select('title company city');
+      const job = await Job.findById(application.jobId).populate('companyId', 'name').select('title companyId city').lean();
       if (job) {
         jobTitle = job.title;
-        jobCompany = job.company;
+        jobCompany = job.companyId && typeof job.companyId === 'object' && 'name' in job.companyId
+          ? (job.companyId as { name: string }).name
+          : undefined;
         jobCity = job.city;
       }
     }

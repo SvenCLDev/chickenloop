@@ -442,7 +442,10 @@ export async function GET(
             const recruiter = await User.findById(application.recruiterId).select('name email');
             
             if (candidate && recruiter && candidate.email) {
-              const job = application.jobId ? await Job.findById(application.jobId).select('title company city') : null;
+              const job = application.jobId ? await Job.findById(application.jobId).populate('companyId', 'name').select('title companyId city').lean() : null;
+              const jobCompanyName = job?.companyId && typeof job.companyId === 'object' && 'name' in job.companyId
+                ? (job.companyId as { name: string }).name
+                : undefined;
 
               const emailTemplate = getStatusChangedEmail({
                 candidateName: candidate.name,
@@ -450,7 +453,7 @@ export async function GET(
                 recruiterName: recruiter.name,
                 recruiterEmail: recruiter.email,
                 jobTitle: job?.title,
-                jobCompany: job?.company,
+                jobCompany: jobCompanyName,
                 status: application.status,
               });
 

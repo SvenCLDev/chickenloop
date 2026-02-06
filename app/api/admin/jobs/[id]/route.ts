@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/db';
-import Job from '@/models/Job';
+import Job, { IJob } from '@/models/Job';
 import Company from '@/models/Company';
 import { requireRole } from '@/lib/auth';
 import { createDeleteAuditLog } from '@/lib/audit';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+
+/** Job document shape for admin updates; may include fields not on current IJob (e.g. legacy). */
+type AdminJobDoc = IJob & {
+  sports?: string[];
+  validThrough?: Date;
+};
 
 // GET - Get a single job (admin only)
 export async function GET(
@@ -57,6 +64,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
+    const jobDoc = job as AdminJobDoc;
+
     const requestBody = await request.json();
     
     // Safeguard: Reject requests that include deprecated `location` field
@@ -75,7 +84,7 @@ export async function PUT(
       );
     }
 
-    const { title, description, city, country, salary, type, company, languages, qualifications, sports, occupationalAreas, pictures, spam, published, featured, applyByEmail, applyByWebsite, applicationEmail, applicationWebsite } = requestBody;
+    const { title, description, city, country, salary, type, companyId: companyIdFromBody, company: companyFromBody, languages, qualifications, sports, occupationalAreas, pictures, spam, published, featured, applyByEmail, applyByWebsite, applicationEmail, applicationWebsite } = requestBody;
 
     // Validate required fields if provided
     if (title !== undefined && (!title || !title.trim())) {
@@ -121,7 +130,17 @@ export async function PUT(
     if (country !== undefined) job.country = country?.trim().toUpperCase() || undefined;
     if (salary !== undefined) job.salary = salary;
     if (type) job.type = type;
-    if (company) job.company = company;
+    const companyIdValue = companyIdFromBody ?? companyFromBody;
+    if (companyIdValue !== undefined && companyIdValue !== null && companyIdValue !== '') {
+      try {
+        job.companyId = new mongoose.Types.ObjectId(String(companyIdValue));
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid company ID' },
+          { status: 400 }
+        );
+      }
+    }
     if (languages !== undefined) {
       if (Array.isArray(languages) && languages.length > 3) {
         return NextResponse.json(
@@ -135,7 +154,7 @@ export async function PUT(
       job.qualifications = qualifications || [];
     }
     if (sports !== undefined) {
-      job.sports = sports || [];
+      jobDoc.sports = sports || [];
     }
     if (occupationalAreas !== undefined) {
       // Validate job categories - ensure all categories are in JOB_CATEGORIES
@@ -188,14 +207,14 @@ export async function PUT(
           // Set validThrough to datePosted + 90 days
           const validThroughDate = new Date(job.datePosted);
           validThroughDate.setDate(validThroughDate.getDate() + 90);
-          job.validThrough = validThroughDate;
+          jobDoc.validThrough = validThroughDate;
         } else {
           // Job was previously published, being republished
           // Keep existing datePosted, but ensure validThrough exists
-          if (!job.validThrough) {
+          if (!jobDoc.validThrough) {
             const validThroughDate = new Date(job.datePosted);
             validThroughDate.setDate(validThroughDate.getDate() + 90);
-            job.validThrough = validThroughDate;
+            jobDoc.validThrough = validThroughDate;
           }
         }
       } else if (isBeingPublished && wasPublished) {
@@ -204,10 +223,10 @@ export async function PUT(
           // Use createdAt as fallback for existing published jobs
           job.datePosted = job.createdAt || new Date();
         }
-        if (!job.validThrough) {
+        if (!jobDoc.validThrough) {
           const validThroughDate = new Date(job.datePosted);
           validThroughDate.setDate(validThroughDate.getDate() + 90);
-          job.validThrough = validThroughDate;
+          jobDoc.validThrough = validThroughDate;
         }
       }
       // If being unpublished, we don't change datePosted or validThrough
@@ -216,10 +235,10 @@ export async function PUT(
       if (!job.datePosted) {
         job.datePosted = job.createdAt || new Date();
       }
-      if (!job.validThrough) {
+      if (!jobDoc.validThrough) {
         const validThroughDate = new Date(job.datePosted);
         validThroughDate.setDate(validThroughDate.getDate() + 90);
-        job.validThrough = validThroughDate;
+        jobDoc.validThrough = validThroughDate;
       }
     }
 
@@ -306,7 +325,6 @@ export async function DELETE(
     const jobData = {
       id: String(job._id),
       title: job.title,
-      company: job.company,
       companyId: job.companyId ? String(job.companyId) : undefined,
       recruiter: job.recruiter ? String(job.recruiter) : undefined,
     };
@@ -319,7 +337,7 @@ export async function DELETE(
       entityId: id,
       userId: user.userId,
       before: jobData,
-      reason: `Deleted job "${job.title}" at ${job.company}`,
+      reason: `Deleted job "${job.title}"`,
     });
 
     return NextResponse.json(

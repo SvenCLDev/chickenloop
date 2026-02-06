@@ -83,8 +83,11 @@ export async function POST(
     try {
       const candidate = await User.findById(application.candidateId).select('name email');
       const recruiter = await User.findById(application.recruiterId).select('name email');
-      const job = application.jobId ? await Job.findById(application.jobId).select('title company city') : null;
-      
+      const job = application.jobId ? await Job.findById(application.jobId).populate('companyId', 'name').select('title companyId city').lean() : null;
+      const jobCompanyName = job?.companyId && typeof job.companyId === 'object' && 'name' in job.companyId
+        ? (job.companyId as { name: string }).name
+        : undefined;
+
       if (recruiter && recruiter.email && candidate) {
         const emailTemplate = getApplicationWithdrawnEmail({
           candidateName: candidate.name,
@@ -92,7 +95,7 @@ export async function POST(
           recruiterName: recruiter.name,
           recruiterEmail: recruiter.email,
           jobTitle: job?.title,
-          jobCompany: job?.company,
+          jobCompany: jobCompanyName,
           jobCity: job?.city,
         });
 

@@ -148,7 +148,7 @@ export async function PUT(
       );
     }
 
-    const { title, description, company, city, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, heroImageUrl, published, featured, applyViaATS, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
+    const { title, description, companyId: companyIdFromBody, company: companyFromBody, city, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, heroImageUrl, published, featured, applyViaATS, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
 
     // Validate job categories - ensure all categories are in JOB_CATEGORIES
     if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
@@ -205,7 +205,17 @@ export async function PUT(
     if (description) {
       job.description = sanitizeJobDescription(description);
     }
-    if (company) job.company = company;
+    const companyIdValue = companyIdFromBody ?? companyFromBody;
+    if (companyIdValue !== undefined && companyIdValue !== null && companyIdValue !== '') {
+      try {
+        job.companyId = new mongoose.Types.ObjectId(String(companyIdValue));
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid company ID' },
+          { status: 400 }
+        );
+      }
+    }
     if (city) job.city = city;
     if (country !== undefined) {
       // Normalize country: trim and uppercase, or set to null if empty (null explicitly stores the field)
