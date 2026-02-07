@@ -10,7 +10,6 @@ const StripeEventSchema: Schema = new Schema(
     eventId: {
       type: String,
       required: true,
-      unique: true,
     },
   },
   { timestamps: true }
