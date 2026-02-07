@@ -7,6 +7,7 @@ import { requireRole } from '@/lib/auth';
 import { createDeleteAuditLog } from '@/lib/audit';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 
 /** Job document shape for admin updates; may include fields not on current IJob (e.g. legacy). */
 type AdminJobDoc = IJob & {
@@ -129,7 +130,7 @@ export async function PUT(
     if (city) job.city = city;
     if (country !== undefined) job.country = country?.trim().toUpperCase() || undefined;
     if (salary !== undefined) job.salary = salary;
-    if (type) job.type = type;
+    if (type) job.type = normalizeEmploymentType(type);
     const companyIdValue = companyIdFromBody ?? companyFromBody;
     if (companyIdValue !== undefined && companyIdValue !== null && companyIdValue !== '') {
       try {

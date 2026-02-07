@@ -5,6 +5,7 @@ import JobImage from '@/models/JobImage';
 import { requireAuth, requireRole } from '@/lib/auth';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import mongoose from 'mongoose';
 
@@ -225,7 +226,7 @@ export async function PUT(
       job.country = country?.trim() ? country.trim().toUpperCase() : null;
     }
     if (salary !== undefined) job.salary = salary;
-    if (type) job.type = type;
+    if (type) job.type = normalizeEmploymentType(type);
     if (languages !== undefined) {
       job.languages = languages || [];
       job.markModified('languages');

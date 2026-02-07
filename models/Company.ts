@@ -30,12 +30,11 @@ export interface ICompany extends Document {
   status: 'active' | 'needs_review' | 'placeholder';
 
   legacy?: {
-    source: 'drupal7';
-    companyNodeId?: number;
-    recruiterUserId?: number;
-    inferred: boolean;
-    confidence: 'high' | 'medium' | 'low';
-    originalNames?: string[];
+    source: 'drupal';
+    inferenceStrategy: 'inferred_from_jobs' | 'inferred_and_enriched' | 'placeholder';
+    sourceCompanyNid?: number;
+    confidence: number;
+    migratedAt: Date;
   };
 
   createdAt: Date;
@@ -96,16 +95,28 @@ const CompanySchema: Schema = new Schema(
     legacy: {
       source: {
         type: String,
-        enum: ['drupal7'],
+        enum: ['drupal'],
+        required: true,
       },
-      companyNodeId: Number,
-      recruiterUserId: Number,
-      inferred: Boolean,
-      confidence: {
+      inferenceStrategy: {
         type: String,
-        enum: ['high', 'medium', 'low'],
+        enum: ['inferred_from_jobs', 'inferred_and_enriched', 'placeholder'],
+        required: true,
       },
-      originalNames: [String],
+      sourceCompanyNid: {
+        type: Number,
+        required: false,
+      },
+      confidence: {
+        type: Number,
+        min: 0,
+        max: 1,
+        required: true,
+      },
+      migratedAt: {
+        type: Date,
+        required: true,
+      },
     },
   },
   { timestamps: true }

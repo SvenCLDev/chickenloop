@@ -11,6 +11,7 @@ import { parseJobSearchParams } from '@/lib/jobSearchParams';
 import { getCountryCodeFromName } from '@/lib/countryUtils';
 import { JOB_CATEGORIES, categorySlugToLabel } from '@/src/constants/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
@@ -705,6 +706,9 @@ export async function POST(request: NextRequest) {
     // Normalize country: trim and uppercase, or set to null if empty
     const normalizedCountry = country?.trim() ? country.trim().toUpperCase() : null;
 
+    // Normalize employment type: lowercase, hyphens to underscores (e.g. full-time → full_time)
+    const normalizedType = normalizeEmploymentType(type);
+
     // Use recruiter's companyId from User (optimized); fallback to Company lookup for legacy users
     const userDoc = await User.findById(user.userId).select('companyId').lean();
     let companyId = userDoc?.companyId ?? undefined;
@@ -727,7 +731,7 @@ export async function POST(request: NextRequest) {
       city,
       country: normalizedCountry,
       salary,
-      type,
+      type: normalizedType,
       recruiter: user.userId,
       companyId: companyId,
       languages: languages || [],

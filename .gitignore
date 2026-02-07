@@ -55,6 +55,9 @@ SHARED_DATABASE_CREDENTIALS.template.md
 public/uploads/
 doc/PROJECT_CREDENTIALS_TODO.md
 
+# Drupal export data (not committed)
+/data/drupal-export/
+
 # MongoDB backups (never commit database backups to git)
 backups/
 exports/
