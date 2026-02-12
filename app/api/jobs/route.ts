@@ -278,15 +278,19 @@ export async function GET(request: NextRequest) {
     // stays populated even when 0 jobs match. Always run so dropdown has options on initial load.
     const baseFilter = { ...queryFilter };
     delete baseFilter.occupationalAreas;
-    const categoriesPromise = collection.aggregate([
-      { $match: baseFilter },
-      { $unwind: '$occupationalAreas' },
-      { $group: { _id: '$occupationalAreas' } },
-    ])
+    const categoriesResult = await Job.collection
+      .aggregate([
+        { $match: baseFilter },
+        { $unwind: '$occupationalAreas' },
+        { $group: { _id: '$occupationalAreas' } },
+      ])
       .maxTimeMS(5000)
       .toArray()
-      .then((res: { _id: string }[]) => res.map(c => c._id))
       .catch(() => []);
+
+    const availableCategories: string[] = (
+      categoriesResult as { _id: string }[]
+    ).map((c) => c._id);
 
     console.log('[API /jobs] Building aggregation pipeline for optimized image selection...');
     
@@ -434,13 +438,11 @@ export async function GET(request: NextRequest) {
     );
 
     let jobsWithoutPopulate: any[];
-    let availableCategories: string[] = [];
     try {
       console.log('[API /jobs] Starting Promise.race...');
-      const jobsPromise = Promise.race([aggregationPromise, aggregationTimeout]);
-      [jobsWithoutPopulate, availableCategories] = await Promise.all([
-        jobsPromise,
-        categoriesPromise,
+      jobsWithoutPopulate = await Promise.race([
+        aggregationPromise,
+        aggregationTimeout,
       ]);
       const fetchTime = Date.now() - fetchStart;
       console.log(`[API /jobs] Aggregation pipeline succeeded, got ${jobsWithoutPopulate.length} jobs in ${fetchTime}ms`);
