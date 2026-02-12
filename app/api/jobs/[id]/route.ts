@@ -157,7 +157,8 @@ export async function PUT(
     // Validate job categories - ensure all categories are in JOB_CATEGORY_VALUES
     if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
       const invalidCategories = occupationalAreas.filter(
-        (category: string) => !JOB_CATEGORY_VALUES.includes(category)
+        (category: string) =>
+          !JOB_CATEGORY_VALUES.includes(category as typeof JOB_CATEGORY_VALUES[number])
       );
       if (invalidCategories.length > 0) {
         return NextResponse.json(
