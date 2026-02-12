@@ -1,98 +1,572 @@
 /**
  * Utility functions for country name handling
+ * Uses static ISO 3166-1 alpha-2 mapping (no Intl dependency)
  */
 
-/**
- * Convert an ISO 3166-1 alpha-2 country code to a readable country name in English
- * @param countryCode - ISO 3166-1 alpha-2 country code (e.g., 'US', 'GB', 'FR')
- * @returns Country name in English, or the original code if conversion fails
- */
-export function getCountryNameFromCode(countryCode: string): string {
-  if (!countryCode || countryCode.trim() === '') {
-    return '';
-  }
+export const COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  "afghanistan": "AF",
+  "åland islands": "AX",
+  "albania": "AL",
+  "algeria": "DZ",
+  "american samoa": "AS",
+  "andorra": "AD",
+  "angola": "AO",
+  "anguilla": "AI",
+  "antarctica": "AQ",
+  "antigua and barbuda": "AG",
+  "argentina": "AR",
+  "armenia": "AM",
+  "aruba": "AW",
+  "australia": "AU",
+  "austria": "AT",
+  "azerbaijan": "AZ",
+  "bahamas": "BS",
+  "bahrain": "BH",
+  "bangladesh": "BD",
+  "barbados": "BB",
+  "belarus": "BY",
+  "belgium": "BE",
+  "belize": "BZ",
+  "benin": "BJ",
+  "bermuda": "BM",
+  "bhutan": "BT",
+  "bolivia, plurinational state of": "BO",
+  "bonaire, sint eustatius and saba": "BQ",
+  "bosnia and herzegovina": "BA",
+  "botswana": "BW",
+  "bouvet island": "BV",
+  "brazil": "BR",
+  "british indian ocean territory": "IO",
+  "brunei darussalam": "BN",
+  "bulgaria": "BG",
+  "burkina faso": "BF",
+  "burundi": "BI",
+  "cabo verde": "CV",
+  "cambodia": "KH",
+  "cameroon": "CM",
+  "canada": "CA",
+  "cayman islands": "KY",
+  "central african republic": "CF",
+  "chad": "TD",
+  "chile": "CL",
+  "china": "CN",
+  "christmas island": "CX",
+  "cocos (keeling) islands": "CC",
+  "colombia": "CO",
+  "comoros": "KM",
+  "congo": "CG",
+  "congo, democratic republic of the": "CD",
+  "cook islands": "CK",
+  "costa rica": "CR",
+  "côte d'ivoire": "CI",
+  "croatia": "HR",
+  "cuba": "CU",
+  "curaçao": "CW",
+  "cyprus": "CY",
+  "czechia": "CZ",
+  "denmark": "DK",
+  "djibouti": "DJ",
+  "dominica": "DM",
+  "dominican republic": "DO",
+  "ecuador": "EC",
+  "egypt": "EG",
+  "el salvador": "SV",
+  "equatorial guinea": "GQ",
+  "eritrea": "ER",
+  "estonia": "EE",
+  "eswatini": "SZ",
+  "ethiopia": "ET",
+  "falkland islands (malvinas)": "FK",
+  "faroe islands": "FO",
+  "fiji": "FJ",
+  "finland": "FI",
+  "france": "FR",
+  "french guiana": "GF",
+  "french polynesia": "PF",
+  "french southern territories": "TF",
+  "gabon": "GA",
+  "gambia": "GM",
+  "georgia": "GE",
+  "germany": "DE",
+  "ghana": "GH",
+  "gibraltar": "GI",
+  "greece": "GR",
+  "greenland": "GL",
+  "grenada": "GD",
+  "guadeloupe": "GP",
+  "guam": "GU",
+  "guatemala": "GT",
+  "guernsey": "GG",
+  "guinea": "GN",
+  "guinea-bissau": "GW",
+  "guyana": "GY",
+  "haiti": "HT",
+  "heard island and mcdonald islands": "HM",
+  "holy see": "VA",
+  "honduras": "HN",
+  "hong kong": "HK",
+  "hungary": "HU",
+  "iceland": "IS",
+  "india": "IN",
+  "indonesia": "ID",
+  "iran, islamic republic of": "IR",
+  "iraq": "IQ",
+  "ireland": "IE",
+  "isle of man": "IM",
+  "israel": "IL",
+  "italy": "IT",
+  "jamaica": "JM",
+  "japan": "JP",
+  "jersey": "JE",
+  "jordan": "JO",
+  "kazakhstan": "KZ",
+  "kenya": "KE",
+  "kiribati": "KI",
+  "korea, democratic people's republic of": "KP",
+  "korea, republic of": "KR",
+  "kuwait": "KW",
+  "kyrgyzstan": "KG",
+  "lao people's democratic republic": "LA",
+  "latvia": "LV",
+  "lebanon": "LB",
+  "lesotho": "LS",
+  "liberia": "LR",
+  "libya": "LY",
+  "liechtenstein": "LI",
+  "lithuania": "LT",
+  "luxembourg": "LU",
+  "macao": "MO",
+  "madagascar": "MG",
+  "malawi": "MW",
+  "malaysia": "MY",
+  "maldives": "MV",
+  "mali": "ML",
+  "malta": "MT",
+  "marshall islands": "MH",
+  "martinique": "MQ",
+  "mauritania": "MR",
+  "mauritius": "MU",
+  "mayotte": "YT",
+  "mexico": "MX",
+  "micronesia, federated states of": "FM",
+  "moldova, republic of": "MD",
+  "monaco": "MC",
+  "mongolia": "MN",
+  "montenegro": "ME",
+  "montserrat": "MS",
+  "morocco": "MA",
+  "mozambique": "MZ",
+  "myanmar": "MM",
+  "namibia": "NA",
+  "nauru": "NR",
+  "nepal": "NP",
+  "netherlands, kingdom of the": "NL",
+  "new caledonia": "NC",
+  "new zealand": "NZ",
+  "nicaragua": "NI",
+  "niger": "NE",
+  "nigeria": "NG",
+  "niue": "NU",
+  "norfolk island": "NF",
+  "north macedonia": "MK",
+  "northern mariana islands": "MP",
+  "norway": "NO",
+  "oman": "OM",
+  "pakistan": "PK",
+  "palau": "PW",
+  "palestine, state of": "PS",
+  "panama": "PA",
+  "papua new guinea": "PG",
+  "paraguay": "PY",
+  "peru": "PE",
+  "philippines": "PH",
+  "pitcairn": "PN",
+  "poland": "PL",
+  "portugal": "PT",
+  "puerto rico": "PR",
+  "qatar": "QA",
+  "réunion": "RE",
+  "romania": "RO",
+  "russian federation": "RU",
+  "rwanda": "RW",
+  "saint barthélemy": "BL",
+  "saint helena, ascension and tristan da cunha": "SH",
+  "saint kitts and nevis": "KN",
+  "saint lucia": "LC",
+  "saint martin (french part)": "MF",
+  "saint pierre and miquelon": "PM",
+  "saint vincent and the grenadines": "VC",
+  "samoa": "WS",
+  "san marino": "SM",
+  "sao tome and principe": "ST",
+  "saudi arabia": "SA",
+  "senegal": "SN",
+  "serbia": "RS",
+  "seychelles": "SC",
+  "sierra leone": "SL",
+  "singapore": "SG",
+  "sint maarten (dutch part)": "SX",
+  "slovakia": "SK",
+  "slovenia": "SI",
+  "solomon islands": "SB",
+  "somalia": "SO",
+  "south africa": "ZA",
+  "south georgia and the south sandwich islands": "GS",
+  "south sudan": "SS",
+  "spain": "ES",
+  "sri lanka": "LK",
+  "sudan": "SD",
+  "suriname": "SR",
+  "svalbard and jan mayen": "SJ",
+  "sweden": "SE",
+  "switzerland": "CH",
+  "syrian arab republic": "SY",
+  "taiwan, province of china": "TW",
+  "tajikistan": "TJ",
+  "tanzania, united republic of": "TZ",
+  "thailand": "TH",
+  "timor-leste": "TL",
+  "togo": "TG",
+  "tokelau": "TK",
+  "tonga": "TO",
+  "trinidad and tobago": "TT",
+  "tunisia": "TN",
+  "türkiye": "TR",
+  "turkmenistan": "TM",
+  "turks and caicos islands": "TC",
+  "tuvalu": "TV",
+  "uganda": "UG",
+  "ukraine": "UA",
+  "united arab emirates": "AE",
+  "united kingdom of great britain and northern ireland": "GB",
+  "united states of america": "US",
+  "united states minor outlying islands": "UM",
+  "uruguay": "UY",
+  "uzbekistan": "UZ",
+  "vanuatu": "VU",
+  "venezuela, bolivarian republic of": "VE",
+  "viet nam": "VN",
+  "virgin islands (british)": "VG",
+  "virgin islands (u.s.)": "VI",
+  "wallis and futuna": "WF",
+  "western sahara": "EH",
+  "yemen": "YE",
+  "zambia": "ZM",
+  "zimbabwe": "ZW",
+};
 
-  // Normalize to uppercase for ISO codes
-  const normalizedCode = countryCode.trim().toUpperCase();
-
-  // Use Intl.DisplayNames to convert ISO code to country name
-  try {
-    const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-    const countryName = regionNames.of(normalizedCode);
-    if (countryName) {
-      return countryName;
-    }
-  } catch {
-    // Fall through to return original code
-  }
-
-  // If conversion fails, return the original code
-  return normalizedCode;
-}
-
-const regionNamesInstance = new Intl.DisplayNames(['en'], { type: 'region' });
-const ISO_REGION_CODE_FALLBACK = [
-  'US', 'GB', 'FR', 'DE', 'IT', 'ES', 'NL', 'BE', 'PT', 'AT', 'CH', 'SE', 'NO', 'DK',
-  'CA', 'AU', 'NZ', 'JP', 'KR', 'CN', 'IN', 'BR', 'MX', 'ZA', 'IE', 'CZ', 'GR', 'TR',
-];
-
-let SUPPORTED_REGION_CODES: string[] = [];
-try {
-  // @ts-expect-error - supportedValuesOf with 'region' is supported in modern browsers but type definitions may not be up to date
-  SUPPORTED_REGION_CODES = Intl.supportedValuesOf('region');
-} catch {
-  SUPPORTED_REGION_CODES = ISO_REGION_CODE_FALLBACK;
-}
-
-const COUNTRY_NAME_TO_CODE: Record<string, string> = SUPPORTED_REGION_CODES.reduce(
-  (map, code) => {
-    const name = regionNamesInstance.of(code);
-    if (name) {
-      map[name.toLowerCase()] = code;
-    }
-    return map;
-  },
-  {} as Record<string, string>
-);
-
+/** Alias system for multilingual names and common short forms */
 const COUNTRY_NAME_ALIASES: Record<string, string> = {
-  'united states of america': 'US',
-  'usa': 'US',
-  'u.s.': 'US',
-  'uk': 'GB',
-  'great britain': 'GB',
-  'russia': 'RU',
-  'south korea': 'KR',
-  'north korea': 'KP',
-  'czech republic': 'CZ',
-  'ivory coast': 'CI',
-  'viet nam': 'VN',
+  "united states of america": "US",
+  "usa": "US",
+  "u.s.": "US",
+  "united states": "US",
+  "uk": "GB",
+  "great britain": "GB",
+  "united kingdom": "GB",
+  "russia": "RU",
+  "south korea": "KR",
+  "north korea": "KP",
+  "czech republic": "CZ",
+  "ivory coast": "CI",
+  "viet nam": "VN",
+  "vietnam": "VN",
+  "bolivia": "BO",
+  "tanzania": "TZ",
+  "netherlands": "NL",
+  "iran": "IR",
+  "turkey": "TR",
+  "venezuela": "VE",
+  "taiwan": "TW",
+  "laos": "LA",
+  "macedonia": "MK",
+  "cape verde": "CV",
+  "syria": "SY",
+  "swaziland": "SZ",
+};
+
+const CODE_TO_NAME: Record<string, string> = {
+  AF: "Afghanistan",
+  AX: "Åland Islands",
+  AL: "Albania",
+  DZ: "Algeria",
+  AS: "American Samoa",
+  AD: "Andorra",
+  AO: "Angola",
+  AI: "Anguilla",
+  AQ: "Antarctica",
+  AG: "Antigua and Barbuda",
+  AR: "Argentina",
+  AM: "Armenia",
+  AW: "Aruba",
+  AU: "Australia",
+  AT: "Austria",
+  AZ: "Azerbaijan",
+  BS: "Bahamas",
+  BH: "Bahrain",
+  BD: "Bangladesh",
+  BB: "Barbados",
+  BY: "Belarus",
+  BE: "Belgium",
+  BZ: "Belize",
+  BJ: "Benin",
+  BM: "Bermuda",
+  BT: "Bhutan",
+  BO: "Bolivia, Plurinational State of",
+  BQ: "Bonaire, Sint Eustatius and Saba",
+  BA: "Bosnia and Herzegovina",
+  BW: "Botswana",
+  BV: "Bouvet Island",
+  BR: "Brazil",
+  IO: "British Indian Ocean Territory",
+  BN: "Brunei Darussalam",
+  BG: "Bulgaria",
+  BF: "Burkina Faso",
+  BI: "Burundi",
+  CV: "Cabo Verde",
+  KH: "Cambodia",
+  CM: "Cameroon",
+  CA: "Canada",
+  KY: "Cayman Islands",
+  CF: "Central African Republic",
+  TD: "Chad",
+  CL: "Chile",
+  CN: "China",
+  CX: "Christmas Island",
+  CC: "Cocos (Keeling) Islands",
+  CO: "Colombia",
+  KM: "Comoros",
+  CG: "Congo",
+  CD: "Congo, Democratic Republic of the",
+  CK: "Cook Islands",
+  CR: "Costa Rica",
+  CI: "Côte d'Ivoire",
+  HR: "Croatia",
+  CU: "Cuba",
+  CW: "Curaçao",
+  CY: "Cyprus",
+  CZ: "Czechia",
+  DK: "Denmark",
+  DJ: "Djibouti",
+  DM: "Dominica",
+  DO: "Dominican Republic",
+  EC: "Ecuador",
+  EG: "Egypt",
+  SV: "El Salvador",
+  GQ: "Equatorial Guinea",
+  ER: "Eritrea",
+  EE: "Estonia",
+  SZ: "Eswatini",
+  ET: "Ethiopia",
+  FK: "Falkland Islands (Malvinas)",
+  FO: "Faroe Islands",
+  FJ: "Fiji",
+  FI: "Finland",
+  FR: "France",
+  GF: "French Guiana",
+  PF: "French Polynesia",
+  TF: "French Southern Territories",
+  GA: "Gabon",
+  GM: "Gambia",
+  GE: "Georgia",
+  DE: "Germany",
+  GH: "Ghana",
+  GI: "Gibraltar",
+  GR: "Greece",
+  GL: "Greenland",
+  GD: "Grenada",
+  GP: "Guadeloupe",
+  GU: "Guam",
+  GT: "Guatemala",
+  GG: "Guernsey",
+  GN: "Guinea",
+  GW: "Guinea-Bissau",
+  GY: "Guyana",
+  HT: "Haiti",
+  HM: "Heard Island and McDonald Islands",
+  VA: "Holy See",
+  HN: "Honduras",
+  HK: "Hong Kong",
+  HU: "Hungary",
+  IS: "Iceland",
+  IN: "India",
+  ID: "Indonesia",
+  IR: "Iran, Islamic Republic of",
+  IQ: "Iraq",
+  IE: "Ireland",
+  IM: "Isle of Man",
+  IL: "Israel",
+  IT: "Italy",
+  JM: "Jamaica",
+  JP: "Japan",
+  JE: "Jersey",
+  JO: "Jordan",
+  KZ: "Kazakhstan",
+  KE: "Kenya",
+  KI: "Kiribati",
+  KP: "Korea, Democratic People's Republic of",
+  KR: "Korea, Republic of",
+  KW: "Kuwait",
+  KG: "Kyrgyzstan",
+  LA: "Lao People's Democratic Republic",
+  LV: "Latvia",
+  LB: "Lebanon",
+  LS: "Lesotho",
+  LR: "Liberia",
+  LY: "Libya",
+  LI: "Liechtenstein",
+  LT: "Lithuania",
+  LU: "Luxembourg",
+  MO: "Macao",
+  MG: "Madagascar",
+  MW: "Malawi",
+  MY: "Malaysia",
+  MV: "Maldives",
+  ML: "Mali",
+  MT: "Malta",
+  MH: "Marshall Islands",
+  MQ: "Martinique",
+  MR: "Mauritania",
+  MU: "Mauritius",
+  YT: "Mayotte",
+  MX: "Mexico",
+  FM: "Micronesia, Federated States of",
+  MD: "Moldova, Republic of",
+  MC: "Monaco",
+  MN: "Mongolia",
+  ME: "Montenegro",
+  MS: "Montserrat",
+  MA: "Morocco",
+  MZ: "Mozambique",
+  MM: "Myanmar",
+  NA: "Namibia",
+  NR: "Nauru",
+  NP: "Nepal",
+  NL: "Netherlands, Kingdom of the",
+  NC: "New Caledonia",
+  NZ: "New Zealand",
+  NI: "Nicaragua",
+  NE: "Niger",
+  NG: "Nigeria",
+  NU: "Niue",
+  NF: "Norfolk Island",
+  MK: "North Macedonia",
+  MP: "Northern Mariana Islands",
+  NO: "Norway",
+  OM: "Oman",
+  PK: "Pakistan",
+  PW: "Palau",
+  PS: "Palestine, State of",
+  PA: "Panama",
+  PG: "Papua New Guinea",
+  PY: "Paraguay",
+  PE: "Peru",
+  PH: "Philippines",
+  PN: "Pitcairn",
+  PL: "Poland",
+  PT: "Portugal",
+  PR: "Puerto Rico",
+  QA: "Qatar",
+  RE: "Réunion",
+  RO: "Romania",
+  RU: "Russian Federation",
+  RW: "Rwanda",
+  BL: "Saint Barthélemy",
+  SH: "Saint Helena, Ascension and Tristan da Cunha",
+  KN: "Saint Kitts and Nevis",
+  LC: "Saint Lucia",
+  MF: "Saint Martin (French part)",
+  PM: "Saint Pierre and Miquelon",
+  VC: "Saint Vincent and the Grenadines",
+  WS: "Samoa",
+  SM: "San Marino",
+  ST: "Sao Tome and Principe",
+  SA: "Saudi Arabia",
+  SN: "Senegal",
+  RS: "Serbia",
+  SC: "Seychelles",
+  SL: "Sierra Leone",
+  SG: "Singapore",
+  SX: "Sint Maarten (Dutch part)",
+  SK: "Slovakia",
+  SI: "Slovenia",
+  SB: "Solomon Islands",
+  SO: "Somalia",
+  ZA: "South Africa",
+  GS: "South Georgia and the South Sandwich Islands",
+  SS: "South Sudan",
+  ES: "Spain",
+  LK: "Sri Lanka",
+  SD: "Sudan",
+  SR: "Suriname",
+  SJ: "Svalbard and Jan Mayen",
+  SE: "Sweden",
+  CH: "Switzerland",
+  SY: "Syrian Arab Republic",
+  TW: "Taiwan, Province of China",
+  TJ: "Tajikistan",
+  TZ: "Tanzania, United Republic of",
+  TH: "Thailand",
+  TL: "Timor-Leste",
+  TG: "Togo",
+  TK: "Tokelau",
+  TO: "Tonga",
+  TT: "Trinidad and Tobago",
+  TN: "Tunisia",
+  TR: "Türkiye",
+  TM: "Turkmenistan",
+  TC: "Turks and Caicos Islands",
+  TV: "Tuvalu",
+  UG: "Uganda",
+  UA: "Ukraine",
+  AE: "United Arab Emirates",
+  GB: "United Kingdom",
+  US: "United States",
+  UM: "United States Minor Outlying Islands",
+  UY: "Uruguay",
+  UZ: "Uzbekistan",
+  VU: "Vanuatu",
+  VE: "Venezuela, Bolivarian Republic of",
+  VN: "Viet Nam",
+  VG: "Virgin Islands (British)",
+  VI: "Virgin Islands (U.S.)",
+  WF: "Wallis and Futuna",
+  EH: "Western Sahara",
+  YE: "Yemen",
+  ZM: "Zambia",
+  ZW: "Zimbabwe",
 };
 
 /**
- * Convert a full country name (in English) to its ISO 3166-1 alpha-2 code
- * @param countryName - Full English country name (e.g., 'United States', 'France')
- * @returns ISO country code (e.g., 'US', 'FR') or null if it cannot be resolved
+ * Convert an ISO 3166-1 alpha-2 country code to a readable country name in English
  */
-export function getCountryCodeFromName(countryName: string): string | null {
-  if (!countryName || countryName.trim() === '') {
-    return null;
+export function getCountryNameFromCode(countryCode: string): string {
+  if (!countryCode || countryCode.trim() === "") {
+    return "";
   }
+  const normalizedCode = countryCode.trim().toUpperCase();
+  return CODE_TO_NAME[normalizedCode] ?? normalizedCode;
+}
 
-  const normalized = countryName.trim();
-  const upperInput = normalized.toUpperCase();
+/**
+ * Convert a full country name (in English) to its ISO 3166-1 alpha-2 code
+ */
+export function getCountryCodeFromName(name: string): string | null {
+  if (!name) return null;
+  const trimmed = name.trim();
+  const key = trimmed.toLowerCase();
+  const nfkcKey = key.normalize("NFKC");
 
-  if (/^[A-Z]{2}$/.test(upperInput)) {
-    return upperInput;
-  }
+  const fromMap =
+    COUNTRY_NAME_TO_CODE[key] ??
+    COUNTRY_NAME_TO_CODE[nfkcKey] ??
+    COUNTRY_NAME_ALIASES[key] ??
+    COUNTRY_NAME_ALIASES[nfkcKey];
 
-  const lowerInput = normalized.toLowerCase();
-  if (COUNTRY_NAME_TO_CODE[lowerInput]) {
-    return COUNTRY_NAME_TO_CODE[lowerInput];
-  }
+  if (fromMap) return fromMap;
 
-  if (COUNTRY_NAME_ALIASES[lowerInput]) {
-    return COUNTRY_NAME_ALIASES[lowerInput];
+  if (/^[A-Za-z]{2}$/.test(trimmed) && CODE_TO_NAME[trimmed.toUpperCase()]) {
+    return trimmed.toUpperCase();
   }
 
   return null;
@@ -102,7 +576,9 @@ export function getCountryCodeFromName(countryName: string): string | null {
  * Normalize a user-entered country value (name or ISO code) for storage.
  * Returns an ISO 3166-1 alpha-2 code, or undefined if it cannot be resolved.
  */
-export function normalizeCountryForStorage(countryValue?: string): string | undefined {
+export function normalizeCountryForStorage(
+  countryValue?: string
+): string | undefined {
   if (!countryValue) {
     return undefined;
   }
@@ -125,104 +601,15 @@ export function normalizeCountryForStorage(countryValue?: string): string | unde
 }
 
 /**
- * Convert a country name to English using Intl.DisplayNames
- * This handles cases where country names might be in other languages
- * @deprecated This function is for backward compatibility. Use getCountryNameFromCode for ISO codes.
+ * @deprecated Use getCountryNameFromCode for ISO codes.
  */
 export function getCountryNameInEnglish(countryName: string): string {
-  if (!countryName || countryName.trim() === '') {
-    return '';
+  if (!countryName || countryName.trim() === "") {
+    return "";
   }
-
-  // Try to get the country code from common country name mappings
-  // This is a fallback for when we have a country name but need to convert it
-  const countryCodeMap: { [key: string]: string } = {
-    // Common non-English country names mapped to ISO codes
-    'España': 'ES',
-    'Espagne': 'ES',
-    'Spanien': 'ES',
-    'Francia': 'FR',
-    'France': 'FR',
-    'Deutschland': 'DE',
-    'Germany': 'DE',
-    'Allemagne': 'DE',
-    'Italia': 'IT',
-    'Italy': 'IT',
-    'Italie': 'IT',
-    'Nederland': 'NL',
-    'Netherlands': 'NL',
-    'Pays-Bas': 'NL',
-    'België': 'BE',
-    'Belgium': 'BE',
-    'Belgique': 'BE',
-    'Portugal': 'PT',
-    'Österreich': 'AT',
-    'Austria': 'AT',
-    'Autriche': 'AT',
-    'Schweiz': 'CH',
-    'Switzerland': 'CH',
-    'Suisse': 'CH',
-    'Sverige': 'SE',
-    'Sweden': 'SE',
-    'Suède': 'SE',
-    'Norge': 'NO',
-    'Norway': 'NO',
-    'Norvège': 'NO',
-    'Danmark': 'DK',
-    'Denmark': 'DK',
-    'Danemark': 'DK',
-    'United Kingdom': 'GB',
-    'UK': 'GB',
-    'United States': 'US',
-    'USA': 'US',
-    'États-Unis': 'US',
-    // Add more as needed
-  };
-
-  // Normalize the input country name
-  const normalizedCountryName = countryName.trim();
-
-  // If it's already in English format (common cases), return as is
-  // We'll use a simple heuristic: if it starts with a capital letter and is recognizable, keep it
-  const regionNamesInEnglish = new Intl.DisplayNames(['en'], { type: 'region' });
-
-  // Try to find a country code from the map
-  let countryCode: string | undefined;
-
-  // Check direct mapping
-  if (countryCodeMap[normalizedCountryName]) {
-    countryCode = countryCodeMap[normalizedCountryName];
-  } else {
-    // Try to find by checking if any key contains the country name or vice versa
-    for (const [key, code] of Object.entries(countryCodeMap)) {
-      if (key.toLowerCase() === normalizedCountryName.toLowerCase()) {
-        countryCode = code;
-        break;
-      }
-    }
+  const code = getCountryCodeFromName(countryName);
+  if (code) {
+    return CODE_TO_NAME[code] ?? countryName.trim();
   }
-
-  // If we found a country code, convert it to English
-  if (countryCode) {
-    try {
-      const englishName = regionNamesInEnglish.of(countryCode);
-      if (englishName) {
-        return englishName;
-      }
-    } catch {
-      // Fall through to return original
-    }
-  }
-
-  // Alternative: Try to detect if it's already in English by checking against known English names
-  // This is a simpler approach - if the name matches common English patterns, return it
-  // For now, we'll return the original if we can't convert it
-  // Nominatim with Accept-Language: en should already return English names, so this is a fallback
-
-  // Try to reverse lookup: see if the country name matches any known English name
-  // This is more complex, so for now we'll trust that Nominatim with Accept-Language returns English
-
-  // Return the original name if we can't convert it (it's likely already in English)
-  return normalizedCountryName;
+  return countryName.trim();
 }
-
