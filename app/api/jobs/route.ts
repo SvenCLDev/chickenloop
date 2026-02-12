@@ -9,7 +9,7 @@ import mongoose from 'mongoose';
 import { CachePresets } from '@/lib/cache';
 import { parseJobSearchParams } from '@/lib/jobSearchParams';
 import { getCountryCodeFromName } from '@/lib/countryUtils';
-import { JOB_CATEGORY_VALUES } from '@/lib/jobCategories';
+import { isValidJobCategory } from '@/lib/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
@@ -712,10 +712,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate job categories - ensure all categories are in JOB_CATEGORY_VALUES
+    // Validate job categories - ensure all categories are valid
     if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
       const invalidCategories = occupationalAreas.filter(
-        (category: string) => !JOB_CATEGORY_VALUES.includes(category)
+        (category: string) => !isValidJobCategory(category)
       );
       if (invalidCategories.length > 0) {
         return NextResponse.json(
