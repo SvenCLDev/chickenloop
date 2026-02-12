@@ -4,7 +4,8 @@
  */
 
 import mongoose from 'mongoose';
-import Job, { IJob, WORK_AREAS } from '@/models/Job';
+import Job, { IJob } from '@/models/Job';
+import { isValidJobCategory } from '@/lib/jobCategories';
 import { ISavedSearch } from '@/models/SavedSearch';
 
 /** Company when populated: just name for display/keyword match */
@@ -114,8 +115,8 @@ export async function findMatchingJobs(
     // Filter by category (occupationalAreas)
     if (jobMatches && savedSearch.category) {
       const category = savedSearch.category;
-      const validCategory = category && (WORK_AREAS as readonly string[]).includes(category);
-      if (!job.occupationalAreas || !validCategory || !job.occupationalAreas.includes(category as (typeof WORK_AREAS)[number])) {
+      const validCategory = category && isValidJobCategory(category);
+      if (!job.occupationalAreas || !validCategory || !job.occupationalAreas.includes(category)) {
         jobMatches = false;
       } else {
         matchReasons.push(`Category: ${savedSearch.category}`);

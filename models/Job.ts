@@ -20,12 +20,10 @@ export const SPAM_FLAGS = [
 export const WORK_AREAS = [
   'instructor',
   'customer_support',
-  'sales',
   'hospitality',
-  'marketing',
-  'it',
+  'sales',
   'management',
-  'operations',
+  'marketing',
   'other',
 ] as const;
 
