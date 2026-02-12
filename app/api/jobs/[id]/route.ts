@@ -3,7 +3,7 @@ import connectDB from '@/lib/db';
 import Job, { IJob } from '@/models/Job';
 import JobImage from '@/models/JobImage';
 import { requireAuth, requireRole } from '@/lib/auth';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORY_VALUES } from '@/lib/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
@@ -154,10 +154,10 @@ export async function PUT(
 
     const { title, description, companyId: companyIdFromBody, company: companyFromBody, city, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, heroImageUrl, published, featured, applyViaATS, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
 
-    // Validate job categories - ensure all categories are in JOB_CATEGORIES
+    // Validate job categories - ensure all categories are in JOB_CATEGORY_VALUES
     if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
       const invalidCategories = occupationalAreas.filter(
-        (category: string) => !JOB_CATEGORIES.includes(category as any)
+        (category: string) => !JOB_CATEGORY_VALUES.includes(category)
       );
       if (invalidCategories.length > 0) {
         return NextResponse.json(

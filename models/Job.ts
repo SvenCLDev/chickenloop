@@ -1,4 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import { OFFERED_ACTIVITIES_LIST } from '@/lib/offeredActivities';
+import { JOB_CATEGORY_VALUES, type JobCategory } from '@/lib/jobCategories';
 
 export const EMPLOYMENT_TYPES = [
   'full_time',
@@ -27,6 +29,14 @@ export const WORK_AREAS = [
   'other',
 ] as const;
 
+export const EXPERIENCE_LEVELS = [
+  'internship',
+  'junior',
+  'senior',
+  'expert',
+  'manager',
+] as const;
+
 export interface IJob extends Document {
   title: string;
   description: string;
@@ -39,10 +49,12 @@ export interface IJob extends Document {
 
   salary?: string;
   type: (typeof EMPLOYMENT_TYPES)[number];
+  experienceLevel?: (typeof EXPERIENCE_LEVELS)[number];
 
   languages?: string[];
   qualifications?: string[];
-  occupationalAreas?: (typeof WORK_AREAS)[number][];
+  occupationalAreas?: JobCategory[];
+  sports?: (typeof OFFERED_ACTIVITIES_LIST)[number][];
 
   pictures?: string[];
 
@@ -57,6 +69,12 @@ export interface IJob extends Document {
   applyByWebsite?: boolean;
   applyByWhatsApp?: boolean;
   applyViaATS?: boolean;
+  applicationOptions?: {
+    ats?: boolean;
+    email?: boolean;
+    website?: boolean;
+    whatsapp?: boolean;
+  };
 
   applicationEmail?: string;
   applicationWebsite?: string;
@@ -66,11 +84,13 @@ export interface IJob extends Document {
 
   // 🔹 Legacy / migration metadata
   legacy?: {
-    source: 'drupal7';
-    jobNodeId: number;
-    authorUserId: number;
+    source: 'drupal7' | 'drupal';
+    jobNodeId?: number;
+    drupalNid?: string | number;
+    authorUserId?: number;
     originalCompanyText?: string;
     workflowState?: string;
+    migratedAt?: Date;
   };
 
   createdAt: Date;
@@ -118,10 +138,23 @@ const JobSchema: Schema = new Schema(
       enum: EMPLOYMENT_TYPES,
       required: true,
     },
+    experienceLevel: {
+      type: String,
+      enum: EXPERIENCE_LEVELS,
+    },
 
     languages: [String],
     qualifications: [String],
-    occupationalAreas: [String],
+    occupationalAreas: {
+      type: [String],
+      enum: JOB_CATEGORY_VALUES,
+      default: [],
+    },
+    sports: {
+      type: [String],
+      enum: OFFERED_ACTIVITIES_LIST,
+      default: [],
+    },
 
     pictures: [String],
 
@@ -154,6 +187,12 @@ const JobSchema: Schema = new Schema(
     applyByWebsite: Boolean,
     applyByWhatsApp: Boolean,
     applyViaATS: Boolean,
+    applicationOptions: {
+      ats: { type: Boolean, default: true },
+      email: { type: Boolean, default: false },
+      website: { type: Boolean, default: false },
+      whatsapp: { type: Boolean, default: false },
+    },
 
     applicationEmail: String,
     applicationWebsite: String,
@@ -165,12 +204,14 @@ const JobSchema: Schema = new Schema(
     legacy: {
       source: {
         type: String,
-        enum: ['drupal7'],
+        enum: ['drupal7', 'drupal'],
       },
       jobNodeId: Number,
+      drupalNid: Schema.Types.Mixed,
       authorUserId: Number,
       originalCompanyText: String,
       workflowState: String,
+      migratedAt: Date,
     },
   },
   { timestamps: true }

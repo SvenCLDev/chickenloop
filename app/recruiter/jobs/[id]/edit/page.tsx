@@ -12,9 +12,17 @@ import {
   normalizeCountryForStorage,
 } from '@/lib/countryUtils';
 import { SPORTS_LIST } from '@/lib/sports';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import UrlInput from '../../../../components/form/UrlInput';
 import JobDescriptionEditor from '../../../../components/form/JobDescriptionEditor';
+
+const EXPERIENCE_LEVELS = [
+  'internship',
+  'junior',
+  'senior',
+  'expert',
+  'manager',
+];
 
 export default function EditJobPage() {
   const { user, loading: authLoading } = useAuth();
@@ -28,6 +36,7 @@ export default function EditJobPage() {
     country: '',
     salary: '',
     type: 'full-time',
+    experienceLevel: [] as string[],
     languages: [] as string[],
     qualifications: [] as string[],
     sports: [] as string[],
@@ -101,6 +110,11 @@ export default function EditJobPage() {
         country: countryToUse,
         salary: job.salary || '',
         type: job.type,
+        experienceLevel: Array.isArray((job as any).experienceLevel)
+          ? (job as any).experienceLevel
+          : (job as any).experienceLevel
+            ? [(job as any).experienceLevel]
+            : [],
         languages: (job as any).languages || [],
         qualifications: (job as any).qualifications || [],
         sports: (job as any).sports || [],
@@ -567,12 +581,73 @@ export default function EditJobPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
               >
                 <option value="">Select a category</option>
-                {JOB_CATEGORIES.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
+                {JOB_CATEGORIES.map((cat) => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
                   </option>
                 ))}
               </select>
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Experience Level
+                </label>
+                {formData.experienceLevel.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {formData.experienceLevel.map((level) => (
+                      <span
+                        key={level}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800"
+                      >
+                        {level}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              experienceLevel: formData.experienceLevel.filter((l) => l !== level),
+                            })
+                          }
+                          className="ml-2 text-purple-600 hover:text-purple-800"
+                          aria-label={`Remove ${level}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
+                  {EXPERIENCE_LEVELS.map((level) => {
+                    const isSelected = formData.experienceLevel.includes(level);
+                    return (
+                      <label
+                        key={level}
+                        className="flex items-center py-2 px-2 rounded hover:bg-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                experienceLevel: [...formData.experienceLevel, level],
+                              });
+                            } else {
+                              setFormData({
+                                ...formData,
+                                experienceLevel: formData.experienceLevel.filter((l) => l !== level),
+                              });
+                            }
+                          }}
+                          className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-900">{level}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

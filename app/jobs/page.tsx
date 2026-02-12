@@ -8,7 +8,7 @@ import { jobsApi, savedSearchesApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { parseJobSearchParams, buildJobSearchQuery, buildJobSearchUrl, type JobSearchParams } from '@/lib/jobSearchParams';
 import { getJobUrl } from '@/lib/jobSlug';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
 
@@ -99,6 +99,7 @@ function JobsPageContent() {
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [allJobs, setAllJobs] = useState<Job[]>([]); // Store all jobs for filtering
+  const [apiAvailableCategories, setApiAvailableCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // Initialize state from URL params immediately if available
@@ -222,6 +223,9 @@ function JobsPageContent() {
       // API now handles filtering server-side
       const filteredData = await jobsApi.getAll(endpoint);
       const filteredJobsList = filteredData.jobs || [];
+      setApiAvailableCategories(
+        Array.isArray(filteredData.availableCategories) ? filteredData.availableCategories : []
+      );
 
       // Sort filtered jobs: featured first, then jobs with pictures, then jobs without pictures
       // Within each group, sort by last edited date (updatedAt) descending, fallback to createdAt
@@ -277,25 +281,8 @@ function JobsPageContent() {
     return countries;
   };
 
-  // Get job categories from canonical source (JOB_CATEGORIES)
-  // Filter to only show categories that exist in the current job results
-  const getAvailableCategories = (): string[] => {
-    const availableCategories = new Set<string>();
-
-    jobs.forEach((job) => {
-      if (job.occupationalAreas && job.occupationalAreas.length > 0) {
-        job.occupationalAreas.forEach((category) => {
-          // Only include categories that are in JOB_CATEGORIES (skip old/invalid values)
-          if (JOB_CATEGORIES.includes(category as any)) {
-            availableCategories.add(category);
-          }
-        });
-      }
-    });
-
-    // Convert to array, filter to JOB_CATEGORIES, and sort alphabetically
-    return JOB_CATEGORIES.filter(cat => availableCategories.has(cat));
-  };
+  const getCategoryLabel = (value: string) =>
+    JOB_CATEGORIES.find((c) => c.value === value)?.label ?? value;
 
   // Get unique sports/activities from filtered jobs (only show available options)
   const getUniqueSports = (): string[] => {
@@ -651,11 +638,13 @@ function JobsPageContent() {
                       className="flex-1 min-w-0 w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
             >
               <option value="">All Categories</option>
-                      {getAvailableCategories().map((category) => (
-                <option key={category} value={category} title={category}>
-                  {category}
-                </option>
-              ))}
+                      {JOB_CATEGORIES.filter((cat) =>
+                        apiAvailableCategories.includes(cat.value)
+                      ).map((cat) => (
+                        <option key={cat.value} value={cat.value} title={cat.label}>
+                          {cat.label}
+                        </option>
+                      ))}
             </select>
                     {selectedCategory && (
                       <button
@@ -834,7 +823,7 @@ function JobsPageContent() {
             )}
             {selectedCategory && (
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium max-w-full">
-                      <span className="truncate" title={`Job Type: ${selectedCategory}`}>Job Type: <strong>{selectedCategory}</strong></span>
+                      <span className="truncate" title={`Job Type: ${getCategoryLabel(selectedCategory)}`}>Job Type: <strong>{getCategoryLabel(selectedCategory)}</strong></span>
                       <button
                         onClick={() => handleFilterChange('category', '')}
                         className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none flex-shrink-0"
@@ -1107,7 +1096,7 @@ function JobsPageContent() {
                     {keyword && <li className="truncate" title={`Keyword: ${keyword}`}>• Keyword: <strong>{keyword}</strong></li>}
                     {location && <li className="truncate" title={`Location: ${location}`}>• Location: <strong>{location}</strong></li>}
                     {selectedCountry && <li className="truncate" title={`Country: ${getCountryNameFromCode(selectedCountry)}`}>• Country: <strong>{getCountryNameFromCode(selectedCountry)}</strong></li>}
-                    {selectedCategory && <li className="truncate" title={`Category: ${selectedCategory}`}>• Category: <strong>{selectedCategory}</strong></li>}
+                    {selectedCategory && <li className="truncate" title={`Category: ${getCategoryLabel(selectedCategory)}`}>• Category: <strong>{getCategoryLabel(selectedCategory)}</strong></li>}
                     {selectedActivity && <li className="truncate" title={`Activity: ${selectedActivity}`}>• Activity: <strong>{selectedActivity}</strong></li>}
                     {selectedLanguage && <li className="truncate" title={`Language: ${selectedLanguage}`}>• Language: <strong>{selectedLanguage}</strong></li>}
                     {selectedCity && <li className="truncate" title={`City: ${selectedCity}`}>• City: <strong>{selectedCity}</strong></li>}

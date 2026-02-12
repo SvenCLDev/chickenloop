@@ -21,6 +21,7 @@ import JobThumbnailGallery from '../../../jobs/[id]/JobThumbnailGallery';
 import JobHeroImage from '../../../jobs/[id]/JobHeroImage';
 import JobOwnerActions from './JobOwnerActions';
 import { verifyToken } from '@/lib/jwt';
+import { JOB_CATEGORIES } from '@/lib/jobCategories';
 
 // Reuse interfaces from existing job details page
 export interface CompanyInfo {
@@ -525,14 +526,17 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                     <span className="font-medium">Job Category:</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {job.occupationalAreas.map((area, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
-                      >
-                        {area}
-                      </span>
-                    ))}
+                    {job.occupationalAreas.map((value, index) => {
+                      const label = JOB_CATEGORIES.find((c) => c.value === value)?.label ?? value;
+                      return (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
+                        >
+                          {label}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}

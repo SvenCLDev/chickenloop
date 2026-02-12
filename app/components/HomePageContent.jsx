@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { jobsApi, careerAdviceApi } from '@/lib/api';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import { useAuth } from '../contexts/AuthContext';
 import Navbar from './Navbar';
 import JobCard from './JobCard';
@@ -202,24 +202,19 @@ export default function HomePageContent() {
   };
 
 
-  // Get job categories from canonical source (JOB_CATEGORIES)
-  // Filter to only show categories that exist in the loaded jobs
+  // Get job categories from jobs - values only. UI maps value→label for display.
   const getAvailableCategories = () => {
-    const availableCategories = new Set();
-    
+    const availableValues = new Set();
     allJobs.forEach((job) => {
       if (job.occupationalAreas && job.occupationalAreas.length > 0) {
-        job.occupationalAreas.forEach((category) => {
-          // Only include categories that are in JOB_CATEGORIES (skip old/invalid values)
-          if (JOB_CATEGORIES.includes(category)) {
-            availableCategories.add(category);
+        job.occupationalAreas.forEach((value) => {
+          if (JOB_CATEGORIES.some((c) => c.value === value)) {
+            availableValues.add(value);
           }
         });
       }
     });
-
-    // Convert to array, filter to JOB_CATEGORIES, and sort alphabetically
-    return JOB_CATEGORIES.filter(cat => availableCategories.has(cat));
+    return JOB_CATEGORIES.filter((cat) => availableValues.has(cat.value));
   };
 
   return (

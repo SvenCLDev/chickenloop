@@ -9,7 +9,7 @@ import mongoose from 'mongoose';
 import { CachePresets } from '@/lib/cache';
 import { parseJobSearchParams } from '@/lib/jobSearchParams';
 import { getCountryCodeFromName } from '@/lib/countryUtils';
-import { JOB_CATEGORIES, categorySlugToLabel } from '@/src/constants/jobCategories';
+import { JOB_CATEGORY_VALUES } from '@/lib/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
@@ -273,6 +273,21 @@ export async function GET(request: NextRequest) {
       listProjection.description = 1;
     }
 
+    // Fetch available categories (distinct occupationalAreas) using baseFilter = all filters
+    // EXCEPT occupationalAreas. When category filter is present, this ensures the dropdown
+    // stays populated even when 0 jobs match. Always run so dropdown has options on initial load.
+    const baseFilter = { ...queryFilter };
+    delete baseFilter.occupationalAreas;
+    const categoriesPromise = collection.aggregate([
+      { $match: baseFilter },
+      { $unwind: '$occupationalAreas' },
+      { $group: { _id: '$occupationalAreas' } },
+    ])
+      .maxTimeMS(5000)
+      .toArray()
+      .then((res: { _id: string }[]) => res.map(c => c._id))
+      .catch(() => []);
+
     console.log('[API /jobs] Building aggregation pipeline for optimized image selection...');
     
     // Build aggregation pipeline to select only one image per job
@@ -419,9 +434,14 @@ export async function GET(request: NextRequest) {
     );
 
     let jobsWithoutPopulate: any[];
+    let availableCategories: string[] = [];
     try {
       console.log('[API /jobs] Starting Promise.race...');
-      jobsWithoutPopulate = await Promise.race([aggregationPromise, aggregationTimeout]);
+      const jobsPromise = Promise.race([aggregationPromise, aggregationTimeout]);
+      [jobsWithoutPopulate, availableCategories] = await Promise.all([
+        jobsPromise,
+        categoriesPromise,
+      ]);
       const fetchTime = Date.now() - fetchStart;
       console.log(`[API /jobs] Aggregation pipeline succeeded, got ${jobsWithoutPopulate.length} jobs in ${fetchTime}ms`);
 
@@ -554,7 +574,7 @@ export async function GET(request: NextRequest) {
     // Add cache headers - jobs can be cached for 5 minutes with stale-while-revalidate
     const cacheHeaders = CachePresets.short();
 
-    return NextResponse.json({ jobs }, {
+    return NextResponse.json({ jobs, availableCategories }, {
       status: 200,
       headers: cacheHeaders,
     });
@@ -690,10 +710,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate job categories - ensure all categories are in JOB_CATEGORIES
+    // Validate job categories - ensure all categories are in JOB_CATEGORY_VALUES
     if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
       const invalidCategories = occupationalAreas.filter(
-        (category: string) => !JOB_CATEGORIES.includes(category as any)
+        (category: string) => !JOB_CATEGORY_VALUES.includes(category)
       );
       if (invalidCategories.length > 0) {
         return NextResponse.json(

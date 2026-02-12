@@ -9,6 +9,7 @@ import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { ApplicationStatus, TERMINAL_STATES, getAllowedTransitions } from '@/lib/applicationStatusTransitions';
 import { isApplicationStatus } from '@/lib/domainTypes';
 import { getJobUrl } from '@/lib/jobSlug';
+import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import Link from 'next/link';
 import BoostModal from '../components/BoostModal';
 
@@ -826,7 +827,7 @@ function JobSeekerDashboardClient() {
                             )}
                             {search.category && (
                               <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">
-                                Category: {search.category}
+                                Category: {JOB_CATEGORIES.find((c) => c.value === search.category)?.label ?? search.category}
                               </span>
                             )}
                             {(search.activity || search.sport) && (

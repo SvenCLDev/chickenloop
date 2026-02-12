@@ -5,7 +5,7 @@ import Job, { IJob } from '@/models/Job';
 import Company from '@/models/Company';
 import { requireRole } from '@/lib/auth';
 import { createDeleteAuditLog } from '@/lib/audit';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORY_VALUES } from '@/lib/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 
@@ -158,10 +158,10 @@ export async function PUT(
       jobDoc.sports = sports || [];
     }
     if (occupationalAreas !== undefined) {
-      // Validate job categories - ensure all categories are in JOB_CATEGORIES
+      // Validate job categories - ensure all categories are in JOB_CATEGORY_VALUES
       if (Array.isArray(occupationalAreas)) {
         const invalidCategories = occupationalAreas.filter(
-          (category: string) => !JOB_CATEGORIES.includes(category as any)
+          (category: string) => !(JOB_CATEGORY_VALUES as readonly string[]).includes(category)
         );
         if (invalidCategories.length > 0) {
           return NextResponse.json(

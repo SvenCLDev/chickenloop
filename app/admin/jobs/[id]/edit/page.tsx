@@ -12,7 +12,7 @@ import {
   normalizeCountryForStorage,
 } from '@/lib/countryUtils';
 import { SPORTS_LIST } from '@/lib/sports';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import UrlInput from '../../../../components/form/UrlInput';
 import Link from 'next/link';
 
@@ -478,11 +478,11 @@ export default function AdminEditJobPage() {
               )}
 
               <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
-                {JOB_CATEGORIES.map((area) => {
-                  const isSelected = formData.occupationalAreas.includes(area);
+                {JOB_CATEGORIES.map((cat) => {
+                  const isSelected = formData.occupationalAreas.includes(cat.value);
                   return (
                     <label
-                      key={area}
+                      key={cat.value}
                       className="flex items-center py-2 px-2 rounded hover:bg-gray-50 cursor-pointer"
                     >
                       <input
@@ -492,18 +492,18 @@ export default function AdminEditJobPage() {
                           if (e.target.checked) {
                             setFormData({
                               ...formData,
-                              occupationalAreas: [...formData.occupationalAreas, area],
+                              occupationalAreas: [...formData.occupationalAreas, cat.value],
                             });
                           } else {
                             setFormData({
                               ...formData,
-                              occupationalAreas: formData.occupationalAreas.filter((a) => a !== area),
+                              occupationalAreas: formData.occupationalAreas.filter((a) => a !== cat.value),
                             });
                           }
                         }}
                         className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                       />
-                      <span className="text-sm text-gray-900">{area}</span>
+                      <span className="text-sm text-gray-900">{cat.label}</span>
                     </label>
                   );
                 })}
