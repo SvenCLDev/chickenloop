@@ -31,6 +31,9 @@ const OCCUPATIONAL_CSV = path.join(DATA_DIR, 'jobs_occupational_field.csv');
 const LOCATION_CSV = path.join(DATA_DIR, 'jobs_location.csv');
 const REGION_CSV = path.join(DATA_DIR, 'jobs_region.csv');
 const EMPLOYMENT_TYPE_CSV = path.join(DATA_DIR, 'jobs_employment_type.csv');
+const EXPERIENCE_CSV = path.join(DATA_DIR, 'jobs_experience.csv');
+const LANGUAGES_CSV = path.join(DATA_DIR, 'jobs_languages.csv');
+const DATES_CSV = path.join(DATA_DIR, 'jobs_dates.csv');
 
 async function loadCSV(filePath: string): Promise<Record<string, string>[]> {
   if (!fs.existsSync(filePath)) {
@@ -57,6 +60,42 @@ const EMPLOYMENT_PRIORITY: (typeof EMPLOYMENT_TYPES)[number][] = [
   'project',
   'other',
 ];
+
+const EXPERIENCE_MAP: Record<string, 'internship' | 'junior' | 'senior' | 'expert' | 'manager'> = {
+  '1 - 2 years': 'junior',
+  '3 - 5 years': 'senior',
+  '5 - 10 years': 'expert',
+  'more than 10 years': 'manager',
+};
+
+const LANGUAGE_MAP: Record<string, string> = {
+  'english': 'English',
+  'englis': 'English',
+  'engl': 'English',
+  'english + 1': 'English',
+
+  'german': 'German',
+  'spanish': 'Spanish',
+  'french': 'French',
+  'italian': 'Italian',
+  'italy': 'Italian',
+
+  'dutch': 'Dutch',
+  'portuguese': 'Portuguese',
+  'arabic': 'Arabic',
+  'chinese': 'Chinese',
+  'russian': 'Russian',
+  'polish': 'Polish',
+  'romanian': 'Romanian',
+  'turkish': 'Turkish',
+  'bulgarian': 'Bulgarian',
+  'thai': 'Thai',
+  'danish': 'Danish',
+  'greek': 'Greek',
+  'swedish': 'Swedish',
+  'norwegian': 'Norwegian',
+  'japanese': 'Japanese',
+};
 
 const OCCUPATIONAL_MAP: Record<string, string> = {
   'Instructor / Coach': 'instructor',
@@ -155,6 +194,24 @@ function buildOccupationalMap(): Map<string, string[]> {
   return map;
 }
 
+function loadMultiValueMap(
+  filePath: string,
+  nidKey: string = 'nid',
+  valueKey: string = 'language'
+): Map<string, string[]> {
+  const rows = loadCSVSync(filePath);
+  const map = new Map<string, string[]>();
+  for (const row of rows) {
+    const rawNid = String(row[nidKey] ?? row.drupal_nid ?? row.entity_id ?? '').trim();
+    const rawValue = String(row[valueKey] ?? row.name ?? '').trim();
+    if (!rawNid || !rawValue) continue;
+    const list = map.get(rawNid) ?? [];
+    list.push(rawValue);
+    map.set(rawNid, list);
+  }
+  return map;
+}
+
 function buildEmploymentTypeMap(): Map<string, string[]> {
   const rows = loadCSVSync(EMPLOYMENT_TYPE_CSV);
   const map = new Map<string, string[]>();
@@ -174,6 +231,59 @@ function loadCSVSync(filePath: string): Record<string, string>[] {
   return parseCsv(filePath).map(normalizeCsvRow);
 }
 
+function cleanCsvValue(value: string): string {
+  return value.replace(/^"(.*)"$/, '$1').trim();
+}
+
+function loadDateMap(
+  filePath: string,
+  nidKey = 'nid',
+  createdKey = 'created_at',
+  updatedKey = 'updated_at'
+): Map<string, { createdAt?: string; updatedAt?: string }> {
+  const map = new Map<string, { createdAt?: string; updatedAt?: string }>();
+
+  if (!fs.existsSync(filePath)) {
+    console.warn(`[loadDateMap] File not found: ${filePath}`);
+    return map;
+  }
+
+  const raw = fs.readFileSync(filePath, 'utf-8').trim();
+
+  const delimiter = raw.includes(';') ? ';' : ',';
+
+  const lines = raw.split('\n').filter(Boolean);
+
+  const headers = lines[0]
+    .split(delimiter)
+    .map(h => cleanCsvValue(h));
+
+  const nidIndex = headers.indexOf(nidKey);
+  const createdIndex = headers.indexOf(createdKey);
+  const updatedIndex = headers.indexOf(updatedKey);
+
+  if (nidIndex === -1) {
+    console.error("[loadDateMap] 'nid' column not found in CSV headers:", headers);
+    return map;
+  }
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i]
+      .split(delimiter)
+      .map(c => cleanCsvValue(c));
+
+    const nid = cols[nidIndex];
+    if (!nid) continue;
+
+    map.set(String(nid), {
+      createdAt: createdIndex !== -1 ? cols[createdIndex] : undefined,
+      updatedAt: updatedIndex !== -1 ? cols[updatedIndex] : undefined,
+    });
+  }
+
+  return map;
+}
+
 async function main(): Promise<void> {
   let updatedCount = 0;
   let skippedCount = 0;
@@ -181,7 +291,11 @@ async function main(): Promise<void> {
   let locationUpdatedCount = 0;
   let countryBackfilledCount = 0;
   let employmentUpdatedCount = 0;
+  let experienceUpdatedCount = 0;
+  let languageUpdatedCount = 0;
+  let dateUpdatedCount = 0;
   const unmappedEmploymentValues = new Set<string>();
+  const unmappedExperienceValues = new Set<string>();
 
   try {
     console.log('[enrichJobsFromDrupal] DRY_RUN:', DRY_RUN);
@@ -194,6 +308,30 @@ async function main(): Promise<void> {
     const locationRows = await loadCSV(LOCATION_CSV);
     const regionRows = await loadCSV(REGION_CSV);
     const employmentTypeMap = buildEmploymentTypeMap();
+
+    const jobsExperienceCsv = loadCSVSync(EXPERIENCE_CSV);
+    const experienceMap = new Map<string, string>();
+
+    for (const row of jobsExperienceCsv) {
+      const rawNid = String(row.nid || row.entity_id || '').trim();
+      const rawValue = String(row.experience || row.name || '').trim();
+
+      if (!rawNid || !rawValue) continue;
+
+      experienceMap.set(rawNid, rawValue);
+    }
+
+    console.log('[DEBUG EXPERIENCE MAP SIZE]', experienceMap.size);
+    console.log(
+      '[DEBUG SAMPLE EXPERIENCE ENTRY]',
+      Array.from(experienceMap.entries()).slice(0, 5)
+    );
+
+    const languageMap = loadMultiValueMap(LANGUAGES_CSV, 'nid', 'language');
+    const dateMap = loadDateMap(DATES_CSV);
+    console.log('[DEBUG LANGUAGE MAP SIZE]', languageMap.size);
+    const firstFew = Array.from(languageMap.entries()).slice(0, 5);
+    console.log('[DEBUG LANGUAGE SAMPLE]', firstFew);
 
     const locationMap = new Map<string, string>();
     locationRows.forEach((row: Record<string, string>) => {
@@ -220,7 +358,10 @@ async function main(): Promise<void> {
       occupational: occupationalMap.size,
       location: locationMap.size,
       region: regionMap.size,
+      dates: dateMap.size,
       employmentType: employmentTypeMap.size,
+      experience: experienceMap.size,
+      language: languageMap.size,
     });
 
     await connectDB();
@@ -352,6 +493,78 @@ async function main(): Promise<void> {
         }
       }
 
+      const rawExperience = experienceMap.get(String(nid).trim());
+
+      let mappedExperience:
+        | 'internship'
+        | 'junior'
+        | 'senior'
+        | 'expert'
+        | 'manager'
+        | undefined;
+
+      if (rawExperience) {
+        mappedExperience = EXPERIENCE_MAP[rawExperience.trim()];
+      }
+
+      console.log('[DEBUG EXPERIENCE MAP]', {
+        nid,
+        rawExperience,
+        mappedExperience,
+      });
+
+      if (mappedExperience) {
+        updatePayload.experience = mappedExperience;
+        experienceUpdatedCount++;
+      } else if (rawExperience && rawExperience.trim()) {
+        unmappedExperienceValues.add(rawExperience.trim());
+      }
+
+      console.log('[DEBUG CHECK NID]', {
+        currentNid: nid,
+        hasLanguages: languageMap.has(nid),
+        mapValue: languageMap.get(nid),
+      });
+      const rawLanguages = languageMap.get(nid) || [];
+      const normalizedLanguages = rawLanguages
+        .map(l => l.trim())
+        .map(l => l.replace(/\s*\+\s*\d+$/, '')) // remove " + 1"
+        .map(l => l.toLowerCase())
+        .map(l => LANGUAGE_MAP[l] || null)
+        .filter(Boolean) as string[];
+      const uniqueLanguages = Array.from(new Set(normalizedLanguages));
+
+      if (uniqueLanguages.length > 0) {
+        updatePayload.languages = uniqueLanguages;
+        languageUpdatedCount++;
+      }
+
+      const dateInfo = dateMap.get(String(nid));
+      if (nid === '11974') {
+        console.log('[DEBUG DATE LOOKUP]', {
+          nid,
+          dateInfo,
+        });
+      }
+      if (dateInfo) {
+        const { createdAt, updatedAt } = dateInfo;
+
+        const parsedCreated = createdAt ? new Date(createdAt) : undefined;
+        const parsedUpdated = updatedAt ? new Date(updatedAt) : undefined;
+
+        if (parsedCreated && !isNaN(parsedCreated.getTime())) {
+          updatePayload.createdAt = parsedCreated;
+        }
+
+        if (parsedUpdated && !isNaN(parsedUpdated.getTime())) {
+          updatePayload.updatedAt = parsedUpdated;
+        }
+
+        if (updatePayload.createdAt || updatePayload.updatedAt) {
+          dateUpdatedCount++;
+        }
+      }
+
       updatePayload.applyViaATS = true;
       updatePayload.applyByEmail = true;
       updatePayload.applyByWebsite = false;
@@ -370,15 +583,25 @@ async function main(): Promise<void> {
         continue;
       }
 
+      console.log('[DEBUG FINAL UPDATE]', {
+        jobId: job._id,
+        experience: updatePayload.experience,
+        fullPayload: updatePayload,
+      });
+
       if (DRY_RUN) {
         console.log(`[DRY_RUN] Would update job ${job._id} (nid=${nid}):`, updatePayload);
       } else {
-        console.log("[DEBUG FINAL UPDATE]", {
-          jobId: job._id,
-          type: updatePayload.type,
-          fullPayload: updatePayload
-        });
-        await Job.updateOne({ _id: job._id }, { $set: updatePayload });
+        if (updatePayload.languages) {
+          console.log("[DEBUG LANG WRITE]", {
+            jobId: job._id,
+            languages: updatePayload.languages,
+          });
+        }
+        await Job.updateOne(
+          { _id: job._id },
+          { $set: updatePayload }
+        );
       }
 
       updatedCount++;
@@ -392,14 +615,26 @@ async function main(): Promise<void> {
       }
     }
 
-    console.log('');
-    console.log('Summary:');
-    console.log('  updatedCount:', updatedCount);
-    console.log('  skippedCount:', skippedCount);
-    console.log('  unmatchedCount:', unmatchedCount);
-    console.log('  locationUpdatedCount:', locationUpdatedCount);
-    console.log('  countryBackfilledCount:', countryBackfilledCount);
-    console.log('  employmentUpdatedCount:', employmentUpdatedCount);
+    if (unmappedExperienceValues.size > 0) {
+      console.log('');
+      console.log('[Unmapped experience values]:');
+      for (const val of [...unmappedExperienceValues].sort()) {
+        console.log('  -', val);
+      }
+    }
+
+    console.log('\nSummary:');
+    console.log({
+      updatedCount,
+      skippedCount,
+      unmatchedCount,
+      locationUpdatedCount,
+      countryBackfilledCount,
+      employmentUpdatedCount,
+      experienceUpdatedCount,
+      languageUpdatedCount,
+      dateUpdatedCount,
+    });
   } catch (error) {
     console.error('[enrichJobsFromDrupal] Error:', error);
   } finally {
