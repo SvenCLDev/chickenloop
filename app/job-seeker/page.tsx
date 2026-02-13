@@ -10,6 +10,7 @@ import { ApplicationStatus, TERMINAL_STATES, getAllowedTransitions } from '@/lib
 import { isApplicationStatus } from '@/lib/domainTypes';
 import { getJobUrl } from '@/lib/jobSlug';
 import { JOB_CATEGORIES } from '@/lib/jobCategories';
+import { getEmploymentTypeLabel } from '@/lib/employmentTypes';
 import Link from 'next/link';
 import BoostModal from '../components/BoostModal';
 
@@ -986,7 +987,7 @@ function JobSeekerDashboardClient() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                            {job.type}
+                            {getEmploymentTypeLabel(job.type)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

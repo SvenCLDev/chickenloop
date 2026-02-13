@@ -22,6 +22,7 @@ import JobHeroImage from '../../../jobs/[id]/JobHeroImage';
 import JobOwnerActions from './JobOwnerActions';
 import { verifyToken } from '@/lib/jwt';
 import { JOB_CATEGORIES } from '@/lib/jobCategories';
+import { getEmploymentTypeLabel } from '@/lib/employmentTypes';
 
 // Reuse interfaces from existing job details page
 export interface CompanyInfo {
@@ -458,7 +459,7 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
               <div className="flex items-center gap-3">
                 <ShareJobButton
                   jobTitle={job.title}
-                  shortDescription={`${job.type} position at ${job.company} in ${job.city}`}
+                  shortDescription={`${getEmploymentTypeLabel(job.type)} position at ${job.company} in ${job.city}`}
                   url={currentUrl}
                 />
                 <JobFavouriteButton jobId={job._id} />
@@ -488,7 +489,7 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                 )}
                 <div className="flex items-center text-gray-600">
                   <span className="mr-2">💼</span>
-                  <span className="capitalize">{job.type.replace('-', ' ')}</span>
+                  <span>{getEmploymentTypeLabel(job.type)}</span>
                 </div>
                 {job.salary && (
                   <div className="flex items-center text-gray-700 font-semibold">
