@@ -56,6 +56,9 @@ export interface JobSearchParams {
   
   /** Exact city filter - case-insensitive exact match on location field. Can be used together with location parameter. */
   city?: string;
+
+  /** Employment type (e.g. full_time, part_time) - exact match on type field in Job model */
+  employmentType?: string;
 }
 
 /**
@@ -89,6 +92,9 @@ export function parseJobSearchParams(searchParams: URLSearchParams | ReadonlyURL
   
   const city = searchParams.get('city');
   if (city) params.city = decodeURIComponent(city);
+
+  const employmentType = searchParams.get('employmentType');
+  if (employmentType) params.employmentType = decodeURIComponent(employmentType);
   
   return params;
 }
@@ -129,6 +135,10 @@ export function buildJobSearchQuery(params: JobSearchParams): string {
   if (params.city) {
     queryParts.push(`city=${encodeURIComponent(params.city)}`);
   }
+
+  if (params.employmentType) {
+    queryParts.push(`employmentType=${encodeURIComponent(params.employmentType)}`);
+  }
   
   return queryParts.join('&');
 }
@@ -152,7 +162,7 @@ export function buildJobSearchUrl(baseUrl: string = '/jobs', params: JobSearchPa
  * @returns true if at least one filter is set
  */
 export function hasActiveFilters(params: JobSearchParams): boolean {
-  return !!(params.keyword || params.location || params.country || params.category || params.activity || params.language || params.city);
+  return !!(params.keyword || params.location || params.country || params.category || params.activity || params.language || params.city || params.employmentType);
 }
 
 /**

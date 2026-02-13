@@ -9,6 +9,7 @@ import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { parseJobSearchParams, buildJobSearchQuery, buildJobSearchUrl, type JobSearchParams } from '@/lib/jobSearchParams';
 import { getJobUrl } from '@/lib/jobSlug';
 import { JOB_CATEGORIES } from '@/lib/jobCategories';
+import { EMPLOYMENT_TYPE_OPTIONS, getEmploymentTypeLabel } from '@/lib/employmentTypes';
 import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
 
@@ -100,6 +101,7 @@ function JobsPageContent() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [allJobs, setAllJobs] = useState<Job[]>([]); // Store all jobs for filtering
   const [apiAvailableCategories, setApiAvailableCategories] = useState<string[]>([]);
+  const [apiAvailableEmploymentTypes, setApiAvailableEmploymentTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // Initialize state from URL params immediately if available
@@ -111,6 +113,7 @@ function JobsPageContent() {
 
   const [selectedCountry, setSelectedCountry] = useState<string>(urlParams?.country || '');
   const [selectedCategory, setSelectedCategory] = useState<string>(urlParams?.category || '');
+  const [selectedEmploymentType, setSelectedEmploymentType] = useState<string>(urlParams?.employmentType || '');
   const [selectedActivity, setSelectedActivity] = useState<string>(activityValue);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(urlParams?.language || '');
   const [selectedCity, setSelectedCity] = useState<string>(urlParams?.city || '');
@@ -155,6 +158,7 @@ function JobsPageContent() {
     setLocation(urlParams.location || '');
     setSelectedCountry(urlParams.country || '');
     setSelectedCategory(urlParams.category || '');
+    setSelectedEmploymentType(urlParams.employmentType || '');
     setSelectedActivity(activityValue);
     setSelectedLanguage(urlParams.language || '');
     setSelectedCity(urlParams.city || '');
@@ -188,7 +192,7 @@ function JobsPageContent() {
     loadJobs();
     // Reset to page 1 when filters change
     setCurrentPage(1);
-  }, [selectedCountry, selectedCategory, selectedActivity, selectedLanguage, selectedCity, keyword, location]);
+  }, [selectedCountry, selectedCategory, selectedEmploymentType, selectedActivity, selectedLanguage, selectedCity, keyword, location]);
 
   const loadJobs = async () => {
     try {
@@ -213,6 +217,7 @@ function JobsPageContent() {
       if (location) params.set('location', location);
       if (selectedCountry) params.set('country', selectedCountry);
       if (selectedCategory) params.set('category', selectedCategory);
+      if (selectedEmploymentType) params.set('employmentType', selectedEmploymentType);
       if (selectedActivity) params.set('activity', selectedActivity);
       if (selectedLanguage) params.set('language', selectedLanguage);
       if (selectedCity) params.set('city', selectedCity);
@@ -225,6 +230,9 @@ function JobsPageContent() {
       const filteredJobsList = filteredData.jobs || [];
       setApiAvailableCategories(
         Array.isArray(filteredData.availableCategories) ? filteredData.availableCategories : []
+      );
+      setApiAvailableEmploymentTypes(
+        Array.isArray(filteredData.availableEmploymentTypes) ? filteredData.availableEmploymentTypes : []
       );
 
       // Sort filtered jobs: featured first, then jobs with pictures, then jobs without pictures
@@ -336,10 +344,11 @@ function JobsPageContent() {
   };
 
   // Handler to update filter and URL
-  const handleFilterChange = (filterType: 'country' | 'category' | 'activity' | 'language' | 'city', value: string) => {
+  const handleFilterChange = (filterType: 'country' | 'category' | 'employmentType' | 'activity' | 'language' | 'city', value: string) => {
     // Update local state
     if (filterType === 'country') setSelectedCountry(value);
     if (filterType === 'category') setSelectedCategory(value);
+    if (filterType === 'employmentType') setSelectedEmploymentType(value);
     if (filterType === 'activity') setSelectedActivity(value);
     if (filterType === 'language') setSelectedLanguage(value);
     if (filterType === 'city') setSelectedCity(value);
@@ -355,6 +364,10 @@ function JobsPageContent() {
     if (filterType === 'category') {
       if (value) newParams.category = value;
       else delete newParams.category;
+    }
+    if (filterType === 'employmentType') {
+      if (value) newParams.employmentType = value;
+      else delete newParams.employmentType;
     }
     if (filterType === 'activity') {
       if (value) newParams.activity = value;
@@ -409,6 +422,7 @@ function JobsPageContent() {
     setSearchLocation('');
     setSelectedCountry('');
     setSelectedCategory('');
+    setSelectedEmploymentType('');
     setSelectedActivity('');
     setSelectedLanguage('');
     setSelectedCity('');
@@ -628,7 +642,7 @@ function JobsPageContent() {
                 {/* Category Filter */}
                 <div>
                   <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700 mb-2">
-                    Job Type
+                    Job Category
                   </label>
                   <div className="flex items-center gap-2 min-w-0">
             <select
@@ -651,6 +665,41 @@ function JobsPageContent() {
                         onClick={() => handleFilterChange('category', '')}
                         className="text-gray-400 hover:text-gray-600 flex-shrink-0"
                         aria-label="Clear category filter"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Employment Type Filter */}
+                <div>
+                  <label htmlFor="employment-type-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                    Employment Type
+                  </label>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <select
+                      id="employment-type-filter"
+                      value={selectedEmploymentType}
+                      onChange={(e) => handleFilterChange('employmentType', e.target.value)}
+                      className="flex-1 min-w-0 w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                    >
+                      <option value="">All Employment Types</option>
+                      {EMPLOYMENT_TYPE_OPTIONS.filter((opt) =>
+                        apiAvailableEmploymentTypes.includes(opt.value)
+                      ).map((opt) => (
+                        <option key={opt.value} value={opt.value} title={opt.label}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedEmploymentType && (
+                      <button
+                        onClick={() => handleFilterChange('employmentType', '')}
+                        className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                        aria-label="Clear employment type filter"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -754,7 +803,7 @@ function JobsPageContent() {
                   </h1>
                 </div>
                 {/* Save Search Button - Only for job seekers */}
-                {user && user.role === 'job-seeker' && (keyword || location || selectedCountry || selectedCategory || selectedActivity || selectedLanguage || selectedCity) && (
+                {user && user.role === 'job-seeker' && (keyword || location || selectedCountry || selectedCategory || selectedEmploymentType || selectedActivity || selectedLanguage || selectedCity) && (
                   <button
                     onClick={() => setShowSaveSearchModal(true)}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 whitespace-nowrap"
@@ -775,7 +824,7 @@ function JobsPageContent() {
         )}
 
             {/* Active Filter Chips */}
-            {(keyword || location || selectedCountry || selectedCategory || selectedActivity || selectedLanguage || selectedCity) && (
+            {(keyword || location || selectedCountry || selectedCategory || selectedEmploymentType || selectedActivity || selectedLanguage || selectedCity) && (
               <div className="mb-4">
                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center sm:justify-between">
                   <div className="flex flex-wrap gap-2 items-center">
@@ -823,11 +872,25 @@ function JobsPageContent() {
             )}
             {selectedCategory && (
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium max-w-full">
-                      <span className="truncate" title={`Job Type: ${getCategoryLabel(selectedCategory)}`}>Job Type: <strong>{getCategoryLabel(selectedCategory)}</strong></span>
+                      <span className="truncate" title={`Job Category: ${getCategoryLabel(selectedCategory)}`}>Job Category: <strong>{getCategoryLabel(selectedCategory)}</strong></span>
                       <button
                         onClick={() => handleFilterChange('category', '')}
                         className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none flex-shrink-0"
                         aria-label="Remove category filter"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+            {selectedEmploymentType && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium max-w-full">
+                      <span className="truncate" title={`Employment Type: ${getEmploymentTypeLabel(selectedEmploymentType)}`}>Employment Type: <strong>{getEmploymentTypeLabel(selectedEmploymentType)}</strong></span>
+                      <button
+                        onClick={() => handleFilterChange('employmentType', '')}
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none flex-shrink-0"
+                        aria-label="Remove employment type filter"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1097,10 +1160,11 @@ function JobsPageContent() {
                     {location && <li className="truncate" title={`Location: ${location}`}>• Location: <strong>{location}</strong></li>}
                     {selectedCountry && <li className="truncate" title={`Country: ${getCountryNameFromCode(selectedCountry)}`}>• Country: <strong>{getCountryNameFromCode(selectedCountry)}</strong></li>}
                     {selectedCategory && <li className="truncate" title={`Category: ${getCategoryLabel(selectedCategory)}`}>• Category: <strong>{getCategoryLabel(selectedCategory)}</strong></li>}
+                    {selectedEmploymentType && <li className="truncate" title={`Employment Type: ${getEmploymentTypeLabel(selectedEmploymentType)}`}>• Employment Type: <strong>{getEmploymentTypeLabel(selectedEmploymentType)}</strong></li>}
                     {selectedActivity && <li className="truncate" title={`Activity: ${selectedActivity}`}>• Activity: <strong>{selectedActivity}</strong></li>}
                     {selectedLanguage && <li className="truncate" title={`Language: ${selectedLanguage}`}>• Language: <strong>{selectedLanguage}</strong></li>}
                     {selectedCity && <li className="truncate" title={`City: ${selectedCity}`}>• City: <strong>{selectedCity}</strong></li>}
-                    {!keyword && !location && !selectedCountry && !selectedCategory && !selectedActivity && !selectedLanguage && !selectedCity && (
+                    {!keyword && !location && !selectedCountry && !selectedCategory && !selectedEmploymentType && !selectedActivity && !selectedLanguage && !selectedCity && (
                       <li className="text-gray-500">No filters applied</li>
                     )}
                   </ul>

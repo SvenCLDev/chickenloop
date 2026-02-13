@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
       activity: activityValue || null,
       language: filters.language || null,
       city: filters.city || null,
+      employmentType: filters.employmentType || null,
       featured: featured || null,
     });
 
@@ -244,6 +245,11 @@ export async function GET(request: NextRequest) {
       queryFilter.languages = filters.language;
     }
 
+    // Employment type filter: exact match on type field
+    if (filters.employmentType) {
+      queryFilter.type = filters.employmentType.trim();
+    }
+
     // Query to get jobs - Project only fields needed for list display
     // Include description when keyword filter is present (for search), otherwise exclude for performance
     const listProjection: any = {
@@ -291,6 +297,23 @@ export async function GET(request: NextRequest) {
     const availableCategories: string[] = (
       categoriesResult as { _id: string }[]
     ).map((c) => c._id);
+
+    // Fetch available employment types (distinct type) using baseFilter without type filter
+    const employmentBaseFilter = { ...queryFilter };
+    delete employmentBaseFilter.type;
+    const employmentTypesResult = await Job.collection
+      .aggregate([
+        { $match: employmentBaseFilter },
+        { $group: { _id: '$type' } },
+        { $match: { _id: { $ne: null, $exists: true } } },
+      ])
+      .maxTimeMS(5000)
+      .toArray()
+      .catch(() => []);
+
+    const availableEmploymentTypes: string[] = (
+      employmentTypesResult as { _id: string }[]
+    ).map((e) => e._id).filter(Boolean);
 
     console.log('[API /jobs] Building aggregation pipeline for optimized image selection...');
     
@@ -576,7 +599,7 @@ export async function GET(request: NextRequest) {
     // Add cache headers - jobs can be cached for 5 minutes with stale-while-revalidate
     const cacheHeaders = CachePresets.short();
 
-    return NextResponse.json({ jobs, availableCategories }, {
+    return NextResponse.json({ jobs, availableCategories, availableEmploymentTypes }, {
       status: 200,
       headers: cacheHeaders,
     });
