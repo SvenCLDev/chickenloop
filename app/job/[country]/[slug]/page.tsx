@@ -23,6 +23,7 @@ import JobOwnerActions from './JobOwnerActions';
 import { verifyToken } from '@/lib/jwt';
 import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import { getEmploymentTypeLabel } from '@/lib/employmentTypes';
+import { getExperienceLevelLabel } from '@/lib/experienceLevels';
 
 // Reuse interfaces from existing job details page
 export interface CompanyInfo {
@@ -51,6 +52,8 @@ interface Job {
   country?: string | null;
   salary?: string;
   type: string;
+  experienceLevel?: string;
+  experience?: string;
   languages?: string[];
   occupationalAreas?: string[];
   qualifications?: string[];
@@ -185,7 +188,12 @@ async function getJob(id: string): Promise<Job | null> {
     }
 
     // Increment visit count atomically
-    await Job.findByIdAndUpdate(id, { $inc: { visitCount: 1 } });
+    // timestamps: false prevents updatedAt from changing (so viewing doesn't reorder listing)
+    await Job.findByIdAndUpdate(
+      id,
+      { $inc: { visitCount: 1 } },
+      { timestamps: false }
+    );
     
     // Reload the job to get the updated visit count
     const updatedJob = await Job.findById(id)
@@ -499,6 +507,25 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                 )}
               </div>
               
+              {/* Experience Level */}
+              {((job as any).experienceLevel || (job as any).experience) && (
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <div className="flex items-center text-gray-600">
+                    <span className="mr-2">📊</span>
+                    <span className="font-medium">Experience Level:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span
+                      className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium"
+                    >
+                      {getExperienceLevelLabel(
+                        ((job as any).experienceLevel || (job as any).experience) ?? ''
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Languages Required */}
               {job.languages && job.languages.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center gap-3">

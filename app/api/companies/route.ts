@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
       coordinates: company.coordinates,
       featured: company.featured || false,
       createdAt: company.createdAt,
+      updatedAt: company.updatedAt,
     }));
 
     // Add cache headers - companies can be cached for 5 minutes

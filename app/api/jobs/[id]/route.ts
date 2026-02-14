@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import Job, { IJob } from '@/models/Job';
+import Job, { IJob, EXPERIENCE_LEVELS } from '@/models/Job';
 import JobImage from '@/models/JobImage';
 import { requireAuth, requireRole } from '@/lib/auth';
 import { JOB_CATEGORY_VALUES } from '@/lib/jobCategories';
@@ -61,7 +61,12 @@ export async function GET(
 
     // Increment visit count atomically using MongoDB's $inc operator
     // This prevents race conditions and double counting
-    await Job.findByIdAndUpdate(id, { $inc: { visitCount: 1 } });
+    // timestamps: false prevents updatedAt from changing (so viewing doesn't reorder listing)
+    await Job.findByIdAndUpdate(
+      id,
+      { $inc: { visitCount: 1 } },
+      { timestamps: false }
+    );
     
     // Reload the job to get the updated visit count
     const updatedJob = await Job.findById(id)
@@ -152,7 +157,7 @@ export async function PUT(
       );
     }
 
-    const { title, description, companyId: companyIdFromBody, company: companyFromBody, city, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, heroImageUrl, published, featured, applyViaATS, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
+    const { title, description, companyId: companyIdFromBody, company: companyFromBody, city, country, salary, type, experienceLevel: experienceLevelFromBody, languages, qualifications, sports, occupationalAreas, pictures, heroImageUrl, published, featured, applyViaATS, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
 
     // Validate job categories - ensure all categories are in JOB_CATEGORY_VALUES
     if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
@@ -228,6 +233,17 @@ export async function PUT(
     }
     if (salary !== undefined) job.salary = salary;
     if (type) job.type = normalizeEmploymentType(type);
+    if (experienceLevelFromBody !== undefined) {
+      const raw = Array.isArray(experienceLevelFromBody)
+        ? (experienceLevelFromBody.length > 0 ? experienceLevelFromBody[0] : undefined)
+        : (typeof experienceLevelFromBody === 'string' && experienceLevelFromBody.trim()
+          ? experienceLevelFromBody.trim()
+          : undefined);
+      const experienceLevelValue =
+        raw && (EXPERIENCE_LEVELS as readonly string[]).includes(raw) ? raw : undefined;
+      (job as any).experienceLevel = experienceLevelValue ?? undefined;
+      (job as any).experience = experienceLevelValue ?? undefined;
+    }
     if (languages !== undefined) {
       job.languages = languages || [];
       job.markModified('languages');
