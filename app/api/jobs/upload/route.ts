@@ -1,9 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
+import sharp from 'sharp';
 import { requireRole } from '@/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+
+const MAX_WIDTH = 1600;
+const JPEG_QUALITY = 82;
+
+async function resizeImage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .rotate()
+    .resize({
+      width: MAX_WIDTH,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: JPEG_QUALITY })
+    .toBuffer();
+}
 
 // POST - Upload job pictures (recruiters and admins)
 export async function POST(request: NextRequest) {
@@ -57,24 +73,30 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Validate file size (max 5MB per image)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (file.size > maxSize) {
+      const bytes = await file.arrayBuffer();
+      const inputBuffer = Buffer.from(bytes);
+      let resizedBuffer: Buffer;
+      try {
+        resizedBuffer = await resizeImage(inputBuffer);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Image processing failed';
         return NextResponse.json(
-          { error: `File ${file.name} is too large. Maximum size is 5MB.` },
+          { error: `Failed to process image ${file.name}: ${msg}` },
           { status: 400 }
         );
       }
 
-      // Generate unique filename
+      // Generate unique filename (always .jpg after resize)
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 15);
-      const extension = file.name.split('.').pop() || 'jpg';
-      const filename = `jobs/job-${timestamp}-${randomStr}.${extension}`;
+      const filename = `jobs/job-${timestamp}-${randomStr}.jpg`;
 
       if (useBlobStorage) {
         // Upload to Vercel Blob (production or local with token)
-        const blob = await put(filename, file, { access: 'public' });
+        const blob = await put(filename, resizedBuffer, {
+          access: 'public',
+          contentType: 'image/jpeg',
+        });
         console.log('[Upload] Uploaded to Blob Storage:', blob.url);
         uploadedPaths.push(blob.url);
       } else {
@@ -83,11 +105,9 @@ export async function POST(request: NextRequest) {
         if (!existsSync(uploadDir)) {
           await mkdir(uploadDir, { recursive: true });
         }
-        const filePath = join(uploadDir, `${timestamp}-${randomStr}.${extension}`);
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        await writeFile(filePath, buffer);
-        const localPath = `/uploads/jobs/${timestamp}-${randomStr}.${extension}`;
+        const filePath = join(uploadDir, `${timestamp}-${randomStr}.jpg`);
+        await writeFile(filePath, resizedBuffer);
+        const localPath = `/uploads/jobs/${timestamp}-${randomStr}.jpg`;
         console.log('[Upload] Saved to local filesystem:', localPath);
         uploadedPaths.push(localPath);
       }
