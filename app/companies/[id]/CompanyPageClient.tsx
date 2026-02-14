@@ -46,7 +46,7 @@ export interface CompanyPageData {
   offeredServices?: string[];
   logo?: string;
   pictures?: string[];
-  owner: any;
+  owner: { id: string; name: string; email: string } | null;
   email?: string;
 }
 

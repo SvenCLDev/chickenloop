@@ -16,24 +16,33 @@ async function getCompanyById(id: string): Promise<CompanyPageData | null> {
     if (!company) return null;
 
     const doc = company as any;
+    const ownerRecruiter = doc.ownerRecruiter;
+    const owner = ownerRecruiter
+      ? {
+          id: String(ownerRecruiter._id),
+          name: ownerRecruiter.name ?? '',
+          email: ownerRecruiter.email ?? '',
+        }
+      : null;
+
     return {
       id: String(doc._id),
       name: doc.name,
       description: doc.description,
-      address: doc.address,
-      coordinates: doc.coordinates,
+      address: doc.address ? { ...doc.address } : undefined,
+      coordinates: doc.coordinates ? { ...doc.coordinates } : undefined,
       website: doc.website,
       contact: {
         email: doc.email ?? undefined,
         officePhone: doc.contact?.officePhone,
         whatsapp: doc.contact?.whatsapp,
       },
-      socialMedia: doc.socialMedia,
-      offeredActivities: doc.offeredActivities,
-      offeredServices: doc.offeredServices,
+      socialMedia: doc.socialMedia ? { ...doc.socialMedia } : undefined,
+      offeredActivities: doc.offeredActivities ? [...(doc.offeredActivities || [])] : undefined,
+      offeredServices: doc.offeredServices ? [...(doc.offeredServices || [])] : undefined,
       logo: doc.logo,
-      pictures: doc.pictures,
-      owner: doc.ownerRecruiter,
+      pictures: doc.pictures ? [...(doc.pictures || [])] : undefined,
+      owner,
       email: doc.email,
     };
   } catch {
