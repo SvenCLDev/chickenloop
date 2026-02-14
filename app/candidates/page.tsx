@@ -1,11 +1,12 @@
 'use client';
 // Force Vercel rebuild
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { buildCandidateSearchQuery } from '@/lib/candidateSearchParams';
 
 interface CV {
   _id: string;
@@ -28,6 +29,19 @@ interface CV {
   };
   createdAt: string;
   updatedAt?: string;
+}
+
+// Strip HTML tags from string for plain-text display (e.g. card previews)
+function stripHtml(html: string): string {
+  if (!html || typeof html !== 'string') return '';
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
 }
 
 // Helper function to format time ago
@@ -89,17 +103,30 @@ function TimeAgoDisplay({ date }: { date: string }) {
   return <span className="text-xs text-gray-500">{timeAgo}</span>;
 }
 
-export default function CVsPage() {
+function CVsPageContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [cvs, setCvs] = useState<CV[]>([]);
-  const [allCvs, setAllCvs] = useState<CV[]>([]); // Store all CVs for filtering
+  const [filterOptions, setFilterOptions] = useState<{
+    languages: string[];
+    workAreas: string[];
+    sports: string[];
+    certifications: string[];
+  }>({ languages: [], workAreas: [], sports: [], certifications: [] });
+  const [pagination, setPagination] = useState<{
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  }>({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('');
   const [selectedWorkArea, setSelectedWorkArea] = useState<string>('');
   const [selectedSport, setSelectedSport] = useState<string>('');
   const [selectedCertification, setSelectedCertification] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -109,129 +136,100 @@ export default function CVsPage() {
     }
   }, [user, authLoading, router]);
 
+  // Sync page and filters from URL when searchParams change (e.g. navigation, pagination)
   useEffect(() => {
-    if (user && (user.role === 'recruiter' || user.role === 'admin')) {
-      loadCVs();
-    }
-  }, [user]);
+    const pageParam = searchParams.get('page');
+    const p = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
+    setCurrentPage(p);
+    setSelectedLanguage(searchParams.get('language') || '');
+    setSelectedWorkArea(searchParams.get('work_area') || '');
+    setSelectedSport(searchParams.get('sports') || '');
+    setSelectedCertification(searchParams.get('certifications') || '');
+  }, [searchParams]);
 
-  useEffect(() => {
-    // Filter CVs when any filter changes
-    let filtered = allCvs;
-
-    // Filter by language
-    if (selectedLanguage) {
-      filtered = filtered.filter((cv) => {
-        if (!cv.languages || cv.languages.length === 0) return false;
-        return cv.languages.includes(selectedLanguage);
-      });
-    }
-
-    // Filter by work area
-    if (selectedWorkArea) {
-      filtered = filtered.filter((cv) => {
-        if (!cv.lookingForWorkInAreas || cv.lookingForWorkInAreas.length === 0) return false;
-        return cv.lookingForWorkInAreas.includes(selectedWorkArea);
-      });
-    }
-
-    // Filter by sport/experience
-    if (selectedSport) {
-      filtered = filtered.filter((cv) => {
-        if (!cv.experienceAndSkill || cv.experienceAndSkill.length === 0) return false;
-        return cv.experienceAndSkill.includes(selectedSport);
-      });
-    }
-
-    // Filter by professional certification
-    if (selectedCertification) {
-      filtered = filtered.filter((cv) => {
-        if (!cv.professionalCertifications || cv.professionalCertifications.length === 0) return false;
-        return cv.professionalCertifications.includes(selectedCertification);
-      });
-    }
-
-    setCvs(filtered);
-  }, [selectedLanguage, selectedWorkArea, selectedSport, selectedCertification, allCvs]);
-
-  const loadCVs = async () => {
+  const loadCVs = useCallback(async () => {
+    if (!user || (user.role !== 'recruiter' && user.role !== 'admin')) return;
+    setLoading(true);
+    setError('');
     try {
-      const response = await fetch('/api/candidates-list', {
-        credentials: 'include',
-      });
+      const params = new URLSearchParams();
+      const page = searchParams.get('page');
+      const p = page ? Math.max(1, parseInt(page, 10) || 1) : 1;
+      if (p > 1) params.set('page', String(p));
+      const lang = searchParams.get('language');
+      if (lang) params.set('language', lang);
+      const workArea = searchParams.get('work_area');
+      if (workArea) params.set('work_area', workArea);
+      const sport = searchParams.get('sports');
+      if (sport) params.set('sports', sport);
+      const cert = searchParams.get('certifications');
+      if (cert) params.set('certifications', cert);
+      const queryString = params.toString();
+      const url = `/api/candidates-list${queryString ? `?${queryString}` : ''}`;
+      const response = await fetch(url, { credentials: 'include' });
 
       if (!response.ok) {
         throw new Error('Failed to load CVs');
       }
 
       const data = await response.json();
-      setAllCvs(data.cvs || []);
       setCvs(data.cvs || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load CVs');
+      setFilterOptions({
+        languages: data.filters?.languages || [],
+        workAreas: data.filters?.workAreas || [],
+        sports: data.filters?.sports || [],
+        certifications: data.filters?.certifications || [],
+      });
+      setPagination(data.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load CVs');
     } finally {
       setLoading(false);
     }
+  }, [user, searchParams]);
+
+  useEffect(() => {
+    if (user && (user.role === 'recruiter' || user.role === 'admin')) {
+      loadCVs();
+    }
+  }, [user, loadCVs]);
+
+  const goToPage = (page: number) => {
+    const p = Math.max(1, Math.min(page, pagination.totalPages));
+    setCurrentPage(p);
+    router.push(`/candidates?${buildCandidateSearchQuery({
+      page: p,
+      ...(selectedLanguage && { language: [selectedLanguage] }),
+      ...(selectedWorkArea && { workArea: [selectedWorkArea] }),
+      ...(selectedSport && { sport: [selectedSport] }),
+      ...(selectedCertification && { certification: [selectedCertification] }),
+    })}`);
   };
 
-  // Get unique languages from all CVs
-  const getUniqueLanguages = (): string[] => {
-    const languageSet = new Set<string>();
-    
-    allCvs.forEach((cv) => {
-      if (cv.languages && cv.languages.length > 0) {
-        cv.languages.forEach((language) => {
-          languageSet.add(language);
-        });
-      }
+  const handleFilterChange = (filter: 'language' | 'workArea' | 'sport' | 'certification', value: string) => {
+    const updates = { language: selectedLanguage, workArea: selectedWorkArea, sport: selectedSport, certification: selectedCertification };
+    if (filter === 'language') {
+      setSelectedLanguage(value);
+      updates.language = value;
+    } else if (filter === 'workArea') {
+      setSelectedWorkArea(value);
+      updates.workArea = value;
+    } else if (filter === 'sport') {
+      setSelectedSport(value);
+      updates.sport = value;
+    } else {
+      setSelectedCertification(value);
+      updates.certification = value;
+    }
+    setCurrentPage(1);
+    const q = buildCandidateSearchQuery({
+      page: 1,
+      ...(updates.language && { language: [updates.language] }),
+      ...(updates.workArea && { workArea: [updates.workArea] }),
+      ...(updates.sport && { sport: [updates.sport] }),
+      ...(updates.certification && { certification: [updates.certification] }),
     });
-
-    return Array.from(languageSet).sort();
-  };
-
-  // Get unique work areas from all CVs
-  const getUniqueWorkAreas = (): string[] => {
-    const workAreaSet = new Set<string>();
-    
-    allCvs.forEach((cv) => {
-      if (cv.lookingForWorkInAreas && cv.lookingForWorkInAreas.length > 0) {
-        cv.lookingForWorkInAreas.forEach((area) => {
-          workAreaSet.add(area);
-        });
-      }
-    });
-
-    return Array.from(workAreaSet).sort();
-  };
-
-  // Get unique sports/experiences from all CVs
-  const getUniqueSports = (): string[] => {
-    const sportSet = new Set<string>();
-    
-    allCvs.forEach((cv) => {
-      if (cv.experienceAndSkill && cv.experienceAndSkill.length > 0) {
-        cv.experienceAndSkill.forEach((sport) => {
-          sportSet.add(sport);
-        });
-      }
-    });
-
-    return Array.from(sportSet).sort();
-  };
-
-  // Get unique professional certifications from all CVs
-  const getUniqueCertifications = (): string[] => {
-    const certSet = new Set<string>();
-    
-    allCvs.forEach((cv) => {
-      if (cv.professionalCertifications && cv.professionalCertifications.length > 0) {
-        cv.professionalCertifications.forEach((cert) => {
-          certSet.add(cert);
-        });
-      }
-    });
-
-    return Array.from(certSet).sort();
+    router.push(q ? `/candidates?${q}` : '/candidates');
   };
 
   if (authLoading || loading) {
@@ -257,11 +255,11 @@ export default function CVsPage() {
             <select
               id="language-filter"
               value={selectedLanguage}
-              onChange={(e) => setSelectedLanguage(e.target.value)}
+              onChange={(e) => handleFilterChange('language', e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
             >
               <option value="">All Languages</option>
-              {getUniqueLanguages().map((language) => (
+              {filterOptions.languages.map((language) => (
                 <option key={language} value={language}>
                   {language}
                 </option>
@@ -272,11 +270,11 @@ export default function CVsPage() {
             <select
               id="workarea-filter"
               value={selectedWorkArea}
-              onChange={(e) => setSelectedWorkArea(e.target.value)}
+              onChange={(e) => handleFilterChange('workArea', e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
             >
               <option value="">All Work Areas</option>
-              {getUniqueWorkAreas().map((area) => (
+              {filterOptions.workAreas.map((area) => (
                 <option key={area} value={area}>
                   {area}
                 </option>
@@ -287,11 +285,11 @@ export default function CVsPage() {
             <select
               id="sport-filter"
               value={selectedSport}
-              onChange={(e) => setSelectedSport(e.target.value)}
+              onChange={(e) => handleFilterChange('sport', e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
             >
               <option value="">All Sports</option>
-              {getUniqueSports().map((sport) => (
+              {filterOptions.sports.map((sport) => (
                 <option key={sport} value={sport}>
                   {sport}
                 </option>
@@ -302,11 +300,11 @@ export default function CVsPage() {
             <select
               id="certification-filter"
               value={selectedCertification}
-              onChange={(e) => setSelectedCertification(e.target.value)}
+              onChange={(e) => handleFilterChange('certification', e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
             >
               <option value="">All Certifications</option>
-              {getUniqueCertifications().map((cert) => (
+              {filterOptions.certifications.map((cert) => (
                 <option key={cert} value={cert}>
                   {cert}
                 </option>
@@ -321,6 +319,8 @@ export default function CVsPage() {
                   setSelectedWorkArea('');
                   setSelectedSport('');
                   setSelectedCertification('');
+                  setCurrentPage(1);
+                  router.push('/candidates');
                 }}
                 className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 underline whitespace-nowrap"
               >
@@ -356,7 +356,14 @@ export default function CVsPage() {
                 {(selectedLanguage || selectedWorkArea || selectedSport) ? ',' : ''} certification: <strong>{selectedCertification}</strong>
               </span>
             )}
-            {' '}({cvs.length} {cvs.length === 1 ? 'candidate' : 'candidates'})
+            {' '}({pagination.total} {pagination.total === 1 ? 'candidate' : 'candidates'})
+          </div>
+        )}
+
+        {!error && pagination.total > 0 && (
+          <div className="text-sm text-gray-600 mb-4">
+            Showing {Math.min((pagination.page - 1) * pagination.pageSize + 1, pagination.total)} to{' '}
+            {Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total} candidates
           </div>
         )}
 
@@ -414,7 +421,7 @@ export default function CVsPage() {
                     {/* Summary Preview */}
                     {cv.summary && (
                       <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {cv.summary}
+                        {stripHtml(cv.summary)}
                       </p>
                     )}
 
@@ -498,8 +505,85 @@ export default function CVsPage() {
             })}
           </div>
         )}
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-gray-600">
+              Page {pagination.page} of {pagination.totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(pagination.page - 1)}
+                disabled={pagination.page <= 1}
+                className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                  pagination.page <= 1
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(7, pagination.totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  const total = pagination.totalPages;
+                  const page = pagination.page;
+                  if (total <= 7) {
+                    pageNum = i + 1;
+                  } else if (page <= 4) {
+                    pageNum = i + 1;
+                  } else if (page >= total - 3) {
+                    pageNum = Math.max(1, total - 6) + i;
+                  } else {
+                    pageNum = page - 3 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => goToPage(pageNum)}
+                      className={`min-w-[2.5rem] px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        pageNum === pagination.page
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => goToPage(pagination.page + 1)}
+                disabled={pagination.page >= pagination.totalPages}
+                className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                  pagination.page >= pagination.totalPages
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
+  );
+}
+
+export default function CVsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+        <Navbar />
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    }>
+      <CVsPageContent />
+    </Suspense>
   );
 }
 

@@ -100,7 +100,7 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
     matchConditions.availability = { $in: filters.availability };
   }
 
-  const sortOrder: any = { featured: -1 };
+  const sortOrder: any = { featured: -1, hasPictures: -1 };
   if (filters.sort === 'oldest') {
     sortOrder.createdAt = 1;
   } else {
@@ -148,6 +148,11 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         createdAt: 1,
         pictures: { $slice: ['$pictures', 1] },
         jobSeeker: 1
+      }
+    },
+    {
+      $addFields: {
+        hasPictures: { $cond: [{ $gt: [{ $size: { $ifNull: ['$pictures', []] } }, 0] }, 1, 0] }
       }
     },
     { $sort: sortOrder },
