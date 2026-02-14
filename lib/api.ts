@@ -214,12 +214,13 @@ export const accountApi = {
 };
 
 export const adminApi = {
-  getUsers: (params?: { search?: string; email?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) => {
+  getUsers: (params?: { search?: string; email?: string; sortBy?: string; sortOrder?: 'asc' | 'desc'; role?: string }) => {
     const queryParams = new URLSearchParams();
     if (params?.search) queryParams.set('search', params.search);
     if (params?.email) queryParams.set('email', params.email);
     if (params?.sortBy) queryParams.set('sortBy', params.sortBy);
     if (params?.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+    if (params?.role) queryParams.set('role', params.role);
     const queryString = queryParams.toString();
     return apiRequest(`/admin/users${queryString ? `?${queryString}` : ''}`);
   },

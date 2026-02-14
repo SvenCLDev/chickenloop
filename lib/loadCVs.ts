@@ -113,8 +113,24 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
   // Cap sort window so MongoDB can use "top N" optimization and stay under 32MB (works without allowDiskUse)
   const sortWindow = Math.min(skip + PAGE_SIZE, 10000);
 
+  // Ensure we only include CVs from users with role 'job-seeker' (excludes orphaned or wrong-role refs)
+  const roleFilterStages = [
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'jobSeeker',
+        foreignField: '_id',
+        as: '_roleCheck',
+        pipeline: [{ $match: { role: 'job-seeker' } }, { $limit: 1 }],
+      },
+    },
+    { $match: { _roleCheck: { $ne: [] } } },
+    { $project: { _roleCheck: 0 } },
+  ];
+
   const aggregationPipeline: any[] = [
     { $match: matchConditions },
+    ...roleFilterStages,
     {
       $project: {
         _id: 1,
@@ -182,7 +198,8 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
 
   const countPipeline = [
     { $match: matchConditions },
-    { $count: 'total' }
+    ...roleFilterStages,
+    { $count: 'total' },
   ];
   const aggOptions = { allowDiskUse: true };
   const countResult = await CV.aggregate(countPipeline, aggOptions);
@@ -190,6 +207,7 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
 
   const filterExtractionPipeline = [
     { $match: matchConditions },
+    ...roleFilterStages,
     {
       $project: {
         languages: 1,

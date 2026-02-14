@@ -34,6 +34,11 @@ export async function GET(request: NextRequest) {
 
     // Build MongoDB query filter
     const queryFilter: any = {};
+
+    // Role filter: when specified, only return users with that role (e.g. 'job-seeker', 'recruiter')
+    if (roleFilter) {
+      queryFilter.role = roleFilter;
+    }
     
     // Email-specific filter (case-insensitive partial match)
     // This restricts results to emails matching the email pattern

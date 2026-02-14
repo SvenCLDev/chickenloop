@@ -314,12 +314,13 @@ function AdminDashboard() {
           const apiSortBy = sortByMap[sortColumn] || 'lastActive';
           
           const usersData = await adminApi.getUsers({
+            role: 'job-seeker',
             search: debouncedSearchQuery.trim() || undefined,
             email: debouncedEmailFilter.trim() || undefined,
             sortBy: apiSortBy,
             sortOrder: sortDirection,
           });
-          data = usersData.users.filter((u: User) => u.role === 'job-seeker');
+          data = usersData.users;
           break;
         case 'recruiters':
           // Map UI column names to API sortBy values
@@ -333,12 +334,13 @@ function AdminDashboard() {
           const recruiterApiSortBy = recruiterSortByMap[sortColumn] || 'lastActive';
           
           const recruitersData = await adminApi.getUsers({
+            role: 'recruiter',
             search: debouncedSearchQuery.trim() || undefined,
             email: debouncedEmailFilter.trim() || undefined,
             sortBy: recruiterApiSortBy,
             sortOrder: sortDirection,
           });
-          data = recruitersData.users.filter((u: User) => u.role === 'recruiter');
+          data = recruitersData.users;
           break;
         case 'jobs':
           // Map UI column names to API sortBy values
