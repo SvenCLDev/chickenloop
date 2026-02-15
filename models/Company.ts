@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import { OFFERED_ACTIVITIES_LIST } from '@/lib/offeredActivities';
 
 export interface ICompany extends Document {
   name: string;
@@ -20,6 +21,10 @@ export interface ICompany extends Document {
   website?: string;
   email?: string;
 
+  offeredActivities?: string[];
+  logo?: string | null;
+  pictures?: string[];
+
   featured?: boolean;
   featuredUntil?: Date | null;
 
@@ -31,6 +36,7 @@ export interface ICompany extends Document {
 
   legacy?: {
     source: 'drupal';
+    recruiterUid?: string;
     inferenceStrategy: 'inferred_from_jobs' | 'inferred_and_enriched' | 'placeholder';
     sourceCompanyNid?: number;
     confidence: number;
@@ -66,6 +72,20 @@ const CompanySchema: Schema = new Schema(
     website: String,
     email: String,
 
+    offeredActivities: {
+      type: [String],
+      enum: OFFERED_ACTIVITIES_LIST,
+      default: [],
+    },
+    logo: {
+      type: String,
+      default: null,
+    },
+    pictures: {
+      type: [String],
+      default: [],
+    },
+
     featured: {
       type: Boolean,
       default: false,
@@ -91,32 +111,18 @@ const CompanySchema: Schema = new Schema(
       index: true,
     },
 
-    // 🔹 Legacy / migration metadata
+    // 🔹 Legacy / migration metadata (optional; new companies from UI do not set this)
     legacy: {
-      source: {
-        type: String,
-        enum: ['drupal'],
-        required: true,
+      type: {
+        source: { type: String },
+        inferenceStrategy: { type: String },
+        sourceCompanyNid: { type: Number },
+        recruiterUid: { type: String },
+        confidence: { type: Number },
+        migratedAt: { type: Date },
       },
-      inferenceStrategy: {
-        type: String,
-        enum: ['inferred_from_jobs', 'inferred_and_enriched', 'placeholder'],
-        required: true,
-      },
-      sourceCompanyNid: {
-        type: Number,
-        required: false,
-      },
-      confidence: {
-        type: Number,
-        min: 0,
-        max: 1,
-        required: true,
-      },
-      migratedAt: {
-        type: Date,
-        required: true,
-      },
+      required: false,
+      default: undefined,
     },
   },
   { timestamps: true }

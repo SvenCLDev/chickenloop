@@ -586,4 +586,3 @@ export default function CVsPage() {
     </Suspense>
   );
 }
-

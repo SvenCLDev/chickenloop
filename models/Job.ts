@@ -48,6 +48,8 @@ export interface IJob extends Document {
   salary?: string;
   type: (typeof EMPLOYMENT_TYPES)[number];
   experienceLevel?: (typeof EXPERIENCE_LEVELS)[number];
+  /** Experience level (alias for experienceLevel, used by Drupal migration) */
+  experience?: (typeof EXPERIENCE_LEVELS)[number];
 
   languages?: string[];
   qualifications?: string[];
@@ -137,6 +139,11 @@ const JobSchema: Schema = new Schema(
       required: true,
     },
     experienceLevel: {
+      type: String,
+      enum: EXPERIENCE_LEVELS,
+    },
+    /** Experience level (alias for experienceLevel, used by Drupal migration) */
+    experience: {
       type: String,
       enum: EXPERIENCE_LEVELS,
     },

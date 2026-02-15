@@ -16,9 +16,11 @@ export interface IUser extends Document {
 
   // 🔹 Migration metadata
   legacy?: {
-    source: 'drupal7';
-    userId: number;
-    roles: string[];
+    source: 'drupal7' | 'drupal';
+    userId?: number;
+    drupalUid?: string;
+    migratedAt?: Date;
+    roles?: string[];
   };
 
   createdAt: Date;
@@ -74,9 +76,11 @@ const UserSchema: Schema = new Schema(
     legacy: {
       source: {
         type: String,
-        enum: ['drupal7'],
+        enum: ['drupal7', 'drupal'],
       },
       userId: Number,
+      drupalUid: String,
+      migratedAt: Date,
       roles: [String],
     },
   },
