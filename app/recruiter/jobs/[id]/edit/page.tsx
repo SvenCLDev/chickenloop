@@ -122,7 +122,7 @@ export default function EditJobPage() {
         applyByEmail: (job as any).applyByEmail || false,
         applyByWebsite: (job as any).applyByWebsite || false,
         applyByWhatsApp: (job as any).applyByWhatsApp || false,
-        applicationEmail: (job as any).applicationEmail || (companyData?.contact?.email || ''),
+        applicationEmail: (job as any).applicationEmail || (companyData?.email || companyData?.contact?.email || ''),
         applicationWebsite: (job as any).applicationWebsite || (companyData?.website || ''),
         applicationWhatsApp: (job as any).applicationWhatsApp || '',
       });
@@ -999,7 +999,7 @@ export default function EditJobPage() {
                       setFormData({
                         ...formData,
                         applyByEmail: e.target.checked,
-                        applicationEmail: e.target.checked ? (formData.applicationEmail || company?.contact?.email || '') : '',
+                        applicationEmail: e.target.checked ? (formData.applicationEmail || company?.email || company?.contact?.email || '') : '',
                       });
                     }}
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"

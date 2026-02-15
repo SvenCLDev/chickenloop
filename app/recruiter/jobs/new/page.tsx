@@ -87,11 +87,11 @@ export default function NewJobPage() {
         }));
       }
       
-      // Prefill application email and website from company
+      // Prefill application email and website from company profile
       if (data.company) {
         setFormData(prev => ({
           ...prev,
-          applicationEmail: data.company.contact?.email || prev.applicationEmail,
+          applicationEmail: data.company.email || data.company.contact?.email || prev.applicationEmail,
           applicationWebsite: data.company.website || prev.applicationWebsite,
         }));
       }
@@ -871,7 +871,7 @@ export default function NewJobPage() {
                       setFormData({
                         ...formData,
                         applyByEmail: e.target.checked,
-                        applicationEmail: e.target.checked ? (formData.applicationEmail || company?.contact?.email || '') : '',
+                        applicationEmail: e.target.checked ? (formData.applicationEmail || company?.email || company?.contact?.email || '') : '',
                       });
                     }}
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"

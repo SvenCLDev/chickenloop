@@ -49,6 +49,8 @@ export default function AdminEditJobPage() {
   const [selectedPictures, setSelectedPictures] = useState<File[]>([]);
   const [picturePreviews, setPicturePreviews] = useState<string[]>([]);
   const [uploadingPictures, setUploadingPictures] = useState(false);
+  const [companyEmail, setCompanyEmail] = useState('');
+  const [companyWebsite, setCompanyWebsite] = useState('');
   const previewCountryCode = normalizeCountryForStorage(formData.country);
 
   useEffect(() => {
@@ -73,6 +75,11 @@ export default function AdminEditJobPage() {
       const jobCountryCode = (job as any).country;
       const jobCountryName = jobCountryCode ? getCountryNameFromCode(jobCountryCode) : '';
 
+      const company = job.companyId as { email?: string; website?: string } | null;
+      const fallbackEmail = company?.email || '';
+      const fallbackWebsite = company?.website || '';
+      setCompanyEmail(fallbackEmail);
+      setCompanyWebsite(fallbackWebsite);
       setFormData({
         title: job.title || '',
         description: job.description || '',
@@ -88,8 +95,8 @@ export default function AdminEditJobPage() {
         applyByEmail: (job as any).applyByEmail || false,
         applyByWebsite: (job as any).applyByWebsite || false,
         applyByWhatsApp: (job as any).applyByWhatsApp || false,
-        applicationEmail: (job as any).applicationEmail || '',
-        applicationWebsite: (job as any).applicationWebsite || '',
+        applicationEmail: (job as any).applicationEmail || fallbackEmail,
+        applicationWebsite: (job as any).applicationWebsite || fallbackWebsite,
         applicationWhatsApp: (job as any).applicationWhatsApp || '',
         published: (job as any).published !== false,
       });
@@ -745,7 +752,7 @@ export default function AdminEditJobPage() {
                       setFormData({
                         ...formData,
                         applyByEmail: e.target.checked,
-                        applicationEmail: e.target.checked ? formData.applicationEmail : '',
+                        applicationEmail: e.target.checked ? (formData.applicationEmail || companyEmail) : '',
                       });
                     }}
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
@@ -775,7 +782,7 @@ export default function AdminEditJobPage() {
                       setFormData({
                         ...formData,
                         applyByWebsite: e.target.checked,
-                        applicationWebsite: e.target.checked ? formData.applicationWebsite : '',
+                        applicationWebsite: e.target.checked ? (formData.applicationWebsite || companyWebsite) : '',
                       });
                     }}
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"

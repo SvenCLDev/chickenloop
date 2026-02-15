@@ -27,7 +27,7 @@ export async function GET(
 
     const job = await Job.findById(id)
       .populate('recruiter', 'name email')
-      .populate('companyId', 'name');
+      .populate('companyId', 'name email website');
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
@@ -285,7 +285,7 @@ export async function PUT(
 
     const updatedJob = await Job.findById(job._id)
       .populate('recruiter', 'name email')
-      .populate('companyId', 'name');
+      .populate('companyId', 'name email website');
 
     return NextResponse.json(
       { message: 'Job updated successfully', job: updatedJob },
