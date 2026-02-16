@@ -1,4 +1,16 @@
+import { getApiRouter } from '@/lib/apiRouterRef';
+
 const API_BASE = '/api';
+
+function handleCompanyProfileIncompleteRedirect() {
+  if (typeof window === 'undefined') return;
+  const router = getApiRouter();
+  if (router) {
+    router.replace('/complete-company-profile');
+  } else {
+    window.location.replace('/complete-company-profile');
+  }
+}
 
 export async function apiRequest(
   endpoint: string,
@@ -40,6 +52,11 @@ export async function apiRequest(
   }
 
   if (!response.ok) {
+    // COMPANY_PROFILE_INCOMPLETE: redirect recruiters to complete profile
+    if (response.status === 403 && data?.error === 'COMPANY_PROFILE_INCOMPLETE') {
+      handleCompanyProfileIncompleteRedirect();
+      throw new Error(data.error);
+    }
     throw new Error(data.error || 'An error occurred');
   }
 
@@ -62,6 +79,16 @@ export const authApi = {
       method: 'POST',
     }),
   me: () => apiRequest('/auth/me'),
+  forgotPassword: (data: { email: string }) =>
+    apiRequest('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    apiRequest('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 export const jobsApi = {

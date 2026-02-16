@@ -8,7 +8,7 @@ import { guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
 export async function GET(request: NextRequest) {
   try {
     // Require authentication and job-seeker role
-    const user = requireRole(request, ['job-seeker']);
+    const user = await requireRole(request, ['job-seeker']);
     await connectDB();
 
     // Fetch applications where candidateId matches the current user
@@ -69,6 +69,15 @@ export async function GET(request: NextRequest) {
     
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

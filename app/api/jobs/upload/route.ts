@@ -1,30 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
-import sharp from 'sharp';
 import { requireRole } from '@/lib/auth';
+import { resizeImage } from '@/lib/imageOptimization';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-const MAX_WIDTH = 1600;
-const JPEG_QUALITY = 82;
-
-async function resizeImage(buffer: Buffer): Promise<Buffer> {
-  return sharp(buffer)
-    .rotate()
-    .resize({
-      width: MAX_WIDTH,
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .jpeg({ quality: JPEG_QUALITY })
-    .toBuffer();
-}
-
 // POST - Upload job pictures (recruiters and admins)
 export async function POST(request: NextRequest) {
   try {
-    requireRole(request, ['recruiter', 'admin']);
+    await requireRole(request, ['recruiter', 'admin']);
 
     const formData = await request.formData();
     const files = formData.getAll('pictures') as File[];
@@ -124,6 +109,15 @@ export async function POST(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

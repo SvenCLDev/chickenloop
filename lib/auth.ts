@@ -1,5 +1,9 @@
 import { NextRequest } from 'next/server';
 import { verifyToken, JWTPayload } from './jwt';
+import connectDB from './db';
+import User from '@/models/User';
+import Company from '@/models/Company';
+import { isCompanyProfileComplete } from './companyProfile';
 
 export interface AuthRequest extends NextRequest {
   user?: JWTPayload;
@@ -36,10 +40,48 @@ export function requireAuth(request: NextRequest): JWTPayload {
   return user;
 }
 
-export function requireRole(request: NextRequest, allowedRoles: string[]): JWTPayload {
+export async function requireRole(request: NextRequest, allowedRoles: string[]): Promise<JWTPayload> {
   const user = requireAuth(request);
   if (!allowedRoles.includes(user.role)) {
     throw new Error('Forbidden');
+  }
+  await connectDB();
+  const userDoc = await User.findById(user.userId).select('mustResetPassword companyId').lean();
+  if (userDoc?.mustResetPassword) {
+    throw new Error('PASSWORD_RESET_REQUIRED');
+  }
+  if (user.role === 'recruiter') {
+    const path = new URL(request.url).pathname;
+    const bypassCompanyMissing =
+      path.startsWith('/recruiter/company/new') || path.startsWith('/api/company');
+    if (path.includes('/complete-company-profile')) {
+      // Skip company enforcement
+    } else {
+      if (!userDoc?.companyId) {
+        if (!bypassCompanyMissing) throw new Error('COMPANY_MISSING');
+      } else {
+        const company = await Company.findById(userDoc.companyId).lean();
+        if (!company) {
+          if (!bypassCompanyMissing) throw new Error('COMPANY_MISSING');
+        } else if (!isCompanyProfileComplete(company)) {
+          throw new Error('COMPANY_PROFILE_INCOMPLETE');
+        }
+      }
+    }
+  }
+  return user;
+}
+
+/** Recruiter auth that skips company completeness check (for complete-profile flow). */
+export async function requireRecruiterAllowIncomplete(request: NextRequest): Promise<JWTPayload> {
+  const user = requireAuth(request);
+  if (user.role !== 'recruiter') {
+    throw new Error('Forbidden');
+  }
+  await connectDB();
+  const userDoc = await User.findById(user.userId).select('mustResetPassword companyId').lean();
+  if (userDoc?.mustResetPassword) {
+    throw new Error('PASSWORD_RESET_REQUIRED');
   }
   return user;
 }

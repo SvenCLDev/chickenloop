@@ -209,7 +209,7 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
   ) {
     try {
-      const user = requireRole(request, ['recruiter', 'admin']);
+      const user = await requireRole(request, ['recruiter', 'admin']);
       await connectDB();
       const { id } = await params;
 
@@ -574,6 +574,12 @@ export async function GET(
     
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

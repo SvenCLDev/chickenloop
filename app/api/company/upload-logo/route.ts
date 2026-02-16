@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { requireRole } from '@/lib/auth';
+import { resizeImage } from '@/lib/imageOptimization';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
@@ -8,7 +9,7 @@ import { existsSync } from 'fs';
 // POST - Upload company logo (recruiters and admins)
 export async function POST(request: NextRequest) {
   try {
-    requireRole(request, ['recruiter', 'admin']);
+    await requireRole(request, ['recruiter', 'admin']);
 
     const formData = await request.formData();
     const file = formData.get('logo') as File;
@@ -17,7 +18,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
     if (!validTypes.includes(file.type)) {
       return NextResponse.json(
@@ -26,45 +26,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
+    const bytes = await file.arrayBuffer();
+    const inputBuffer = Buffer.from(bytes);
+    let resizedBuffer: Buffer;
+    try {
+      resizedBuffer = await resizeImage(inputBuffer);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Image processing failed';
       return NextResponse.json(
-        { error: `File ${file.name} is too large. Maximum size is 5MB.` },
+        { error: `Failed to process image ${file.name}: ${msg}` },
         { status: 400 }
       );
     }
 
-    // Generate unique filename
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 15);
-    const extension = file.name.split('.').pop() || 'jpg';
-    const filename = `companies/logos/logo-${timestamp}-${randomStr}.${extension}`;
+    const filename = `companies/logos/logo-${timestamp}-${randomStr}.jpg`;
 
-    const useBlobStorage = !!process.env.BLOB_READ_WRITE_TOKEN;
-    
-    // Log which storage method is being used (for debugging)
-    console.log('[Upload Logo] Storage method:', useBlobStorage ? 'Vercel Blob Storage' : 'Local filesystem');
-    console.log('[Upload Logo] BLOB_READ_WRITE_TOKEN present:', !!process.env.BLOB_READ_WRITE_TOKEN);
-    
+    const isVercel = !!process.env.VERCEL;
+    const hasBlobToken = !!process.env.BLOB_READ_WRITE_TOKEN;
+    const useBlobStorage = isVercel || hasBlobToken;
+
+    if (isVercel && !hasBlobToken) {
+      return NextResponse.json(
+        { error: 'BLOB_READ_WRITE_TOKEN is required for file uploads in production' },
+        { status: 500 }
+      );
+    }
+
     let url: string;
 
     if (useBlobStorage) {
-      // Upload to Vercel Blob (production)
-      const blob = await put(filename, file, { access: 'public' });
+      const blob = await put(filename, resizedBuffer, {
+        access: 'public',
+        contentType: 'image/jpeg',
+      });
       console.log('[Upload Logo] Uploaded to Blob Storage:', blob.url);
       url = blob.url;
     } else {
-      // Fallback to filesystem storage (local development)
       const uploadDir = join(process.cwd(), 'public', 'uploads', 'companies', 'logos');
       if (!existsSync(uploadDir)) {
         await mkdir(uploadDir, { recursive: true });
       }
-      const filePath = join(uploadDir, `logo-${timestamp}-${randomStr}.${extension}`);
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      await writeFile(filePath, buffer);
-      const localPath = `/uploads/companies/logos/logo-${timestamp}-${randomStr}.${extension}`;
+      const filePath = join(uploadDir, `logo-${timestamp}-${randomStr}.jpg`);
+      await writeFile(filePath, resizedBuffer);
+      const localPath = `/uploads/companies/logos/logo-${timestamp}-${randomStr}.jpg`;
       console.log('[Upload Logo] Saved to local filesystem:', localPath);
       url = localPath;
     }
@@ -80,6 +86,15 @@ export async function POST(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === "COMPANY_PROFILE_INCOMPLETE") {
+      return NextResponse.json(
+        { error: "COMPANY_PROFILE_INCOMPLETE" },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

@@ -600,6 +600,11 @@ export function normalizeCountryForStorage(
   return undefined;
 }
 
+/** Sorted list of { code, name } for country selects */
+export const COUNTRY_OPTIONS = Object.entries(CODE_TO_NAME)
+  .map(([code, name]) => ({ code, name }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
 /**
  * @deprecated Use getCountryNameFromCode for ISO codes.
  */

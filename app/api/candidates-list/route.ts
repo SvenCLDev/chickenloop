@@ -7,7 +7,7 @@ import { parseCandidateSearchParams } from '@/lib/candidateSearchParams';
 export async function GET(request: NextRequest) {
   console.log('API: /api/candidates-list called');
   try {
-    const user = requireRole(request, ['recruiter', 'admin']);
+    const user = await requireRole(request, ['recruiter', 'admin']);
     console.log('API: /api/candidates-list - User authorized:', user.email);
 
     const { searchParams } = new URL(request.url);
@@ -41,6 +41,15 @@ export async function GET(request: NextRequest) {
     console.error('API: /api/candidates-list - Error:', error);
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

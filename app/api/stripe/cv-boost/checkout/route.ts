@@ -36,7 +36,7 @@ function getBaseUrlFromRequest(request: NextRequest): string {
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = requireRole(request, ['job-seeker']);
+    const user = await requireRole(request, ['job-seeker']);
     const secretKey = getStripeSecretKey();
     if (!secretKey) {
       return NextResponse.json(
@@ -143,6 +143,12 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     if (message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (message === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

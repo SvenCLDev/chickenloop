@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      { source: '/create-cv', destination: '/job-seeker/cv/new', permanent: false },
+    ];
+  },
   // Performance optimizations for dev server
   typescript: {
     // Faster TypeScript compilation

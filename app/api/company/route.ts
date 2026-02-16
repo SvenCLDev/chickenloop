@@ -21,7 +21,7 @@ import { sanitizeRichTextLite } from '@/utils/sanitizeRichTextLite';
 // GET - Get current recruiter's company
 export async function GET(request: NextRequest) {
   try {
-    const user = requireRole(request, ['recruiter']);
+    const user = await requireRole(request, ['recruiter']);
     await connectDB();
 
     const userDoc = await User.findById(user.userId).select('companyId').lean();
@@ -43,6 +43,15 @@ export async function GET(request: NextRequest) {
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === "COMPANY_PROFILE_INCOMPLETE") {
+      return NextResponse.json(
+        { error: "COMPANY_PROFILE_INCOMPLETE" },
+        { status: 403 }
+      );
+    }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -56,7 +65,7 @@ export async function GET(request: NextRequest) {
 // POST - Create a new company (recruiters only, one per recruiter)
 export async function POST(request: NextRequest) {
   try {
-    const user = requireRole(request, ['recruiter']);
+    const user = await requireRole(request, ['recruiter']);
     await connectDB();
 
     const userDoc = await User.findById(user.userId).select('companyId').lean();
@@ -185,6 +194,15 @@ export async function POST(request: NextRequest) {
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === "COMPANY_PROFILE_INCOMPLETE") {
+      return NextResponse.json(
+        { error: "COMPANY_PROFILE_INCOMPLETE" },
+        { status: 403 }
+      );
+    }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -206,7 +224,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update recruiter's company
 export async function PUT(request: NextRequest) {
   try {
-    const user = requireRole(request, ['recruiter']);
+    const user = await requireRole(request, ['recruiter']);
     await connectDB();
 
     const userDoc = await User.findById(user.userId).select('companyId').lean();
@@ -315,6 +333,15 @@ export async function PUT(request: NextRequest) {
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === "COMPANY_PROFILE_INCOMPLETE") {
+      return NextResponse.json(
+        { error: "COMPANY_PROFILE_INCOMPLETE" },
+        { status: 403 }
+      );
+    }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -328,7 +355,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete recruiter's company
 export async function DELETE(request: NextRequest) {
   try {
-    const user = requireRole(request, ['recruiter']);
+    const user = await requireRole(request, ['recruiter']);
     await connectDB();
 
     const userDoc = await User.findById(user.userId).select('companyId').lean();
@@ -368,6 +395,15 @@ export async function DELETE(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === "COMPANY_PROFILE_INCOMPLETE") {
+      return NextResponse.json(
+        { error: "COMPANY_PROFILE_INCOMPLETE" },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

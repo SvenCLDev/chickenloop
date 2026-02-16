@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authApi, companyApi } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { setApiRouter } from '@/lib/apiRouterRef';
 
 interface User {
   id: string;
@@ -46,26 +47,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    setApiRouter(router);
+    return () => setApiRouter(null);
+  }, [router]);
+
+  useEffect(() => {
     refreshUser();
   }, []);
 
   const login = async (email: string, password: string) => {
-    const data = await authApi.login({ email, password });
-    setUser(data.user);
-    
-    // Check if recruiter has a company
-    if (data.user.role === 'recruiter') {
-      try {
-        await companyApi.get();
-        // Company exists, go to recruiter dashboard
-        router.push('/recruiter');
-      } catch (error) {
-        // Company doesn't exist, redirect to company creation
-        router.push('/recruiter/company/new');
+    try {
+      const data = await authApi.login({ email, password });
+      setUser(data.user);
+
+      // Check if recruiter has a company
+      if (data.user.role === 'recruiter') {
+        try {
+          await companyApi.get();
+          // Company exists, go to recruiter dashboard
+          router.push('/recruiter');
+        } catch (error) {
+          // Company doesn't exist, redirect to company creation
+          router.push('/recruiter/company/new');
+        }
+      } else {
+        // Admin or job-seeker
+        router.push(`/${data.user.role === 'admin' ? 'admin' : 'job-seeker'}`);
       }
-    } else {
-      // Admin or job-seeker
-      router.push(`/${data.user.role === 'admin' ? 'admin' : 'job-seeker'}`);
+    } catch (err: any) {
+      if (err.message === 'PASSWORD_RESET_REQUIRED') {
+        router.push(`/reset-password-required?email=${encodeURIComponent(email)}`);
+        return;
+      }
+      throw err;
     }
   };
 
