@@ -46,7 +46,7 @@ export async function requireRole(request: NextRequest, allowedRoles: string[]):
     throw new Error('Forbidden');
   }
   await connectDB();
-  const userDoc = await User.findById(user.userId).select('mustResetPassword companyId').lean();
+  const userDoc = await User.findById(user.userId).select('mustResetPassword companyId').lean() as { mustResetPassword?: boolean; companyId?: unknown } | null;
   if (userDoc?.mustResetPassword) {
     throw new Error('PASSWORD_RESET_REQUIRED');
   }
@@ -79,7 +79,7 @@ export async function requireRecruiterAllowIncomplete(request: NextRequest): Pro
     throw new Error('Forbidden');
   }
   await connectDB();
-  const userDoc = await User.findById(user.userId).select('mustResetPassword companyId').lean();
+  const userDoc = await User.findById(user.userId).select('mustResetPassword companyId').lean() as { mustResetPassword?: boolean; companyId?: unknown } | null;
   if (userDoc?.mustResetPassword) {
     throw new Error('PASSWORD_RESET_REQUIRED');
   }
