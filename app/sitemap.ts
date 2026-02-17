@@ -40,8 +40,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
 
     return [...staticPages, ...companyUrls, ...jobUrls];
-  } catch (error) {
-    console.error('[sitemap] Error:', error);
+  } catch {
     return staticPages;
   }
 }
