@@ -112,6 +112,7 @@ export function buildJobJsonLd(job: JobForJsonLd | null, jobUrl?: string): objec
       address: {
         '@type': 'PostalAddress',
         addressLocality: job.city,
+        ...(job.country && job.country.length === 2 && { addressCountry: job.country.toUpperCase() }),
       },
     },
   };
@@ -127,11 +128,6 @@ export function buildJobJsonLd(job: JobForJsonLd | null, jobUrl?: string): objec
   // Add validThrough if available
   if (validThrough) {
     jsonLd.validThrough = validThrough;
-  }
-
-  // Add country code if available (must be ISO 3166-1 alpha-2)
-  if (job.country && job.country.length === 2) {
-    jsonLd.jobLocation.address.addressCountry = job.country.toUpperCase();
   }
 
   // Add baseSalary if available
