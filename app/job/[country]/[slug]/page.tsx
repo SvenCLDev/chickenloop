@@ -128,42 +128,81 @@ async function getUserFromCookies(): Promise<{ userId: string; role: string } | 
 }
 
 /**
+ * Normalize a slug for comparison: replace hyphens with spaces, lowercase
+ */
+function normalizeSlugForMatch(slug: string): string {
+  return slug.replace(/-/g, ' ').toLowerCase();
+}
+
+/**
  * Find a job by slug and country
  * Returns the job ID if found, null otherwise
  */
 async function findJobBySlug(slug: string, countrySlug: string): Promise<string | null> {
   try {
     await connectDB();
-    
-    // Find all published jobs
+
     const jobs = await Job.find({ published: { $ne: false } })
       .select('_id title country')
       .lean();
-    
-    // Find job where slug matches and country slug matches
+
     for (const job of jobs) {
       const jobSlug = generateJobSlug(job.title);
       const jobCountrySlug = generateCountrySlug(job.country);
-      
       if (jobSlug === slug && jobCountrySlug === countrySlug) {
         return String(job._id);
       }
     }
-    
-    // Fallback: try to find by slug only (if country doesn't match but slug does)
-    // This handles edge cases where country might be missing or different
+
     for (const job of jobs) {
       const jobSlug = generateJobSlug(job.title);
       if (jobSlug === slug) {
         return String(job._id);
       }
     }
-    
+
     return null;
-  } catch (error) {
-    console.error('Error finding job by slug:', error);
+  } catch {
     return null;
   }
+}
+
+/**
+ * Resolve job from slug: first try exact match, then normalized fallback.
+ * Returns { jobId } | { redirect: path } | null.
+ */
+async function resolveJobFromSlug(
+  slug: string,
+  countrySlug: string
+): Promise<{ jobId: string } | { redirect: string } | null> {
+  const jobId = await findJobBySlug(slug, countrySlug);
+  if (jobId) {
+    return { jobId };
+  }
+
+  const normalizedRequested = normalizeSlugForMatch(slug);
+
+  await connectDB();
+  const jobs = await Job.find({ published: { $ne: false } })
+    .select('_id title country')
+    .lean();
+
+  const inCountry = jobs.filter(
+    (j: { country?: string | null }) => generateCountrySlug(j.country) === countrySlug
+  );
+
+  const matches = inCountry.filter((j: { title: string }) => {
+    const jobSlug = generateJobSlug(j.title);
+    const normalizedJobSlug = normalizeSlugForMatch(jobSlug);
+    return normalizedJobSlug === normalizedRequested;
+  });
+
+  if (matches.length === 1) {
+    const correctSlug = generateJobSlug(matches[0].title);
+    return { redirect: `/job/${countrySlug}/${correctSlug}` };
+  }
+
+  return null;
 }
 
 /**
@@ -338,13 +377,15 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { country: countrySlug, slug } = await params;
-  
-  // Find job by slug and country
-  const jobId = await findJobBySlug(slug, countrySlug);
-  
-  if (!jobId) {
+
+  const result = await resolveJobFromSlug(slug, countrySlug);
+  if (!result) {
     return {};
   }
+  if ('redirect' in result) {
+    permanentRedirect(result.redirect);
+  }
+  const jobId = result.jobId;
   
   // Get the job data (minimal fetch for metadata)
   try {
@@ -380,13 +421,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function CanonicalJobDetailPage({ params }: PageProps) {
   const { country: countrySlug, slug } = await params;
-  
-  // Find job by slug and country
-  const jobId = await findJobBySlug(slug, countrySlug);
-  
-  if (!jobId) {
+
+  const result = await resolveJobFromSlug(slug, countrySlug);
+  if (!result) {
     notFound();
   }
+  if ('redirect' in result) {
+    permanentRedirect(result.redirect);
+  }
+  const jobId = result.jobId;
   
   // Get the job data
   const job = await getJob(jobId);

@@ -87,7 +87,7 @@ async function connectDB() {
       serverSelectionTimeoutMS: isLocal ? 5000 : 10000, // Faster for local
       socketTimeoutMS: isLocal ? 30000 : 60000, // Shorter for local
       connectTimeoutMS: isLocal ? 5000 : 10000, // Faster for local
-      maxPoolSize: isLocal ? 15 : 10, // More connections for local (increased from 10)
+      maxPoolSize: isLocal ? 15 : 5, // More connections for local (increased from 10)
       minPoolSize: isLocal ? 3 : 1, // Maintain more connections for local (increased from 2)
       maxIdleTimeMS: isLocal ? 30000 : 10000, // Longer for local
       retryWrites: true,
