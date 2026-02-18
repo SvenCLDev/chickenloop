@@ -14,6 +14,9 @@ export interface IUser extends Document {
   lastOnline?: Date;
   notesEnabled?: boolean;
 
+  mustResetPassword?: boolean;
+  passwordMigrated?: boolean;
+
   // 🔹 Migration metadata
   legacy?: {
     source: 'drupal7' | 'drupal';
@@ -70,6 +73,15 @@ const UserSchema: Schema = new Schema(
     notesEnabled: {
       type: Boolean,
       default: true,
+    },
+    mustResetPassword: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    passwordMigrated: {
+      type: Boolean,
+      default: false,
     },
 
     // 🔹 Legacy / migration

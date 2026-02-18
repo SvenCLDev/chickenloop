@@ -260,6 +260,8 @@ async function persistRecruiters(recruiters: RecruiterRow[]): Promise<number> {
         },
         $setOnInsert: {
           password: 'MIGRATION_PLACEHOLDER_CHANGE_ME',
+          mustResetPassword: true,
+          passwordMigrated: true,
         },
       },
       { upsert: true, new: true }

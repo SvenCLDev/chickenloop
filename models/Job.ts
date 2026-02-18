@@ -82,11 +82,14 @@ export interface IJob extends Document {
 
   datePosted?: Date;
 
+  legacySlug?: string;
+
   // 🔹 Legacy / migration metadata
   legacy?: {
     source: 'drupal7' | 'drupal';
     jobNodeId?: number;
     drupalNid?: string | number;
+    legacySlug?: string;
     authorUserId?: number;
     originalCompanyText?: string;
     workflowState?: string;
@@ -174,6 +177,11 @@ const JobSchema: Schema = new Schema(
       index: true,
     },
 
+    legacySlug: {
+      type: String,
+      index: true,
+    },
+
     featured: {
       type: Boolean,
       default: false,
@@ -213,6 +221,7 @@ const JobSchema: Schema = new Schema(
       },
       jobNodeId: Number,
       drupalNid: Schema.Types.Mixed,
+      legacySlug: String,
       authorUserId: Number,
       originalCompanyText: String,
       workflowState: String,
@@ -226,6 +235,7 @@ const JobSchema: Schema = new Schema(
 JobSchema.index({ createdAt: -1 });
 JobSchema.index({ featured: 1 });
 JobSchema.index({ featuredUntil: 1 });
+JobSchema.index({ 'legacy.legacySlug': 1 });
 
 const Job =
   (mongoose.models.Job as Model<IJob>) ||

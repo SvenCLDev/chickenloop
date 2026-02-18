@@ -21,7 +21,7 @@ import { sanitizeRichTextLite } from '@/utils/sanitizeRichTextLite';
 // GET - Get current recruiter's company
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireRole(request, ['recruiter']);
+    const user = await requireRole(request, ['recruiter'], { skipCompanyProfileCheck: true });
     await connectDB();
 
     const userDoc = await User.findById(user.userId).select('companyId').lean();
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 // POST - Create a new company (recruiters only, one per recruiter)
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireRole(request, ['recruiter']);
+    const user = await requireRole(request, ['recruiter'], { skipCompanyProfileCheck: true });
     await connectDB();
 
     const userDoc = await User.findById(user.userId).select('companyId').lean();
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update recruiter's company
 export async function PUT(request: NextRequest) {
   try {
-    const user = await requireRole(request, ['recruiter']);
+    const user = await requireRole(request, ['recruiter'], { skipCompanyProfileCheck: true });
     await connectDB();
 
     const userDoc = await User.findById(user.userId).select('companyId').lean();
@@ -355,7 +355,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete recruiter's company
 export async function DELETE(request: NextRequest) {
   try {
-    const user = await requireRole(request, ['recruiter']);
+    const user = await requireRole(request, ['recruiter'], { skipCompanyProfileCheck: true });
     await connectDB();
 
     const userDoc = await User.findById(user.userId).select('companyId').lean();

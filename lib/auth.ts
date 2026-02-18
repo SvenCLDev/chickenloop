@@ -3,7 +3,7 @@ import { verifyToken, JWTPayload } from './jwt';
 import connectDB from './db';
 import User from '@/models/User';
 import Company from '@/models/Company';
-import { isCompanyProfileComplete } from './companyProfile';
+import { getCompanyProfileIncompleteReason } from './companyProfile';
 
 export interface AuthRequest extends NextRequest {
   user?: JWTPayload;
@@ -40,7 +40,16 @@ export function requireAuth(request: NextRequest): JWTPayload {
   return user;
 }
 
-export async function requireRole(request: NextRequest, allowedRoles: string[]): Promise<JWTPayload> {
+export interface RequireRoleOptions {
+  /** Skip company completeness check (for company setup routes) */
+  skipCompanyProfileCheck?: boolean;
+}
+
+export async function requireRole(
+  request: NextRequest,
+  allowedRoles: string[],
+  options?: RequireRoleOptions
+): Promise<JWTPayload> {
   const user = requireAuth(request);
   if (!allowedRoles.includes(user.role)) {
     throw new Error('Forbidden');
@@ -50,7 +59,7 @@ export async function requireRole(request: NextRequest, allowedRoles: string[]):
   if (userDoc?.mustResetPassword) {
     throw new Error('PASSWORD_RESET_REQUIRED');
   }
-  if (user.role === 'recruiter') {
+  if (user.role === 'recruiter' && !options?.skipCompanyProfileCheck) {
     const path = new URL(request.url).pathname;
     const bypassCompanyMissing =
       path.startsWith('/recruiter/company/new') || path.startsWith('/api/company');
@@ -63,13 +72,27 @@ export async function requireRole(request: NextRequest, allowedRoles: string[]):
         const company = await Company.findById(userDoc.companyId).lean();
         if (!company) {
           if (!bypassCompanyMissing) throw new Error('COMPANY_MISSING');
-        } else if (!isCompanyProfileComplete(company)) {
-          throw new Error('COMPANY_PROFILE_INCOMPLETE');
+        } else {
+          const reason = getCompanyProfileIncompleteReason(company);
+          if (reason) {
+            const err = new Error('COMPANY_PROFILE_INCOMPLETE');
+            (err as Error & { detail?: string }).detail = reason;
+            throw err;
+          }
         }
       }
     }
   }
   return user;
+}
+
+/** Build 403 response for COMPANY_PROFILE_INCOMPLETE with optional detail. */
+export function companyProfileIncompleteResponse(error: unknown): { error: string; detail?: string } | null {
+  if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+    const detail = (error as Error & { detail?: string }).detail;
+    return { error: 'COMPANY_PROFILE_INCOMPLETE', detail };
+  }
+  return null;
 }
 
 /** Recruiter auth that skips company completeness check (for complete-profile flow). */

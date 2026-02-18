@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   getCountryNameFromCode,
   normalizeCountryForStorage,
@@ -12,6 +12,8 @@ import {
 export default function CompleteCompanyProfilePage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const reasonParam = searchParams.get('reason');
   const [description, setDescription] = useState('');
   const [country, setCountry] = useState('');
   const [city, setCity] = useState('');
@@ -142,6 +144,15 @@ export default function CompleteCompanyProfilePage() {
           <p className="text-gray-600 text-sm mb-6">
             Please add the following details to continue.
           </p>
+
+          {reasonParam && (
+            <div
+              className="mb-4 p-3 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-sm"
+              role="alert"
+            >
+              {reasonParam}
+            </div>
+          )}
 
           {error && (
             <div

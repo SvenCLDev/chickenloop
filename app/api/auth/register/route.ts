@@ -11,7 +11,8 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const { email, password, name, role } = await request.json();
+    const { email, password, name, role, sendEmail: sendEmailParam } = await request.json();
+    const sendEmail = sendEmailParam !== false; // default true
 
     if (!email || !password || !name || !role) {
       return NextResponse.json(
@@ -52,9 +53,8 @@ export async function POST(request: NextRequest) {
       marketing: false,
     });
 
-    // Send welcome email asynchronously (fire-and-forget)
-    // Email goes through canSendEmail() to check preferences
-    // Failures are logged but don't block registration
+    // Send welcome email asynchronously (fire-and-forget) when sendEmail is true
+    if (sendEmail) {
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
         || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
     } catch (emailError) {
       // Log but don't fail registration if email fails
       console.error('[Registration] Failed to queue welcome email:', emailError);
+    }
     }
 
     const token = generateToken(user);

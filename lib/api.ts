@@ -2,13 +2,16 @@ import { getApiRouter } from '@/lib/apiRouterRef';
 
 const API_BASE = '/api';
 
-function handleCompanyProfileIncompleteRedirect() {
+function handleCompanyProfileIncompleteRedirect(detail?: string) {
   if (typeof window === 'undefined') return;
+  const path = detail
+    ? `/complete-company-profile?reason=${encodeURIComponent(detail)}`
+    : '/complete-company-profile';
   const router = getApiRouter();
   if (router) {
-    router.replace('/complete-company-profile');
+    router.replace(path);
   } else {
-    window.location.replace('/complete-company-profile');
+    window.location.replace(path);
   }
 }
 
@@ -54,8 +57,11 @@ export async function apiRequest(
   if (!response.ok) {
     // COMPANY_PROFILE_INCOMPLETE: redirect recruiters to complete profile
     if (response.status === 403 && data?.error === 'COMPANY_PROFILE_INCOMPLETE') {
-      handleCompanyProfileIncompleteRedirect();
-      throw new Error(data.error);
+      handleCompanyProfileIncompleteRedirect(data.detail);
+      const msg = data.detail
+        ? `COMPANY_PROFILE_INCOMPLETE: ${data.detail}`
+        : data.error;
+      throw new Error(msg);
     }
     throw new Error(data.error || 'An error occurred');
   }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
-import { requireRole } from '@/lib/auth';
+import { requireRole, companyProfileIncompleteResponse } from '@/lib/auth';
 import { resizeImage } from '@/lib/imageOptimization';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -9,7 +9,7 @@ import { existsSync } from 'fs';
 // POST - Upload company pictures (recruiters and admins)
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, ['recruiter', 'admin']);
+    await requireRole(request, ['recruiter', 'admin'], { skipCompanyProfileCheck: true });
 
     const formData = await request.formData();
     const files = formData.getAll('pictures') as File[];
@@ -99,11 +99,9 @@ export async function POST(request: NextRequest) {
     if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
       return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
     }
-    if (error instanceof Error && error.message === "COMPANY_PROFILE_INCOMPLETE") {
-      return NextResponse.json(
-        { error: "COMPANY_PROFILE_INCOMPLETE" },
-        { status: 403 }
-      );
+    const incomplete = companyProfileIncompleteResponse(error);
+    if (incomplete) {
+      return NextResponse.json(incomplete, { status: 403 });
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

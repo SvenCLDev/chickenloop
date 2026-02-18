@@ -42,6 +42,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (user.mustResetPassword) {
+      return NextResponse.json(
+        { error: 'PASSWORD_RESET_REQUIRED' },
+        { status: 403 }
+      );
+    }
+
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       return NextResponse.json(

@@ -9,7 +9,7 @@ import { existsSync } from 'fs';
 // POST - Upload company logo (recruiters and admins)
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, ['recruiter', 'admin']);
+    await requireRole(request, ['recruiter', 'admin'], { skipCompanyProfileCheck: true });
 
     const formData = await request.formData();
     const file = formData.get('logo') as File;
