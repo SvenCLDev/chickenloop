@@ -5,6 +5,7 @@ import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import Navbar from '../../../../components/Navbar';
 import { adminApi } from '@/lib/api';
+import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
 import { QUALIFICATIONS } from '@/lib/qualifications';
 import {
@@ -40,6 +41,7 @@ export default function AdminEditJobPage() {
     applicationWebsite: '',
     applicationWhatsApp: '',
     published: true,
+    legacySlug: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -75,9 +77,10 @@ export default function AdminEditJobPage() {
       const jobCountryCode = (job as any).country;
       const jobCountryName = jobCountryCode ? getCountryNameFromCode(jobCountryCode) : '';
 
-      const company = job.companyId as { email?: string; website?: string } | null;
+      const company = job.companyId as { _id?: unknown; id?: string; name?: string; email?: string; website?: string } | null;
       const fallbackEmail = company?.email || '';
       const fallbackWebsite = company?.website || '';
+      const companyDisplay = company?.name || '';
       setCompanyEmail(fallbackEmail);
       setCompanyWebsite(fallbackWebsite);
       setFormData({
@@ -87,7 +90,7 @@ export default function AdminEditJobPage() {
         country: jobCountryName,
         salary: job.salary || '',
         type: job.type || 'full-time',
-        company: job.company || '',
+        company: companyDisplay,
         languages: (job as any).languages || [],
         qualifications: (job as any).qualifications || [],
         sports: (job as any).sports || [],
@@ -99,6 +102,7 @@ export default function AdminEditJobPage() {
         applicationWebsite: (job as any).applicationWebsite || fallbackWebsite,
         applicationWhatsApp: (job as any).applicationWhatsApp || '',
         published: (job as any).published !== false,
+        legacySlug: (job as any).legacySlug || '',
       });
       setExistingPictures((job as any).pictures || []);
     } catch (err: any) {
@@ -159,7 +163,7 @@ export default function AdminEditJobPage() {
     try {
       const uploadFormData = new FormData();
       selectedPictures.forEach((file) => {
-        uploadFormData.append('pictures', file);
+        uploadFormData.append('pictures', sanitizeFileForUpload(file));
       });
 
       const response = await fetch('/api/jobs/upload', {
@@ -193,12 +197,14 @@ export default function AdminEditJobPage() {
       // Update job with picture paths
       const normalizedCountry = normalizeCountryForStorage(formData.country);
 
+      const { company: _company, ...updatePayload } = formData;
       await adminApi.updateJob(jobId, {
-        ...formData,
+        ...updatePayload,
         country: normalizedCountry,
         sports: formData.sports,
         pictures: allPicturePaths,
         published: formData.published,
+        legacySlug: formData.legacySlug?.trim() || undefined,
       });
 
       // Clean up preview URLs
@@ -267,15 +273,15 @@ export default function AdminEditJobPage() {
             </div>
             <div>
               <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
-                Company *
+                Company
               </label>
               <input
                 id="company"
                 type="text"
                 value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 cursor-not-allowed"
+                aria-label="Company (read-only)"
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -372,6 +378,26 @@ export default function AdminEditJobPage() {
                 </span>
               </label>
             </div>
+
+            {/* Legacy Drupal Slug (admin only, not exposed publicly) */}
+            {user?.role === 'admin' && (
+              <div>
+                <label htmlFor="legacySlug" className="block text-sm font-medium text-gray-700 mb-1">
+                  Legacy Drupal Slug
+                </label>
+                <input
+                  id="legacySlug"
+                  type="text"
+                  value={formData.legacySlug}
+                  onChange={(e) => setFormData({ ...formData, legacySlug: e.target.value })}
+                  placeholder="e.g., old-drupal-url-slug"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Optional. Used for legacy URL redirects from Drupal. Not shown publicly.
+                </p>
+              </div>
+            )}
 
             {/* Languages, Qualifications, Sports, Occupational Areas - Same as recruiter version */}
             <div>

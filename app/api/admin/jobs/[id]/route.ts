@@ -6,6 +6,7 @@ import Company from '@/models/Company';
 import { requireRole } from '@/lib/auth';
 import { createDeleteAuditLog } from '@/lib/audit';
 import { JOB_CATEGORY_VALUES } from '@/lib/jobCategories';
+import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 
@@ -94,7 +95,7 @@ export async function PUT(
       );
     }
 
-    const { title, description, city, country, salary, type, companyId: companyIdFromBody, company: companyFromBody, languages, qualifications, sports, occupationalAreas, pictures, spam, published, featured, applyByEmail, applyByWebsite, applicationEmail, applicationWebsite } = requestBody;
+    const { title, description, city, country, salary, type, companyId: companyIdFromBody, company: companyFromBody, languages, qualifications, sports, occupationalAreas, pictures, spam, published, featured, applyByEmail, applyByWebsite, applicationEmail, applicationWebsite, legacySlug } = requestBody;
 
     // Validate required fields if provided
     if (title !== undefined && (!title || !title.trim())) {
@@ -135,7 +136,7 @@ export async function PUT(
     }
 
     if (title) job.title = title;
-    if (description) job.description = description;
+    if (description) job.description = sanitizeJobDescription(description);
     if (city) job.city = city;
     if (country !== undefined) job.country = country?.trim().toUpperCase() || undefined;
     if (salary !== undefined) job.salary = salary;
@@ -269,6 +270,11 @@ export async function PUT(
     }
     if (applicationWebsite !== undefined) {
       job.applicationWebsite = normalizeUrl(applicationWebsite);
+    }
+
+    // Legacy Drupal slug (admin only, not exposed publicly)
+    if (legacySlug !== undefined) {
+      job.legacySlug = typeof legacySlug === 'string' && legacySlug.trim() ? legacySlug.trim() : undefined;
     }
 
     // Validate all required fields are present before saving

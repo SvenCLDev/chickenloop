@@ -5,6 +5,7 @@ import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import Navbar from '../../../../components/Navbar';
 import { adminApi } from '@/lib/api';
+import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import { QUALIFICATIONS } from '@/lib/qualifications';
 import { SPORTS_LIST } from '@/lib/sports';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
@@ -96,20 +97,12 @@ export default function AdminEditCVPage() {
       return;
     }
 
-    // Validate file types and sizes
+    // Validate file types (images are optimized server-side, no size limit)
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
 
     for (const file of files) {
       if (!validTypes.includes(file.type)) {
         setError(`Invalid file type: ${file.name}. Only images (JPEG, PNG, WEBP, GIF) are allowed.`);
-        return;
-      }
-      if (file.size > maxSize) {
-        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        const errorMessage = `File "${file.name}" is too large (${fileSizeMB} MB). Maximum size is 5MB.`;
-        alert(`Warning: ${errorMessage}`);
-        setError(errorMessage);
         return;
       }
     }
@@ -146,7 +139,7 @@ export default function AdminEditCVPage() {
     try {
       const uploadFormData = new FormData();
       selectedPictures.forEach((file) => {
-        uploadFormData.append('pictures', file);
+        uploadFormData.append('pictures', sanitizeFileForUpload(file));
       });
 
       const response = await fetch('/api/cv/upload', {
@@ -968,7 +961,7 @@ export default function AdminEditCVPage() {
                 )}
               </div>
               <p className="text-sm text-gray-500 mt-1">
-                Maximum 3 pictures, 5MB each. Supported formats: JPEG, PNG, WEBP, GIF
+                Maximum 3 pictures. Supported formats: JPEG, PNG, WEBP, GIF. Large images are automatically optimized.
               </p>
               {(selectedPictures.length > 0 || existingPictures.length > 0) && (
                 <div className="mt-4 grid grid-cols-3 gap-4">

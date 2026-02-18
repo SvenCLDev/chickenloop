@@ -7,7 +7,7 @@ import ShareJobButton from '../../../components/ShareJobButton';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { buildJobJsonLd } from '@/lib/seo/jobJsonLd';
 import { generateCompanySummary } from '@/lib/companySummary';
-import { generateJobSlug, generateCountrySlug, generateJobUrlPath } from '@/lib/jobSlug';
+import { generateJobSlug, generateCountrySlug, generateJobUrlPath, getCountryValuesForSlug } from '@/lib/jobSlug';
 import Link from 'next/link';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
@@ -128,78 +128,50 @@ async function getUserFromCookies(): Promise<{ userId: string; role: string } | 
 }
 
 /**
- * Normalize a slug for comparison: replace hyphens with spaces, lowercase
- */
-function normalizeSlugForMatch(slug: string): string {
-  return slug.replace(/-/g, ' ').toLowerCase();
-}
-
-/**
- * Find a job by slug and country
- * Returns the job ID if found, null otherwise
- */
-async function findJobBySlug(slug: string, countrySlug: string): Promise<string | null> {
-  try {
-    await connectDB();
-
-    const jobs = await Job.find({ published: { $ne: false } })
-      .select('_id title country')
-      .lean();
-
-    for (const job of jobs) {
-      const jobSlug = generateJobSlug(job.title);
-      const jobCountrySlug = generateCountrySlug(job.country);
-      if (jobSlug === slug && jobCountrySlug === countrySlug) {
-        return String(job._id);
-      }
-    }
-
-    for (const job of jobs) {
-      const jobSlug = generateJobSlug(job.title);
-      if (jobSlug === slug) {
-        return String(job._id);
-      }
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Resolve job from slug: first try exact match, then normalized fallback.
+ * Resolve job from slug: canonical match first, then legacySlug fallback with redirect.
  * Returns { jobId } | { redirect: path } | null.
  */
 async function resolveJobFromSlug(
   slug: string,
   countrySlug: string
 ): Promise<{ jobId: string } | { redirect: string } | null> {
-  const jobId = await findJobBySlug(slug, countrySlug);
-  if (jobId) {
-    return { jobId };
-  }
-
-  const normalizedRequested = normalizeSlugForMatch(slug);
-
   await connectDB();
-  const jobs = await Job.find({ published: { $ne: false } })
+
+  // 1. Canonical slug: filter by country, then match title slug
+  const countryValues = getCountryValuesForSlug(countrySlug);
+  const countryFilter =
+    countryValues.length > 0
+      ? { country: { $in: countryValues } }
+      : { country: { $in: [] } };
+
+  const canonicalCandidates = await Job.find({
+    published: { $ne: false },
+    ...countryFilter,
+  })
     .select('_id title country')
     .lean();
 
-  const inCountry = jobs.filter(
-    (j: { country?: string | null }) => generateCountrySlug(j.country) === countrySlug
-  );
+  for (const job of canonicalCandidates) {
+    if (
+      generateJobSlug(job.title) === slug &&
+      generateCountrySlug(job.country) === countrySlug
+    ) {
+      return { jobId: String(job._id) };
+    }
+  }
 
-  const matches = inCountry.filter((j: { title: string }) => {
-    const jobSlug = generateJobSlug(j.title);
-    const normalizedJobSlug = normalizeSlugForMatch(jobSlug);
-    return normalizedJobSlug === normalizedRequested;
-  });
+  // 2. Legacy slug fallback: indexed query by legacySlug (no country filter)
+  const legacyJob = await Job.findOne({
+    published: { $ne: false },
+    legacySlug: slug,
+  })
+    .select('_id title country')
+    .lean();
 
-  if (matches.length === 1) {
-    const correctSlug = generateJobSlug(matches[0].title);
-    return { redirect: `/job/${countrySlug}/${correctSlug}` };
+  if (legacyJob) {
+    const correctCountrySlug = generateCountrySlug(legacyJob.country);
+    const correctSlug = generateJobSlug(legacyJob.title);
+    return { redirect: `/job/${correctCountrySlug}/${correctSlug}` };
   }
 
   return null;
@@ -637,7 +609,7 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Job Description</h2>
               <div
-                className="text-gray-700 leading-relaxed"
+                className="prose prose-p:text-gray-700 prose-li:text-gray-700 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-6 prose-ol:pl-6 prose-li:my-1 max-w-none leading-relaxed"
                 // Description HTML is sanitized on the backend using sanitize-html
                 dangerouslySetInnerHTML={{ __html: job.description || '' }}
               />

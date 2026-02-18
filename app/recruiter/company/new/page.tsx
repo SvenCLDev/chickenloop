@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Navbar from '../../../components/Navbar';
 import { companyApi } from '@/lib/api';
+import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import {
   getCountryNameFromCode,
   normalizeCountryForStorage,
@@ -271,7 +272,7 @@ export default function NewCompanyPage() {
     setUploadingLogo(true);
     try {
       const uploadFormData = new FormData();
-      uploadFormData.append('logo', selectedLogo);
+      uploadFormData.append('logo', sanitizeFileForUpload(selectedLogo));
 
       const response = await fetch('/api/company/upload-logo', {
         method: 'POST',
@@ -298,7 +299,7 @@ export default function NewCompanyPage() {
     try {
       const uploadFormData = new FormData();
       selectedPictures.forEach((file) => {
-        uploadFormData.append('pictures', file);
+        uploadFormData.append('pictures', sanitizeFileForUpload(file));
       });
 
       const response = await fetch('/api/company/upload', {

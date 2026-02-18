@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Navbar from '../../../components/Navbar';
 import { cvApi } from '@/lib/api';
+import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import { QUALIFICATIONS } from '@/lib/qualifications';
 import { SPORTS_LIST } from '@/lib/sports';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
@@ -133,7 +134,7 @@ export default function EditCVPage() {
     try {
       const uploadFormData = new FormData();
       selectedPictures.forEach((file) => {
-        uploadFormData.append('pictures', file);
+        uploadFormData.append('pictures', sanitizeFileForUpload(file));
       });
 
       const response = await fetch('/api/cv/upload', {
