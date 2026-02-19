@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
 
-export default function ResetPasswordRequiredPage() {
+function ResetPasswordRequiredContent() {
   const searchParams = useSearchParams();
   const emailFromUrl = searchParams.get('email') || '';
   const [email, setEmail] = useState(emailFromUrl);
@@ -99,5 +99,19 @@ export default function ResetPasswordRequiredPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ResetPasswordRequiredPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center">
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      }
+    >
+      <ResetPasswordRequiredContent />
+    </Suspense>
   );
 }
