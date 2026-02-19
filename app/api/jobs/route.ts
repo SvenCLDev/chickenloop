@@ -771,7 +771,7 @@ export async function POST(request: NextRequest) {
 
     const job = await Job.create({
       title,
-      description: sanitizeJobDescription(description),
+      description: sanitizeJobDescription(String(description ?? '')),
       company,
       city,
       country: normalizedCountry,

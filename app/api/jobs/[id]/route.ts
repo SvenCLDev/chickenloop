@@ -157,7 +157,9 @@ export async function PUT(
       );
     }
 
-    const { title, description, companyId: companyIdFromBody, company: companyFromBody, city, country, salary, type, experienceLevel: experienceLevelFromBody, languages, qualifications, sports, occupationalAreas, pictures, heroImageUrl, published, featured, applyViaATS, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
+    const { title, companyId: companyIdFromBody, company: companyFromBody, city, country, salary, type, experienceLevel: experienceLevelFromBody, languages, qualifications, sports, occupationalAreas, pictures, heroImageUrl, published, featured, applyViaATS, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
+    // Read description explicitly so it's always applied when present (required for HTML sanitization)
+    const description = requestBody.description;
 
     // Validate job categories - ensure all categories are in JOB_CATEGORY_VALUES
     if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
@@ -212,8 +214,17 @@ export async function PUT(
     }
 
     if (title) job.title = title;
-    if (description) {
-      job.description = sanitizeJobDescription(description);
+    // Always sanitize and set description when present (recruiter edit sends full form including description)
+    if ('description' in requestBody) {
+      const raw = String(description ?? '');
+      const sanitized = sanitizeJobDescription(raw);
+      job.description = sanitized;
+      // Dev-only: confirm payload and sanitization (remove or guard with NODE_ENV if desired)
+      if (process.env.NODE_ENV === 'development') {
+        const preview = (s: string, max = 80) => (s.length <= max ? s : s.slice(0, max) + '…');
+        console.log('[jobs PUT] description in payload: yes, raw length:', raw.length, 'sanitized length:', sanitized.length);
+        console.log('[jobs PUT] sanitized preview:', JSON.stringify(preview(sanitized)));
+      }
     }
     const companyIdValue = companyIdFromBody ?? companyFromBody;
     if (companyIdValue !== undefined && companyIdValue !== null && companyIdValue !== '') {

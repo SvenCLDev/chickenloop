@@ -136,7 +136,7 @@ export async function PUT(
     }
 
     if (title) job.title = title;
-    if (description) job.description = sanitizeJobDescription(description);
+    if (description !== undefined && description !== null) job.description = sanitizeJobDescription(String(description));
     if (city) job.city = city;
     if (country !== undefined) job.country = country?.trim().toUpperCase() || undefined;
     if (salary !== undefined) job.salary = salary;

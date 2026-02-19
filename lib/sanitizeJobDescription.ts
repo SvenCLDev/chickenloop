@@ -11,7 +11,24 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: ALLOWED_TAGS,
   allowedAttributes: {},
   allowedSchemes: [],
+  disallowedTagsMode: 'discard', // strip disallowed tags but keep their text content
 };
+
+/**
+ * Decode HTML entities so that entity-encoded input (e.g. &lt;html&gt;) is turned
+ * into real tags before sanitization. Otherwise the sanitizer sees literal text and
+ * does not strip disallowed tags.
+ */
+function decodeHTMLEntities(html: string): string {
+  return html
+    .replace(/&amp;/gi, '&') // decode &amp; first so &amp;lt; → &lt; → <
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)));
+}
 
 /**
  * Strip all attributes from tags before sanitization.
@@ -28,7 +45,9 @@ function stripAllAttributes(html: string): string {
 function removeOrphanedStyleAttributes(html: string): string {
   return html
     .replace(/style="[^"]*"\s*>/gi, '')
-    .replace(/^style="[^"]*"\s*>/gi, '');
+    .replace(/style='[^']*'\s*>/gi, '')
+    .replace(/^style="[^"]*"\s*>/gi, '')
+    .replace(/^style='[^']*'\s*>/gi, '');
 }
 
 function removeEmptyTags(html: string): string {
@@ -48,11 +67,13 @@ function removeEmptyTags(html: string): string {
  * Allowed: p, br, strong, b, ul, ol, li, u, em.
  * No attributes (class, style, etc.). Removes span, div, font, script, iframe.
  */
-export function sanitizeJobDescription(html: string): string {
-  if (!html || typeof html !== 'string') {
+export function sanitizeJobDescription(html: unknown): string {
+  const str = html != null && typeof html === 'string' ? html : '';
+  if (!str.trim()) {
     return '';
   }
-  const withSpaces = html.replace(/&nbsp;/gi, ' ');
+  const decoded = decodeHTMLEntities(str);
+  const withSpaces = decoded.replace(/&nbsp;/gi, ' ');
   const noOrphanedStyles = removeOrphanedStyleAttributes(withSpaces);
   const withoutAttrs = stripAllAttributes(noOrphanedStyles);
   const sanitized = sanitizeHtml(withoutAttrs, SANITIZE_OPTIONS);
