@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '../../components/Navbar';
 import { useAuth } from '../../contexts/AuthContext';
@@ -45,7 +45,7 @@ interface CV {
   updatedAt?: string;
 }
 
-export default function CVDetailPage() {
+function CVDetailContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -617,3 +617,16 @@ export default function CVDetailPage() {
   );
 }
 
+export default function CVDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      }
+    >
+      <CVDetailContent />
+    </Suspense>
+  );
+}
