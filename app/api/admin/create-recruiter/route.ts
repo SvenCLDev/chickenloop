@@ -64,7 +64,6 @@ export async function POST(request: NextRequest) {
     });
 
     const userObj = user.toObject();
-    delete (userObj as Record<string, unknown>).password;
 
     return NextResponse.json(
       {
