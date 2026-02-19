@@ -5,9 +5,11 @@ import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 're
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+const DEFAULT_CENTER: [number, number] = [20, 0]; // fallback when coordinates missing (avoids Invalid LatLng (undefined, undefined))
+
 interface DraggableMapProps {
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
   onLocationChange: (lat: number, lng: number) => void;
   companyName?: string;
 }
@@ -91,6 +93,10 @@ export default function DraggableMap({
   onLocationChange,
   companyName 
 }: DraggableMapProps) {
+  const lat = typeof latitude === 'number' && Number.isFinite(latitude) ? latitude : DEFAULT_CENTER[0];
+  const lng = typeof longitude === 'number' && Number.isFinite(longitude) ? longitude : DEFAULT_CENTER[1];
+  const center: [number, number] = [lat, lng];
+
   const handleMapClick = (lat: number, lng: number) => {
     onLocationChange(lat, lng);
   };
@@ -101,7 +107,7 @@ export default function DraggableMap({
 
   return (
     <MapContainer
-      center={[latitude, longitude]}
+      center={center}
       zoom={15}
       style={{ height: '100%', width: '100%' }}
       scrollWheelZoom={true}
@@ -112,12 +118,12 @@ export default function DraggableMap({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <DraggableMarker
-        position={[latitude, longitude]}
+        position={center}
         onDragEnd={handleMarkerDrag}
         companyName={companyName}
       />
       <MapClickHandler onClick={handleMapClick} />
-      <MapUpdater lat={latitude} lng={longitude} />
+      <MapUpdater lat={lat} lng={lng} />
     </MapContainer>
   );
 }

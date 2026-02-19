@@ -29,6 +29,17 @@ const DraggableMap = dynamic(
   }
 );
 
+// Check that coordinates exist and are valid numbers (avoids LatLng undefined error when company has incomplete data)
+function hasValidCoordinates(coords: { latitude: number; longitude: number } | null | undefined): coords is { latitude: number; longitude: number } {
+  return !!(
+    coords &&
+    typeof coords.latitude === 'number' &&
+    typeof coords.longitude === 'number' &&
+    Number.isFinite(coords.latitude) &&
+    Number.isFinite(coords.longitude)
+  );
+}
+
 // Component to display coordinates (prevents hydration mismatch)
 function CoordinatesDisplay({ latitude, longitude }: { latitude: number; longitude: number }) {
   const [mounted, setMounted] = useState(false);
@@ -383,12 +394,7 @@ export default function AdminEditCompanyPage() {
     e.preventDefault();
     setError('');
 
-    // Validate that coordinates are set
-    if (!formData.coordinates || !formData.coordinates.latitude || !formData.coordinates.longitude) {
-      setShowLocationModal(true);
-      return;
-    }
-
+    // Allow saving incomplete companies (admin can add location later)
     setLoading(true);
 
     try {
@@ -399,7 +405,7 @@ export default function AdminEditCompanyPage() {
       const picturePaths = await uploadPictures();
 
       const normalizedCountry = normalizeCountryForStorage(formData.address.country);
-      await adminApi.updateCompany(companyId, {
+      const payload: Record<string, unknown> = {
         ...formData,
         address: {
           ...formData.address,
@@ -407,7 +413,12 @@ export default function AdminEditCompanyPage() {
         },
         logo: logoUrl || undefined,
         pictures: picturePaths,
-      });
+      };
+      // Only send coordinates when valid (API rejects "provided" but invalid coords)
+      if (!hasValidCoordinates(formData.coordinates)) {
+        delete payload.coordinates;
+      }
+      await adminApi.updateCompany(companyId, payload as Parameters<typeof adminApi.updateCompany>[1]);
 
       // Clean up preview URLs
       if (logoPreview) URL.revokeObjectURL(logoPreview);
@@ -764,7 +775,7 @@ export default function AdminEditCompanyPage() {
                 </div>
               </div>
 
-              {/* Step 3: Map with draggable marker */}
+              {/* Step 3: Map with draggable marker (same as recruiter; DraggableMap uses default center if lat/lng missing) */}
               {formData.coordinates && mapMounted && (
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -772,16 +783,18 @@ export default function AdminEditCompanyPage() {
                   </label>
                   <div className="w-full h-96 rounded-lg overflow-hidden border border-gray-200">
                     <DraggableMap
-                      latitude={formData.coordinates.latitude}
-                      longitude={formData.coordinates.longitude}
+                      latitude={formData.coordinates?.latitude}
+                      longitude={formData.coordinates?.longitude}
                       onLocationChange={handleLocationChange}
                       companyName={formData.name || 'Location'}
                     />
                   </div>
-                  <CoordinatesDisplay
-                    latitude={formData.coordinates.latitude}
-                    longitude={formData.coordinates.longitude}
-                  />
+                  {hasValidCoordinates(formData.coordinates) && (
+                    <CoordinatesDisplay
+                      latitude={formData.coordinates.latitude}
+                      longitude={formData.coordinates.longitude}
+                    />
+                  )}
                 </div>
               )}
             </div>

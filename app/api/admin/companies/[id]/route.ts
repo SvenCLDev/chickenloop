@@ -119,21 +119,16 @@ export async function PUT(
     console.log(`[API /admin/companies/${id}] Update data keys:`, updateKeys);
     console.log(`[API /admin/companies/${id}] Is featured-only update:`, isFeaturedOnlyUpdate);
 
-    // Validate that coordinates are required for updates (unless it's a featured-only update)
-    if (!isFeaturedOnlyUpdate) {
-      // For non-featured-only updates, we need coordinates
-      // But if coordinates are not provided, use existing ones from the company
-      if (coordinates === undefined || coordinates === null) {
-        // Use existing coordinates if not provided
-        if (!company.coordinates || !company.coordinates.latitude || !company.coordinates.longitude) {
-          return NextResponse.json(
-            { error: 'Geolocation coordinates are required. Please search for and select a location.' },
-            { status: 400 }
-          );
-        }
-      } else if (!coordinates.latitude || !coordinates.longitude) {
+    // If coordinates are provided, they must be valid; allow saving without coordinates (incomplete companies)
+    if (coordinates !== undefined && coordinates !== null) {
+      const hasValidCoords =
+        typeof coordinates.latitude === 'number' &&
+        typeof coordinates.longitude === 'number' &&
+        Number.isFinite(coordinates.latitude) &&
+        Number.isFinite(coordinates.longitude);
+      if (!hasValidCoords) {
         return NextResponse.json(
-          { error: 'Geolocation coordinates are required. Please search for and select a location.' },
+          { error: 'Geolocation coordinates must be valid numbers when provided.' },
           { status: 400 }
         );
       }
