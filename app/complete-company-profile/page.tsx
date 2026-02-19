@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -9,7 +9,7 @@ import {
   COUNTRY_OPTIONS,
 } from '@/lib/countryUtils';
 
-export default function CompleteCompanyProfilePage() {
+function CompleteCompanyProfileContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -238,5 +238,19 @@ export default function CompleteCompanyProfilePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CompleteCompanyProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      }
+    >
+      <CompleteCompanyProfileContent />
+    </Suspense>
   );
 }
