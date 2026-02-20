@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { jobsApi, careerAdviceApi } from '@/lib/api';
@@ -91,8 +91,8 @@ export default function HomePageContent() {
       const response = await fetch('/api/jobs-list');
       const data = await response.json();
       const jobsList = data.jobs || [];
-      // Get the 3 most recent jobs (already sorted by updatedAt -1 from API)
-      setLatestJobs(jobsList.slice(0, 3));
+      // Fetch enough so that after excluding featured we can show 3 (e.g. up to 3 featured + 3 latest = 6)
+      setLatestJobs(jobsList.slice(0, 9));
     } catch (err) {
       console.error('Failed to load latest jobs:', err);
     } finally {
@@ -217,6 +217,12 @@ export default function HomePageContent() {
     return JOB_CATEGORIES.filter((cat) => availableValues.has(cat.value));
   };
 
+  // Latest jobs excluding those already shown in Featured Jobs – take first 3 for display
+  const latestExcludingFeatured = useMemo(() => {
+    const featuredIds = new Set(featuredJobs.map((f) => f._id));
+    return latestJobs.filter((job) => !featuredIds.has(job._id)).slice(0, 3);
+  }, [latestJobs, featuredJobs]);
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Navigation - Same as all other pages */}
@@ -310,8 +316,8 @@ export default function HomePageContent() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-                  {featuredJobs.map((job) => (
-                    <JobCard key={job._id} job={job} />
+                  {featuredJobs.map((job, index) => (
+                    <JobCard key={job._id} job={job} priority={index === 0} featured />
                   ))}
                 </div>
               )}
@@ -340,7 +346,7 @@ export default function HomePageContent() {
           </section>
         )}
         
-        {/* Latest Jobs Section */}
+        {/* Latest Jobs Section - exclude jobs already shown in Featured Jobs */}
         <section className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <SectionHeader
@@ -348,19 +354,18 @@ export default function HomePageContent() {
               actionLabel="View All Jobs"
               actionHref="/jobs-list"
             />
-            
             {latestJobsLoading ? (
               <div className="text-center py-16">
                 <p className="text-gray-600 text-lg">Loading jobs...</p>
               </div>
-            ) : latestJobs.length === 0 ? (
+            ) : latestExcludingFeatured.length === 0 ? (
               <div className="text-center py-16">
                 <p className="text-gray-600 text-lg">No jobs available at the moment.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-                {latestJobs.map((job) => (
-                  <JobCard key={job._id} job={job} />
+                {latestExcludingFeatured.map((job, index) => (
+                  <JobCard key={job._id} job={job} priority={featuredJobs.length === 0 && index === 0} />
                 ))}
               </div>
             )}

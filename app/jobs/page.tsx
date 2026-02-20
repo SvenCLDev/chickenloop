@@ -969,7 +969,7 @@ function JobsPageContent() {
               return (
                 <>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {currentJobs.map((job) => {
+                    {currentJobs.map((job, index) => {
                       // Get the most recent date (createdAt or updatedAt if it exists and is more recent)
                       const mostRecentDate = (job.updatedAt && new Date(job.updatedAt) > new Date(job.createdAt))
                         ? job.updatedAt
@@ -980,6 +980,8 @@ function JobsPageContent() {
                         ? job.pictures[0]
                         : null;
 
+                      const isLcpImage = index === 0;
+
                       return (
                         <Link
                           key={job._id}
@@ -989,7 +991,7 @@ function JobsPageContent() {
                             : 'bg-white'
                             }`}
                         >
-                          {/* Job Picture */}
+                          {/* Job Picture - fixed height to prevent CLS */}
                           <div className="w-full h-48 bg-gray-200 relative overflow-hidden">
                             {job.featured && (
                               <div className="absolute top-2 right-2 z-10 bg-yellow-400 text-yellow-900 px-2 py-1 rounded-md text-xs font-bold shadow-md">
@@ -997,13 +999,29 @@ function JobsPageContent() {
                               </div>
                             )}
                             {firstPicture ? (
-                              <Image
-                                src={firstPicture}
-                                alt={job.title}
-                                fill
-                                className="object-cover"
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                              />
+                              isLcpImage ? (
+                                <Image
+                                  src={firstPicture}
+                                  alt={job.title}
+                                  fill
+                                  priority
+                                  fetchPriority="high"
+                                  loading="eager"
+                                  quality={60}
+                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <Image
+                                  src={firstPicture}
+                                  alt={job.title}
+                                  fill
+                                  loading="lazy"
+                                  quality={60}
+                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                  className="object-cover"
+                                />
+                              )
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-300 to-gray-400">
                                 <span className="text-gray-500 text-sm">No Image</span>
