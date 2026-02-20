@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 import Link from 'next/link';
+import { useAuth } from '../../contexts/AuthContext';
 import dynamic from 'next/dynamic';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { OFFERED_ACTIVITIES_LIST } from '@/lib/offeredActivities';
@@ -119,6 +120,7 @@ interface Props {
 }
 
 export default function CompanyPageClient({ company, jobs }: Props) {
+  const { user } = useAuth();
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
@@ -152,6 +154,18 @@ export default function CompanyPageClient({ company, jobs }: Props) {
         >
           ← Back to Companies
         </Link>
+
+        {user?.role === 'admin' && (
+          <div className="mb-6 p-3 border border-gray-300 rounded-md bg-gray-50 text-sm">
+            <p className="font-medium text-gray-700 mb-2">Admin Tools</p>
+            <Link
+              href={`/admin/repair-company/${company.id}`}
+              className="inline-block px-3 py-1.5 border border-gray-400 rounded bg-white text-gray-700 hover:bg-gray-100 font-medium"
+            >
+              Repair Company Relationships
+            </Link>
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="flex items-center gap-6 mb-4">

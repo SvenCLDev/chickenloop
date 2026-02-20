@@ -467,6 +467,17 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
           ← Back to Jobs
         </Link>
 
+        {user?.role === 'admin' && (
+          <div className="mb-6 p-3 border border-gray-300 rounded-md bg-gray-50 text-sm">
+            <Link
+              href={`/admin/repair-job/${job._id}`}
+              className="inline-block px-3 py-1.5 border border-gray-400 rounded bg-white text-gray-700 hover:bg-gray-100 font-medium"
+            >
+              Repair Relationships
+            </Link>
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {/* Hero Image - Main featured image at the top */}
           {job.heroImageUrl && (

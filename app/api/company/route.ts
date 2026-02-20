@@ -72,11 +72,17 @@ export async function POST(request: NextRequest) {
     if (!userDoc) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // Only block creation if they have a companyId that points to an existing company.
+    // If companyId is orphaned (company was deleted), allow creation and we'll overwrite companyId below.
     if (userDoc.companyId) {
-      return NextResponse.json(
-        { error: 'You already have a company. You can only have one company.' },
-        { status: 400 }
-      );
+      const existingCompany = await Company.findById(userDoc.companyId).lean();
+      if (existingCompany) {
+        return NextResponse.json(
+          { error: 'You already have a company. You can only have one company.' },
+          { status: 400 }
+        );
+      }
+      // Orphaned companyId: allow creation; User will be updated to new company in the transaction below.
     }
 
     const { name, description, address, coordinates, website, contact, socialMedia, offeredActivities, offeredServices, logo, pictures } = await request.json();

@@ -30,40 +30,61 @@ export async function apiRequest(
 
   // Check if response is JSON before trying to parse
   const contentType = response.headers.get('content-type');
-  let data;
+  const text = await response.text();
+  let data: unknown;
 
   if (contentType && contentType.includes('application/json')) {
-    data = await response.json();
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      console.error('Invalid JSON from API:', { url: `${API_BASE}${endpoint}`, preview: text.substring(0, 200) });
+      throw new Error('Invalid response from server');
+    }
   } else {
-    // Response is not JSON (likely HTML error page)
-    const text = await response.text();
-    console.error('Non-JSON response received:', {
-      status: response.status,
-      statusText: response.statusText,
-      url: `${API_BASE}${endpoint}`,
-      preview: text.substring(0, 200),
-    });
-
-    // Try to extract error message from HTML or use status text
-    throw new Error(
-      response.status === 500
-        ? 'Server error. Please check the server logs.'
-        : response.status === 404
-          ? 'API endpoint not found. Please check the endpoint URL.'
-          : `Unexpected response format. Status: ${response.status} ${response.statusText}`
-    );
+    // No JSON Content-Type: try to parse anyway (some proxies strip headers), or treat 401 empty as Unauthorized
+    const trimmed = text.trim();
+    if (response.status === 401 && !trimmed) {
+      // Expected when not logged in – avoid logging as error
+      throw new Error('Unauthorized');
+    }
+    if (trimmed && (trimmed.startsWith('{') || trimmed.startsWith('['))) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null;
+      }
+    } else {
+      data = null;
+    }
+    if (data == null) {
+      // Truly non-JSON (e.g. HTML error page) – log and throw
+      console.error('Non-JSON response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: `${API_BASE}${endpoint}`,
+        preview: text.substring(0, 200),
+      });
+      throw new Error(
+        response.status === 500
+          ? 'Server error. Please check the server logs.'
+          : response.status === 404
+            ? 'API endpoint not found. Please check the endpoint URL.'
+            : `Unexpected response format. Status: ${response.status} ${response.statusText}`
+      );
+    }
   }
 
+  const dataObj = data as Record<string, unknown> | null;
   if (!response.ok) {
     // COMPANY_PROFILE_INCOMPLETE: redirect recruiters to complete profile
-    if (response.status === 403 && data?.error === 'COMPANY_PROFILE_INCOMPLETE') {
-      handleCompanyProfileIncompleteRedirect(data.detail);
-      const msg = data.detail
-        ? `COMPANY_PROFILE_INCOMPLETE: ${data.detail}`
-        : data.error;
-      throw new Error(msg);
+    if (response.status === 403 && dataObj?.error === 'COMPANY_PROFILE_INCOMPLETE') {
+      handleCompanyProfileIncompleteRedirect(dataObj.detail as string | undefined);
+      const msg = dataObj.detail
+        ? `COMPANY_PROFILE_INCOMPLETE: ${dataObj.detail}`
+        : dataObj.error;
+      throw new Error(String(msg ?? 'An error occurred'));
     }
-    throw new Error(data.error || 'An error occurred');
+    throw new Error(String(dataObj?.error ?? 'An error occurred'));
   }
 
   return data;
@@ -285,6 +306,16 @@ export const adminApi = {
     apiRequest(`/admin/jobs/${id}`, {
       method: 'DELETE',
     }),
+  repairJobRelationships: (body: {
+    jobId: string;
+    recruiterId: string;
+    companyId?: string;
+    createCompany?: { name: string };
+  }) =>
+    apiRequest('/admin/repair-job-relationships', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   getCompanies: (params?: { search?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) => {
     const queryParams = new URLSearchParams();
     if (params?.search) queryParams.set('search', params.search);
@@ -294,6 +325,13 @@ export const adminApi = {
     return apiRequest(`/admin/companies${queryString ? `?${queryString}` : ''}`);
   },
   getCompany: (id: string) => apiRequest(`/admin/companies/${id}`),
+  getCompanyRelationships: (companyId: string) =>
+    apiRequest(`/admin/repair-company-relationships?companyId=${encodeURIComponent(companyId)}`),
+  repairCompanyRelationships: (body: { companyId: string; ownerRecruiterId?: string; recruiterIds?: string[] }) =>
+    apiRequest('/admin/repair-company-relationships', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   updateCompany: (id: string, data: any) =>
     apiRequest(`/admin/companies/${id}`, {
       method: 'PUT',

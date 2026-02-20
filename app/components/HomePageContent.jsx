@@ -224,9 +224,9 @@ export default function HomePageContent() {
 
       {/* Main Content Area */}
       <main className="flex-grow">
-        {/* Hero Section */}
-        <section className="relative min-h-[500px] flex items-center justify-center overflow-hidden">
-          {/* Background Images Container */}
+        {/* Hero Section - fixed height to prevent CLS */}
+        <section className="relative h-[60vh] min-h-[400px] flex items-center justify-center overflow-hidden">
+          {/* Background Images Container - relative for fill images */}
           <div className="absolute inset-0">
             {HERO_IMAGES.map((imageSrc, index) => (
               <div
@@ -235,14 +235,28 @@ export default function HomePageContent() {
                   index === currentImageIndex ? 'opacity-100' : 'opacity-0'
                 }`}
               >
-                <Image
-                  src={imageSrc}
-                  alt={`Hero background ${index + 1}`}
-                  fill
-                  priority={index === 0}
-                  className="object-cover"
-                  quality={90}
-                />
+                {index === 0 ? (
+                  <Image
+                    src={imageSrc}
+                    alt={`Hero background ${index + 1}`}
+                    fill
+                    priority
+                    fetchPriority="high"
+                    quality={60}
+                    sizes="100vw"
+                    className="object-cover"
+                  />
+                ) : (
+                  <Image
+                    src={imageSrc}
+                    alt={`Hero background ${index + 1}`}
+                    fill
+                    loading="lazy"
+                    quality={60}
+                    sizes="100vw"
+                    className="object-cover"
+                  />
+                )}
               </div>
             ))}
             {/* Overlay for better text readability */}
@@ -305,28 +319,26 @@ export default function HomePageContent() {
           </section>
         )}
         
-        {/* Featured Companies Section */}
-        <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <SectionHeader title="Featured Companies" />
-            
-            {companiesLoading ? (
-              <div className="text-center py-16">
-                <p className="text-gray-600 text-lg">Loading companies...</p>
-              </div>
-            ) : featuredCompanies.length === 0 ? (
-              <div className="text-center py-16">
-                <p className="text-gray-600 text-lg">No companies available at the moment.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-                {featuredCompanies.map((company) => (
-                  <CompanyCard key={company.id} company={company} />
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
+        {/* Featured Companies Section - hidden when there are no featured companies */}
+        {(!companiesLoading && featuredCompanies.length === 0) ? null : (
+          <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <SectionHeader title="Featured Companies" />
+              
+              {companiesLoading ? (
+                <div className="text-center py-16">
+                  <p className="text-gray-600 text-lg">Loading companies...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                  {featuredCompanies.map((company) => (
+                    <CompanyCard key={company.id} company={company} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
         
         {/* Latest Jobs Section */}
         <section className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">

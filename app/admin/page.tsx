@@ -1244,16 +1244,8 @@ function AdminDashboard() {
                                 )}
                               </div>
                             </th>
-                            <th 
-                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                              onClick={() => handleSort('location')}
-                            >
-                              <div className="flex items-center gap-1">
-                                Location
-                                {getSortIndicator('location') && (
-                                  <span className="text-gray-400">{getSortIndicator('location')}</span>
-                                )}
-                              </div>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Company
                             </th>
                             <th 
                               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
@@ -1263,6 +1255,17 @@ function AdminDashboard() {
                                 Recruiter
                                 {getSortIndicator('recruiter') && (
                                   <span className="text-gray-400">{getSortIndicator('recruiter')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('location')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Location
+                                {getSortIndicator('location') && (
+                                  <span className="text-gray-400">{getSortIndicator('location')}</span>
                                 )}
                               </div>
                             </th>
@@ -1561,10 +1564,11 @@ function AdminDashboard() {
                               <td className="px-6 py-4 text-sm font-medium text-gray-900" style={{ maxWidth: '400px' }}>
                                 <div className="truncate" title={entry.title}>{entry.title}</div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.city}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.companyName ?? '—'}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.recruiter?.name || 'Unknown'}
                               </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.city}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 <button
                                   onClick={() => handleToggleJobFeatured(entry.id, entry.featured || false)}
@@ -1650,7 +1654,11 @@ function AdminDashboard() {
                             </>
                           ) : selectedCategory === 'companies' ? (
                             <>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.name}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <Link href={`/companies/${entry.id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                                  {entry.name}
+                                </Link>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.address 
                                   ? `${entry.address.city || ''}${entry.address.city && entry.address.state ? ', ' : ''}${entry.address.state || ''}${entry.address.country ? `, ${entry.address.country}` : ''}`.trim() || 'N/A'

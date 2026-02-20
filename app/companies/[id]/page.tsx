@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/db';
 import Company from '@/models/Company';
 import Job from '@/models/Job';
@@ -52,19 +53,22 @@ async function getCompanyById(id: string): Promise<CompanyPageData | null> {
 
 async function getCompanyJobs(companyId: string) {
   try {
+    const companyOid = new mongoose.Types.ObjectId(companyId);
     const jobs = await Job.find({
-      companyId,
+      companyId: companyOid,
       published: { $ne: false },
     })
-      .select('_id title city country')
+      .select('_id title city country companyId')
       .lean();
 
-    return (jobs || []).map((j: any) => ({
-      _id: String(j._id),
-      title: j.title,
-      city: j.city || '',
-      country: j.country,
-    }));
+    return (jobs || [])
+      .filter((j: any) => j.companyId && String(j.companyId) === companyId)
+      .map((j: any) => ({
+        _id: String(j._id),
+        title: j.title,
+        city: j.city || '',
+        country: j.country,
+      }));
   } catch {
     return [];
   }
