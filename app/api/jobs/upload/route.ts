@@ -6,12 +6,28 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
+// User-friendly message when request body cannot be parsed as multipart (e.g. bad image or size limit)
+const FORM_DATA_PARSE_ERROR =
+  'The image(s) you selected could not be processed. Please try a different image, use a smaller file (e.g. under 5MB), or use JPEG, PNG, WEBP or GIF.';
+
 // POST - Upload job pictures (recruiters and admins)
 export async function POST(request: NextRequest) {
   try {
     await requireRole(request, ['recruiter', 'admin']);
 
-    const formData = await request.formData();
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (parseError: unknown) {
+      const msg = parseError instanceof Error ? parseError.message : '';
+      const isFormDataParseError =
+        /parse body as FormData|formdata|multipart|body.*limit|payload.*large/i.test(msg) || msg === '';
+      return NextResponse.json(
+        { error: isFormDataParseError ? FORM_DATA_PARSE_ERROR : `Upload failed: ${msg}` },
+        { status: 400 }
+      );
+    }
+
     const files = formData.getAll('pictures') as File[];
 
     if (!files || files.length === 0) {
@@ -121,6 +137,13 @@ export async function POST(request: NextRequest) {
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    // FormData/body parse errors (e.g. "Failed to parse body as FormData") — return clear message
+    if (/parse body as FormData|formdata|multipart|body.*limit|payload.*large/i.test(errorMessage)) {
+      return NextResponse.json(
+        { error: FORM_DATA_PARSE_ERROR },
+        { status: 400 }
+      );
     }
     return NextResponse.json(
       { error: errorMessage || 'Internal server error' },

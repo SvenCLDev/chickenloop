@@ -162,12 +162,16 @@ export default function EditJobPage() {
       return;
     }
 
-    // Validate file types (images are resized server-side, no size limit)
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    const maxSizePerFile = 10 * 1024 * 1024; // 10MB to avoid FormData/body parse errors
 
     for (const file of files) {
       if (!validTypes.includes(file.type)) {
         setError(`Invalid file type: ${file.name}. Only images (JPEG, PNG, WEBP, GIF) are allowed.`);
+        return;
+      }
+      if (file.size > maxSizePerFile) {
+        setError(`${file.name} is too large. Please use an image under 10MB.`);
         return;
       }
     }
