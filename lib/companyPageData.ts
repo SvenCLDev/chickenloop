@@ -108,7 +108,7 @@ export async function getCompanyIdByCountryAndSlug(
         : { 'address.country': { $in: countryValues } };
 
     const companies = await Company.find(query).select('_id name address').lean();
-    const match = (companies as { _id: mongoose.Types.ObjectId; name: string; address?: { country?: string } }[]).find(
+    const match = (companies as unknown as { _id: mongoose.Types.ObjectId; name: string; address?: { country?: string } }[]).find(
       (c) => {
         const cNameSlug = generateSlug(c.name) || 'company';
         if (cNameSlug !== nameSlug) return false;
