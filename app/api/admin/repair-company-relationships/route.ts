@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
             { session }
           ).lean();
           for (const u of currentlyAssigned) {
-            const id = (u as { _id: mongoose.Types.ObjectId })._id;
+            const id = (u as unknown as { _id: mongoose.Types.ObjectId })._id;
             if (!recruiterOidSet.has(id.toString())) {
               await User.findByIdAndUpdate(
                 id,
