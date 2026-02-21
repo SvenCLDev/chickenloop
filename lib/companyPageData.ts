@@ -79,12 +79,12 @@ export async function getCompanyJobs(companyId: string) {
       .lean();
 
     return (jobs || [])
-      .filter((j: { companyId?: unknown }) => j.companyId && String(j.companyId) === companyId)
-      .map((j: { _id: unknown; title?: string; city?: string; country?: string }) => ({
+      .filter((j) => j.companyId && String(j.companyId) === companyId)
+      .map((j) => ({
         _id: String(j._id),
         title: j.title ?? '',
         city: j.city || '',
-        country: j.country,
+        country: j.country ?? undefined,
       }));
   } catch {
     return [];
