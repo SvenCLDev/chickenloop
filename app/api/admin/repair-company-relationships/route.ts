@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       : [];
     const userMap = new Map<string, { _id: mongoose.Types.ObjectId; role?: string }>();
     for (const u of users) {
-      const doc = u as { _id: mongoose.Types.ObjectId; role?: string };
+      const doc = u as unknown as { _id: mongoose.Types.ObjectId; role?: string };
       userMap.set(String(doc._id), doc);
     }
 
