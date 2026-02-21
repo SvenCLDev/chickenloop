@@ -138,12 +138,13 @@ export async function POST(request: NextRequest) {
     }
 
     const users = recruiterOids.length > 0
-      ? await User.find({ _id: { $in: recruiterOids } }).lean()
+      ? await User.find({ _id: { $in: recruiterOids } }).select('_id role').lean()
       : [];
     const userMap = new Map<string, { _id: mongoose.Types.ObjectId; role?: string }>();
-    users.forEach((u: { _id: mongoose.Types.ObjectId; role?: string }) => {
-      userMap.set(String(u._id), u);
-    });
+    for (const u of users) {
+      const doc = u as { _id: mongoose.Types.ObjectId; role?: string };
+      userMap.set(String(doc._id), doc);
+    }
 
     for (const oid of recruiterOids) {
       const u = userMap.get(String(oid));
