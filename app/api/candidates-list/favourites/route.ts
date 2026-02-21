@@ -10,20 +10,18 @@ export async function GET(request: NextRequest) {
     const user = await requireRole(request, ['recruiter', 'admin']);
     await connectDB();
 
-    const userData = await User.findById(user.userId).populate('favouriteCandidates');
+    const userData = await User.findById(user.userId).lean();
     if (!userData) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Initialize favouriteCandidates if it doesn't exist
-    if (!userData.favouriteCandidates) {
-      userData.favouriteCandidates = [];
-    }
+    const rawFavourites = (userData as any).favouriteCandidates || [];
+    // favouriteCandidates stores CV _ids (see toggle in candidates-list/[id]/favourite)
+    const favouriteCvIds = rawFavourites.filter((id: any) => id != null);
 
-    // Get all favourite CVs with populated job seeker
-    const favouriteCvIds = userData.favouriteCandidates.map((id: any) => 
-      typeof id === 'object' ? id._id : id
-    );
+    if (favouriteCvIds.length === 0) {
+      return NextResponse.json({ cvs: [] }, { status: 200 });
+    }
 
     const cvs = await CV.find({
       _id: { $in: favouriteCvIds },

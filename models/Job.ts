@@ -5,6 +5,7 @@ import { JOB_CATEGORY_VALUES, type JobCategory } from '@/lib/jobCategories';
 export const EMPLOYMENT_TYPES = [
   'full_time',
   'part_time',
+  'contract',
   'freelance',
   'internship',
   'project',

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import SectionHeader from './SectionHeader';
+import { getCompanyUrl } from '@/lib/companySlug';
 
 interface Company {
   id: string;
@@ -11,6 +12,7 @@ interface Company {
   description?: string;
   logo?: string;
   pictures?: string[];
+  address?: { country?: string };
 }
 
 export default function CompaniesPreview() {
@@ -64,7 +66,7 @@ export default function CompaniesPreview() {
             {companies.map((company) => (
               <Link
                 key={company.id}
-                href={`/companies/${company.id}`}
+                href={getCompanyUrl(company)}
                 className="bg-white border border-gray-200 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer block overflow-hidden transform hover:-translate-y-1 p-4 sm:p-6 flex flex-col items-center text-center"
               >
                 {/* Company Picture with Logo Overlay */}

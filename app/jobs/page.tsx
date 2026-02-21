@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense, useRef } from 'react';
+import { useEffect, useState, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Navbar from '../components/Navbar';
@@ -130,8 +130,39 @@ function JobsPageContent() {
   const [saveSearchFrequency, setSaveSearchFrequency] = useState<'daily' | 'weekly' | 'never'>('weekly');
   const [saveSearchMessage, setSaveSearchMessage] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [favouriteJobIds, setFavouriteJobIds] = useState<Set<string>>(new Set());
+  const [togglingFavouriteId, setTogglingFavouriteId] = useState<string | null>(null);
   const jobsPerPage = 20;
   const isInitialMount = useRef(true);
+
+  useEffect(() => {
+    if (user?.role === 'job-seeker') {
+      jobsApi.getFavourites().then((data: { jobs?: { _id: string }[] }) => {
+        const ids = new Set((data.jobs || []).map((j) => String(j._id)));
+        setFavouriteJobIds(ids);
+      }).catch(() => {});
+    }
+  }, [user]);
+
+  const handleToggleFavourite = useCallback(async (e: React.MouseEvent, jobId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (togglingFavouriteId) return;
+    setTogglingFavouriteId(jobId);
+    try {
+      await jobsApi.toggleFavourite(jobId);
+      setFavouriteJobIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(jobId)) next.delete(jobId);
+        else next.add(jobId);
+        return next;
+      });
+    } catch {
+      // keep UI state unchanged on error
+    } finally {
+      setTogglingFavouriteId(null);
+    }
+  }, [togglingFavouriteId]);
 
   // Sync state with URL query parameters when URL changes (browser back/forward)
   // Skip on initial mount since state is already initialized from URL params
@@ -981,12 +1012,14 @@ function JobsPageContent() {
                         : null;
 
                       const isLcpImage = index === 0;
+                      const isFavourite = favouriteJobIds.has(job._id);
+                      const showHeart = user?.role === 'job-seeker';
 
                       return (
                         <Link
                           key={job._id}
                           href={getJobUrl(job)}
-                          className={`rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block ${job.featured
+                          className={`rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block relative ${job.featured
                             ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300'
                             : 'bg-white'
                             }`}
@@ -1049,6 +1082,27 @@ function JobsPageContent() {
                               <TimeAgoDisplay date={mostRecentDate} />
                             </div>
                           </div>
+
+                          {/* Favourite heart - bottom right (job seeker only) */}
+                          {showHeart && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleToggleFavourite(e, job._id)}
+                              disabled={togglingFavouriteId === job._id}
+                              className="absolute bottom-2 right-2 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-md text-red-500 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-60"
+                              aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+                            >
+                              {isFavourite ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                  <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+                                </svg>
+                              )}
+                            </button>
+                          )}
                         </Link>
                       );
                     })}

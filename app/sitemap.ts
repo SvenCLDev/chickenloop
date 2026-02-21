@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 import connectDB from '@/lib/db';
 import Company from '@/models/Company';
 import Job from '@/models/Job';
+import { getCompanyUrl } from '@/lib/companySlug';
 import { generateJobSlug, generateCountrySlug } from '@/lib/jobSlug';
 
 const BASE_URL = 'https://chickenloop.com';
@@ -17,12 +18,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     await connectDB();
 
     const [companies, jobs] = await Promise.all([
-      Company.find({}).select('_id updatedAt').lean(),
+      Company.find({}).select('_id name address updatedAt').lean(),
       Job.find({ published: { $ne: false } }).select('_id title country updatedAt').lean(),
     ]);
 
-    const companyUrls: MetadataRoute.Sitemap = (companies || []).map((c: any) => ({
-      url: `${BASE_URL}/companies/${c._id}`,
+    const companyUrls: MetadataRoute.Sitemap = (companies || []).map((c: { _id: unknown; name?: string; address?: { country?: string }; updatedAt?: Date }) => ({
+      url: `${BASE_URL}${getCompanyUrl({ name: c.name ?? 'company', address: c.address })}`,
       lastModified: c.updatedAt ? new Date(c.updatedAt) : new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.7,

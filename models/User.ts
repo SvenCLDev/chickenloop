@@ -60,7 +60,7 @@ const UserSchema: Schema = new Schema(
     favouriteCandidates: [
       {
         type: Schema.Types.ObjectId,
-        ref: 'User',
+        ref: 'CV',
       },
     ],
     companyId: {

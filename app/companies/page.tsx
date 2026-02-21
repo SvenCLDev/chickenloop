@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Navbar from '../components/Navbar';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
+import { getCompanyUrl } from '@/lib/companySlug';
 import Link from 'next/link';
 
 interface Company {
@@ -341,7 +342,7 @@ function CompaniesPageContent() {
                       return (
                         <Link
                           key={company.id}
-                          href={`/companies/${company.id}`}
+                          href={getCompanyUrl(company)}
                           className={`rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block ${company.featured
                             ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300'
                             : 'bg-white'

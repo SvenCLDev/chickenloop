@@ -7,6 +7,7 @@ import ShareJobButton from '../../../components/ShareJobButton';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { buildJobJsonLd } from '@/lib/seo/jobJsonLd';
 import { generateCompanySummary } from '@/lib/companySummary';
+import { getCompanyUrl } from '@/lib/companySlug';
 import { generateJobSlug, generateCountrySlug, generateJobUrlPath, getCountryValuesForSlug } from '@/lib/jobSlug';
 import Link from 'next/link';
 import connectDB from '@/lib/db';
@@ -637,10 +638,13 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                   </p>
                 )}
                 
-                {job.companyId && (job.companyId.id || job.companyId._id) && (
+                {job.companyId && (job.companyId.name || job.companyId.id || job.companyId._id) && (
                   <div className="mt-4 text-right">
                     <Link
-                      href={`/companies/${job.companyId.id || (typeof job.companyId._id === 'string' ? job.companyId._id : String(job.companyId._id))}`}
+                      href={getCompanyUrl({
+                        name: (job.companyId as { name?: string }).name ?? 'Company',
+                        address: (job.companyId as { address?: { country?: string } }).address,
+                      })}
                       className="inline-block px-4 py-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 font-semibold transition-colors"
                     >
                       More Company Details
