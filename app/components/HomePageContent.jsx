@@ -40,6 +40,12 @@ export default function HomePageContent() {
   const [careerAdviceLoading, setCareerAdviceLoading] = useState(true);
   const [topCandidates, setTopCandidates] = useState([]);
   const [candidatesLoading, setCandidatesLoading] = useState(true);
+  // Contact form state
+  const [contactName, setContactName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactStatus, setContactStatus] = useState(null);
   
   // Hero image rotation state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -198,6 +204,43 @@ export default function HomePageContent() {
       console.error('Failed to load top candidates:', err);
     } finally {
       setCandidatesLoading(false);
+    }
+  };
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    setContactStatus(null);
+    setContactSubmitting(true);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: contactName.trim(),
+          email: contactEmail.trim(),
+          message: contactMessage.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setContactStatus({ type: 'success', text: data.message || 'Thanks! Your message has been sent.' });
+        setContactName('');
+        setContactEmail('');
+        setContactMessage('');
+      } else {
+        setContactStatus({
+          type: 'error',
+          text: data.error || 'Something went wrong. Please try again or email hello@chickenloop.com.',
+        });
+      }
+    } catch {
+      setContactStatus({
+        type: 'error',
+        text: 'Something went wrong. Please try again or email hello@chickenloop.com.',
+      });
+    } finally {
+      setContactSubmitting(false);
     }
   };
 
@@ -428,6 +471,129 @@ export default function HomePageContent() {
             </div>
           </section>
         )}
+
+        {/* About Section - The Chickenloop Story */}
+        <section id="about" className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-8">The Chickenloop Story</h2>
+            <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed space-y-6">
+              <p>
+                Back in 2013, I was deep in the grind of launching a watersports center in India. Between the logistics and the lessons, I hit a major snag: hiring. Finding qualified, reliable instructors felt like trying to kite in a dead calm—expensive, exhausting, and going nowhere.
+              </p>
+              <p>
+                I knew there had to be a better way to link centers with the talent they need. So, I grabbed a coffee, opened a code editor, and Chickenloop was born.
+              </p>
+              <p>
+                We started with kitesurfing, but the community had other plans. As more centers reached out, we expanded to cover the whole horizon—sailing, surfing, diving, SUP, and beyond.
+              </p>
+              <p>
+                Fast forward to 2024. The original site was a bit &quot;weathered,&quot; and it was time for a total refit. I&apos;ve spent my recent downtime rebuilding Chickenloop from scratch. The new platform is built on modern tech, designed to be the fastest way to get your crew on the boat or your instructors on the beach.
+              </p>
+              <p>
+                This project is for the community. That&apos;s why basic job posts and resumes are free, supported by a few optional premium features to keep us running.
+              </p>
+              <p>
+                Whether you&apos;re looking for your next season in the sun or the perfect addition to your team, I hope Chickenloop helps you find your line.
+              </p>
+              <p className="font-medium">
+                See you on the water,<br />
+                Sven
+              </p>
+            </div>
+            <div className="mt-10 flex justify-center">
+              <Image
+                src="https://cy1wkdwruflm9kfu.public.blob.vercel-storage.com/about/sven-rooster.png"
+                alt="Sven"
+                width={400}
+                height={400}
+                className="rounded-lg object-cover shadow-md"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Contact Section - Signal the Shore */}
+        <section id="contact" className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-8">Signal the Shore 🚩</h2>
+            <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed space-y-6 mb-10">
+              <p>
+                Whether you&apos;ve got a suggestion for the new website, a bug to report, or just want to touch base, I&apos;m always listening.
+              </p>
+              <p>
+                Chickenloop is a community-driven project, and your feedback is the &quot;wind&quot; that helps me figure out which direction to steer the platform next.
+              </p>
+              <p>
+                Keep me in the (chicken) loop and drop me a line.
+              </p>
+              <h3 className="text-xl font-bold text-gray-900 mt-8 mb-4">Where to Find Me</h3>
+              <p>
+                Chickenloop is a passion project of Sven Kelling (Chesterton Consulting). When I am not managing the code, you&apos;ll usually find me between these two spots:
+              </p>
+              <ul className="list-disc pl-6 space-y-2">
+                <li>Miramar Beach, Goa, India 🇮🇳</li>
+                <li>Playa de Can Pastilla, Mallorca, Spain 🇪🇸</li>
+              </ul>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">Drop a Message</h3>
+            <form onSubmit={handleContactSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="home-contact-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Your Name
+                </label>
+                <input
+                  id="home-contact-name"
+                  type="text"
+                  required
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Your name"
+                />
+              </div>
+              <div>
+                <label htmlFor="home-contact-email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Your Email
+                </label>
+                <input
+                  id="home-contact-email"
+                  type="email"
+                  required
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="you@example.com"
+                />
+              </div>
+              <div>
+                <label htmlFor="home-contact-message" className="block text-sm font-medium text-gray-700 mb-1">
+                  What&apos;s on your mind? (Suggestions, feedback, or just a hello)
+                </label>
+                <textarea
+                  id="home-contact-message"
+                  required
+                  rows={5}
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+                  placeholder="Your message..."
+                />
+              </div>
+              {contactStatus && (
+                <p className={contactStatus.type === 'success' ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                  {contactStatus.text}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={contactSubmitting}
+                className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {contactSubmitting ? 'Sending...' : 'Send Message 🤙'}
+              </button>
+            </form>
+          </div>
+        </section>
       </main>
     </div>
   );
