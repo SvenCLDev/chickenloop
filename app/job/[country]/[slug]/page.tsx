@@ -58,6 +58,7 @@ interface Job {
   experience?: string;
   languages?: string[];
   occupationalAreas?: string[];
+  sports?: string[];
   qualifications?: string[];
   pictures?: string[];
   recruiter: {
@@ -594,6 +595,26 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                         </span>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* Activities */}
+              {job.sports && job.sports.length > 0 && (
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <div className="flex items-center text-gray-600">
+                    <span className="mr-2">🏄</span>
+                    <span className="font-medium">Activities:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {job.sports.map((activity, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-cyan-100 text-cyan-800 rounded-full text-sm font-medium capitalize"
+                      >
+                        {activity}
+                      </span>
+                    ))}
                   </div>
                 </div>
               )}

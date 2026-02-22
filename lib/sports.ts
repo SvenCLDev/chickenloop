@@ -1,27 +1,6 @@
-export const SPORTS_LIST = [
-  'canoeing',
-  'canyoning',
-  'catamaran',
-  'e-foil',
-  'flyboarding',
-  'hydrofoil kite surfing',
-  'hydrofoil surfing',
-  'jet-skiing',
-  'kayaking',
-  'kitesurfing',
-  'parasailing',
-  'rafting',
-  'sailing',
-  'scuba-diving',
-  'snorkeling',
-  'Paddle boarding (SUP)',
-  'surfing',
-  'wakeboarding',
-  'water-skiing',
-  'windsurfing',
-  'wing foiling',
-  'yachting',
-  'Other (see job description)',
-];
+// Must match OFFERED_ACTIVITIES_LIST exactly (Job model enum) so form values pass validation
+import { OFFERED_ACTIVITIES_LIST } from '@/lib/offeredActivities';
+
+export const SPORTS_LIST: readonly string[] = [...OFFERED_ACTIVITIES_LIST];
 
 

@@ -655,7 +655,7 @@ export default function EditCVPage() {
                 </div>
               )}
               <div className="max-h-56 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
-                {SPORTS_LIST.filter((sport) => sport !== 'Other (see job description)').map((sport) => {
+                {SPORTS_LIST.filter((sport) => sport !== 'other (see company description)').map((sport) => {
                   const isSelected = formData.experienceAndSkill.includes(sport);
 
                   return (
