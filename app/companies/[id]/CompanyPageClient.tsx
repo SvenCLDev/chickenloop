@@ -141,7 +141,6 @@ export default function CompanyPageClient({ company, jobs }: Props) {
     Number.isFinite(company.coordinates?.latitude) &&
     Number.isFinite(company.coordinates?.longitude);
 
-  const jobsByCompanyUrl = `/jobs?keyword=${encodeURIComponent(company.name)}`;
   const companyCountry = company.address?.country;
 
   return (
@@ -185,16 +184,8 @@ export default function CompanyPageClient({ company, jobs }: Props) {
             </div>
           )}
 
-          {/* Internal linking: jobs, activities, country */}
+          {/* Internal linking: activities, country */}
           <div className="mb-6 flex flex-wrap gap-3">
-            {jobs.length > 0 && (
-              <Link
-                href={jobsByCompanyUrl}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
-              >
-                View all jobs at {company.name} ({jobs.length})
-              </Link>
-            )}
             {company.offeredActivities && company.offeredActivities.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {company.offeredActivities.slice(0, 3).map((activity) => (

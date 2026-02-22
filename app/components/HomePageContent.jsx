@@ -163,8 +163,8 @@ export default function HomePageContent() {
         }
       });
       
-      // Add job count to each company and get first 4
-      const companiesWithJobCount = companies.slice(0, 4).map((company) => ({
+      // Add job count to each company and get first 8
+      const companiesWithJobCount = companies.slice(0, 8).map((company) => ({
         ...company,
         jobCount: jobCountsByCompany[company.id] || 0
       }));
@@ -260,10 +260,10 @@ export default function HomePageContent() {
     return JOB_CATEGORIES.filter((cat) => availableValues.has(cat.value));
   };
 
-  // Latest jobs excluding those already shown in Featured Jobs – take first 3 for display
+  // Latest jobs excluding those already shown in Featured Jobs – take first 6 for display
   const latestExcludingFeatured = useMemo(() => {
     const featuredIds = new Set(featuredJobs.map((f) => f._id));
-    return latestJobs.filter((job) => !featuredIds.has(job._id)).slice(0, 3);
+    return latestJobs.filter((job) => !featuredIds.has(job._id)).slice(0, 6);
   }, [latestJobs, featuredJobs]);
 
   return (
@@ -476,7 +476,7 @@ export default function HomePageContent() {
         <section id="about" className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-8">The Chickenloop Story</h2>
-            <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed space-y-6">
+            <div className="prose max-w-none text-gray-700 leading-relaxed space-y-6 text-sm">
               <p>
                 Back in 2013, I was deep in the grind of launching a watersports center in India. Between the logistics and the lessons, I hit a major snag: hiring. Finding qualified, reliable instructors felt like trying to kite in a dead calm—expensive, exhausting, and going nowhere.
               </p>
@@ -504,8 +504,8 @@ export default function HomePageContent() {
               <Image
                 src="https://cy1wkdwruflm9kfu.public.blob.vercel-storage.com/about/sven-rooster.png"
                 alt="Sven"
-                width={400}
-                height={400}
+                width={300}
+                height={300}
                 className="rounded-lg object-cover shadow-md"
               />
             </div>
@@ -516,7 +516,7 @@ export default function HomePageContent() {
         <section id="contact" className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-8">Signal the Shore 🚩</h2>
-            <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed space-y-6 mb-10">
+            <div className="prose max-w-none text-gray-700 leading-relaxed space-y-6 mb-10 text-sm">
               <p>
                 Whether you&apos;ve got a suggestion for the new website, a bug to report, or just want to touch base, I&apos;m always listening.
               </p>
@@ -547,7 +547,7 @@ export default function HomePageContent() {
                   required
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                   placeholder="Your name"
                 />
               </div>
@@ -561,7 +561,7 @@ export default function HomePageContent() {
                   required
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                   placeholder="you@example.com"
                 />
               </div>
@@ -575,7 +575,7 @@ export default function HomePageContent() {
                   rows={5}
                   value={contactMessage}
                   onChange={(e) => setContactMessage(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y text-gray-700"
                   placeholder="Your message..."
                 />
               </div>
