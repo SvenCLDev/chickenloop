@@ -170,6 +170,7 @@ function AdminDashboard() {
   const [togglingFeatured, setTogglingFeatured] = useState<string | null>(null);
   const [deletingCompany, setDeletingCompany] = useState<string | null>(null);
   const [deletingJob, setDeletingJob] = useState<string | null>(null);
+  const [deletingJobSeeker, setDeletingJobSeeker] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string>('lastActive');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -651,9 +652,25 @@ function AdminDashboard() {
   };
 
   const handleEditUser = (userId: string) => {
-    // Navigate to admin user edit page (if exists) or show user details
-    // For now, navigate to a user detail/edit page
     router.push(`/admin/users/${userId}/edit`);
+  };
+
+  const handleDeleteJobSeeker = async (userId: string, name: string, email: string) => {
+    if (!confirm(`Are you sure you want to delete the job seeker "${name}" (${email})? This will permanently delete their profile, all CVs, and all applications. This action cannot be undone.`)) {
+      return;
+    }
+    setDeletingJobSeeker(userId);
+    try {
+      await adminApi.deleteUser(userId);
+      setTableData((prev) => prev.filter((e) => e.id !== userId));
+      await loadStatistics();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[Admin] Error deleting job seeker:', err);
+      alert(`Failed to delete job seeker: ${msg}`);
+    } finally {
+      setDeletingJobSeeker(null);
+    }
   };
 
   const handleEditCV = (cvId: string) => {
@@ -1526,14 +1543,28 @@ function AdminDashboard() {
                                   '—'
                                 )}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <button
-                                  onClick={() => handleEditUser(entry.id)}
-                                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
-                                  title="Edit user"
-                                >
-                                  Edit
-                                </button>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" style={{ width: '160px', minWidth: '160px' }}>
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => handleEditUser(entry.id)}
+                                    className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
+                                    title="Edit user"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteJobSeeker(entry.id, entry.name, entry.email)}
+                                    disabled={deletingJobSeeker === entry.id}
+                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                                      deletingJobSeeker === entry.id
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        : 'bg-red-600 text-white hover:bg-red-700'
+                                    }`}
+                                    title="Delete job seeker (profile, CVs, and applications)"
+                                  >
+                                    {deletingJobSeeker === entry.id ? 'Deleting...' : 'Delete'}
+                                  </button>
+                                </div>
                               </td>
                             </>
                           ) : selectedCategory === 'recruiters' ? (

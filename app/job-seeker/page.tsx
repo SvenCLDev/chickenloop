@@ -423,15 +423,22 @@ function JobSeekerDashboardClient() {
                   You have created a CV.<br />
                   Your CV is only visible to registered recruiters.
                 </p>
-                {cv.featuredUntil && (() => {
-                  const until = new Date(cv.featuredUntil);
-                  const isFuture = !isNaN(until.getTime()) && until > new Date();
-                  if (!isFuture) return null;
-                  const dateStr = until.toLocaleDateString(undefined, { dateStyle: 'medium' });
+                {(() => {
+                  const until = cv.featuredUntil ? new Date(cv.featuredUntil) : null;
+                  const isFeatured = cv.featured === true || (until != null && !isNaN(until.getTime()) && until > new Date());
+                  if (!isFeatured) return null;
+                  const dateStr = until ? until.toLocaleDateString(undefined, { dateStyle: 'long' }) : null;
                   return (
-                    <p className="text-sm text-amber-700 mb-3">
-                      Featured until {dateStr}
-                    </p>
+                    <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-200">
+                      <p className="text-amber-800 font-medium">
+                        ⭐ Your CV is currently featured.
+                      </p>
+                      {dateStr && (
+                        <p className="text-amber-700 text-sm mt-1">
+                          Featured until {dateStr}
+                        </p>
+                      )}
+                    </div>
                   );
                 })()}
                 <div className="flex gap-4 flex-wrap">

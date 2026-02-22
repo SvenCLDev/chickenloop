@@ -47,7 +47,14 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
   };
 
   if (featured === 'true') {
-    matchConditions.featured = true;
+    matchConditions.$and = [
+      {
+        $or: [
+          { featured: true },
+          { featuredUntil: { $gt: new Date() } },
+        ],
+      },
+    ];
   }
 
   if (filters.kw) {
@@ -60,7 +67,11 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
       { lookingForWorkInAreas: keywordRegex },
       { 'experience.position': keywordRegex },
     ];
-    matchConditions.$or = keywordOr;
+    if (matchConditions.$and) {
+      matchConditions.$and.push({ $or: keywordOr });
+    } else {
+      matchConditions.$or = keywordOr;
+    }
   }
 
   if (filters.location) {
@@ -100,7 +111,7 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
     matchConditions.availability = { $in: filters.availability };
   }
 
-  const sortOrder: any = { featured: -1, hasPictures: -1 };
+  const sortOrder: any = { hasPictures: -1 };
   if (filters.sort === 'oldest') {
     sortOrder.createdAt = 1;
   } else {
@@ -144,6 +155,7 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         experienceLevel: 1,
         availability: 1,
         featured: 1,
+        featuredUntil: 1,
         updatedAt: 1,
         createdAt: 1,
         pictures: { $slice: ['$pictures', 1] },
@@ -152,10 +164,28 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
     },
     {
       $addFields: {
-        hasPictures: { $cond: [{ $gt: [{ $size: { $ifNull: ['$pictures', []] } }, 0] }, 1, 0] }
+        hasPictures: { $cond: [{ $gt: [{ $size: { $ifNull: ['$pictures', []] } }, 0] }, 1, 0] },
+        // Featured for display/sort: stored featured OR featuredUntil in the future (CV boost)
+        isFeatured: {
+          $cond: [
+            {
+              $or: [
+                { $eq: ['$featured', true] },
+                {
+                  $and: [
+                    { $ne: ['$featuredUntil', null] },
+                    { $gt: ['$featuredUntil', '$$NOW'] },
+                  ],
+                },
+              ],
+            },
+            true,
+            false,
+          ],
+        },
       }
     },
-    { $sort: sortOrder },
+    { $sort: { isFeatured: -1, ...sortOrder } },
     { $limit: sortWindow }, // Bounded sort: only keep sortWindow docs in memory (avoids 32MB limit)
     { $skip: skip },
     { $limit: PAGE_SIZE },
@@ -188,7 +218,7 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         professionalCertifications: 1,
         experienceLevel: 1,
         availability: 1,
-        featured: 1,
+        featured: '$isFeatured',
         pictures: 1,
         createdAt: 1,
         jobSeeker: {

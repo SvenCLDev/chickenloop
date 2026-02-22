@@ -34,6 +34,7 @@ export interface CompanyInfo {
   logo?: string;
   city?: string;
   country?: string;
+  address?: { city?: string; country?: string };
 }
 
 interface CompanyAddress {
@@ -187,7 +188,7 @@ async function getJob(id: string): Promise<Job | null> {
     
     const job = await Job.findById(id)
       .populate('recruiter', 'name email')
-      .populate('companyId', 'name logo address.city address.country offeredActivities offeredServices');
+      .populate('companyId', 'name logo address offeredActivities offeredServices');
     
     if (!job) {
       return null;
@@ -210,7 +211,7 @@ async function getJob(id: string): Promise<Job | null> {
     // Reload the job to get the updated visit count
     const updatedJob = await Job.findById(id)
       .populate('recruiter', 'name email')
-      .populate('companyId', 'name logo address.city address.country offeredActivities offeredServices');
+      .populate('companyId', 'name logo address offeredActivities offeredServices');
     
     if (!updatedJob) {
       return null;
@@ -314,6 +315,7 @@ async function getJob(id: string): Promise<Job | null> {
         logo: typeof populatedCompany.logo === 'string' ? populatedCompany.logo : undefined,
         city: address?.city,
         country: address?.country,
+        address, // required for getCompanyUrl(company) so "More Company Details" link gets correct country slug
       };
       
       // Store full company data for summary generation

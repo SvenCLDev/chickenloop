@@ -33,7 +33,7 @@ if (!global.mongoose) {
   global.mongoose = cached;
 }
 
-async function connectDB() {
+async function connectDB(_isRetry = false) {
   // Check if connection string is available
   const uri = process.env.MONGODB_URI?.trim() || MONGODB_URI;
   if (!uri) {
@@ -120,6 +120,22 @@ async function connectDB() {
     cached.promise = null;
     cached.conn = null;
     throw error;
+  }
+
+  // Only return when connection is actually ready (avoids "Client must be connected before running operations")
+  if (mongoose.connection.readyState !== 1) {
+    cached.conn = null;
+    cached.promise = null;
+    try {
+      await mongoose.disconnect();
+    } catch {
+      // ignore
+    }
+    if (!_isRetry) {
+      return connectDB(true);
+    }
+    console.error('[connectDB] Connection not ready after retry, readyState:', mongoose.connection.readyState);
+    throw new Error('Database connection not ready. Please try again.');
   }
 
   return cached.conn;
