@@ -15,7 +15,7 @@ interface JobForJsonLd {
   _id: string;
   title: string;
   description: string;
-  company: string;
+  company?: string;
   city: string;
   country?: string;
   salary?: string;
@@ -24,9 +24,12 @@ interface JobForJsonLd {
   validThrough?: string | Date;
   createdAt?: string | Date;
   companyId?: {
+    name?: string;
     website?: string;
     logo?: string;
   };
+  /** Legacy migration: original company text from Drupal */
+  legacy?: { originalCompanyText?: string };
   applicationWebsite?: string;
   applicationEmail?: string;
 }
@@ -39,9 +42,20 @@ interface JobForJsonLd {
  * @returns A plain JavaScript object ready for JSON.stringify, or null if job is invalid
  */
 export function buildJobJsonLd(job: JobForJsonLd | null, jobUrl?: string): object | null {
-  if (!job || !job._id || !job.title || !job.description || !job.company || !job.city) {
+  if (!job || !job._id || !job.title || !job.description || !job.city) {
     return null;
   }
+
+  // Derive company name: job.company, populated companyId.name, or legacy migration text
+  const companyName =
+    (job.company && job.company.trim()) ||
+    (job.companyId && typeof job.companyId === 'object' && job.companyId.name
+      ? String(job.companyId.name).trim()
+      : '') ||
+    (job.legacy?.originalCompanyText && job.legacy.originalCompanyText.trim()
+      ? job.legacy.originalCompanyText.trim()
+      : '') ||
+    'Company'; // Fallback so hiringOrganization is always valid for Google
 
   // Normalize dates to ISO 8601 strings
   const normalizeDate = (date: string | Date | undefined, fallback?: string | Date): string | undefined => {
@@ -98,14 +112,14 @@ export function buildJobJsonLd(job: JobForJsonLd | null, jobUrl?: string): objec
     description: stripHtmlToText(job.description),
     identifier: {
       '@type': 'PropertyValue',
-      name: job.company,
+      name: companyName,
       value: job._id,
     },
     datePosted: datePosted,
     employmentType: employmentType,
     hiringOrganization: {
       '@type': 'Organization',
-      name: job.company,
+      name: companyName,
     },
     jobLocation: {
       '@type': 'Place',

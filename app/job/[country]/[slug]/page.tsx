@@ -32,6 +32,7 @@ export interface CompanyInfo {
   id?: string;
   name?: string;
   logo?: string;
+  website?: string;
   city?: string;
   country?: string;
   address?: { city?: string; country?: string };
@@ -189,7 +190,7 @@ async function getJob(id: string): Promise<Job | null> {
     
     const job = await Job.findById(id)
       .populate('recruiter', 'name email')
-      .populate('companyId', 'name logo address offeredActivities offeredServices');
+      .populate('companyId', 'name logo website address offeredActivities offeredServices');
     
     if (!job) {
       return null;
@@ -212,7 +213,7 @@ async function getJob(id: string): Promise<Job | null> {
     // Reload the job to get the updated visit count
     const updatedJob = await Job.findById(id)
       .populate('recruiter', 'name email')
-      .populate('companyId', 'name logo address offeredActivities offeredServices');
+      .populate('companyId', 'name logo website address offeredActivities offeredServices');
     
     if (!updatedJob) {
       return null;
@@ -314,6 +315,7 @@ async function getJob(id: string): Promise<Job | null> {
         id: populatedCompany._id ? String(populatedCompany._id) : undefined,
         name: typeof populatedCompany.name === 'string' ? populatedCompany.name : undefined,
         logo: typeof populatedCompany.logo === 'string' ? populatedCompany.logo : undefined,
+        website: typeof populatedCompany.website === 'string' ? populatedCompany.website : undefined,
         city: address?.city,
         country: address?.country,
         address, // required for getCompanyUrl(company) so "More Company Details" link gets correct country slug
@@ -335,7 +337,7 @@ async function getJob(id: string): Promise<Job | null> {
       recruiter,
       recruiterId, // Include recruiter ID for permission checks
       companyId: serializedCompanyId,
-      company: serializedCompanyId?.name ?? '', // Display name from populated companyId
+      company: serializedCompanyId?.name ?? (jobObject.legacy?.originalCompanyText ?? ''), // Display name from populated companyId or legacy migration
       companyForSummary, // Include company data for summary generation
       published: jobObject.published !== undefined ? jobObject.published : true, // Include published status
       heroImageUrl, // Include hero image URL (explicit isHero or first image fallback)
