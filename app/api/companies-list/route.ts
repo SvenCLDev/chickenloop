@@ -20,10 +20,19 @@ export async function GET(request: NextRequest) {
       queryFilter.featured = true;
     }
 
-    const companies = await Company.find(queryFilter)
+    let companies = await Company.find(queryFilter)
       .populate('ownerRecruiter', 'name email')
       .sort({ createdAt: -1 })
       .lean();
+
+    // Put "Test-00" prefixed companies at the end so users rarely see them
+    companies = companies.sort((a: any, b: any) => {
+      const aIsTest = (a.name || '').startsWith('Test-00');
+      const bIsTest = (b.name || '').startsWith('Test-00');
+      if (aIsTest && !bIsTest) return 1;
+      if (!aIsTest && bIsTest) return -1;
+      return 0;
+    });
 
     // Clean up and minimize payload - return only fields needed for list display
     const cleanedCompanies = companies.map((company: any) => {
