@@ -42,7 +42,19 @@ interface JobForJsonLd {
  * @returns A plain JavaScript object ready for JSON.stringify, or null if job is invalid
  */
 export function buildJobJsonLd(job: JobForJsonLd | null, jobUrl?: string): object | null {
-  if (!job || !job._id || !job.title || !job.description || !job.city) {
+  if (!job || !job._id || !job.description) {
+    return null;
+  }
+
+  // Title is required by Google Jobs - must be non-empty after trim
+  const title = (job.title != null && String(job.title).trim()) ? String(job.title).trim() : null;
+  if (!title) {
+    return null;
+  }
+
+  // jobLocation.address.addressLocality (city) is required - must be non-empty after trim
+  const city = (job.city != null && String(job.city).trim()) ? String(job.city).trim() : null;
+  if (!city) {
     return null;
   }
 
@@ -97,7 +109,7 @@ export function buildJobJsonLd(job: JobForJsonLd | null, jobUrl?: string): objec
     'contract': 'CONTRACTOR',
     'freelance': 'CONTRACTOR',
   };
-  const employmentType = employmentTypeMap[job.type] || job.type.toUpperCase();
+  const employmentType = (job.type && (employmentTypeMap[job.type] || String(job.type).toUpperCase())) || 'OTHER';
 
   // Build the base JobPosting object
   // datePosted is required by Google Jobs, so we ensure it's always present
@@ -108,7 +120,7 @@ export function buildJobJsonLd(job: JobForJsonLd | null, jobUrl?: string): objec
   const jsonLd: any = {
     '@context': 'https://schema.org',
     '@type': 'JobPosting',
-    title: job.title,
+    title,
     description: stripHtmlToText(job.description),
     identifier: {
       '@type': 'PropertyValue',
@@ -125,8 +137,8 @@ export function buildJobJsonLd(job: JobForJsonLd | null, jobUrl?: string): objec
       '@type': 'Place',
       address: {
         '@type': 'PostalAddress',
-        addressLocality: job.city,
-        ...(job.country && job.country.length === 2 && { addressCountry: job.country.toUpperCase() }),
+        addressLocality: city,
+        ...(job.country && String(job.country).trim().length === 2 && { addressCountry: String(job.country).trim().toUpperCase() }),
       },
     },
   };
