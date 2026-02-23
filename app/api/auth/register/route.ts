@@ -6,6 +6,7 @@ import EmailPreferences from '@/models/EmailPreferences';
 import { generateToken } from '@/lib/jwt';
 import { sendEmailAsync, EmailCategory } from '@/lib/email';
 import { getWelcomeEmail } from '@/lib/emailTemplates';
+import { getBaseUrlForAuthEmails } from '@/lib/baseUrlForAuthEmails';
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,8 +57,7 @@ export async function POST(request: NextRequest) {
     // Send welcome email asynchronously (fire-and-forget) when sendEmail is true
     if (sendEmail) {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
-        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+      const baseUrl = getBaseUrlForAuthEmails();
       
       // Determine dashboard URL based on role
       const dashboardUrl = user.role === 'recruiter' 

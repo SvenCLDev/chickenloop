@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
 import { sendEmail, EmailCategory } from '@/lib/email';
+import { getBaseUrlForAuthEmails } from '@/lib/baseUrlForAuthEmails';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -24,9 +25,10 @@ export async function POST(request: NextRequest) {
     const user = await User.findOne({ email: emailNormalized }).select('_id email name').lean();
 
     // Always return success to prevent email enumeration
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    // Use production URL for reset links so users never land on a Vercel preview (which triggers
+    // "Access Request" emails and confusion). Prefer NEXT_PUBLIC_BASE_URL; on preview deployments
+    // never use VERCEL_URL for this link.
+    const baseUrl = getBaseUrlForAuthEmails();
 
     if (user) {
       const resetToken = jwt.sign(
