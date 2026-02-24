@@ -353,6 +353,28 @@ interface PageProps {
   params: Promise<{ country: string; slug: string }>;
 }
 
+/** Returns the job's hero/first image URL for og:image (raw URL, not Next.js Image). */
+async function getJobOgImageUrl(jobId: string): Promise<string | null> {
+  try {
+    const jobImages = await JobImage.find({ jobId: new mongoose.Types.ObjectId(jobId) })
+      .sort({ order: 1 })
+      .lean();
+    if (jobImages && jobImages.length > 0) {
+      const hero = (jobImages as { imageUrl?: string; isHero?: boolean }[]).find((img) => img.isHero === true);
+      const url = hero?.imageUrl ?? (jobImages[0] as { imageUrl?: string })?.imageUrl;
+      if (url && url.startsWith('http')) return url;
+    }
+    const job = await Job.findById(jobId).select('pictures').lean();
+    const pictures = (job as { pictures?: string[] } | null)?.pictures;
+    if (Array.isArray(pictures) && pictures.length > 0 && pictures[0]?.startsWith('http')) {
+      return pictures[0];
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { country: countrySlug, slug } = await params;
 
@@ -384,12 +406,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const host = headersList.get('host') || 'chickenloop.vercel.app';
     const protocol = headersList.get('x-forwarded-proto') || 'https';
     const canonicalUrl = `${protocol}://${host}${canonicalPath}`;
+
+    // Explicit og:image so Facebook shows the job image, not the site logo (raw URL, not _next/image)
+    const ogImageUrl = await getJobOgImageUrl(jobId);
     
     return {
       title: `${job.title} at ${companyName} | Chickenloop`,
       description: `Apply for ${job.title} at ${companyName}. Find watersports jobs on Chickenloop.`,
       alternates: {
         canonical: canonicalUrl,
+      },
+      openGraph: {
+        title: `${job.title} at ${companyName} | Chickenloop`,
+        description: `Apply for ${job.title} at ${companyName}. Find watersports jobs on Chickenloop.`,
+        url: canonicalUrl,
+        type: 'website',
+        ...(ogImageUrl && { images: [{ url: ogImageUrl }] }),
       },
     };
   } catch {
