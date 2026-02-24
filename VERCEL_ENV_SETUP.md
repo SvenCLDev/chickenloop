@@ -96,20 +96,20 @@ After adding environment variables:
 
 ### How to verify environment variables are set
 
-You can temporarily add a debug endpoint to check:
+You can temporarily add a debug endpoint to check (local/dev only; never expose in production):
 
 ```typescript
 // app/api/debug/env/route.ts (temporary, remove after debugging)
+// SECURITY: Do not expose RESEND_API_KEY or its length. Never commit this route.
 export async function GET() {
   return Response.json({
     hasResendKey: !!process.env.RESEND_API_KEY,
-    resendKeyLength: process.env.RESEND_API_KEY?.length || 0,
     fromEmail: process.env.RESEND_FROM_EMAIL || 'not set',
   });
 }
 ```
 
-**Note**: Remove this endpoint after debugging for security.
+**Note**: Remove this endpoint after debugging. Do not expose `resendKeyLength` or any key-related info to clients.
 
 ## Quick Checklist
 

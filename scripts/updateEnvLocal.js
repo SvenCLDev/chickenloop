@@ -3,9 +3,8 @@ const path = require('path');
 
 const envFilePath = path.join(__dirname, '..', '.env.local');
 
-// Variables to set
+// Variables to set (no secrets here - RESEND_API_KEY must be set in .env.local manually and never committed)
 const newVars = {
-  RESEND_API_KEY: 're_Tr4zB7CP_KhT1mGDxpM6RQ4KLNxXx2BsM',
   RESEND_FROM_EMAIL: 'noreply@notifications.chickenloop.com',
   CONTACT_EMAIL: 'hello@chickenloop.com',
 };

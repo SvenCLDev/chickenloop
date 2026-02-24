@@ -1,3 +1,8 @@
+/**
+ * Server-only email module. Uses RESEND_API_KEY from process.env.
+ * Must only be imported in API routes, Server Actions, Route Handlers, or backend scripts.
+ * Never import from client components or any code that runs in the browser.
+ */
 import { Resend } from 'resend';
 import EmailPreferences from '@/models/EmailPreferences';
 import User from '@/models/User';
@@ -342,7 +347,8 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ success: b
     const result = await client.emails.send(emailPayload as any);
 
     if (result.error) {
-      console.error('Resend API error:', result.error);
+      const errMsg = result.error?.message ?? 'Unknown error';
+      console.error('Resend API error:', errMsg);
       return {
         success: false,
         error: result.error.message || 'Failed to send email',
@@ -355,7 +361,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ success: b
     };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error sending email:', error);
+    console.error('Error sending email:', errorMessage);
     return {
       success: false,
       error: errorMessage,
