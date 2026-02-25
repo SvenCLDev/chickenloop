@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Navbar from '../components/Navbar';
+import TurnstileWidget from '../components/TurnstileWidget';
 
 export default function ContactPage() {
   const [name, setName] = useState('');
@@ -9,6 +10,8 @@ export default function ContactPage() {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +22,12 @@ export default function ContactPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), message: message.trim() }),
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          message: message.trim(),
+          turnstileToken,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
@@ -27,6 +35,8 @@ export default function ContactPage() {
         setName('');
         setEmail('');
         setMessage('');
+        setTurnstileToken(null);
+        setTurnstileResetKey((k) => k + 1);
       } else {
         setStatus({
           type: 'error',
@@ -117,6 +127,11 @@ export default function ContactPage() {
                 placeholder="Your message..."
               />
             </div>
+            <TurnstileWidget
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
+              onVerify={setTurnstileToken}
+              resetKey={turnstileResetKey}
+            />
             {status && (
               <p
                 className={
@@ -130,7 +145,7 @@ export default function ContactPage() {
             )}
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !turnstileToken}
               className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {submitting ? 'Sending...' : 'Send Message 🤙'}

@@ -41,10 +41,10 @@ export async function apiRequest(
       throw new Error('Invalid response from server');
     }
   } else {
-    // No JSON Content-Type: try to parse anyway (some proxies strip headers), or treat 401 empty as Unauthorized
+    // No JSON Content-Type: try to parse anyway (some proxies strip headers)
     const trimmed = text.trim();
-    if (response.status === 401 && !trimmed) {
-      // Expected when not logged in – avoid logging as error
+    if (response.status === 401) {
+      // Expected when not logged in – never log as error (body may be empty or HTML)
       throw new Error('Unauthorized');
     }
     if (trimmed && (trimmed.startsWith('{') || trimmed.startsWith('['))) {
@@ -57,6 +57,10 @@ export async function apiRequest(
       data = null;
     }
     if (data == null) {
+      // /auth/me is only used for session check – any non-JSON response treat as unauthenticated, don't log
+      if (endpoint === '/auth/me') {
+        throw new Error('Unauthorized');
+      }
       // Truly non-JSON (e.g. HTML error page) – log and throw
       console.error('Non-JSON response received:', {
         status: response.status,

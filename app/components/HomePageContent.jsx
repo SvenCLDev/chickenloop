@@ -14,6 +14,7 @@ import CareerAdviceCard from './CareerAdviceCard';
 import SectionHeader from './SectionHeader';
 import SearchBar from './SearchBar';
 import CompaniesPreview from './CompaniesPreview';
+import TurnstileWidget from './TurnstileWidget';
 
 // Hero background images - add more images to this array to rotate through them
 const HERO_IMAGES = [
@@ -46,6 +47,8 @@ export default function HomePageContent() {
   const [contactMessage, setContactMessage] = useState('');
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [contactStatus, setContactStatus] = useState(null);
+  const [contactTurnstileToken, setContactTurnstileToken] = useState(null);
+  const [contactTurnstileResetKey, setContactTurnstileResetKey] = useState(0);
   
   // Hero image rotation state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -220,6 +223,7 @@ export default function HomePageContent() {
           name: contactName.trim(),
           email: contactEmail.trim(),
           message: contactMessage.trim(),
+          turnstileToken: contactTurnstileToken,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -579,6 +583,11 @@ export default function HomePageContent() {
                   placeholder="Your message..."
                 />
               </div>
+              <TurnstileWidget
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
+                onVerify={setContactTurnstileToken}
+                resetKey={contactTurnstileResetKey}
+              />
               {contactStatus && (
                 <p className={contactStatus.type === 'success' ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
                   {contactStatus.text}
@@ -586,7 +595,7 @@ export default function HomePageContent() {
               )}
               <button
                 type="submit"
-                disabled={contactSubmitting}
+                disabled={contactSubmitting || !contactTurnstileToken}
                 className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {contactSubmitting ? 'Sending...' : 'Send Message 🤙'}
