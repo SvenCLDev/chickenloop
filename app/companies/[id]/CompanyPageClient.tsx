@@ -264,7 +264,7 @@ export default function CompanyPageClient({ company, jobs }: Props) {
                     <h3 className="text-lg font-semibold text-gray-800 mb-2">Offered Services</h3>
                     <div className="flex flex-wrap gap-2">
                       {(company.offeredServices ?? []).map((service, index) => (
-                        <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">{service}</span>
+                        <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">{service}</span>
                       ))}
                     </div>
                   </div>

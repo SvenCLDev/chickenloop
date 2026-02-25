@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { OFFERED_ACTIVITIES_LIST } from '@/lib/offeredActivities';
+import { OFFERED_SERVICES_LIST } from '@/lib/offeredServices';
 
 export interface ICompany extends Document {
   name: string;
@@ -22,6 +23,7 @@ export interface ICompany extends Document {
   email?: string;
 
   offeredActivities?: string[];
+  offeredServices?: string[];
   logo?: string | null;
   pictures?: string[];
 
@@ -75,6 +77,11 @@ const CompanySchema: Schema = new Schema(
     offeredActivities: {
       type: [String],
       enum: OFFERED_ACTIVITIES_LIST,
+      default: [],
+    },
+    offeredServices: {
+      type: [String],
+      enum: OFFERED_SERVICES_LIST,
       default: [],
     },
     logo: {
