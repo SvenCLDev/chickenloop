@@ -7,7 +7,7 @@ interface JobCardProps {
   job: {
     _id: string;
     title: string;
-    company: string;
+    company?: string;
     city: string;
     country?: string;
     pictures?: string[];
@@ -88,9 +88,11 @@ export default function JobCard({ job, priority = false, featured: featuredProp 
         <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
           {job.title}
         </h3>
-        <p className="text-sm sm:text-base text-gray-600 mb-2 font-medium">
-          {job.company}
-        </p>
+        {job.company ? (
+          <p className="text-sm text-gray-600 mb-2 line-clamp-1" title={job.company}>
+            {job.company}
+          </p>
+        ) : null}
         <p className="text-sm text-gray-600 flex items-center">
           <span className="mr-1.5">📍</span>
           <span className="line-clamp-1">{locationText}</span>

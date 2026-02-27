@@ -134,6 +134,7 @@ interface Job {
   recruiter: any;
   featured?: boolean;
   createdAt: string;
+  visitCount?: number;
 }
 
 interface CV {
@@ -1297,6 +1298,9 @@ function AdminDashboard() {
                                 )}
                               </div>
                             </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Views
+                            </th>
                             <th 
                               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                               onClick={() => handleSort('created')}
@@ -1613,6 +1617,9 @@ function AdminDashboard() {
                                 >
                                   {togglingFeatured === entry.id ? 'Updating...' : (entry.featured ? '⭐ Featured' : 'Not Featured')}
                                 </button>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.visitCount ?? 0}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {new Date(entry.createdAt).toLocaleDateString()}

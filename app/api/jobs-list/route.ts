@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
+import Company from '@/models/Company';
 import mongoose from 'mongoose';
 import { CachePresets } from '@/lib/cache';
 
@@ -117,6 +118,32 @@ export async function GET(request: NextRequest) {
       } catch (populateError: any) {
         console.error('[API /jobs-list] Populate error:', populateError.message);
         jobs = jobsWithoutPopulate;
+      }
+    }
+
+    // Populate company name from Company collection (for job cards)
+    if (jobs.length > 0) {
+      try {
+        const db = mongoose.connection.db;
+        if (db) {
+          const companiesCollection = db.collection(Company.collection.name);
+          const companyIds = [...new Set(jobs.map((j: any) => j.companyId).filter(Boolean))];
+          const companies = await companiesCollection.find({
+            _id: { $in: companyIds.map((id: string) => new mongoose.Types.ObjectId(id)) }
+          })
+            .project({ name: 1 })
+            .maxTimeMS(3000)
+            .toArray();
+          const companyNameMap = new Map(
+            companies.map((c: any) => [c._id.toString(), c.name || ''])
+          );
+          jobs = jobs.map((job: any) => ({
+            ...job,
+            company: job.company || (job.companyId ? companyNameMap.get(job.companyId) || '' : '')
+          }));
+        }
+      } catch (companyError: any) {
+        console.error('[API /jobs-list] Company populate error:', companyError.message);
       }
     }
 

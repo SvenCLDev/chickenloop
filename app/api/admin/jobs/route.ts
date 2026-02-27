@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
         recruiter: 1,
         companyId: 1,
         createdAt: 1,
+        visitCount: 1,
       }
     });
 
@@ -165,6 +166,7 @@ export async function GET(request: NextRequest) {
       featured: job.featured || false,
       recruiter: job.recruiterInfo || { name: 'Unknown', email: 'unknown@example.com' },
       createdAt: job.createdAt,
+      visitCount: job.visitCount ?? 0,
     }));
 
     return NextResponse.json({ jobs: jobsWithData }, { status: 200 });

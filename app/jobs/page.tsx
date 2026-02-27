@@ -1062,11 +1062,16 @@ function JobsPageContent() {
                             )}
                           </div>
 
-                          {/* Job Title */}
+                          {/* Job Title & Company */}
                           <div className="p-4">
                             <h2 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
                               {job.title}
                             </h2>
+                            {job.company ? (
+                              <p className="text-sm text-gray-600 mb-2 line-clamp-1" title={job.company}>
+                                {job.company}
+                              </p>
+                            ) : null}
 
                             {/* Location and Time Ago */}
                             <div className="flex flex-col gap-1">

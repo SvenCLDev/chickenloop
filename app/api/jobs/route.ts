@@ -538,6 +538,32 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Populate company name from Company collection (for job cards)
+    if (jobs.length > 0) {
+      try {
+        const db = mongoose.connection.db;
+        if (db) {
+          const companiesCollection = db.collection(Company.collection.name);
+          const companyIds = [...new Set(jobs.map((j: any) => j.companyId).filter(Boolean))];
+          const companies = await companiesCollection.find({
+            _id: { $in: companyIds.map((id: string) => new mongoose.Types.ObjectId(id)) }
+          })
+            .project({ name: 1 })
+            .maxTimeMS(3000)
+            .toArray();
+          const companyNameMap = new Map(
+            companies.map((c: any) => [c._id.toString(), c.name || ''])
+          );
+          jobs = jobs.map((job: any) => ({
+            ...job,
+            company: job.company || (job.companyId ? companyNameMap.get(job.companyId) || '' : '')
+          }));
+        }
+      } catch (companyError: any) {
+        console.error('[API /jobs] Company populate error:', companyError.message);
+      }
+    }
+
     // Optimize images: Select only one image per job (hero if exists, otherwise first)
     if (jobs.length > 0) {
       const imageOptimizeStart = Date.now();
