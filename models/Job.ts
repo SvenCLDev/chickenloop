@@ -85,6 +85,11 @@ export interface IJob extends Document {
 
   legacySlug?: string;
 
+  /** Instagram post ID after publishing job to Instagram */
+  instagramPostId?: string | null;
+  /** When the job was posted to Instagram */
+  instagramPostedAt?: Date | null;
+
   // 🔹 Legacy / migration metadata
   legacy?: {
     source: 'drupal7' | 'drupal';
@@ -213,6 +218,15 @@ const JobSchema: Schema = new Schema(
     applicationWhatsApp: String,
 
     datePosted: Date,
+
+    instagramPostId: {
+      type: String,
+      default: null,
+    },
+    instagramPostedAt: {
+      type: Date,
+      default: null,
+    },
 
     // 🔹 Legacy / migration
     legacy: {

@@ -48,6 +48,7 @@ const nextConfig: NextConfig = {
     // Image optimization settings
     formats: ['image/avif', 'image/webp'], // Use modern formats for better compression
     minimumCacheTTL: 3600, // Cache optimized images for 1 hour
+    qualities: [60, 75], // Allow quality 60 (hero images) and default 75
   },
 };
 
