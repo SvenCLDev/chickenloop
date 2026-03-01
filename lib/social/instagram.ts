@@ -134,18 +134,30 @@ export function buildInstagramPreview(job: any): InstagramPreview {
   };
 }
 
+/** Base URL of the app for public links (e.g. generated image). Instagram API fetches image_url from here. */
+function getAppBaseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://chickenloop.com')
+  );
+}
+
 export async function postJobToInstagram(job: any): Promise<string> {
   if (!process.env.INSTAGRAM_USER_ID || !process.env.META_ACCESS_TOKEN) {
     throw new Error('Missing Instagram environment variables.');
   }
 
-  const imageUrl =
-    job.pictures?.[0] ??
+  const jobId = job._id;
+  if (!jobId) {
+    throw new Error('Job must have an _id to post to Instagram.');
+  }
+
+  const hasImage =
+    job.pictures?.[0] ||
     (typeof job.company === 'object' && job.company?.logo
       ? (job.company as { logo?: string }).logo
       : undefined);
-
-  if (!imageUrl || typeof imageUrl !== 'string') {
+  if (!hasImage || typeof hasImage !== 'string') {
     throw new Error(
       'Job must have an image: set job.pictures[0] or job.company.logo'
     );
@@ -155,10 +167,9 @@ export async function postJobToInstagram(job: any): Promise<string> {
     throw new Error('Job already posted to Instagram.');
   }
 
-  const jobId = job._id;
-  if (!jobId) {
-    throw new Error('Job must have an _id to post to Instagram.');
-  }
+  // Use the generated 1080x1080 image (title, location, panel) so Instagram posts that instead of the raw photo
+  const jobIdStr = typeof jobId === 'string' ? jobId : String(jobId);
+  const imageUrl = `${getAppBaseUrl()}/api/instagram-image/${jobIdStr}`;
 
   const cityLabel = job.city ?? '';
   const countryLabel = job.country ?? '';
