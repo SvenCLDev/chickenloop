@@ -8,9 +8,22 @@ import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 
 const MAX_HASHTAGS = 10;
+const MIN_HASHTAG_LENGTH = 3;
 const MAX_CAPTION_LENGTH = 1000;
 const SUMMARY_MAX_CHARS = 200;
 const REQUIRED_HASHTAGS = ['#sportsjobs', '#hiring', '#watersportsjobs'];
+
+const COUNTRY_MAP: Record<string, string> = {
+  es: 'spain',
+  uk: 'uk',
+  de: 'germany',
+  fr: 'france',
+  it: 'italy',
+  pt: 'portugal',
+  us: 'usa',
+  ca: 'canada',
+  au: 'australia',
+};
 
 /** Extract short summary from HTML description: strip tags, first N chars, trim to last full word. */
 function extractDescriptionSummary(
@@ -26,10 +39,14 @@ function extractDescriptionSummary(
   return lastSpace > 0 ? truncated.slice(0, lastSpace).trim() : truncated;
 }
 
-/** Lowercase, no spaces - for hashtag segment. */
-function toHashtagSegment(s: string | undefined): string {
-  if (!s || typeof s !== 'string') return '';
-  return s.toLowerCase().replace(/\s+/g, '');
+/** Normalize a value for use as hashtag segment: lowercase, strip accents, remove non-alphanumeric. No underscores or hyphens. */
+function normalizeHashtag(value: string): string {
+  if (!value) return '';
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
 }
 
 /** Build hashtag array from job fields. Max 10, no duplicates, no title-based hashtag. */
@@ -38,8 +55,8 @@ export function buildInstagramHashtags(job: any): string[] {
   const result: string[] = [...REQUIRED_HASHTAGS];
 
   const add = (val: string | undefined) => {
-    const seg = toHashtagSegment(val);
-    if (seg && !seen.has(seg)) {
+    const seg = typeof val === 'string' ? normalizeHashtag(val) : '';
+    if (seg.length >= MIN_HASHTAG_LENGTH && !seen.has(seg)) {
       seen.add(seg);
       result.push(`#${seg}`);
     }
@@ -56,7 +73,20 @@ export function buildInstagramHashtags(job: any): string[] {
   addMany(job.sports);
   addMany(job.occupationalAreas);
   add(job.city);
-  add(job.country);
+
+  const countryRaw = typeof job.country === 'string' ? job.country : '';
+  const countryNorm = normalizeHashtag(countryRaw);
+  if (countryNorm.length === 2 && COUNTRY_MAP[countryNorm]) {
+    const countryTag = COUNTRY_MAP[countryNorm] + 'jobs';
+    if (!seen.has(countryTag)) {
+      seen.add(countryTag);
+      result.push(`#${countryTag}`);
+    }
+  } else if (countryNorm.length >= MIN_HASHTAG_LENGTH && !seen.has(countryNorm)) {
+    seen.add(countryNorm);
+    result.push(`#${countryNorm}`);
+  }
+
   add(job.type);
 
   return result.slice(0, MAX_HASHTAGS);
