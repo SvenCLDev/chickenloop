@@ -171,6 +171,7 @@ function AdminDashboard() {
   const [togglingFeatured, setTogglingFeatured] = useState<string | null>(null);
   const [deletingCompany, setDeletingCompany] = useState<string | null>(null);
   const [deletingJob, setDeletingJob] = useState<string | null>(null);
+  const [postingToInstagramJobId, setPostingToInstagramJobId] = useState<string | null>(null);
   const [deletingJobSeeker, setDeletingJobSeeker] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string>('lastActive');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -650,6 +651,31 @@ function AdminDashboard() {
   const handleEditJob = (jobId: string) => {
     // Navigate to admin job edit page
     router.push(`/admin/jobs/${jobId}/edit`);
+  };
+
+  const handlePostToInstagram = async (jobId: string) => {
+    setPostingToInstagramJobId(jobId);
+    try {
+      const res = await fetch(`/api/admin/instagram-post/${jobId}`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data?.error || `Failed to post to Instagram (${res.status})`);
+        return;
+      }
+      if (data.success && data.postId) {
+        setTableData((prev) =>
+          prev.map((entry) =>
+            entry.id === jobId ? { ...entry, instagramPostId: data.postId } : entry
+          )
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[Admin] Error posting job to Instagram:', err);
+      alert(`Failed to post to Instagram: ${msg}`);
+    } finally {
+      setPostingToInstagramJobId(null);
+    }
   };
 
   const handleEditUser = (userId: string) => {
@@ -1312,6 +1338,9 @@ function AdminDashboard() {
                                 )}
                               </div>
                             </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Insta Post
+                            </th>
                             <th 
                               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                               style={{ width: '160px', minWidth: '160px' }}
@@ -1623,6 +1652,32 @@ function AdminDashboard() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {new Date(entry.createdAt).toLocaleDateString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                {entry.instagramPostId ? (
+                                  <a
+                                    href={`https://instagram.com/p/${entry.instagramPostId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200"
+                                  >
+                                    Posted
+                                  </a>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePostToInstagram(entry.id)}
+                                    disabled={postingToInstagramJobId === entry.id}
+                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                                      postingToInstagramJobId === entry.id
+                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                    }`}
+                                    title="Post to Instagram"
+                                  >
+                                    {postingToInstagramJobId === entry.id ? 'Posting...' : 'Post to Instagram'}
+                                  </button>
+                                )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" style={{ width: '160px', minWidth: '160px' }}>
                                 <div className="flex space-x-2">

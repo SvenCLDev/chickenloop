@@ -1,0 +1,320 @@
+/**
+ * Post a job to Instagram via Graph API (create media container + publish).
+ * Requires INSTAGRAM_USER_ID and META_ACCESS_TOKEN in environment.
+ * Updates the Job document with instagramPostId and instagramPostedAt on success.
+ */
+
+import connectDB from '@/lib/db';
+import Job from '@/models/Job';
+
+const MAX_HASHTAGS = 10;
+const MAX_CAPTION_LENGTH = 1000;
+const SUMMARY_MAX_CHARS = 200;
+const REQUIRED_HASHTAGS = ['#sportsjobs', '#hiring', '#watersportsjobs'];
+
+/** Extract short summary from HTML description: strip tags, first N chars, trim to last full word. */
+function extractDescriptionSummary(
+  html: string | undefined,
+  maxChars: number = SUMMARY_MAX_CHARS
+): string {
+  if (!html || typeof html !== 'string') return '';
+  const stripped = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!stripped.length) return '';
+  if (stripped.length <= maxChars) return stripped;
+  const truncated = stripped.slice(0, maxChars);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return lastSpace > 0 ? truncated.slice(0, lastSpace).trim() : truncated;
+}
+
+/** Lowercase, no spaces - for hashtag segment. */
+function toHashtagSegment(s: string | undefined): string {
+  if (!s || typeof s !== 'string') return '';
+  return s.toLowerCase().replace(/\s+/g, '');
+}
+
+/** Build hashtag array from job fields. Max 10, no duplicates, no title-based hashtag. */
+export function buildInstagramHashtags(job: any): string[] {
+  const seen = new Set<string>(['sportsjobs', 'hiring', 'watersportsjobs']);
+  const result: string[] = [...REQUIRED_HASHTAGS];
+
+  const add = (val: string | undefined) => {
+    const seg = toHashtagSegment(val);
+    if (seg && !seen.has(seg)) {
+      seen.add(seg);
+      result.push(`#${seg}`);
+    }
+  };
+
+  const addMany = (arr: unknown) => {
+    if (Array.isArray(arr)) {
+      for (const v of arr) {
+        if (typeof v === 'string') add(v);
+      }
+    }
+  };
+
+  addMany(job.sports);
+  addMany(job.occupationalAreas);
+  add(job.city);
+  add(job.country);
+  add(job.type);
+
+  return result.slice(0, MAX_HASHTAGS);
+}
+
+export interface InstagramPreview {
+  imageUrl: string | null;
+  caption: string;
+  hashtags: string[];
+  fullCaption: string;
+}
+
+/** Build caption, hashtags, and image URL for an Instagram post (no API calls). */
+export function buildInstagramPreview(job: any): InstagramPreview {
+  const imageUrl =
+    job.pictures?.[0] ??
+    (typeof job.company === 'object' && job.company?.logo
+      ? (job.company as { logo?: string }).logo
+      : undefined);
+  const resolvedImageUrl =
+    imageUrl && typeof imageUrl === 'string' ? imageUrl : null;
+
+  const cityLabel = job.city ?? '';
+  const countryLabel = job.country ?? '';
+  const companyName =
+    typeof job.company === 'string'
+      ? job.company
+      : typeof job.company === 'object' && job.company?.name
+        ? (job.company as { name: string }).name
+        : '';
+
+  const summary = extractDescriptionSummary(job.description);
+  const captionLines = [
+    `🏄‍♂️ ${job.title ?? 'Job'}`,
+    `📍 ${cityLabel}${cityLabel && countryLabel ? ', ' : ''}${countryLabel}`,
+    `🏢 ${companyName}`,
+    ...(summary ? [summary, ''] : ['']),
+    'More job details at:',
+    'chickenloop.com (link in bio)',
+  ];
+  let caption = captionLines.join('\n');
+
+  const hashtags = buildInstagramHashtags(job);
+  let fullCaption = caption + '\n\n' + hashtags.join(' ');
+  if (fullCaption.length > MAX_CAPTION_LENGTH) {
+    const hashtagSuffix = '\n\n' + hashtags.join(' ');
+    const captionBudget = MAX_CAPTION_LENGTH - hashtagSuffix.length;
+    const baseLines = [
+      `🏄‍♂️ ${job.title ?? 'Job'}`,
+      `📍 ${cityLabel}${cityLabel && countryLabel ? ', ' : ''}${countryLabel}`,
+      `🏢 ${companyName}`,
+      '',
+      'More job details at:',
+      'chickenloop.com (link in bio)',
+    ];
+    const baseCaption = baseLines.join('\n');
+    const summaryBudget = Math.max(0, captionBudget - baseCaption.length - 2);
+    const trimmedSummary = summaryBudget > 0
+      ? extractDescriptionSummary(job.description, summaryBudget)
+      : '';
+    const finalLines = [
+      ...baseLines.slice(0, 3),
+      ...(trimmedSummary ? [trimmedSummary, ''] : ['']),
+      ...baseLines.slice(4),
+    ];
+    caption = finalLines.join('\n');
+    fullCaption = caption + hashtagSuffix;
+  }
+
+  return {
+    imageUrl: resolvedImageUrl,
+    caption,
+    hashtags,
+    fullCaption,
+  };
+}
+
+export async function postJobToInstagram(job: any): Promise<string> {
+  if (!process.env.INSTAGRAM_USER_ID || !process.env.META_ACCESS_TOKEN) {
+    throw new Error('Missing Instagram environment variables.');
+  }
+
+  const imageUrl =
+    job.pictures?.[0] ??
+    (typeof job.company === 'object' && job.company?.logo
+      ? (job.company as { logo?: string }).logo
+      : undefined);
+
+  if (!imageUrl || typeof imageUrl !== 'string') {
+    throw new Error(
+      'Job must have an image: set job.pictures[0] or job.company.logo'
+    );
+  }
+
+  if (job.instagramPostId) {
+    throw new Error('Job already posted to Instagram.');
+  }
+
+  const jobId = job._id;
+  if (!jobId) {
+    throw new Error('Job must have an _id to post to Instagram.');
+  }
+
+  const cityLabel = job.city ?? '';
+  const countryLabel = job.country ?? '';
+  const companyName =
+    typeof job.company === 'string'
+      ? job.company
+      : typeof job.company === 'object' && job.company?.name
+        ? (job.company as { name: string }).name
+        : '';
+
+  const summary = extractDescriptionSummary(job.description);
+  const captionLines = [
+    `🏄‍♂️ ${job.title ?? 'Job'}`,
+    `📍 ${cityLabel}${cityLabel && countryLabel ? ', ' : ''}${countryLabel}`,
+    `🏢 ${companyName}`,
+    ...(summary ? [summary, ''] : ['']),
+    'More job details at:',
+    'chickenloop.com (link in bio)',
+  ];
+  const hashtags = buildInstagramHashtags(job);
+  let caption = captionLines.join('\n') + '\n\n' + hashtags.join(' ');
+  if (caption.length > MAX_CAPTION_LENGTH) {
+    const hashtagSuffix = '\n\n' + hashtags.join(' ');
+    const captionBudget = MAX_CAPTION_LENGTH - hashtagSuffix.length;
+    const baseLines = [
+      `🏄‍♂️ ${job.title ?? 'Job'}`,
+      `📍 ${cityLabel}${cityLabel && countryLabel ? ', ' : ''}${countryLabel}`,
+      `🏢 ${companyName}`,
+      '',
+      'More job details at:',
+      'chickenloop.com (link in bio)',
+    ];
+    const baseCaption = baseLines.join('\n');
+    const summaryBudget = Math.max(0, captionBudget - baseCaption.length - 2);
+    const trimmedSummary = summaryBudget > 0
+      ? extractDescriptionSummary(job.description, summaryBudget)
+      : '';
+    const finalLines = [
+      ...baseLines.slice(0, 3),
+      ...(trimmedSummary ? [trimmedSummary, ''] : ['']),
+      ...baseLines.slice(4),
+    ];
+    caption = finalLines.join('\n') + hashtagSuffix;
+  }
+
+  const createParams = new URLSearchParams({
+    image_url: imageUrl,
+    caption,
+    access_token: process.env.META_ACCESS_TOKEN!,
+  });
+
+  const createRes = await fetch(
+    `https://graph.facebook.com/v18.0/${process.env.INSTAGRAM_USER_ID}/media`,
+    {
+      method: 'POST',
+      body: createParams,
+    }
+  );
+
+  const createData = await createRes.json();
+
+  if (!createRes.ok) {
+    console.error('Instagram create media failed:', {
+      status: createRes.status,
+      statusText: createRes.statusText,
+      body: createData,
+    });
+    throw new Error(
+      createData?.error?.message ||
+        `Instagram create media failed: ${createRes.status}`
+    );
+  }
+
+  const creationId = createData.id as string;
+  if (!creationId) {
+    console.error('Instagram create media: no id in response:', createData);
+    throw new Error('Instagram create media did not return a container id');
+  }
+
+  const maxAttempts = 10;
+  const delayMs = 2000;
+  let status: string = 'IN_PROGRESS';
+  let attempts = 0;
+
+  while (status === 'IN_PROGRESS' && attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+    const statusParams = new URLSearchParams({
+      fields: 'status_code',
+      access_token: process.env.META_ACCESS_TOKEN!,
+    });
+
+    const statusRes = await fetch(
+      `https://graph.facebook.com/v18.0/${creationId}?${statusParams}`
+    );
+
+    const statusData = (await statusRes.json()) as { status_code?: string };
+    status = statusData?.status_code ?? 'IN_PROGRESS';
+    attempts++;
+
+    console.log('Instagram media status:', status);
+
+    if (status === 'FINISHED' || status === 'ERROR') {
+      break;
+    }
+  }
+
+  if (status === 'ERROR') {
+    throw new Error('Instagram media processing failed.');
+  }
+  if (status !== 'FINISHED') {
+    throw new Error('Instagram media processing timed out.');
+  }
+
+  const publishParams = new URLSearchParams({
+    creation_id: creationId,
+    access_token: process.env.META_ACCESS_TOKEN!,
+  });
+
+  const publishRes = await fetch(
+    `https://graph.facebook.com/v18.0/${process.env.INSTAGRAM_USER_ID}/media_publish`,
+    {
+      method: 'POST',
+      body: publishParams,
+    }
+  );
+
+  const publishData = await publishRes.json();
+
+  if (!publishRes.ok) {
+    console.error('Instagram publish failed:', publishData);
+    throw new Error(
+      publishData?.error?.message ||
+        `Instagram publish failed: ${publishRes.status}`
+    );
+  }
+
+  const postId = publishData?.id;
+  if (postId == null) {
+    console.error('Instagram publish: no id in response:', publishData);
+    throw new Error('Instagram publish did not return a media id');
+  }
+
+  await connectDB();
+  const updated = await Job.findByIdAndUpdate(
+    jobId,
+    {
+      instagramPostId: postId,
+      instagramPostedAt: new Date(),
+    },
+    { new: true }
+  );
+  if (!updated) {
+    console.error('Job update failed: document not found', { jobId: String(jobId) });
+    throw new Error('Failed to save Instagram post ID to job.');
+  }
+
+  return postId;
+}
