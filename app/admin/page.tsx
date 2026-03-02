@@ -135,6 +135,7 @@ interface Job {
   featured?: boolean;
   createdAt: string;
   visitCount?: number;
+  likeCount?: number;
 }
 
 interface CV {
@@ -1367,6 +1368,9 @@ function AdminDashboard() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Views
                             </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Liked
+                            </th>
                             <th 
                               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                               onClick={() => handleSort('created')}
@@ -1689,6 +1693,9 @@ function AdminDashboard() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.visitCount ?? 0}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.likeCount ?? 0}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {new Date(entry.createdAt).toLocaleDateString()}

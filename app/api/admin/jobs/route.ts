@@ -95,6 +95,24 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Stage 4b: Count users who have this job in favouriteJobs (likes)
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        let: { jobId: '$_id' },
+        pipeline: [
+          { $match: { $expr: { $in: ['$$jobId', { $ifNull: ['$favouriteJobs', []] }] } } },
+          { $count: 'count' },
+        ],
+        as: 'likeInfo',
+      },
+    });
+    pipeline.push({
+      $addFields: {
+        likeCount: { $ifNull: [{ $arrayElemAt: ['$likeInfo.count', 0] }, 0] },
+      },
+    });
+
     // Stage 5: Apply search filter (if provided)
     if (search) {
       pipeline.push({
@@ -168,6 +186,7 @@ export async function GET(request: NextRequest) {
       recruiter: job.recruiterInfo || { name: 'Unknown', email: 'unknown@example.com' },
       createdAt: job.createdAt,
       visitCount: job.visitCount ?? 0,
+      likeCount: job.likeCount ?? 0,
       instagramPostId: job.instagramPostId ?? null,
     }));
 
