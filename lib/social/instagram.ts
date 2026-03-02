@@ -172,7 +172,10 @@ function getAppBaseUrl(): string {
   );
 }
 
-export async function postJobToInstagram(job: any): Promise<string> {
+export async function postJobToInstagram(
+  job: any,
+  layout?: { pos?: string; bg?: string }
+): Promise<string> {
   if (!process.env.INSTAGRAM_USER_ID || !process.env.META_ACCESS_TOKEN) {
     throw new Error('Missing Instagram environment variables.');
   }
@@ -197,9 +200,11 @@ export async function postJobToInstagram(job: any): Promise<string> {
     throw new Error('Job already posted to Instagram.');
   }
 
-  // Use the generated 1080x1080 image (title, location, panel) so Instagram posts that instead of the raw photo
+  const pos = layout?.pos ?? 'bl';
+  const bg = layout?.bg ?? 'grey';
   const jobIdStr = typeof jobId === 'string' ? jobId : String(jobId);
-  const imageUrl = `${getAppBaseUrl()}/api/instagram-image/${jobIdStr}`;
+  const baseUrl = getAppBaseUrl();
+  const imageUrl = `${baseUrl}/api/instagram-image/${jobIdStr}?pos=${encodeURIComponent(pos)}&bg=${encodeURIComponent(bg)}&v=${Date.now()}`;
 
   const cityLabel = job.city ?? '';
   const countryLabel = job.country ?? '';

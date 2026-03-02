@@ -6,6 +6,25 @@ import Job from '@/models/Job';
 // Node.js required: Mongoose does not support Edge runtime
 export const runtime = 'nodejs';
 
+const POS_VALUES = ['bl', 'br', 'tl', 'tr'] as const;
+const BG_VALUES = ['grey', 'navy', 'blue', 'teal'] as const;
+type Pos = (typeof POS_VALUES)[number];
+type Bg = (typeof BG_VALUES)[number];
+
+const PANEL_POSITION: Record<Pos, { bottom?: number; top?: number; left?: number; right?: number }> = {
+  bl: { bottom: 80, left: 80 },
+  br: { bottom: 80, right: 80 },
+  tl: { top: 80, left: 80 },
+  tr: { top: 80, right: 80 },
+};
+
+const PANEL_BG: Record<Bg, string> = {
+  grey: 'rgba(0, 0, 0, 0.65)',
+  navy: 'rgba(15, 23, 42, 0.75)',
+  blue: 'rgba(37, 99, 235, 0.75)',
+  teal: 'rgba(13, 148, 136, 0.75)',
+};
+
 function clampTitle(title: string, maxChars: number = 70): string {
   if (!title) return '';
   if (title.length <= maxChars) return title;
@@ -57,6 +76,19 @@ export async function GET(
         ? job.pictures[0]
         : null;
 
+    const searchParams = request.url ? new URL(request.url).searchParams : null;
+    const posRaw = searchParams?.get('pos')?.toLowerCase();
+    const pos: Pos = posRaw && POS_VALUES.includes(posRaw as Pos) ? (posRaw as Pos) : 'bl';
+    const bgRaw = searchParams?.get('bg')?.toLowerCase();
+    const bg: Bg = bgRaw && BG_VALUES.includes(bgRaw as Bg) ? (bgRaw as Bg) : 'grey';
+
+    const panelStyle = PANEL_POSITION[pos];
+    const panelBg = PANEL_BG[bg];
+    const isPanelLeft = pos === 'bl' || pos === 'tl';
+    const watermarkStyle = isPanelLeft
+      ? { position: 'absolute' as const, bottom: 40, right: 60 }
+      : { position: 'absolute' as const, bottom: 40, left: 60 };
+
     const element = (
       <div
         style={{
@@ -92,10 +124,9 @@ export async function GET(
         <div
           style={{
             position: 'absolute',
-            bottom: 80,
-            left: 80,
+            ...panelStyle,
             maxWidth: '70%',
-            background: 'rgba(0, 0, 0, 0.65)',
+            background: panelBg,
             padding: 40,
             borderRadius: 24,
             color: 'white',
@@ -161,9 +192,7 @@ export async function GET(
         </div>
         <div
           style={{
-            position: 'absolute',
-            bottom: 40,
-            right: 60,
+            ...watermarkStyle,
             fontSize: 28,
             color: 'white',
             opacity: 0.5,

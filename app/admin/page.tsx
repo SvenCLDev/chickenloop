@@ -172,6 +172,9 @@ function AdminDashboard() {
   const [deletingCompany, setDeletingCompany] = useState<string | null>(null);
   const [deletingJob, setDeletingJob] = useState<string | null>(null);
   const [postingToInstagramJobId, setPostingToInstagramJobId] = useState<string | null>(null);
+  const [instagramModalJobId, setInstagramModalJobId] = useState<string | null>(null);
+  const [instagramModalPos, setInstagramModalPos] = useState<string>('bl');
+  const [instagramModalBg, setInstagramModalBg] = useState<string>('grey');
   const [deletingJobSeeker, setDeletingJobSeeker] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string>('lastActive');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -653,10 +656,14 @@ function AdminDashboard() {
     router.push(`/admin/jobs/${jobId}/edit`);
   };
 
-  const handlePostToInstagram = async (jobId: string) => {
+  const handlePostToInstagram = async (jobId: string, pos?: string, bg?: string) => {
     setPostingToInstagramJobId(jobId);
     try {
-      const res = await fetch(`/api/admin/instagram-post/${jobId}`, { method: 'POST' });
+      const res = await fetch(`/api/admin/instagram-post/${jobId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pos: pos ?? 'bl', bg: bg ?? 'grey' }),
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         alert(data?.error || `Failed to post to Instagram (${res.status})`);
@@ -668,6 +675,7 @@ function AdminDashboard() {
             entry.id === jobId ? { ...entry, instagramPostId: data.postId } : entry
           )
         );
+        setInstagramModalJobId(null);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -676,6 +684,17 @@ function AdminDashboard() {
     } finally {
       setPostingToInstagramJobId(null);
     }
+  };
+
+  const handleOpenInstagramModal = (jobId: string) => {
+    setInstagramModalJobId(jobId);
+    setInstagramModalPos('bl');
+    setInstagramModalBg('grey');
+  };
+
+  const handleConfirmInstagramPost = () => {
+    if (!instagramModalJobId) return;
+    handlePostToInstagram(instagramModalJobId, instagramModalPos, instagramModalBg);
   };
 
   const handleEditUser = (userId: string) => {
@@ -1666,16 +1685,11 @@ function AdminDashboard() {
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => handlePostToInstagram(entry.id)}
-                                    disabled={postingToInstagramJobId === entry.id}
-                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                                      postingToInstagramJobId === entry.id
-                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                    }`}
+                                    onClick={() => handleOpenInstagramModal(entry.id)}
+                                    className="px-3 py-1 rounded-md text-xs font-medium transition-colors bg-indigo-600 text-white hover:bg-indigo-700"
                                     title="Post to Instagram"
                                   >
-                                    {postingToInstagramJobId === entry.id ? 'Posting...' : 'Post to Instagram'}
+                                    Post to Instagram
                                   </button>
                                 )}
                               </td>
@@ -1925,6 +1939,74 @@ function AdminDashboard() {
           </div>
         )}
       </main>
+
+      {/* Instagram post modal */}
+      {instagramModalJobId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setInstagramModalJobId(null)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Post to Instagram</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Text Position</label>
+                  <select
+                    value={instagramModalPos}
+                    onChange={(e) => setInstagramModalPos(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
+                  >
+                    <option value="bl">Bottom Left</option>
+                    <option value="br">Bottom Right</option>
+                    <option value="tl">Top Left</option>
+                    <option value="tr">Top Right</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Background Shade</label>
+                  <select
+                    value={instagramModalBg}
+                    onChange={(e) => setInstagramModalBg(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
+                  >
+                    <option value="grey">Grey</option>
+                    <option value="navy">Navy</option>
+                    <option value="blue">Blue</option>
+                    <option value="teal">Teal</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">Preview</p>
+                <img
+                  src={`/api/instagram-image/${instagramModalJobId}?pos=${instagramModalPos}&bg=${instagramModalBg}`}
+                  alt="Instagram preview"
+                  className="w-full max-w-[400px] rounded-lg border border-gray-200"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInstagramModalJobId(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmInstagramPost}
+                  disabled={postingToInstagramJobId === instagramModalJobId}
+                  className={`px-4 py-2 text-sm font-medium rounded-md ${
+                    postingToInstagramJobId === instagramModalJobId
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  {postingToInstagramJobId === instagramModalJobId ? 'Posting...' : 'Confirm Post'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
