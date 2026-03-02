@@ -83,8 +83,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (email: string, password: string, name: string, role: string) => {
-    const data = await authApi.register({ email, password, name, role });
+  const register = async (
+    email: string,
+    password: string,
+    name: string,
+    role: string,
+    turnstileToken?: string | null,
+    website?: string
+  ) => {
+    const data = await authApi.register({ email, password, name, role, turnstileToken, website });
     setUser(data.user);
     
     // Check if recruiter has a company (new recruiters won't have one)

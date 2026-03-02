@@ -7,17 +7,39 @@ import { generateToken } from '@/lib/jwt';
 import { sendEmailAsync, EmailCategory } from '@/lib/email';
 import { getWelcomeEmail } from '@/lib/emailTemplates';
 import { getBaseUrlForAuthEmails } from '@/lib/baseUrlForAuthEmails';
+import { verifyTurnstile } from '@/lib/security/verifyTurnstile';
 
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const { email, password, name, role, sendEmail: sendEmailParam } = await request.json();
+    const { email, password, name, role, sendEmail: sendEmailParam, turnstileToken, website } = await request.json();
     const sendEmail = sendEmailParam !== false; // default true
+
+    if (typeof website === 'string' && website.trim() !== '') {
+      return NextResponse.json(
+        { error: 'Invalid request.' },
+        { status: 400 }
+      );
+    }
 
     if (!email || !password || !name || !role) {
       return NextResponse.json(
         { error: 'All fields are required' },
+        { status: 400 }
+      );
+    }
+
+    if (!turnstileToken || typeof turnstileToken !== 'string') {
+      return NextResponse.json(
+        { error: 'Verification required.' },
+        { status: 400 }
+      );
+    }
+    const verified = await verifyTurnstile(turnstileToken);
+    if (!verified) {
+      return NextResponse.json(
+        { error: 'Captcha verification failed.' },
         { status: 400 }
       );
     }

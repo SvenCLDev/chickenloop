@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendEmail, isEmailConfigured, EmailCategory } from '@/lib/email';
-import { verifyTurnstileToken } from '@/lib/verifyTurnstile';
+import { verifyTurnstile } from '@/lib/security/verifyTurnstile';
 
 // POST - Send contact/feedback email using Resend (protected by Cloudflare Turnstile)
 export async function POST(request: NextRequest) {
@@ -23,10 +23,14 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    const forwarded = request.headers.get('x-forwarded-for');
-    const remoteip = forwarded ? forwarded.split(',')[0].trim() : undefined;
-    const verify = await verifyTurnstileToken(turnstileToken, remoteip);
-    if (!verify.success) {
+    if (!turnstileToken || typeof turnstileToken !== 'string') {
+      return NextResponse.json(
+        { error: 'Verification failed. Please complete the challenge and try again.' },
+        { status: 400 }
+      );
+    }
+    const verified = await verifyTurnstile(turnstileToken);
+    if (!verified) {
       return NextResponse.json(
         { error: 'Verification failed. Please complete the challenge and try again.' },
         { status: 400 }

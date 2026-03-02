@@ -95,7 +95,7 @@ export async function apiRequest(
 }
 
 export const authApi = {
-  register: (data: { email: string; password: string; name: string; role: string }) =>
+  register: (data: { email: string; password: string; name: string; role: string; turnstileToken?: string | null; website?: string }) =>
     apiRequest('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
