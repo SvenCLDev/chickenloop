@@ -6,7 +6,7 @@ import Job from '@/models/Job';
 // Node.js required: Mongoose does not support Edge runtime
 export const runtime = 'nodejs';
 
-function clampTitle(title: string, maxChars: number = 45): string {
+function clampTitle(title: string, maxChars: number = 70): string {
   if (!title) return '';
   if (title.length <= maxChars) return title;
   const trimmed = title.slice(0, maxChars);
