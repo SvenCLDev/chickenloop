@@ -175,6 +175,8 @@ function AdminDashboard() {
   const [instagramModalJobId, setInstagramModalJobId] = useState<string | null>(null);
   const [instagramModalPos, setInstagramModalPos] = useState<string>('bl');
   const [instagramModalBg, setInstagramModalBg] = useState<string>('grey');
+  const [instagramModalCustomTags, setInstagramModalCustomTags] = useState<string>('');
+  const [instagramPreviewCaption, setInstagramPreviewCaption] = useState<string>('');
   const [deletingJobSeeker, setDeletingJobSeeker] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string>('lastActive');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -238,6 +240,19 @@ function AdminDashboard() {
     }, 300);
     return () => clearTimeout(timer);
   }, [emailFilter]);
+
+  // Fetch Instagram caption preview when modal opens
+  useEffect(() => {
+    if (!instagramModalJobId) return;
+    let cancelled = false;
+    fetch(`/api/instagram-preview/${instagramModalJobId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data?.fullCaption) setInstagramPreviewCaption(data.fullCaption);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [instagramModalJobId]);
 
   // Refetch job-seekers data when sort, search, or email filter changes
   useEffect(() => {
@@ -656,13 +671,17 @@ function AdminDashboard() {
     router.push(`/admin/jobs/${jobId}/edit`);
   };
 
-  const handlePostToInstagram = async (jobId: string, pos?: string, bg?: string) => {
+  const handlePostToInstagram = async (jobId: string, pos?: string, bg?: string, customTags?: string) => {
     setPostingToInstagramJobId(jobId);
     try {
       const res = await fetch(`/api/admin/instagram-post/${jobId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pos: pos ?? 'bl', bg: bg ?? 'grey' }),
+        body: JSON.stringify({
+          pos: pos ?? 'bl',
+          bg: bg ?? 'grey',
+          ...(typeof customTags === 'string' ? { customTags } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -690,11 +709,13 @@ function AdminDashboard() {
     setInstagramModalJobId(jobId);
     setInstagramModalPos('bl');
     setInstagramModalBg('grey');
+    setInstagramModalCustomTags('');
+    setInstagramPreviewCaption('');
   };
 
   const handleConfirmInstagramPost = () => {
     if (!instagramModalJobId) return;
-    handlePostToInstagram(instagramModalJobId, instagramModalPos, instagramModalBg);
+    handlePostToInstagram(instagramModalJobId, instagramModalPos, instagramModalBg, instagramModalCustomTags);
   };
 
   const handleEditUser = (userId: string) => {
@@ -1975,6 +1996,17 @@ function AdminDashboard() {
                 </div>
               </div>
               <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Hashtags / Mentions</label>
+                <textarea
+                  value={instagramModalCustomTags}
+                  onChange={(e) => setInstagramModalCustomTags(e.target.value)}
+                  placeholder="#beachlife #summerjobs @kitebeachsardinia"
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Add optional hashtags (#...) or mentions (@...). They will be appended to the caption.</p>
+              </div>
+              <div className="mb-4">
                 <p className="text-sm font-medium text-gray-700 mb-2">Preview</p>
                 <img
                   src={`/api/instagram-image/${instagramModalJobId}?pos=${instagramModalPos}&bg=${instagramModalBg}`}
@@ -1982,6 +2014,15 @@ function AdminDashboard() {
                   className="w-full max-w-[400px] rounded-lg border border-gray-200"
                 />
               </div>
+              {instagramPreviewCaption && (
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Caption preview</p>
+                  <div className="text-sm text-gray-600 whitespace-pre-wrap break-words max-h-32 overflow-y-auto p-3 bg-gray-50 rounded-md border border-gray-200">
+                    {instagramPreviewCaption}
+                    {instagramModalCustomTags.trim() ? `\n\n${instagramModalCustomTags.trim()}` : ''}
+                  </div>
+                </div>
+              )}
               <div className="flex justify-end gap-2">
                 <button
                   type="button"

@@ -7,7 +7,7 @@ import { postJobToInstagram } from '@/lib/social/instagram';
 /**
  * POST /api/admin/instagram-post/[jobId]
  * Post a job to Instagram (admin only).
- * Body (optional): { pos?: string; bg?: string } — layout options for the generated image.
+ * Body (optional): { pos?: string; bg?: string; customTags?: string } — layout options and extra hashtags/mentions.
  * Returns { success, postId, jobId } on success.
  */
 export async function POST(
@@ -50,12 +50,13 @@ export async function POST(
         : undefined,
     };
 
-    let body: { pos?: string; bg?: string } = {};
+    let body: { pos?: string; bg?: string; customTags?: string } = {};
     try {
       const raw = await request.json();
       if (raw && typeof raw === 'object') {
         if (typeof raw.pos === 'string') body.pos = raw.pos;
         if (typeof raw.bg === 'string') body.bg = raw.bg;
+        if (typeof raw.customTags === 'string') body.customTags = raw.customTags;
       }
     } catch {
       // no body or invalid JSON – use defaults

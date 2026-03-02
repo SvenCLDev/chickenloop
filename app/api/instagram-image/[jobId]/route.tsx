@@ -25,7 +25,9 @@ const PANEL_BG: Record<Bg, string> = {
   teal: 'rgba(13, 148, 136, 0.75)',
 };
 
-function clampTitle(title: string, maxChars: number = 70): string {
+const TITLE_MAX_CHARS = 70;
+
+function clampTitle(title: string, maxChars: number = TITLE_MAX_CHARS): string {
   if (!title) return '';
   if (title.length <= maxChars) return title;
   const trimmed = title.slice(0, maxChars);
@@ -70,7 +72,7 @@ export async function GET(
     const country = job.country ?? '';
     const locationLine = [city, country].filter(Boolean).join(', ');
     const title = job.title ?? 'Job';
-    const displayTitle = clampTitle(title);
+    const displayTitle = clampTitle(title, TITLE_MAX_CHARS);
     const backgroundImageUrl =
       job.pictures && job.pictures[0] && typeof job.pictures[0] === 'string'
         ? job.pictures[0]

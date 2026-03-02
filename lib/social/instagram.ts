@@ -10,6 +10,7 @@ import Job from '@/models/Job';
 const MAX_HASHTAGS = 10;
 const MIN_HASHTAG_LENGTH = 3;
 const MAX_CAPTION_LENGTH = 1000;
+const INSTAGRAM_CAPTION_MAX = 2000;
 const SUMMARY_MAX_CHARS = 200;
 const REQUIRED_HASHTAGS = ['#sportsjobs', '#hiring', '#watersportsjobs'];
 
@@ -172,9 +173,49 @@ function getAppBaseUrl(): string {
   );
 }
 
+/** Parse customTags into customHashtags and customMentions. Dedupe against auto hashtags. */
+function parseCustomTags(
+  raw: string,
+  autoHashtagSegments: Set<string>
+): { customHashtags: string[]; customMentions: string[] } {
+  const customHashtags: string[] = [];
+  const customMentions: string[] = [];
+  if (!raw || typeof raw !== 'string') return { customHashtags, customMentions };
+
+  const tokens = raw.trim().split(/\s+/).map((t) => t.trim()).filter(Boolean);
+  const seenHashtags = new Set<string>();
+  const seenMentions = new Set<string>();
+
+  for (const token of tokens) {
+    if (token.startsWith('#')) {
+      const segment = token
+        .slice(1)
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/-/g, '')
+        .replace(/[^a-z0-9]/g, '');
+      if (segment.length > 0 && !autoHashtagSegments.has(segment) && !seenHashtags.has(segment)) {
+        seenHashtags.add(segment);
+        customHashtags.push('#' + segment);
+      }
+    } else if (token.startsWith('@')) {
+      const handle = token
+        .slice(1)
+        .replace(/[^a-zA-Z0-9_]/g, '')
+        .toLowerCase();
+      if (handle.length > 0 && !seenMentions.has(handle)) {
+        seenMentions.add(handle);
+        customMentions.push('@' + handle);
+      }
+    }
+  }
+  return { customHashtags, customMentions };
+}
+
 export async function postJobToInstagram(
   job: any,
-  layout?: { pos?: string; bg?: string }
+  options?: { pos?: string; bg?: string; customTags?: string }
 ): Promise<string> {
   if (!process.env.INSTAGRAM_USER_ID || !process.env.META_ACCESS_TOKEN) {
     throw new Error('Missing Instagram environment variables.');
@@ -200,8 +241,8 @@ export async function postJobToInstagram(
     throw new Error('Job already posted to Instagram.');
   }
 
-  const pos = layout?.pos ?? 'bl';
-  const bg = layout?.bg ?? 'grey';
+  const pos = options?.pos ?? 'bl';
+  const bg = options?.bg ?? 'grey';
   const jobIdStr = typeof jobId === 'string' ? jobId : String(jobId);
   const baseUrl = getAppBaseUrl();
   const imageUrl = `${baseUrl}/api/instagram-image/${jobIdStr}?pos=${encodeURIComponent(pos)}&bg=${encodeURIComponent(bg)}&v=${Date.now()}`;
@@ -225,6 +266,7 @@ export async function postJobToInstagram(
     'chickenloop.com (link in bio)',
   ];
   const hashtags = buildInstagramHashtags(job);
+  const autoHashtagSegments = new Set(hashtags.map((h) => h.slice(1).toLowerCase()));
   let caption = captionLines.join('\n') + '\n\n' + hashtags.join(' ');
   if (caption.length > MAX_CAPTION_LENGTH) {
     const hashtagSuffix = '\n\n' + hashtags.join(' ');
@@ -249,6 +291,38 @@ export async function postJobToInstagram(
     ];
     caption = finalLines.join('\n') + hashtagSuffix;
   }
+
+  const customTagsRaw = options?.customTags;
+  let { customHashtags, customMentions } = parseCustomTags(
+    typeof customTagsRaw === 'string' ? customTagsRaw : '',
+    autoHashtagSegments
+  );
+
+  const parts: string[] = [caption];
+  if (customHashtags.length > 0) parts.push('\n\n' + customHashtags.join(' '));
+  if (customMentions.length > 0) parts.push('\n\n' + customMentions.join(' '));
+  let finalCaption = parts.join('');
+
+  if (finalCaption.length > INSTAGRAM_CAPTION_MAX) {
+    while (customHashtags.length > 0 && finalCaption.length > INSTAGRAM_CAPTION_MAX) {
+      customHashtags = customHashtags.slice(0, -1);
+      const p: string[] = [caption];
+      if (customHashtags.length > 0) p.push('\n\n' + customHashtags.join(' '));
+      if (customMentions.length > 0) p.push('\n\n' + customMentions.join(' '));
+      finalCaption = p.join('');
+    }
+    while (customMentions.length > 0 && finalCaption.length > INSTAGRAM_CAPTION_MAX) {
+      customMentions = customMentions.slice(0, -1);
+      const p: string[] = [caption];
+      if (customHashtags.length > 0) p.push('\n\n' + customHashtags.join(' '));
+      if (customMentions.length > 0) p.push('\n\n' + customMentions.join(' '));
+      finalCaption = p.join('');
+    }
+    if (finalCaption.length > INSTAGRAM_CAPTION_MAX) {
+      finalCaption = finalCaption.slice(0, INSTAGRAM_CAPTION_MAX);
+    }
+  }
+  caption = finalCaption;
 
   const createParams = new URLSearchParams({
     image_url: imageUrl,
