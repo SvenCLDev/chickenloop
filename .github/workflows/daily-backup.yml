@@ -2,15 +2,15 @@ name: Daily Backup
 
 on:
   schedule:
-    - cron: '0 3 * * *'
-  workflow_dispatch:
+    - cron: '0 3 * * *'   # Runs daily at 03:00 UTC
+  workflow_dispatch:       # Allows manual run
 
 jobs:
   backup:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -36,7 +36,7 @@ jobs:
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
 
-      - name: Upload Artifacts
+      - name: Upload Backup Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: daily-backup-${{ github.run_number }}
