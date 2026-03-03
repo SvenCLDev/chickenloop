@@ -1,0 +1,46 @@
+name: Daily Backup
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install MongoDB tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mongodb-database-tools
+
+      - name: Run Mongo Backup
+        run: npx tsx scripts/backupMongoAtlas.ts
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+
+      - name: Run Blob Backup
+        run: npx tsx scripts/backupVercelBlob.ts
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-backup-${{ github.run_number }}
+          path: |
+            *.archive.gz
+            *.tar.gz
+          retention-days: 30
