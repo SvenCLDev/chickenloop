@@ -5,6 +5,7 @@ import { useAuth } from '../../../../contexts/AuthContext';
 import { useParams, useRouter } from 'next/navigation';
 import Navbar from '../../../../components/Navbar';
 import { adminApi } from '@/lib/api';
+import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import {
   getCountryNameFromCode,
   normalizeCountryForStorage,
@@ -27,6 +28,17 @@ const DraggableMap = dynamic(
     )
   }
 );
+
+// Check that coordinates exist and are valid numbers (avoids LatLng undefined error when company has incomplete data)
+function hasValidCoordinates(coords: { latitude: number; longitude: number } | null | undefined): coords is { latitude: number; longitude: number } {
+  return !!(
+    coords &&
+    typeof coords.latitude === 'number' &&
+    typeof coords.longitude === 'number' &&
+    Number.isFinite(coords.latitude) &&
+    Number.isFinite(coords.longitude)
+  );
+}
 
 // Component to display coordinates (prevents hydration mismatch)
 function CoordinatesDisplay({ latitude, longitude }: { latitude: number; longitude: number }) {
@@ -265,16 +277,6 @@ export default function AdminEditCompanyPage() {
       return;
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      const errorMessage = `File "${file.name}" is too large (${fileSizeMB} MB). Maximum size is 5MB.`;
-      alert(`Warning: ${errorMessage}`);
-      setError(errorMessage);
-      return;
-    }
-
     setSelectedLogo(file);
     setError('');
 
@@ -300,20 +302,12 @@ export default function AdminEditCompanyPage() {
       return;
     }
 
-    // Validate file types and sizes
+    // Validate file types (images are optimized server-side, no size limit)
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
 
     for (const file of files) {
       if (!validTypes.includes(file.type)) {
         setError(`Invalid file type: ${file.name}. Only images (JPEG, PNG, WEBP, GIF) are allowed.`);
-        return;
-      }
-      if (file.size > maxSize) {
-        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        const errorMessage = `File "${file.name}" is too large (${fileSizeMB} MB). Maximum size is 5MB.`;
-        alert(`Warning: ${errorMessage}`);
-        setError(errorMessage);
         return;
       }
     }
@@ -348,7 +342,7 @@ export default function AdminEditCompanyPage() {
     setUploadingLogo(true);
     try {
       const uploadFormData = new FormData();
-      uploadFormData.append('logo', selectedLogo);
+      uploadFormData.append('logo', sanitizeFileForUpload(selectedLogo));
 
       const response = await fetch('/api/company/upload-logo', {
         method: 'POST',
@@ -375,7 +369,7 @@ export default function AdminEditCompanyPage() {
     try {
       const uploadFormData = new FormData();
       selectedPictures.forEach((file) => {
-        uploadFormData.append('pictures', file);
+        uploadFormData.append('pictures', sanitizeFileForUpload(file));
       });
 
       const response = await fetch('/api/company/upload', {
@@ -400,12 +394,7 @@ export default function AdminEditCompanyPage() {
     e.preventDefault();
     setError('');
 
-    // Validate that coordinates are set
-    if (!formData.coordinates || !formData.coordinates.latitude || !formData.coordinates.longitude) {
-      setShowLocationModal(true);
-      return;
-    }
-
+    // Allow saving incomplete companies (admin can add location later)
     setLoading(true);
 
     try {
@@ -416,7 +405,7 @@ export default function AdminEditCompanyPage() {
       const picturePaths = await uploadPictures();
 
       const normalizedCountry = normalizeCountryForStorage(formData.address.country);
-      await adminApi.updateCompany(companyId, {
+      const payload: Record<string, unknown> = {
         ...formData,
         address: {
           ...formData.address,
@@ -424,7 +413,12 @@ export default function AdminEditCompanyPage() {
         },
         logo: logoUrl || undefined,
         pictures: picturePaths,
-      });
+      };
+      // Only send coordinates when valid (API rejects "provided" but invalid coords)
+      if (!hasValidCoordinates(formData.coordinates)) {
+        delete payload.coordinates;
+      }
+      await adminApi.updateCompany(companyId, payload as Parameters<typeof adminApi.updateCompany>[1]);
 
       // Clean up preview URLs
       if (logoPreview) URL.revokeObjectURL(logoPreview);
@@ -781,7 +775,7 @@ export default function AdminEditCompanyPage() {
                 </div>
               </div>
 
-              {/* Step 3: Map with draggable marker */}
+              {/* Step 3: Map with draggable marker (same as recruiter; DraggableMap uses default center if lat/lng missing) */}
               {formData.coordinates && mapMounted && (
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -789,16 +783,18 @@ export default function AdminEditCompanyPage() {
                   </label>
                   <div className="w-full h-96 rounded-lg overflow-hidden border border-gray-200">
                     <DraggableMap
-                      latitude={formData.coordinates.latitude}
-                      longitude={formData.coordinates.longitude}
+                      latitude={formData.coordinates?.latitude}
+                      longitude={formData.coordinates?.longitude}
                       onLocationChange={handleLocationChange}
                       companyName={formData.name || 'Location'}
                     />
                   </div>
-                  <CoordinatesDisplay
-                    latitude={formData.coordinates.latitude}
-                    longitude={formData.coordinates.longitude}
-                  />
+                  {hasValidCoordinates(formData.coordinates) && (
+                    <CoordinatesDisplay
+                      latitude={formData.coordinates.latitude}
+                      longitude={formData.coordinates.longitude}
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -954,7 +950,7 @@ export default function AdminEditCompanyPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  Maximum 5MB. Supported formats: JPEG, PNG, WEBP, GIF. Recommended: Square image (e.g., 200x200px)
+                  Supported formats: JPEG, PNG, WEBP, GIF. Recommended: Square image (e.g., 200x200px). Large images are automatically optimized.
                 </p>
               </div>
             </div>
@@ -977,7 +973,7 @@ export default function AdminEditCompanyPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  Maximum 3 pictures, 5MB each. Supported formats: JPEG, PNG, WEBP, GIF
+                  Maximum 3 pictures. Supported formats: JPEG, PNG, WEBP, GIF. Large images are automatically optimized.
                 </p>
                 {(selectedPictures.length > 0 || existingPictures.length > 0) && (
                   <div className="mt-4 grid grid-cols-3 gap-4">

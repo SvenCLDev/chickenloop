@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/db';
-import Job from '@/models/Job';
+import Job, { IJob } from '@/models/Job';
 import Company from '@/models/Company';
 import { requireRole } from '@/lib/auth';
 import { createDeleteAuditLog } from '@/lib/audit';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORY_VALUES } from '@/lib/jobCategories';
+import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
+
+/** Job document shape for admin updates; may include fields not on current IJob (e.g. legacy). */
+type AdminJobDoc = IJob & {
+  sports?: string[];
+  validThrough?: Date;
+};
 
 // GET - Get a single job (admin only)
 export async function GET(
@@ -13,13 +22,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    requireRole(request, ['admin']);
+    await requireRole(request, ['admin']);
     await connectDB();
     const { id } = await params;
 
     const job = await Job.findById(id)
       .populate('recruiter', 'name email')
-      .populate('companyId', 'name');
+      .populate('companyId', 'name email website');
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
@@ -30,6 +39,15 @@ export async function GET(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === "COMPANY_PROFILE_INCOMPLETE") {
+      return NextResponse.json(
+        { error: "COMPANY_PROFILE_INCOMPLETE" },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -47,7 +65,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    requireRole(request, ['admin']);
+    await requireRole(request, ['admin']);
     await connectDB();
     const { id } = await params;
 
@@ -56,6 +74,8 @@ export async function PUT(
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
+
+    const jobDoc = job as AdminJobDoc;
 
     const requestBody = await request.json();
     
@@ -75,7 +95,7 @@ export async function PUT(
       );
     }
 
-    const { title, description, city, country, salary, type, company, languages, qualifications, sports, occupationalAreas, pictures, spam, published, featured, applyByEmail, applyByWebsite, applicationEmail, applicationWebsite } = requestBody;
+    const { title, description, city, country, salary, type, companyId: companyIdFromBody, company: companyFromBody, languages, qualifications, sports, occupationalAreas, pictures, spam, published, featured, applyByEmail, applyByWebsite, applicationEmail, applicationWebsite, legacySlug } = requestBody;
 
     // Validate required fields if provided
     if (title !== undefined && (!title || !title.trim())) {
@@ -116,12 +136,22 @@ export async function PUT(
     }
 
     if (title) job.title = title;
-    if (description) job.description = description;
+    if (description !== undefined && description !== null) job.description = sanitizeJobDescription(String(description));
     if (city) job.city = city;
     if (country !== undefined) job.country = country?.trim().toUpperCase() || undefined;
     if (salary !== undefined) job.salary = salary;
-    if (type) job.type = type;
-    if (company) job.company = company;
+    if (type) job.type = normalizeEmploymentType(type);
+    const companyIdValue = companyIdFromBody ?? companyFromBody;
+    if (companyIdValue !== undefined && companyIdValue !== null && companyIdValue !== '') {
+      try {
+        job.companyId = new mongoose.Types.ObjectId(String(companyIdValue));
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid company ID' },
+          { status: 400 }
+        );
+      }
+    }
     if (languages !== undefined) {
       if (Array.isArray(languages) && languages.length > 3) {
         return NextResponse.json(
@@ -135,13 +165,13 @@ export async function PUT(
       job.qualifications = qualifications || [];
     }
     if (sports !== undefined) {
-      job.sports = sports || [];
+      jobDoc.sports = sports || [];
     }
     if (occupationalAreas !== undefined) {
-      // Validate job categories - ensure all categories are in JOB_CATEGORIES
+      // Validate job categories - ensure all categories are in JOB_CATEGORY_VALUES
       if (Array.isArray(occupationalAreas)) {
         const invalidCategories = occupationalAreas.filter(
-          (category: string) => !JOB_CATEGORIES.includes(category as any)
+          (category: string) => !(JOB_CATEGORY_VALUES as readonly string[]).includes(category)
         );
         if (invalidCategories.length > 0) {
           return NextResponse.json(
@@ -188,14 +218,14 @@ export async function PUT(
           // Set validThrough to datePosted + 90 days
           const validThroughDate = new Date(job.datePosted);
           validThroughDate.setDate(validThroughDate.getDate() + 90);
-          job.validThrough = validThroughDate;
+          jobDoc.validThrough = validThroughDate;
         } else {
           // Job was previously published, being republished
           // Keep existing datePosted, but ensure validThrough exists
-          if (!job.validThrough) {
+          if (!jobDoc.validThrough) {
             const validThroughDate = new Date(job.datePosted);
             validThroughDate.setDate(validThroughDate.getDate() + 90);
-            job.validThrough = validThroughDate;
+            jobDoc.validThrough = validThroughDate;
           }
         }
       } else if (isBeingPublished && wasPublished) {
@@ -204,10 +234,10 @@ export async function PUT(
           // Use createdAt as fallback for existing published jobs
           job.datePosted = job.createdAt || new Date();
         }
-        if (!job.validThrough) {
+        if (!jobDoc.validThrough) {
           const validThroughDate = new Date(job.datePosted);
           validThroughDate.setDate(validThroughDate.getDate() + 90);
-          job.validThrough = validThroughDate;
+          jobDoc.validThrough = validThroughDate;
         }
       }
       // If being unpublished, we don't change datePosted or validThrough
@@ -216,10 +246,10 @@ export async function PUT(
       if (!job.datePosted) {
         job.datePosted = job.createdAt || new Date();
       }
-      if (!job.validThrough) {
+      if (!jobDoc.validThrough) {
         const validThroughDate = new Date(job.datePosted);
         validThroughDate.setDate(validThroughDate.getDate() + 90);
-        job.validThrough = validThroughDate;
+        jobDoc.validThrough = validThroughDate;
       }
     }
 
@@ -240,6 +270,11 @@ export async function PUT(
     }
     if (applicationWebsite !== undefined) {
       job.applicationWebsite = normalizeUrl(applicationWebsite);
+    }
+
+    // Legacy Drupal slug (admin only, not exposed publicly)
+    if (legacySlug !== undefined) {
+      job.legacySlug = typeof legacySlug === 'string' && legacySlug.trim() ? legacySlug.trim() : undefined;
     }
 
     // Validate all required fields are present before saving
@@ -265,7 +300,7 @@ export async function PUT(
 
     const updatedJob = await Job.findById(job._id)
       .populate('recruiter', 'name email')
-      .populate('companyId', 'name');
+      .populate('companyId', 'name email website');
 
     return NextResponse.json(
       { message: 'Job updated successfully', job: updatedJob },
@@ -275,6 +310,15 @@ export async function PUT(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === "COMPANY_PROFILE_INCOMPLETE") {
+      return NextResponse.json(
+        { error: "COMPANY_PROFILE_INCOMPLETE" },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -292,7 +336,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = requireRole(request, ['admin']);
+    const user = await requireRole(request, ['admin']);
     await connectDB();
     const { id } = await params;
 
@@ -306,7 +350,6 @@ export async function DELETE(
     const jobData = {
       id: String(job._id),
       title: job.title,
-      company: job.company,
       companyId: job.companyId ? String(job.companyId) : undefined,
       recruiter: job.recruiter ? String(job.recruiter) : undefined,
     };
@@ -319,7 +362,7 @@ export async function DELETE(
       entityId: id,
       userId: user.userId,
       before: jobData,
-      reason: `Deleted job "${job.title}" at ${job.company}`,
+      reason: `Deleted job "${job.title}"`,
     });
 
     return NextResponse.json(
@@ -330,6 +373,15 @@ export async function DELETE(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === "COMPANY_PROFILE_INCOMPLETE") {
+      return NextResponse.json(
+        { error: "COMPANY_PROFILE_INCOMPLETE" },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

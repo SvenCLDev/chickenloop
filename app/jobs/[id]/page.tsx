@@ -25,7 +25,8 @@ async function getJob(id: string): Promise<JobForRedirect | null> {
     }
 
     // Increment visit count atomically (we don't need to wait for this)
-    Job.findByIdAndUpdate(id, { $inc: { visitCount: 1 } }).catch(err => {
+    // timestamps: false prevents updatedAt from changing (so viewing doesn't reorder listing)
+    Job.findByIdAndUpdate(id, { $inc: { visitCount: 1 } }, { timestamps: false }).catch(err => {
       console.error('Error incrementing visit count:', err);
     });
     

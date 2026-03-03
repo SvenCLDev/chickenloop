@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Navbar from '../components/Navbar';
 
 export default function AboutPage() {
@@ -8,31 +9,50 @@ export default function AboutPage() {
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-8">About Chickenloop</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-8">The Chickenloop Story</h1>
           
           <div className="prose prose-lg max-w-none">
             <div className="text-gray-700 leading-relaxed space-y-6">
               <p>
-                Chickenloop Job Board was created to connect watersports employers and qualified candidates without the hassle and stress that I have personally experienced. I spent far too much time and money in order to find suitable kitesurf, sailing and kayak instructors when setting up a watersports centre in India.
+                Back in 2013, I was deep in the grind of launching a watersports center in India. Between the logistics and the lessons, I hit a major snag: hiring. Finding qualified, reliable instructors felt like trying to kite in a dead calm—expensive, exhausting, and going nowhere.
               </p>
               
               <p>
-                When I started playing around with the Drupal website framework, I realised that a job board could be easily set up to help watersport center managers to avoid or at least reduce the trouble that I had to go through. Initially the job board was only dedicated to kitesurf and kiteboarding jobs, but with more and more general watersports jobs being listed, I expanded the job board to include all types of watersport jobs ranging from kitesurfing, windsurfing, sailing, SUP, to diving and surfing.
+                I knew there had to be a better way to link centers with the talent they need. So, I grabbed a coffee, opened a code editor, and Chickenloop was born.
               </p>
               
               <p>
-                My intention is purely to help the watersports community, and that is why advertising jobs and posting résumés on this site is completely free. To cover expenses, I do run advertising banners on the site.
+                We started with kitesurfing, but the community had other plans. As more centers reached out, we expanded to cover the whole horizon—sailing, surfing, diving, SUP, and beyond.
               </p>
               
               <p>
-                I look forward to being of service and hope the Chicken Loop International Watersports Job Board will be successful and prove useful to some of you.
+                Fast forward to 2024. The original site was a bit &quot;weathered,&quot; and it was time for a total refit. I&apos;ve spent my recent downtime rebuilding Chickenloop from scratch. The new platform is built on modern tech, designed to be the fastest way to get your crew on the boat or your instructors on the beach.
+              </p>
+              
+              <p>
+                This project is for the community. That&apos;s why basic job posts and resumes are free, supported by a few optional premium features to keep us running.
+              </p>
+              
+              <p>
+                Whether you&apos;re looking for your next season in the sun or the perfect addition to your team, I hope Chickenloop helps you find your line.
               </p>
               
               <p className="mt-8 font-medium">
-                Happy Splash,<br />
+                See you on the water,<br />
                 Sven
               </p>
             </div>
+          </div>
+
+          <div className="mt-10 flex justify-center">
+            <Image
+              src="https://cy1wkdwruflm9kfu.public.blob.vercel-storage.com/about/sven-rooster.png"
+              alt="Sven"
+              width={400}
+              height={400}
+              className="rounded-lg object-cover shadow-md"
+              priority
+            />
           </div>
         </div>
       </main>

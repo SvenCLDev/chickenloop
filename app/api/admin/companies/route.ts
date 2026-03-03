@@ -7,7 +7,7 @@ import mongoose from 'mongoose';
 // GET - Get all companies (admin only)
 export async function GET(request: NextRequest) {
   try {
-    requireRole(request, ['admin']);
+    await requireRole(request, ['admin']);
     
     // Parse query parameters
     const { searchParams } = new URL(request.url);
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
         address: 1,
         website: 1,
         featured: 1,
-        owner: 1,
+        ownerRecruiter: 1,
         createdAt: 1,
       }
     });
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     pipeline.push({
       $lookup: {
         from: 'users',
-        localField: 'owner',
+        localField: 'ownerRecruiter',
         foreignField: '_id',
         as: 'ownerInfo',
         pipeline: [
@@ -137,6 +137,15 @@ export async function GET(request: NextRequest) {
     console.error('[API /admin/companies] Error:', error);
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

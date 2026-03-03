@@ -134,12 +134,15 @@ interface Job {
   recruiter: any;
   featured?: boolean;
   createdAt: string;
+  visitCount?: number;
+  likeCount?: number;
 }
 
 interface CV {
   id: string;
   jobSeeker: any;
   published: boolean;
+  featured?: boolean;
   createdAt: string;
 }
 
@@ -169,6 +172,13 @@ function AdminDashboard() {
   const [togglingFeatured, setTogglingFeatured] = useState<string | null>(null);
   const [deletingCompany, setDeletingCompany] = useState<string | null>(null);
   const [deletingJob, setDeletingJob] = useState<string | null>(null);
+  const [postingToInstagramJobId, setPostingToInstagramJobId] = useState<string | null>(null);
+  const [instagramModalJobId, setInstagramModalJobId] = useState<string | null>(null);
+  const [instagramModalPos, setInstagramModalPos] = useState<string>('bl');
+  const [instagramModalBg, setInstagramModalBg] = useState<string>('grey');
+  const [instagramModalCustomTags, setInstagramModalCustomTags] = useState<string>('');
+  const [instagramPreviewCaption, setInstagramPreviewCaption] = useState<string>('');
+  const [deletingJobSeeker, setDeletingJobSeeker] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string>('lastActive');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -231,6 +241,19 @@ function AdminDashboard() {
     }, 300);
     return () => clearTimeout(timer);
   }, [emailFilter]);
+
+  // Fetch Instagram caption preview when modal opens
+  useEffect(() => {
+    if (!instagramModalJobId) return;
+    let cancelled = false;
+    fetch(`/api/instagram-preview/${instagramModalJobId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data?.fullCaption) setInstagramPreviewCaption(data.fullCaption);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [instagramModalJobId]);
 
   // Refetch job-seekers data when sort, search, or email filter changes
   useEffect(() => {
@@ -313,12 +336,13 @@ function AdminDashboard() {
           const apiSortBy = sortByMap[sortColumn] || 'lastActive';
           
           const usersData = await adminApi.getUsers({
+            role: 'job-seeker',
             search: debouncedSearchQuery.trim() || undefined,
             email: debouncedEmailFilter.trim() || undefined,
             sortBy: apiSortBy,
             sortOrder: sortDirection,
           });
-          data = usersData.users.filter((u: User) => u.role === 'job-seeker');
+          data = usersData.users;
           break;
         case 'recruiters':
           // Map UI column names to API sortBy values
@@ -332,12 +356,13 @@ function AdminDashboard() {
           const recruiterApiSortBy = recruiterSortByMap[sortColumn] || 'lastActive';
           
           const recruitersData = await adminApi.getUsers({
+            role: 'recruiter',
             search: debouncedSearchQuery.trim() || undefined,
             email: debouncedEmailFilter.trim() || undefined,
             sortBy: recruiterApiSortBy,
             sortOrder: sortDirection,
           });
-          data = recruitersData.users.filter((u: User) => u.role === 'recruiter');
+          data = recruitersData.users;
           break;
         case 'jobs':
           // Map UI column names to API sortBy values
@@ -363,6 +388,7 @@ function AdminDashboard() {
             'jobSeeker': 'jobSeeker',
             'email': 'email',
             'published': 'published',
+            'featured': 'featured',
             'created': 'created',
           };
           const cvApiSortBy = cvSortByMap[sortColumn] || 'created';
@@ -646,15 +672,104 @@ function AdminDashboard() {
     router.push(`/admin/jobs/${jobId}/edit`);
   };
 
+  const handlePostToInstagram = async (jobId: string, pos?: string, bg?: string, customTags?: string) => {
+    setPostingToInstagramJobId(jobId);
+    try {
+      const res = await fetch(`/api/admin/instagram-post/${jobId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pos: pos ?? 'bl',
+          bg: bg ?? 'grey',
+          ...(typeof customTags === 'string' ? { customTags } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data?.error || `Failed to post to Instagram (${res.status})`);
+        return;
+      }
+      if (data.success && data.postId) {
+        setTableData((prev) =>
+          prev.map((entry) =>
+            entry.id === jobId ? { ...entry, instagramPostId: data.postId } : entry
+          )
+        );
+        setInstagramModalJobId(null);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[Admin] Error posting job to Instagram:', err);
+      alert(`Failed to post to Instagram: ${msg}`);
+    } finally {
+      setPostingToInstagramJobId(null);
+    }
+  };
+
+  const handleOpenInstagramModal = (jobId: string) => {
+    setInstagramModalJobId(jobId);
+    setInstagramModalPos('bl');
+    setInstagramModalBg('grey');
+    setInstagramModalCustomTags('');
+    setInstagramPreviewCaption('');
+  };
+
+  const handleConfirmInstagramPost = () => {
+    if (!instagramModalJobId) return;
+    handlePostToInstagram(instagramModalJobId, instagramModalPos, instagramModalBg, instagramModalCustomTags);
+  };
+
   const handleEditUser = (userId: string) => {
-    // Navigate to admin user edit page (if exists) or show user details
-    // For now, navigate to a user detail/edit page
     router.push(`/admin/users/${userId}/edit`);
+  };
+
+  const handleDeleteJobSeeker = async (userId: string, name: string, email: string) => {
+    if (!confirm(`Are you sure you want to delete the job seeker "${name}" (${email})? This will permanently delete their profile, all CVs, and all applications. This action cannot be undone.`)) {
+      return;
+    }
+    setDeletingJobSeeker(userId);
+    try {
+      await adminApi.deleteUser(userId);
+      setTableData((prev) => prev.filter((e) => e.id !== userId));
+      await loadStatistics();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[Admin] Error deleting job seeker:', err);
+      alert(`Failed to delete job seeker: ${msg}`);
+    } finally {
+      setDeletingJobSeeker(null);
+    }
   };
 
   const handleEditCV = (cvId: string) => {
     // Navigate to admin CV edit page
     router.push(`/admin/cvs/${cvId}/edit`);
+  };
+
+  const handleToggleCVFeatured = async (cvId: string, currentFeatured: boolean) => {
+    if (togglingFeatured === cvId) {
+      console.log(`[Admin] Already toggling featured for CV ${cvId}, ignoring duplicate click`);
+      return;
+    }
+    const newFeaturedStatus = !currentFeatured;
+    setTableData((prev) => prev.map((entry) =>
+      entry.id === cvId ? { ...entry, featured: newFeaturedStatus } : entry
+    ));
+    setTogglingFeatured(cvId);
+    try {
+      await adminApi.updateCV(cvId, { featured: newFeaturedStatus });
+      if (selectedCategory === 'cvs') {
+        await loadCategoryData('cvs');
+      }
+    } catch (err: any) {
+      console.error('[Admin] Error updating CV featured status:', err);
+      setTableData((prev) => prev.map((entry) =>
+        entry.id === cvId ? { ...entry, featured: currentFeatured } : entry
+      ));
+      alert(`Failed to update featured status: ${err.message || 'Unknown error'}`);
+    } finally {
+      setTogglingFeatured(null);
+    }
   };
 
   const handleEditCareerAdvice = (articleId: string) => {
@@ -1214,16 +1329,8 @@ function AdminDashboard() {
                                 )}
                               </div>
                             </th>
-                            <th 
-                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                              onClick={() => handleSort('location')}
-                            >
-                              <div className="flex items-center gap-1">
-                                Location
-                                {getSortIndicator('location') && (
-                                  <span className="text-gray-400">{getSortIndicator('location')}</span>
-                                )}
-                              </div>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Company
                             </th>
                             <th 
                               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
@@ -1238,6 +1345,17 @@ function AdminDashboard() {
                             </th>
                             <th 
                               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('location')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Location
+                                {getSortIndicator('location') && (
+                                  <span className="text-gray-400">{getSortIndicator('location')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                               onClick={() => handleSort('featured')}
                             >
                               <div className="flex items-center gap-1">
@@ -1246,6 +1364,12 @@ function AdminDashboard() {
                                   <span className="text-gray-400">{getSortIndicator('featured')}</span>
                                 )}
                               </div>
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Views
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Liked
                             </th>
                             <th 
                               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
@@ -1257,6 +1381,9 @@ function AdminDashboard() {
                                   <span className="text-gray-400">{getSortIndicator('created')}</span>
                                 )}
                               </div>
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Insta Post
                             </th>
                             <th 
                               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -1493,14 +1620,28 @@ function AdminDashboard() {
                                   '—'
                                 )}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <button
-                                  onClick={() => handleEditUser(entry.id)}
-                                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
-                                  title="Edit user"
-                                >
-                                  Edit
-                                </button>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" style={{ width: '160px', minWidth: '160px' }}>
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => handleEditUser(entry.id)}
+                                    className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
+                                    title="Edit user"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteJobSeeker(entry.id, entry.name, entry.email)}
+                                    disabled={deletingJobSeeker === entry.id}
+                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                                      deletingJobSeeker === entry.id
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        : 'bg-red-600 text-white hover:bg-red-700'
+                                    }`}
+                                    title="Delete job seeker (profile, CVs, and applications)"
+                                  >
+                                    {deletingJobSeeker === entry.id ? 'Deleting...' : 'Delete'}
+                                  </button>
+                                </div>
                               </td>
                             </>
                           ) : selectedCategory === 'recruiters' ? (
@@ -1531,10 +1672,11 @@ function AdminDashboard() {
                               <td className="px-6 py-4 text-sm font-medium text-gray-900" style={{ maxWidth: '400px' }}>
                                 <div className="truncate" title={entry.title}>{entry.title}</div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.city}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.companyName ?? '—'}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.recruiter?.name || 'Unknown'}
                               </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.city}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 <button
                                   onClick={() => handleToggleJobFeatured(entry.id, entry.featured || false)}
@@ -1550,7 +1692,34 @@ function AdminDashboard() {
                                 </button>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.visitCount ?? 0}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.likeCount ?? 0}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {new Date(entry.createdAt).toLocaleDateString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                {entry.instagramPostId ? (
+                                  <a
+                                    href={`https://instagram.com/p/${entry.instagramPostId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200"
+                                  >
+                                    Posted
+                                  </a>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenInstagramModal(entry.id)}
+                                    className="px-3 py-1 rounded-md text-xs font-medium transition-colors bg-indigo-600 text-white hover:bg-indigo-700"
+                                    title="Post to Instagram"
+                                  >
+                                    Post to Instagram
+                                  </button>
+                                )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" style={{ width: '160px', minWidth: '160px' }}>
                                 <div className="flex space-x-2">
@@ -1591,6 +1760,20 @@ function AdminDashboard() {
                                   {entry.published ? 'Published' : 'Draft'}
                                 </span>
                               </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                <button
+                                  onClick={() => handleToggleCVFeatured(entry.id, entry.featured || false)}
+                                  disabled={togglingFeatured === entry.id}
+                                  className={`px-3 py-1 rounded-md text-xs font-medium ${
+                                    entry.featured
+                                      ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                  } ${togglingFeatured === entry.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  title={entry.featured ? 'Click to unfeature' : 'Click to feature'}
+                                >
+                                  {togglingFeatured === entry.id ? 'Updating...' : (entry.featured ? '⭐ Featured' : 'Not Featured')}
+                                </button>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {new Date(entry.createdAt).toLocaleDateString()}
                               </td>
@@ -1606,7 +1789,11 @@ function AdminDashboard() {
                             </>
                           ) : selectedCategory === 'companies' ? (
                             <>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.name}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <Link href={`/companies/${entry.id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                                  {entry.name}
+                                </Link>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.address 
                                   ? `${entry.address.city || ''}${entry.address.city && entry.address.state ? ', ' : ''}${entry.address.state || ''}${entry.address.country ? `, ${entry.address.country}` : ''}`.trim() || 'N/A'
@@ -1780,6 +1967,94 @@ function AdminDashboard() {
           </div>
         )}
       </main>
+
+      {/* Instagram post modal */}
+      {instagramModalJobId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setInstagramModalJobId(null)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Post to Instagram</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Text Position</label>
+                  <select
+                    value={instagramModalPos}
+                    onChange={(e) => setInstagramModalPos(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
+                  >
+                    <option value="bl">Bottom Left</option>
+                    <option value="br">Bottom Right</option>
+                    <option value="tl">Top Left</option>
+                    <option value="tr">Top Right</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Background Shade</label>
+                  <select
+                    value={instagramModalBg}
+                    onChange={(e) => setInstagramModalBg(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
+                  >
+                    <option value="grey">Grey</option>
+                    <option value="navy">Navy</option>
+                    <option value="blue">Blue</option>
+                    <option value="teal">Teal</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Hashtags / Mentions</label>
+                <textarea
+                  value={instagramModalCustomTags}
+                  onChange={(e) => setInstagramModalCustomTags(e.target.value)}
+                  placeholder="#beachlife #summerjobs @kitebeachsardinia"
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Add optional hashtags (#...) or mentions (@...). They will be appended to the caption.</p>
+              </div>
+              <div className="mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">Preview</p>
+                <img
+                  src={`/api/instagram-image/${instagramModalJobId}?pos=${instagramModalPos}&bg=${instagramModalBg}`}
+                  alt="Instagram preview"
+                  className="w-full max-w-[400px] rounded-lg border border-gray-200"
+                />
+              </div>
+              {instagramPreviewCaption && (
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Caption preview</p>
+                  <div className="text-sm text-gray-600 whitespace-pre-wrap break-words max-h-32 overflow-y-auto p-3 bg-gray-50 rounded-md border border-gray-200">
+                    {instagramPreviewCaption}
+                    {instagramModalCustomTags.trim() ? `\n\n${instagramModalCustomTags.trim()}` : ''}
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInstagramModalJobId(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmInstagramPost}
+                  disabled={postingToInstagramJobId === instagramModalJobId}
+                  className={`px-4 py-2 text-sm font-medium rounded-md ${
+                    postingToInstagramJobId === instagramModalJobId
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  {postingToInstagramJobId === instagramModalJobId ? 'Posting...' : 'Confirm Post'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

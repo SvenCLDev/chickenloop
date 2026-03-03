@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
+import { getCompanyUrl } from '@/lib/companySlug';
 
 interface CompanyCardProps {
   company: {
@@ -32,7 +33,7 @@ export default function CompanyCard({ company }: CompanyCardProps) {
 
   return (
     <Link
-      href={`/companies/${company.id}`}
+      href={getCompanyUrl(company)}
       className="bg-white border border-gray-200 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer block overflow-hidden transform hover:-translate-y-1"
     >
       {/* Company Picture */}

@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import Image from 'next/image';
 
 interface JobHeroImageProps {
   imageUrl: string;
@@ -8,23 +9,31 @@ interface JobHeroImageProps {
 }
 
 export default function JobHeroImage({ imageUrl, jobTitle }: JobHeroImageProps) {
+  const [error, setError] = useState(false);
+
   return (
     <div className="w-full">
       <div className="relative w-full h-64 bg-gray-200 overflow-hidden">
-        <img
+        {!error && (
+        <Image
           src={imageUrl}
           alt={`${jobTitle} - Featured`}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            const img = e.target as HTMLImageElement;
-            const imageUrl = img.src || '';
+          fill
+          priority
+          fetchPriority="high"
+          quality={60}
+          sizes="(max-width: 1024px) 100vw, 1024px"
+          className="object-cover"
+          onError={() => {
             if (imageUrl.includes('/uploads/')) {
-              img.style.display = 'none';
+              setError(true);
             } else {
               console.error('Failed to load image from Blob Storage:', imageUrl);
+              setError(true);
             }
           }}
         />
+        )}
       </div>
     </div>
   );

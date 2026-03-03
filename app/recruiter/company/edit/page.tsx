@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Navbar from '../../../components/Navbar';
 import { companyApi } from '@/lib/api';
+import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import {
   getCountryNameFromCode,
   normalizeCountryForStorage,
@@ -14,6 +15,7 @@ import { OFFERED_SERVICES_LIST } from '@/lib/offeredServices';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import UrlInput from '../../../components/form/UrlInput';
+import RichTextLite from '../../../components/form/RichTextLite';
 
 // Dynamically import map component to avoid SSR issues
 const DraggableMap = dynamic(
@@ -127,7 +129,7 @@ export default function EditCompanyPage() {
         coordinates: company.coordinates || null,
         website: company.website || '',
         contact: {
-          email: company.contact?.email || '',
+          email: company.email || company.contact?.email || user?.email || '',
           officePhone: company.contact?.officePhone || '',
           whatsapp: company.contact?.whatsapp || '',
         },
@@ -261,16 +263,6 @@ export default function EditCompanyPage() {
       return;
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      const errorMessage = `File "${file.name}" is too large (${fileSizeMB} MB). Maximum size is 5MB.`;
-      alert(`Warning: ${errorMessage}`);
-      setError(errorMessage);
-      return;
-    }
-
     setSelectedLogo(file);
     setError('');
 
@@ -296,20 +288,12 @@ export default function EditCompanyPage() {
       return;
     }
 
-    // Validate file types and sizes
+    // Validate file types (images are optimized server-side, no size limit)
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
 
     for (const file of files) {
       if (!validTypes.includes(file.type)) {
         setError(`Invalid file type: ${file.name}. Only images (JPEG, PNG, WEBP, GIF) are allowed.`);
-        return;
-      }
-      if (file.size > maxSize) {
-        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        const errorMessage = `File "${file.name}" is too large (${fileSizeMB} MB). Maximum size is 5MB.`;
-        alert(`Warning: ${errorMessage}`);
-        setError(errorMessage);
         return;
       }
     }
@@ -344,7 +328,7 @@ export default function EditCompanyPage() {
     setUploadingLogo(true);
     try {
       const uploadFormData = new FormData();
-      uploadFormData.append('logo', selectedLogo);
+      uploadFormData.append('logo', sanitizeFileForUpload(selectedLogo));
 
       const response = await fetch('/api/company/upload-logo', {
         method: 'POST',
@@ -371,7 +355,7 @@ export default function EditCompanyPage() {
     try {
       const uploadFormData = new FormData();
       selectedPictures.forEach((file) => {
-        uploadFormData.append('pictures', file);
+        uploadFormData.append('pictures', sanitizeFileForUpload(file));
       });
 
       const response = await fetch('/api/company/upload', {
@@ -508,15 +492,13 @@ export default function EditCompanyPage() {
               />
             </div>
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
+              <RichTextLite
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                onChange={(html) => setFormData({ ...formData, description: html })}
+                label="Description"
+                placeholder="Describe your company..."
+                className="mt-1"
               />
             </div>
 
@@ -970,7 +952,7 @@ export default function EditCompanyPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  Maximum 5MB. Supported formats: JPEG, PNG, WEBP, GIF. Recommended: Square image (e.g., 200x200px)
+                  Supported formats: JPEG, PNG, WEBP, GIF. Recommended: Square image (e.g., 200x200px). Large images are automatically optimized.
                 </p>
               </div>
             </div>
@@ -1009,7 +991,7 @@ export default function EditCompanyPage() {
                   )}
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
-                  Maximum 3 pictures, 5MB each. Supported formats: JPEG, PNG, WEBP, GIF
+                  Maximum 3 pictures. Supported formats: JPEG, PNG, WEBP, GIF. Large images are automatically optimized.
                 </p>
                 {(selectedPictures.length > 0 || existingPictures.length > 0) && (
                   <div className="mt-4 grid grid-cols-3 gap-4">

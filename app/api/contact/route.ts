@@ -1,14 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendEmail, isEmailConfigured, EmailCategory } from '@/lib/email';
+import { verifyTurnstile } from '@/lib/security/verifyTurnstile';
 
-// POST - Send contact/feedback email using Resend
+// POST - Send contact/feedback email using Resend (protected by Cloudflare Turnstile)
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, message } = await request.json();
+    const body = await request.json();
+    const { name, email, message, turnstileToken } = body;
 
     if (!name || !email || !message) {
       return NextResponse.json(
         { error: 'All fields are required' },
+        { status: 400 }
+      );
+    }
+
+    // Require and verify Turnstile token before any email is sent (never send without CAPTCHA verification)
+    const turnstileSecret = process.env.TURNSTILE_SECRET_KEY?.trim();
+    if (!turnstileSecret) {
+      return NextResponse.json(
+        { error: 'Contact form verification is not configured. Please email hello@chickenloop.com directly.' },
+        { status: 503 }
+      );
+    }
+    if (!turnstileToken || typeof turnstileToken !== 'string') {
+      return NextResponse.json(
+        { error: 'Verification failed. Please complete the challenge and try again.' },
+        { status: 400 }
+      );
+    }
+    const verified = await verifyTurnstile(turnstileToken);
+    if (!verified) {
+      return NextResponse.json(
+        { error: 'Verification failed. Please complete the challenge and try again.' },
         { status: 400 }
       );
     }

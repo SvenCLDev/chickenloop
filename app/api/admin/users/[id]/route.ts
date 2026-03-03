@@ -3,6 +3,7 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import Job from '@/models/Job';
 import CV from '@/models/CV';
+import Application from '@/models/Application';
 import bcrypt from 'bcryptjs';
 import { requireRole } from '@/lib/auth';
 import { createDeleteAuditLog } from '@/lib/audit';
@@ -13,7 +14,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    requireRole(request, ['admin']);
+    await requireRole(request, ['admin']);
     await connectDB();
     const { id } = await params;
 
@@ -49,6 +50,15 @@ export async function GET(
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
+    }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -65,7 +75,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    requireRole(request, ['admin']);
+    await requireRole(request, ['admin']);
     await connectDB();
     const { id } = await params;
 
@@ -99,6 +109,15 @@ export async function PUT(
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
+    }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -115,7 +134,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const adminUser = requireRole(request, ['admin']);
+    const adminUser = await requireRole(request, ['admin']);
     await connectDB();
     const { id } = await params;
 
@@ -128,10 +147,12 @@ export async function DELETE(
     // Count associated data for audit log
     let jobsCount = 0;
     let cvsCount = 0;
+    let applicationsCount = 0;
     if (user.role === 'recruiter') {
       jobsCount = await Job.countDocuments({ recruiter: user._id });
     } else if (user.role === 'job-seeker') {
       cvsCount = await CV.countDocuments({ jobSeeker: user._id });
+      applicationsCount = await Application.countDocuments({ candidateId: user._id });
     }
 
     // Store user data for audit log before deletion
@@ -142,25 +163,31 @@ export async function DELETE(
       role: user.role,
       jobsCount,
       cvsCount,
+      applicationsCount,
     };
 
     // Delete associated data
     if (user.role === 'recruiter') {
       await Job.deleteMany({ recruiter: user._id });
     } else if (user.role === 'job-seeker') {
+      await Application.deleteMany({ candidateId: user._id });
       await CV.deleteMany({ jobSeeker: user._id });
     }
 
     await User.findByIdAndDelete(id);
 
     // Create audit log
+    const reasonParts = [`Deleted ${user.role} user "${user.name}" (${user.email})`];
+    if (jobsCount > 0) reasonParts.push(`${jobsCount} job(s)`);
+    if (cvsCount > 0) reasonParts.push(`${cvsCount} CV(s)`);
+    if (applicationsCount > 0) reasonParts.push(`${applicationsCount} application(s)`);
     await createDeleteAuditLog(request, {
       entityType: 'user',
       entityId: id,
       userId: adminUser.userId,
       before: userData,
-      reason: `Deleted ${user.role} user "${user.name}" (${user.email})${jobsCount > 0 ? ` and ${jobsCount} job(s)` : ''}${cvsCount > 0 ? ` and ${cvsCount} CV(s)` : ''}`,
-      metadata: { jobsDeleted: jobsCount, cvsDeleted: cvsCount },
+      reason: reasonParts.join(', '),
+      metadata: { jobsDeleted: jobsCount, cvsDeleted: cvsCount, applicationsDeleted: applicationsCount },
     });
 
     return NextResponse.json(
@@ -171,6 +198,15 @@ export async function DELETE(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

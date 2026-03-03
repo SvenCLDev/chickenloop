@@ -41,13 +41,6 @@ export default function NewCareerAdvicePage() {
       return;
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      setError(`File "${file.name}" is too large (${fileSizeMB} MB). Maximum size is 5MB.`);
-      return;
-    }
 
     setSelectedPicture(file);
     setError('');
@@ -211,7 +204,7 @@ export default function NewCareerAdvicePage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Maximum file size: 5MB. Supported formats: JPEG, PNG, WEBP, GIF
+              Supported formats: JPEG, PNG, WEBP, GIF. Large images are automatically optimized.
             </p>
           </div>
 

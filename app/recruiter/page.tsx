@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '../components/Navbar';
+import FeatureJobModal from '../components/FeatureJobModal';
 import { jobsApi, companyApi, candidatesApi } from '@/lib/api';
 import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
@@ -19,6 +20,7 @@ interface Job {
   pictures?: string[];
   published?: boolean;
   featured?: boolean;
+  featuredUntil?: string | null;
   visitCount?: number;
   createdAt: string;
 }
@@ -81,6 +83,7 @@ function RecruiterDashboardClient() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [unsubscribedCategory, setUnsubscribedCategory] = useState<string | null>(null);
   const [showUnsubscribedNotification, setShowUnsubscribedNotification] = useState(false);
+  const [featureModalJobId, setFeatureModalJobId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -398,6 +401,16 @@ function RecruiterDashboardClient() {
           <span className="font-medium">{toastMessage}</span>
         </div>
       )}
+      {featureModalJobId && (() => {
+        const job = jobs.find((j) => j._id === featureModalJobId);
+        return (
+          <FeatureJobModal
+            jobId={featureModalJobId}
+            currentFeaturedUntil={job?.featuredUntil ?? null}
+            onClose={() => setFeatureModalJobId(null)}
+          />
+        );
+      })()}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex flex-wrap justify-between items-center gap-3 mb-8">
           <h1 className="text-4xl font-bold text-gray-900">
@@ -435,17 +448,14 @@ function RecruiterDashboardClient() {
           ) : (
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full table-fixed divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="w-[7.5rem] max-w-[7.5rem] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Title
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Location
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Posted
@@ -454,17 +464,33 @@ function RecruiterDashboardClient() {
                         Visits
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Promotion
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {jobs.map((job) => (
+                    {jobs.map((job) => {
+                      const isFeatured = !!(job.featuredUntil && new Date(job.featuredUntil) > new Date()) || job.featured === true;
+                      const featuredUntilDate = job.featuredUntil
+                        ? (() => {
+                            try {
+                              const d = new Date(job.featuredUntil);
+                              return isNaN(d.getTime()) ? job.featuredUntil : d.toLocaleDateString(undefined, { dateStyle: 'medium' });
+                            } catch {
+                              return job.featuredUntil;
+                            }
+                          })()
+                        : null;
+                      return (
                       <tr key={job._id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="w-[10rem] max-w-[10rem] px-6 py-4 text-sm font-medium text-gray-900">
                           <Link
                             href={getJobUrl(job)}
-                            className="text-blue-600 hover:text-blue-900 hover:underline"
+                            className="block truncate text-blue-600 hover:text-blue-900 hover:underline"
+                            title={job.title}
                           >
                             {job.title}
                           </Link>
@@ -473,42 +499,63 @@ function RecruiterDashboardClient() {
                           {job.city}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                            {job.type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(job.createdAt).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {job.visitCount || 0}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => handleTogglePublish(job._id, job.published === true)}
-                            className={`mr-4 ${
-                              job.published === true
-                                ? 'text-orange-600 hover:text-orange-900'
-                                : 'text-green-600 hover:text-green-900'
-                            }`}
-                          >
-                            {job.published === true ? 'Unpublish' : 'Publish'}
-                          </button>
-                          <Link
-                            href={`/recruiter/jobs/${job._id}/edit`}
-                            className="text-blue-600 hover:text-blue-900 mr-4"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            onClick={() => handleDelete(job._id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Delete
-                          </button>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {isFeatured && featuredUntilDate ? (
+                            <div className="space-y-2">
+                              <p className="text-gray-600 text-xs">Featured until {featuredUntilDate}</p>
+                              <button
+                                type="button"
+                                onClick={() => setFeatureModalJobId(job._id)}
+                                className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium text-sm hover:bg-blue-50 hover:border-blue-400"
+                              >
+                                Extend
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setFeatureModalJobId(job._id)}
+                              className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium text-sm hover:bg-blue-50 hover:border-blue-400"
+                            >
+                              Feature job
+                            </button>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
+                          <span className="inline-flex flex-nowrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePublish(job._id, job.published === true)}
+                              className={`inline-flex items-center px-3 py-1.5 rounded border font-medium text-sm ${
+                                job.published === true
+                                  ? 'border-orange-300 bg-white text-orange-700 hover:bg-orange-50 hover:border-orange-400'
+                                  : 'border-green-300 bg-white text-green-700 hover:bg-green-50 hover:border-green-400'
+                              }`}
+                            >
+                              {job.published === true ? 'Unpublish' : 'Publish'}
+                            </button>
+                            <Link
+                              href={`/recruiter/jobs/${job._id}/edit`}
+                              className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium text-sm hover:bg-blue-50 hover:border-blue-400"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(job._id)}
+                              className="inline-flex items-center px-3 py-1.5 rounded border border-red-300 bg-white text-red-700 font-medium text-sm hover:bg-red-50 hover:border-red-400"
+                            >
+                              Delete
+                            </button>
+                          </span>
                         </td>
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>

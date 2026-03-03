@@ -3,13 +3,15 @@ import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import JobImage from '@/models/JobImage';
 import Company from '@/models/Company';
+import User from '@/models/User';
 import { requireAuth, requireRole } from '@/lib/auth';
 import mongoose from 'mongoose';
 import { CachePresets } from '@/lib/cache';
 import { parseJobSearchParams } from '@/lib/jobSearchParams';
 import { getCountryCodeFromName } from '@/lib/countryUtils';
-import { JOB_CATEGORIES, categorySlugToLabel } from '@/src/constants/jobCategories';
+import { isValidJobCategory } from '@/lib/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
@@ -62,6 +64,7 @@ export async function GET(request: NextRequest) {
       activity: activityValue || null,
       language: filters.language || null,
       city: filters.city || null,
+      employmentType: filters.employmentType || null,
       featured: featured || null,
     });
 
@@ -242,6 +245,11 @@ export async function GET(request: NextRequest) {
       queryFilter.languages = filters.language;
     }
 
+    // Employment type filter: exact match on type field
+    if (filters.employmentType) {
+      queryFilter.type = filters.employmentType.trim();
+    }
+
     // Query to get jobs - Project only fields needed for list display
     // Include description when keyword filter is present (for search), otherwise exclude for performance
     const listProjection: any = {
@@ -270,6 +278,42 @@ export async function GET(request: NextRequest) {
     if (filters.keyword) {
       listProjection.description = 1;
     }
+
+    // Fetch available categories (distinct occupationalAreas) using baseFilter = all filters
+    // EXCEPT occupationalAreas. When category filter is present, this ensures the dropdown
+    // stays populated even when 0 jobs match. Always run so dropdown has options on initial load.
+    const baseFilter = { ...queryFilter };
+    delete baseFilter.occupationalAreas;
+    const categoriesResult = await Job.collection
+      .aggregate([
+        { $match: baseFilter },
+        { $unwind: '$occupationalAreas' },
+        { $group: { _id: '$occupationalAreas' } },
+      ])
+      .maxTimeMS(5000)
+      .toArray()
+      .catch(() => []);
+
+    const availableCategories: string[] = (
+      categoriesResult as { _id: string }[]
+    ).map((c) => c._id);
+
+    // Fetch available employment types (distinct type) using baseFilter without type filter
+    const employmentBaseFilter = { ...queryFilter };
+    delete employmentBaseFilter.type;
+    const employmentTypesResult = await Job.collection
+      .aggregate([
+        { $match: employmentBaseFilter },
+        { $group: { _id: '$type' } },
+        { $match: { _id: { $ne: null, $exists: true } } },
+      ])
+      .maxTimeMS(5000)
+      .toArray()
+      .catch(() => []);
+
+    const availableEmploymentTypes: string[] = (
+      employmentTypesResult as { _id: string }[]
+    ).map((e) => e._id).filter(Boolean);
 
     console.log('[API /jobs] Building aggregation pipeline for optimized image selection...');
     
@@ -419,7 +463,10 @@ export async function GET(request: NextRequest) {
     let jobsWithoutPopulate: any[];
     try {
       console.log('[API /jobs] Starting Promise.race...');
-      jobsWithoutPopulate = await Promise.race([aggregationPromise, aggregationTimeout]);
+      jobsWithoutPopulate = await Promise.race([
+        aggregationPromise,
+        aggregationTimeout,
+      ]);
       const fetchTime = Date.now() - fetchStart;
       console.log(`[API /jobs] Aggregation pipeline succeeded, got ${jobsWithoutPopulate.length} jobs in ${fetchTime}ms`);
 
@@ -491,6 +538,32 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Populate company name from Company collection (for job cards)
+    if (jobs.length > 0) {
+      try {
+        const db = mongoose.connection.db;
+        if (db) {
+          const companiesCollection = db.collection(Company.collection.name);
+          const companyIds = [...new Set(jobs.map((j: any) => j.companyId).filter(Boolean))];
+          const companies = await companiesCollection.find({
+            _id: { $in: companyIds.map((id: string) => new mongoose.Types.ObjectId(id)) }
+          })
+            .project({ name: 1 })
+            .maxTimeMS(3000)
+            .toArray();
+          const companyNameMap = new Map(
+            companies.map((c: any) => [c._id.toString(), c.name || ''])
+          );
+          jobs = jobs.map((job: any) => ({
+            ...job,
+            company: job.company || (job.companyId ? companyNameMap.get(job.companyId) || '' : '')
+          }));
+        }
+      } catch (companyError: any) {
+        console.error('[API /jobs] Company populate error:', companyError.message);
+      }
+    }
+
     // Optimize images: Select only one image per job (hero if exists, otherwise first)
     if (jobs.length > 0) {
       const imageOptimizeStart = Date.now();
@@ -552,7 +625,7 @@ export async function GET(request: NextRequest) {
     // Add cache headers - jobs can be cached for 5 minutes with stale-while-revalidate
     const cacheHeaders = CachePresets.short();
 
-    return NextResponse.json({ jobs }, {
+    return NextResponse.json({ jobs, availableCategories, availableEmploymentTypes }, {
       status: 200,
       headers: cacheHeaders,
     });
@@ -577,14 +650,50 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Safeguard: Reject if request looks like a Stripe redirect (must not mutate jobs)
+function rejectIfStripeRedirect(
+  requestBody: Record<string, unknown>,
+  searchParams: URLSearchParams
+): { reject: true; message: string } | { reject: false } {
+  if (
+    requestBody.stripeSessionId !== undefined ||
+    requestBody.stripePriceId !== undefined ||
+    requestBody.lookup_key !== undefined
+  ) {
+    return {
+      reject: true,
+      message: 'Request must not contain Stripe session or price identifiers.',
+    };
+  }
+  const checkout = requestBody.checkout ?? searchParams.get('checkout');
+  if (checkout === 'success' || checkout === 'cancel' || checkout === 'cancelled') {
+    return {
+      reject: true,
+      message: 'Stripe redirects must not mutate jobs. Use the safe return page.',
+    };
+  }
+  return { reject: false };
+}
+
 // POST - Create a new job (recruiters only)
 export async function POST(request: NextRequest) {
   try {
-    const user = requireRole(request, ['recruiter']);
+    const user = await requireRole(request, ['recruiter']);
     await connectDB();
 
     const requestBody = await request.json();
-    
+    const stripeGuard = rejectIfStripeRedirect(
+      requestBody as Record<string, unknown>,
+      request.nextUrl.searchParams
+    );
+    if (stripeGuard.reject) {
+      console.warn(
+        '[jobs POST] Rejected request: Stripe redirects must not mutate jobs.',
+        { message: stripeGuard.message }
+      );
+      return NextResponse.json({ error: stripeGuard.message }, { status: 400 });
+    }
+
     // Safeguard: Reject requests that include deprecated `location` field
     if (requestBody.location !== undefined) {
       return NextResponse.json(
@@ -652,10 +761,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate job categories - ensure all categories are in JOB_CATEGORIES
+    // Validate job categories - ensure all categories are valid
     if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
       const invalidCategories = occupationalAreas.filter(
-        (category: string) => !JOB_CATEGORIES.includes(category as any)
+        (category: string) => !isValidJobCategory(category)
       );
       if (invalidCategories.length > 0) {
         return NextResponse.json(
@@ -668,9 +777,16 @@ export async function POST(request: NextRequest) {
     // Normalize country: trim and uppercase, or set to null if empty
     const normalizedCountry = country?.trim() ? country.trim().toUpperCase() : null;
 
-    // Find the recruiter's company to set companyId
-    const recruiterCompany = await Company.findOne({ owner: user.userId });
-    const companyId = recruiterCompany ? recruiterCompany._id : undefined;
+    // Normalize employment type: lowercase, hyphens to underscores (e.g. full-time → full_time)
+    const normalizedType = normalizeEmploymentType(type);
+
+    // Use recruiter's companyId from User (optimized); fallback to Company lookup for legacy users
+    const userDoc = await User.findById(user.userId).select('companyId').lean();
+    let companyId = userDoc?.companyId ?? undefined;
+    if (companyId === undefined) {
+      const recruiterCompany = await Company.findOne({ ownerRecruiter: user.userId });
+      companyId = recruiterCompany ? (recruiterCompany._id as mongoose.Types.ObjectId) : undefined;
+    }
 
     // System-managed date fields for Google Jobs SEO
     // datePosted is set when job is first published
@@ -681,12 +797,12 @@ export async function POST(request: NextRequest) {
 
     const job = await Job.create({
       title,
-      description: sanitizeJobDescription(description),
+      description: sanitizeJobDescription(String(description ?? '')),
       company,
       city,
       country: normalizedCountry,
       salary,
-      type,
+      type: normalizedType,
       recruiter: user.userId,
       companyId: companyId,
       languages: languages || [],
@@ -748,6 +864,15 @@ export async function POST(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import SavedSearch from '@/models/SavedSearch';
 import User from '@/models/User';
-import { findMatchingJobs } from '@/lib/jobMatching';
+import { findMatchingJobs, getCompanyName } from '@/lib/jobMatching';
 import { sendEmail, EmailCategory } from '@/lib/email';
 import { getJobAlertEmail, getJobAlertHeartbeatEmail } from '@/lib/emailTemplates';
 
@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
           return {
             _id: String(match.job._id),
             title: match.job.title,
-            company: match.job.company,
+            company: getCompanyName(match.job) ?? '',
             city: match.job.city,
             country: match.job.country || undefined,
             description: match.job.description || '',

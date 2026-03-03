@@ -48,9 +48,32 @@
 
 **How to add**: Same process as above, use key `CONTACT_EMAIL`
 
+## Required for Contact Form (Cloudflare Turnstile)
+
+The public contact form (frontpage and /contact) is protected by Cloudflare Turnstile. Email is never sent unless the CAPTCHA is verified.
+
+### 4a. NEXT_PUBLIC_TURNSTILE_SITE_KEY (REQUIRED for contact form)
+**Purpose**: Public site key for the Turnstile widget (safe to expose in the browser).
+
+**How to get it**:
+1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) → Turnstile
+2. Create a widget (or use an existing one)
+3. Copy the **Site key**
+
+**How to add**: Add as `NEXT_PUBLIC_TURNSTILE_SITE_KEY` in Production (and Preview if needed). Redeploy after adding.
+
+### 4b. TURNSTILE_SECRET_KEY (REQUIRED for contact form)
+**Purpose**: Secret key for server-side token verification. **Never expose this** (no NEXT_PUBLIC_ prefix).
+
+**How to get it**: Same Turnstile widget in Cloudflare Dashboard → copy the **Secret key**.
+
+**How to add**: Add as `TURNSTILE_SECRET_KEY` in Production (and Preview if needed). Redeploy after adding.
+
+Without both keys, the contact form will return an error and no email is sent.
+
 ## Required for Job Alerts Cron Job
 
-### 4. CRON_SECRET (REQUIRED for cron job)
+### 5. CRON_SECRET (REQUIRED for cron job)
 **Purpose**: Secret key to secure the cron endpoint
 
 **How to generate**:
@@ -62,7 +85,7 @@ Or use any random secure string.
 
 **How to add**: Same process as above, use key `CRON_SECRET`
 
-### 5. NEXT_PUBLIC_BASE_URL (OPTIONAL)
+### 6. NEXT_PUBLIC_BASE_URL (OPTIONAL)
 **Purpose**: Base URL for job links in emails
 
 **Value**: `https://chickenloop.com` (or your production domain)
@@ -96,20 +119,20 @@ After adding environment variables:
 
 ### How to verify environment variables are set
 
-You can temporarily add a debug endpoint to check:
+You can temporarily add a debug endpoint to check (local/dev only; never expose in production):
 
 ```typescript
 // app/api/debug/env/route.ts (temporary, remove after debugging)
+// SECURITY: Do not expose RESEND_API_KEY or its length. Never commit this route.
 export async function GET() {
   return Response.json({
     hasResendKey: !!process.env.RESEND_API_KEY,
-    resendKeyLength: process.env.RESEND_API_KEY?.length || 0,
     fromEmail: process.env.RESEND_FROM_EMAIL || 'not set',
   });
 }
 ```
 
-**Note**: Remove this endpoint after debugging for security.
+**Note**: Remove this endpoint after debugging. Do not expose `resendKeyLength` or any key-related info to clients.
 
 ## Quick Checklist
 

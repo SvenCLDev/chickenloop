@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import CV from '@/models/CV';
 import { requireRole } from '@/lib/auth';
 import mongoose from 'mongoose';
 
 // GET - Get all CVs (admin only)
 export async function GET(request: NextRequest) {
   try {
-    requireRole(request, ['admin']);
-    
+    await requireRole(request, ['admin']);
+
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.trim() || '';
     const sortBy = searchParams.get('sortBy')?.trim() || 'created';
     const sortOrder = searchParams.get('sortOrder')?.trim() || 'desc';
-    
+
     // Add timeout for database connection
     const dbPromise = connectDB();
     const timeoutPromise = new Promise((_, reject) =>
@@ -30,12 +29,13 @@ export async function GET(request: NextRequest) {
     // Build aggregation pipeline for efficient filtering and sorting
     const pipeline: any[] = [];
 
-    // Stage 1: Match CVs (with projection for minimal fields)
+    // Stage 1: Project minimal fields before lookup/sort to reduce memory
     pipeline.push({
       $project: {
         _id: 1,
         jobSeeker: 1,
         published: 1,
+        featured: 1,
         createdAt: 1,
       }
     });
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     // Stage 6: Sort based on sortBy parameter
     const sortDirection = sortOrder.toLowerCase() === 'asc' ? 1 : -1;
     let sortField: string;
-    
+
     // Map UI sort keys to database fields
     switch (sortBy) {
       case 'jobSeeker':
@@ -102,13 +102,16 @@ export async function GET(request: NextRequest) {
       case 'published':
         sortField = 'published';
         break;
+      case 'featured':
+        sortField = 'featured';
+        break;
       case 'created':
         sortField = 'createdAt';
         break;
       default:
         sortField = 'createdAt';
     }
-    
+
     pipeline.push({
       $sort: { [sortField]: sortDirection }
     });
@@ -118,10 +121,9 @@ export async function GET(request: NextRequest) {
       $limit: 1000
     });
 
-    // Execute aggregation
+    // Execute aggregation (allowDiskUse for stability on large collections)
     const cvs = await dbConnection.collection('cvs')
-      .aggregate(pipeline)
-      .maxTimeMS(10000)
+      .aggregate(pipeline, { allowDiskUse: true, maxTimeMS: 10000 })
       .toArray();
 
     // Map results to expected format
@@ -131,6 +133,7 @@ export async function GET(request: NextRequest) {
         ? { name: cv.jobSeekerInfo.name || 'Unknown', email: cv.jobSeekerInfo.email || 'unknown@example.com' }
         : null,
       published: cv.published || false,
+      featured: cv.featured === true,
       createdAt: cv.createdAt,
     }));
 
@@ -141,6 +144,15 @@ export async function GET(request: NextRequest) {
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
+    }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -150,12 +162,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-

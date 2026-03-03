@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Verify job exists and get recruiter ID
-      const job = await Job.findById(jobId);
+      const job = await Job.findById(jobId).populate('companyId', 'name');
       if (!job) {
         return NextResponse.json({ error: 'Job not found' }, { status: 404 });
       }
@@ -374,13 +374,16 @@ export async function POST(request: NextRequest) {
         const recruiter = await User.findById(recruiterId).select('name email');
         
         if (candidate && recruiter && recruiter.email) {
+          const jobCompanyName = job.companyId && typeof job.companyId === 'object' && 'name' in job.companyId
+            ? (job.companyId as { name: string }).name
+            : undefined;
           const emailTemplate = getCandidateAppliedEmail({
             candidateName: candidate.name,
             candidateEmail: candidate.email,
             recruiterName: recruiter.name,
             recruiterEmail: recruiter.email,
             jobTitle: job.title,
-            jobCompany: job.company,
+            jobCompany: jobCompanyName,
             jobCity: job.city,
             applicationDate: now,
           });
@@ -456,7 +459,7 @@ export async function POST(request: NextRequest) {
         const publishedJobs = await Job.find({
           recruiter: user.userId,
           published: true,
-        }).select('_id title company city');
+        }).populate('companyId', 'name').select('_id title companyId city').lean();
 
         if (publishedJobs.length === 0) {
           return NextResponse.json(
@@ -473,11 +476,13 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             {
               error: 'Please select a job',
-              jobs: publishedJobs.map((job) => ({
-                _id: String(job._id),
-                title: job.title,
-                company: job.company,
-                city: job.city,
+              jobs: publishedJobs.map((j: { _id: unknown; title: string; companyId: unknown; city: string }) => ({
+                _id: String(j._id),
+                title: j.title,
+                company: j.companyId && typeof j.companyId === 'object' && 'name' in j.companyId
+                  ? (j.companyId as { name: string }).name
+                  : undefined,
+                city: j.city,
               })),
             },
             { status: 400 }
@@ -573,10 +578,12 @@ export async function POST(request: NextRequest) {
               let jobCity: string | undefined;
 
               if (finalJobId) {
-                const job = await Job.findById(finalJobId).select('title company city');
+                const job = await Job.findById(finalJobId).populate('companyId', 'name').select('title companyId city').lean();
                 if (job) {
                   jobTitle = job.title;
-                  jobCompany = job.company;
+                  jobCompany = job.companyId && typeof job.companyId === 'object' && 'name' in job.companyId
+                    ? (job.companyId as { name: string }).name
+                    : undefined;
                   jobCity = job.city;
                 }
               }
@@ -678,10 +685,12 @@ export async function POST(request: NextRequest) {
           let jobCity: string | undefined;
 
           if (finalJobId) {
-            const job = await Job.findById(finalJobId).select('title company city');
+            const job = await Job.findById(finalJobId).populate('companyId', 'name').select('title companyId city').lean();
             if (job) {
               jobTitle = job.title;
-              jobCompany = job.company;
+              jobCompany = job.companyId && typeof job.companyId === 'object' && 'name' in job.companyId
+                ? (job.companyId as { name: string }).name
+                : undefined;
               jobCity = job.city;
             }
           }

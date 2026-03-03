@@ -7,23 +7,21 @@ import { requireRole } from '@/lib/auth';
 // GET - Get all favourite candidates for the current user (recruiters only)
 export async function GET(request: NextRequest) {
   try {
-    const user = requireRole(request, ['recruiter', 'admin']);
+    const user = await requireRole(request, ['recruiter', 'admin']);
     await connectDB();
 
-    const userData = await User.findById(user.userId).populate('favouriteCandidates');
+    const userData = await User.findById(user.userId).lean();
     if (!userData) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Initialize favouriteCandidates if it doesn't exist
-    if (!userData.favouriteCandidates) {
-      userData.favouriteCandidates = [];
-    }
+    const rawFavourites = (userData as any).favouriteCandidates || [];
+    // favouriteCandidates stores CV _ids (see toggle in candidates-list/[id]/favourite)
+    const favouriteCvIds = rawFavourites.filter((id: any) => id != null);
 
-    // Get all favourite CVs with populated job seeker
-    const favouriteCvIds = userData.favouriteCandidates.map((id: any) => 
-      typeof id === 'object' ? id._id : id
-    );
+    if (favouriteCvIds.length === 0) {
+      return NextResponse.json({ cvs: [] }, { status: 200 });
+    }
 
     const cvs = await CV.find({
       _id: { $in: favouriteCvIds },
@@ -61,6 +59,15 @@ export async function GET(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

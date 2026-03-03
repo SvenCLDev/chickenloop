@@ -6,7 +6,7 @@ import { requireRole } from '@/lib/auth';
 // POST - Toggle CV published status (job seekers only)
 export async function POST(request: NextRequest) {
   try {
-    const user = requireRole(request, ['job-seeker']);
+    const user = await requireRole(request, ['job-seeker']);
     await connectDB();
 
     const cv = await CV.findOne({ jobSeeker: user.userId });
@@ -32,6 +32,15 @@ export async function POST(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

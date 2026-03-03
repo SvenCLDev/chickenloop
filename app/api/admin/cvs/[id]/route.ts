@@ -3,7 +3,6 @@ import connectDB from '@/lib/db';
 import CV from '@/models/CV';
 import { requireRole } from '@/lib/auth';
 import { isExperienceLevel, isAvailability, isWorkArea } from '@/lib/domainTypes';
-import { JOB_CATEGORIES, type JobCategory } from '@/src/constants/jobCategories';
 
 // GET - Get a single CV by ID (admin only)
 export async function GET(
@@ -11,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    requireRole(request, ['admin']);
+    await requireRole(request, ['admin']);
     await connectDB();
     const { id } = await params;
 
@@ -26,6 +25,15 @@ export async function GET(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -43,7 +51,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    requireRole(request, ['admin']);
+    await requireRole(request, ['admin']);
     await connectDB();
     const { id } = await params;
 
@@ -71,10 +79,15 @@ export async function PUT(
       experienceLevel,
       availability,
       published,
+      featured,
     } = body;
 
-    // Validate required fields
-    if (!fullName || !email) {
+    // Allow featured-only update (admin toggle from list)
+    const updateKeys = Object.keys(body).filter((key) => body[key] !== undefined);
+    const isFeaturedOnlyUpdate = updateKeys.length === 1 && updateKeys[0] === 'featured';
+
+    // Validate required fields (skip for featured-only update)
+    if (!isFeaturedOnlyUpdate && (!fullName || !email)) {
       return NextResponse.json(
         { error: 'Full name and email are required' },
         { status: 400 }
@@ -128,6 +141,11 @@ export async function PUT(
     if (published !== undefined) cv.published = published;
     if (body.pictures !== undefined) cv.pictures = body.pictures || [];
 
+    // Update featured flag (admin can feature/unfeature any CV)
+    if (featured !== undefined) {
+      cv.featured = featured === true;
+    }
+
     await cv.save();
 
     return NextResponse.json(
@@ -138,6 +156,15 @@ export async function PUT(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

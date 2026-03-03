@@ -9,7 +9,7 @@ import mongoose from 'mongoose';
 // GET - Get all users with their data (admin only)
 export async function GET(request: NextRequest) {
   try {
-    requireRole(request, ['admin']);
+    await requireRole(request, ['admin']);
     
     // Parse query parameters
     const { searchParams } = new URL(request.url);
@@ -34,6 +34,11 @@ export async function GET(request: NextRequest) {
 
     // Build MongoDB query filter
     const queryFilter: any = {};
+
+    // Role filter: when specified, only return users with that role (e.g. 'job-seeker', 'recruiter')
+    if (roleFilter) {
+      queryFilter.role = roleFilter;
+    }
     
     // Email-specific filter (case-insensitive partial match)
     // This restricts results to emails matching the email pattern
@@ -48,11 +53,11 @@ export async function GET(request: NextRequest) {
     if (search) {
       // First, find companies matching the search term (for recruiter company name search)
       const matchingCompanies = await dbConnection.collection('companies')
-        .find({ name: { $regex: search, $options: 'i' } }, { projection: { owner: 1 } })
+        .find({ name: { $regex: search, $options: 'i' } }, { projection: { ownerRecruiter: 1 } })
         .maxTimeMS(5000)
         .toArray();
       
-      recruiterIdsFromCompanySearch = matchingCompanies.map((c: any) => c.owner);
+      recruiterIdsFromCompanySearch = matchingCompanies.map((c: any) => c.ownerRecruiter);
       
       // Build search conditions for user fields
       const searchConditions: any[] = [
@@ -146,7 +151,7 @@ export async function GET(request: NextRequest) {
         : [],
       recruiterIds.length > 0
         ? dbConnection.collection('companies')
-            .find({ owner: { $in: recruiterIds } }, { projection: { name: 1, owner: 1 } })
+            .find({ ownerRecruiter: { $in: recruiterIds } }, { projection: { name: 1, ownerRecruiter: 1 } })
             .maxTimeMS(5000)
             .toArray()
         : []
@@ -165,7 +170,7 @@ export async function GET(request: NextRequest) {
     // Map companies by owner (recruiter ID)
     const companyMap = new Map<string, string>();
     companiesByOwner.forEach((company: any) => {
-      const ownerId = company.owner.toString();
+      const ownerId = company.ownerRecruiter.toString();
       companyMap.set(ownerId, company.name);
     });
     
@@ -323,6 +328,15 @@ export async function GET(request: NextRequest) {
     console.error('[API /admin/users] Error:', error);
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

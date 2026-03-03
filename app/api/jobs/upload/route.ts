@@ -1,16 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { requireRole } from '@/lib/auth';
+import { resizeImage } from '@/lib/imageOptimization';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
+// User-friendly message when request body cannot be parsed as multipart (e.g. bad image or size limit)
+const FORM_DATA_PARSE_ERROR =
+  'The image(s) you selected could not be processed. Please try a different image, use a smaller file (e.g. under 5MB), or use JPEG, PNG, WEBP or GIF.';
+
 // POST - Upload job pictures (recruiters and admins)
 export async function POST(request: NextRequest) {
   try {
-    requireRole(request, ['recruiter', 'admin']);
+    await requireRole(request, ['recruiter', 'admin']);
 
-    const formData = await request.formData();
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (parseError: unknown) {
+      const msg = parseError instanceof Error ? parseError.message : '';
+      const isFormDataParseError =
+        /parse body as FormData|formdata|multipart|body.*limit|payload.*large/i.test(msg) || msg === '';
+      return NextResponse.json(
+        { error: isFormDataParseError ? FORM_DATA_PARSE_ERROR : `Upload failed: ${msg}` },
+        { status: 400 }
+      );
+    }
+
     const files = formData.getAll('pictures') as File[];
 
     if (!files || files.length === 0) {
@@ -57,24 +74,30 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Validate file size (max 5MB per image)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (file.size > maxSize) {
+      const bytes = await file.arrayBuffer();
+      const inputBuffer = Buffer.from(bytes);
+      let resizedBuffer: Buffer;
+      try {
+        resizedBuffer = await resizeImage(inputBuffer);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Image processing failed';
         return NextResponse.json(
-          { error: `File ${file.name} is too large. Maximum size is 5MB.` },
+          { error: `Failed to process image ${file.name}: ${msg}` },
           { status: 400 }
         );
       }
 
-      // Generate unique filename
+      // Generate unique filename (always .jpg after resize)
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 15);
-      const extension = file.name.split('.').pop() || 'jpg';
-      const filename = `jobs/job-${timestamp}-${randomStr}.${extension}`;
+      const filename = `jobs/job-${timestamp}-${randomStr}.jpg`;
 
       if (useBlobStorage) {
         // Upload to Vercel Blob (production or local with token)
-        const blob = await put(filename, file, { access: 'public' });
+        const blob = await put(filename, resizedBuffer, {
+          access: 'public',
+          contentType: 'image/jpeg',
+        });
         console.log('[Upload] Uploaded to Blob Storage:', blob.url);
         uploadedPaths.push(blob.url);
       } else {
@@ -83,11 +106,9 @@ export async function POST(request: NextRequest) {
         if (!existsSync(uploadDir)) {
           await mkdir(uploadDir, { recursive: true });
         }
-        const filePath = join(uploadDir, `${timestamp}-${randomStr}.${extension}`);
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        await writeFile(filePath, buffer);
-        const localPath = `/uploads/jobs/${timestamp}-${randomStr}.${extension}`;
+        const filePath = join(uploadDir, `${timestamp}-${randomStr}.jpg`);
+        await writeFile(filePath, resizedBuffer);
+        const localPath = `/uploads/jobs/${timestamp}-${randomStr}.jpg`;
         console.log('[Upload] Saved to local filesystem:', localPath);
         uploadedPaths.push(localPath);
       }
@@ -105,8 +126,24 @@ export async function POST(request: NextRequest) {
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
+    }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    // FormData/body parse errors (e.g. "Failed to parse body as FormData") — return clear message
+    if (/parse body as FormData|formdata|multipart|body.*limit|payload.*large/i.test(errorMessage)) {
+      return NextResponse.json(
+        { error: FORM_DATA_PARSE_ERROR },
+        { status: 400 }
+      );
     }
     return NextResponse.json(
       { error: errorMessage || 'Internal server error' },

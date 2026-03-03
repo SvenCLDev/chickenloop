@@ -1,8 +1,11 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import { OFFERED_ACTIVITIES_LIST } from '@/lib/offeredActivities';
+import { OFFERED_SERVICES_LIST } from '@/lib/offeredServices';
 
 export interface ICompany extends Document {
   name: string;
   description?: string;
+
   address?: {
     street?: string;
     city?: string;
@@ -10,29 +13,38 @@ export interface ICompany extends Document {
     postalCode?: string;
     country?: string;
   };
+
   coordinates?: {
     latitude: number;
     longitude: number;
   };
+
   website?: string;
-  contact?: {
-    email?: string;
-    officePhone?: string;
-    whatsapp?: string;
+  email?: string;
+
+  offeredActivities?: string[];
+  offeredServices?: string[];
+  logo?: string | null;
+  pictures?: string[];
+
+  featured?: boolean;
+  featuredUntil?: Date | null;
+
+  // 🔹 Ownership (explicit!)
+  ownerRecruiter: mongoose.Types.ObjectId;
+
+  // 🔹 Migration / review status
+  status: 'active' | 'needs_review' | 'placeholder';
+
+  legacy?: {
+    source: 'drupal';
+    recruiterUid?: string;
+    inferenceStrategy: 'inferred_from_jobs' | 'inferred_and_enriched' | 'placeholder';
+    sourceCompanyNid?: number;
+    confidence: number;
+    migratedAt: Date;
   };
-  socialMedia?: {
-    facebook?: string;
-    instagram?: string;
-    tiktok?: string;
-    youtube?: string;
-    twitter?: string;
-  };
-  offeredActivities?: string[]; // Array of offered activity strings
-  offeredServices?: string[]; // Array of offered service strings
-  logo?: string; // Company logo image URL
-  pictures?: string[]; // Array of image paths (max 3)
-  featured?: boolean; // Featured flag: true if featured, false otherwise
-  owner: mongoose.Types.ObjectId;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,127 +54,102 @@ const CompanySchema: Schema = new Schema(
     name: {
       type: String,
       required: true,
-      trim: true,
+      index: true,
     },
-    description: {
-      type: String,
-      trim: true,
-    },
+    description: String,
+
     address: {
-      street: {
-        type: String,
-        trim: true,
-      },
-      city: {
-        type: String,
-        trim: true,
-      },
-      state: {
-        type: String,
-        trim: true,
-      },
-      postalCode: {
-        type: String,
-        trim: true,
-      },
-      country: {
-        type: String,
-        trim: true,
-        // ISO 3166-1 alpha-2 country code (e.g., 'US', 'GB', 'FR', 'DE')
-        // Stored in uppercase for consistency
-      },
+      street: String,
+      city: String,
+      state: String,
+      postalCode: String,
+      country: String,
     },
+
     coordinates: {
-      latitude: {
-        type: Number,
-      },
-      longitude: {
-        type: Number,
-      },
+      latitude: Number,
+      longitude: Number,
     },
-    website: {
-      type: String,
-      trim: true,
-    },
-    contact: {
-      email: {
-        type: String,
-        trim: true,
-        lowercase: true,
-      },
-      officePhone: {
-        type: String,
-        trim: true,
-      },
-      whatsapp: {
-        type: String,
-        trim: true,
-      },
-    },
-    socialMedia: {
-      facebook: {
-        type: String,
-        trim: true,
-      },
-      instagram: {
-        type: String,
-        trim: true,
-      },
-      tiktok: {
-        type: String,
-        trim: true,
-      },
-      youtube: {
-        type: String,
-        trim: true,
-      },
-      twitter: {
-        type: String,
-        trim: true,
-      },
-    },
+
+    website: String,
+    email: String,
+
     offeredActivities: {
       type: [String],
+      enum: OFFERED_ACTIVITIES_LIST,
+      default: [],
     },
     offeredServices: {
       type: [String],
+      enum: OFFERED_SERVICES_LIST,
+      default: [],
     },
     logo: {
       type: String,
-      trim: true,
+      default: null,
     },
     pictures: {
       type: [String],
-      validate: {
-        validator: function(v: string[]) {
-          return v.length <= 3;
-        },
-        message: 'A company can have at most 3 pictures',
-      },
+      default: [],
     },
+
     featured: {
       type: Boolean,
       default: false,
     },
-    owner: {
+    featuredUntil: {
+      type: Date,
+      default: null,
+    },
+
+    // 🔹 Explicit recruiter ownership
+    ownerRecruiter: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      unique: true,
+      index: true,
+    },
+
+    // 🔹 Status flag for migration + admin review
+    status: {
+      type: String,
+      enum: ['active', 'needs_review', 'placeholder'],
+      default: 'active',
+      index: true,
+    },
+
+    // 🔹 Legacy / migration metadata (optional; new companies from UI do not set this)
+    legacy: {
+      type: {
+        source: { type: String },
+        inferenceStrategy: { type: String },
+        sourceCompanyNid: { type: Number },
+        recruiterUid: { type: String },
+        confidence: { type: Number },
+        migratedAt: { type: Date },
+      },
+      required: false,
+      default: undefined,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Create indexes for efficient querying
-// Note: owner field already has unique: true which creates an index automatically
-CompanySchema.index({ featured: 1 }); // For featured company filtering
-CompanySchema.index({ createdAt: -1 }); // For sorting by creation date
+// Indexes for queries
+CompanySchema.index({ featured: 1 });
+CompanySchema.index({ featuredUntil: 1 });
+CompanySchema.index({ createdAt: -1 });
 
-const Company: Model<ICompany> = mongoose.models.Company || mongoose.model<ICompany>('Company', CompanySchema);
+interface ICompanyModel extends Model<ICompany> {
+  isFeaturedQuery(): { featuredUntil: { $gt: Date } };
+}
+
+CompanySchema.statics.isFeaturedQuery = function () {
+  return { featuredUntil: { $gt: new Date() } };
+};
+
+const Company =
+  (mongoose.models.Company as ICompanyModel) ||
+  mongoose.model<ICompany, ICompanyModel>('Company', CompanySchema);
 
 export default Company;
-
-

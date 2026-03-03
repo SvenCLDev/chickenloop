@@ -1,12 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import Job from '@/models/Job';
+import Job, { IJob, EXPERIENCE_LEVELS } from '@/models/Job';
 import JobImage from '@/models/JobImage';
 import { requireAuth, requireRole } from '@/lib/auth';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORY_VALUES } from '@/lib/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import mongoose from 'mongoose';
+
+// Safeguard: Reject if request looks like a Stripe redirect (must not mutate jobs)
+function rejectIfStripeRedirect(
+  requestBody: Record<string, unknown>,
+  searchParams: URLSearchParams
+): { reject: true; message: string } | { reject: false } {
+  if (
+    requestBody.stripeSessionId !== undefined ||
+    requestBody.stripePriceId !== undefined ||
+    requestBody.lookup_key !== undefined
+  ) {
+    return {
+      reject: true,
+      message: 'Request must not contain Stripe session or price identifiers.',
+    };
+  }
+  const checkout = requestBody.checkout ?? searchParams.get('checkout');
+  if (checkout === 'success' || checkout === 'cancel' || checkout === 'cancelled') {
+    return {
+      reject: true,
+      message: 'Stripe redirects must not mutate jobs. Use the safe return page.',
+    };
+  }
+  return { reject: false };
+}
 
 // GET - Get a single job (accessible to all users, including anonymous)
 export async function GET(
@@ -35,7 +61,12 @@ export async function GET(
 
     // Increment visit count atomically using MongoDB's $inc operator
     // This prevents race conditions and double counting
-    await Job.findByIdAndUpdate(id, { $inc: { visitCount: 1 } });
+    // timestamps: false prevents updatedAt from changing (so viewing doesn't reorder listing)
+    await Job.findByIdAndUpdate(
+      id,
+      { $inc: { visitCount: 1 } },
+      { timestamps: false }
+    );
     
     // Reload the job to get the updated visit count
     const updatedJob = await Job.findById(id)
@@ -75,7 +106,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = requireRole(request, ['recruiter']);
+    const user = await requireRole(request, ['recruiter']);
     await connectDB();
     const { id } = await params;
 
@@ -92,8 +123,24 @@ export async function PUT(
       );
     }
 
+    type PublicJobDoc = IJob & { sports?: string[]; validThrough?: Date };
+    const jobDoc = job as PublicJobDoc;
+
     const requestBody = await request.json();
-    
+
+    // Safeguard: Reject if request looks like a Stripe redirect (must not mutate jobs)
+    const stripeGuard = rejectIfStripeRedirect(
+      requestBody as Record<string, unknown>,
+      request.nextUrl.searchParams
+    );
+    if (stripeGuard.reject) {
+      console.warn(
+        '[jobs PUT] Rejected request: Stripe redirects must not mutate jobs.',
+        { message: stripeGuard.message }
+      );
+      return NextResponse.json({ error: stripeGuard.message }, { status: 400 });
+    }
+
     // Safeguard: Reject requests that include deprecated `location` field
     if (requestBody.location !== undefined) {
       return NextResponse.json(
@@ -110,12 +157,15 @@ export async function PUT(
       );
     }
 
-    const { title, description, company, city, country, salary, type, languages, qualifications, sports, occupationalAreas, pictures, heroImageUrl, published, featured, applyViaATS, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
+    const { title, companyId: companyIdFromBody, company: companyFromBody, city, country, salary, type, experienceLevel: experienceLevelFromBody, languages, qualifications, sports, occupationalAreas, pictures, heroImageUrl, published, featured, applyViaATS, applyByEmail, applyByWebsite, applyByWhatsApp, applicationEmail, applicationWebsite, applicationWhatsApp } = requestBody;
+    // Read description explicitly so it's always applied when present (required for HTML sanitization)
+    const description = requestBody.description;
 
-    // Validate job categories - ensure all categories are in JOB_CATEGORIES
+    // Validate job categories - ensure all categories are in JOB_CATEGORY_VALUES
     if (occupationalAreas !== undefined && Array.isArray(occupationalAreas)) {
       const invalidCategories = occupationalAreas.filter(
-        (category: string) => !JOB_CATEGORIES.includes(category as any)
+        (category: string) =>
+          !JOB_CATEGORY_VALUES.includes(category as typeof JOB_CATEGORY_VALUES[number])
       );
       if (invalidCategories.length > 0) {
         return NextResponse.json(
@@ -164,17 +214,47 @@ export async function PUT(
     }
 
     if (title) job.title = title;
-    if (description) {
-      job.description = sanitizeJobDescription(description);
+    // Always sanitize and set description when present (recruiter edit sends full form including description)
+    if ('description' in requestBody) {
+      const raw = String(description ?? '');
+      const sanitized = sanitizeJobDescription(raw);
+      job.description = sanitized;
+      // Dev-only: confirm payload and sanitization (remove or guard with NODE_ENV if desired)
+      if (process.env.NODE_ENV === 'development') {
+        const preview = (s: string, max = 80) => (s.length <= max ? s : s.slice(0, max) + '…');
+        console.log('[jobs PUT] description in payload: yes, raw length:', raw.length, 'sanitized length:', sanitized.length);
+        console.log('[jobs PUT] sanitized preview:', JSON.stringify(preview(sanitized)));
+      }
     }
-    if (company) job.company = company;
+    const companyIdValue = companyIdFromBody ?? companyFromBody;
+    if (companyIdValue !== undefined && companyIdValue !== null && companyIdValue !== '') {
+      try {
+        job.companyId = new mongoose.Types.ObjectId(String(companyIdValue));
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid company ID' },
+          { status: 400 }
+        );
+      }
+    }
     if (city) job.city = city;
     if (country !== undefined) {
       // Normalize country: trim and uppercase, or set to null if empty (null explicitly stores the field)
       job.country = country?.trim() ? country.trim().toUpperCase() : null;
     }
     if (salary !== undefined) job.salary = salary;
-    if (type) job.type = type;
+    if (type) job.type = normalizeEmploymentType(type);
+    if (experienceLevelFromBody !== undefined) {
+      const raw = Array.isArray(experienceLevelFromBody)
+        ? (experienceLevelFromBody.length > 0 ? experienceLevelFromBody[0] : undefined)
+        : (typeof experienceLevelFromBody === 'string' && experienceLevelFromBody.trim()
+          ? experienceLevelFromBody.trim()
+          : undefined);
+      const experienceLevelValue =
+        raw && (EXPERIENCE_LEVELS as readonly string[]).includes(raw) ? raw : undefined;
+      (job as any).experienceLevel = experienceLevelValue ?? undefined;
+      (job as any).experience = experienceLevelValue ?? undefined;
+    }
     if (languages !== undefined) {
       job.languages = languages || [];
       job.markModified('languages');
@@ -183,7 +263,7 @@ export async function PUT(
       job.qualifications = qualifications || [];
     }
     if (sports !== undefined) {
-      job.sports = sports || [];
+      jobDoc.sports = sports || [];
     }
     if (occupationalAreas !== undefined) {
       job.occupationalAreas = occupationalAreas || [];
@@ -215,14 +295,14 @@ export async function PUT(
           // Set validThrough to datePosted + 90 days
           const validThroughDate = new Date(job.datePosted);
           validThroughDate.setDate(validThroughDate.getDate() + 90);
-          job.validThrough = validThroughDate;
+          jobDoc.validThrough = validThroughDate;
         } else {
           // Job was previously published, being republished
           // Keep existing datePosted, but ensure validThrough exists
-          if (!job.validThrough) {
+          if (!jobDoc.validThrough) {
             const validThroughDate = new Date(job.datePosted);
             validThroughDate.setDate(validThroughDate.getDate() + 90);
-            job.validThrough = validThroughDate;
+            jobDoc.validThrough = validThroughDate;
           }
         }
       } else if (isBeingPublished && wasPublished) {
@@ -231,10 +311,10 @@ export async function PUT(
           // Use createdAt as fallback for existing published jobs
           job.datePosted = job.createdAt || new Date();
         }
-        if (!job.validThrough) {
+        if (!jobDoc.validThrough) {
           const validThroughDate = new Date(job.datePosted);
           validThroughDate.setDate(validThroughDate.getDate() + 90);
-          job.validThrough = validThroughDate;
+          jobDoc.validThrough = validThroughDate;
         }
       }
       // If being unpublished, we don't change datePosted or validThrough
@@ -243,10 +323,10 @@ export async function PUT(
       if (!job.datePosted) {
         job.datePosted = job.createdAt || new Date();
       }
-      if (!job.validThrough) {
+      if (!jobDoc.validThrough) {
         const validThroughDate = new Date(job.datePosted);
         validThroughDate.setDate(validThroughDate.getDate() + 90);
-        job.validThrough = validThroughDate;
+        jobDoc.validThrough = validThroughDate;
       }
     }
     
@@ -376,6 +456,15 @@ export async function PUT(
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
+    }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -392,7 +481,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = requireRole(request, ['recruiter']);
+    const user = await requireRole(request, ['recruiter']);
     await connectDB();
     const { id } = await params;
 
@@ -419,6 +508,15 @@ export async function DELETE(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

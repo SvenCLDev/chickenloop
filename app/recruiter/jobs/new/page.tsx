@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Navbar from '../../../components/Navbar';
 import { jobsApi, companyApi } from '@/lib/api';
+import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
 import { QUALIFICATIONS } from '@/lib/qualifications';
 import {
@@ -12,10 +13,18 @@ import {
   normalizeCountryForStorage,
 } from '@/lib/countryUtils';
 import { SPORTS_LIST } from '@/lib/sports';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import UrlInput from '../../../components/form/UrlInput';
 import JobDescriptionEditor from '../../../components/form/JobDescriptionEditor';
 import Link from 'next/link';
+
+const EXPERIENCE_LEVELS = [
+  'internship',
+  'junior',
+  'senior',
+  'expert',
+  'manager',
+];
 
 export default function NewJobPage() {
   const { user, loading: authLoading } = useAuth();
@@ -27,6 +36,7 @@ export default function NewJobPage() {
     country: '',
     salary: '',
     type: 'full-time',
+    experienceLevel: [] as string[],
     languages: [] as string[],
     qualifications: [] as string[],
     sports: [] as string[],
@@ -78,11 +88,11 @@ export default function NewJobPage() {
         }));
       }
       
-      // Prefill application email and website from company
+      // Prefill application email and website from company profile
       if (data.company) {
         setFormData(prev => ({
           ...prev,
-          applicationEmail: data.company.contact?.email || prev.applicationEmail,
+          applicationEmail: data.company.email || data.company.contact?.email || prev.applicationEmail,
           applicationWebsite: data.company.website || prev.applicationWebsite,
         }));
       }
@@ -105,20 +115,16 @@ export default function NewJobPage() {
       return;
     }
 
-    // Validate file types and sizes
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSizePerFile = 10 * 1024 * 1024; // 10MB to avoid FormData/body parse errors
 
     for (const file of files) {
       if (!validTypes.includes(file.type)) {
         setError(`Invalid file type: ${file.name}. Only images (JPEG, PNG, WEBP, GIF) are allowed.`);
         return;
       }
-      if (file.size > maxSize) {
-        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        const errorMessage = `File "${file.name}" is too large (${fileSizeMB} MB). Maximum size is 5MB.`;
-        alert(`Warning: ${errorMessage}`);
-        setError(errorMessage);
+      if (file.size > maxSizePerFile) {
+        setError(`${file.name} is too large. Please use an image under 10MB.`);
         return;
       }
     }
@@ -164,7 +170,7 @@ export default function NewJobPage() {
     try {
       const uploadFormData = new FormData();
       selectedPictures.forEach((file) => {
-        uploadFormData.append('pictures', file);
+        uploadFormData.append('pictures', sanitizeFileForUpload(file));
       });
 
       const response = await fetch('/api/jobs/upload', {
@@ -443,12 +449,73 @@ export default function NewJobPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
                 >
                   <option value="">Select a category</option>
-                  {JOB_CATEGORIES.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
+                  {JOB_CATEGORIES.map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.label}
                     </option>
                   ))}
                 </select>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Experience Level
+                  </label>
+                  {formData.experienceLevel.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {formData.experienceLevel.map((level) => (
+                        <span
+                          key={level}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800"
+                        >
+                          {level}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                experienceLevel: formData.experienceLevel.filter((l) => l !== level),
+                              })
+                            }
+                            className="ml-2 text-purple-600 hover:text-purple-800"
+                            aria-label={`Remove ${level}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
+                    {EXPERIENCE_LEVELS.map((level) => {
+                      const isSelected = formData.experienceLevel.includes(level);
+                      return (
+                        <label
+                          key={level}
+                          className="flex items-center py-2 px-2 rounded hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({
+                                  ...formData,
+                                  experienceLevel: [...formData.experienceLevel, level],
+                                });
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  experienceLevel: formData.experienceLevel.filter((l) => l !== level),
+                                });
+                              }
+                            }}
+                            className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-900">{level}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -641,9 +708,6 @@ export default function NewJobPage() {
               </div>
             </div>
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                Description *
-              </label>
               <JobDescriptionEditor
                 id="description"
                 value={formData.description}
@@ -682,7 +746,7 @@ export default function NewJobPage() {
                 )}
               </div>
               <p className="text-sm text-gray-500 mt-1">
-                Maximum 3 pictures, 5MB each. Supported formats: JPEG, PNG, WEBP, GIF
+                Maximum 3 pictures. Supported formats: JPEG, PNG, WEBP, GIF (resized automatically)
               </p>
               {selectedPictures.length > 0 && (
                 <div className="mt-4">
@@ -812,7 +876,7 @@ export default function NewJobPage() {
                       setFormData({
                         ...formData,
                         applyByEmail: e.target.checked,
-                        applicationEmail: e.target.checked ? (formData.applicationEmail || company?.contact?.email || '') : '',
+                        applicationEmail: e.target.checked ? (formData.applicationEmail || company?.email || company?.contact?.email || '') : '',
                       });
                     }}
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"

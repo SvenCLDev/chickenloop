@@ -1,35 +1,107 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
-import { EmploymentType, SpamFlag, WorkArea } from '@/lib/domainTypes';
+import { OFFERED_ACTIVITIES_LIST } from '@/lib/offeredActivities';
+import { JOB_CATEGORY_VALUES, type JobCategory } from '@/lib/jobCategories';
+
+export const EMPLOYMENT_TYPES = [
+  'full_time',
+  'part_time',
+  'contract',
+  'freelance',
+  'internship',
+  'project',
+  'other',
+] as const;
+
+export const SPAM_FLAGS = [
+  'clean',
+  'suspected',
+  'confirmed',
+] as const;
+
+export const WORK_AREAS = [
+  'instructor',
+  'customer_support',
+  'hospitality',
+  'sales',
+  'management',
+  'marketing',
+  'other',
+] as const;
+
+export const EXPERIENCE_LEVELS = [
+  'internship',
+  'junior',
+  'senior',
+  'expert',
+  'manager',
+] as const;
 
 export interface IJob extends Document {
   title: string;
   description: string;
-  company: string;
+
+  recruiter: mongoose.Types.ObjectId;
+  companyId: mongoose.Types.ObjectId;
+
   city: string;
   country?: string | null;
+
   salary?: string;
-  type: EmploymentType;
-  recruiter: mongoose.Types.ObjectId;
-  companyId?: mongoose.Types.ObjectId;
+  type: (typeof EMPLOYMENT_TYPES)[number];
+  experienceLevel?: (typeof EXPERIENCE_LEVELS)[number];
+  /** Experience level (alias for experienceLevel, used by Drupal migration) */
+  experience?: (typeof EXPERIENCE_LEVELS)[number];
+
   languages?: string[];
   qualifications?: string[];
-  sports?: string[];
-  occupationalAreas?: WorkArea[];
+  occupationalAreas?: JobCategory[];
+  sports?: (typeof OFFERED_ACTIVITIES_LIST)[number][];
+
   pictures?: string[];
-  spam?: SpamFlag;
+
+  spam?: (typeof SPAM_FLAGS)[number];
   published?: boolean;
   featured?: boolean;
+  featuredUntil?: Date | null;
+
   visitCount?: number;
+
   applyByEmail?: boolean;
   applyByWebsite?: boolean;
   applyByWhatsApp?: boolean;
   applyViaATS?: boolean;
+  applicationOptions?: {
+    ats?: boolean;
+    email?: boolean;
+    website?: boolean;
+    whatsapp?: boolean;
+  };
+
   applicationEmail?: string;
   applicationWebsite?: string;
   applicationWhatsApp?: string;
-  datePosted?: Date; // System-managed: set when job is first published (Google Jobs SEO)
-  validThrough?: Date; // System-managed: datePosted + 90 days (Google Jobs SEO)
+
+  datePosted?: Date;
+
+  legacySlug?: string;
+
+  /** Instagram post ID after publishing job to Instagram */
+  instagramPostId?: string | null;
+  /** When the job was posted to Instagram */
+  instagramPostedAt?: Date | null;
+
+  // 🔹 Legacy / migration metadata
+  legacy?: {
+    source: 'drupal7' | 'drupal';
+    jobNodeId?: number;
+    drupalNid?: string | number;
+    legacySlug?: string;
+    authorUserId?: number;
+    originalCompanyText?: string;
+    workflowState?: string;
+    migratedAt?: Date;
+  };
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,272 +111,149 @@ const JobSchema: Schema = new Schema(
     title: {
       type: String,
       required: true,
+      index: true,
     },
     description: {
       type: String,
       required: true,
     },
-    company: {
-      type: String,
+
+    recruiter: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
       required: true,
+      index: true,
     },
+
+    companyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Company',
+      required: true,
+      index: true,
+    },
+
     city: {
       type: String,
       required: true,
     },
     country: {
       type: String,
-      // Required for new documents, but allow existing documents without it for backward compatibility
-      // Validation is enforced at API level for create/update operations
+      default: null,
     },
-    salary: {
-      type: String,
-    },
+
+    salary: String,
     type: {
       type: String,
-      enum: ['full-time', 'part-time', 'contract', 'freelance'],
+      enum: EMPLOYMENT_TYPES,
       required: true,
     },
-    recruiter: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
+    experienceLevel: {
+      type: String,
+      enum: EXPERIENCE_LEVELS,
     },
-    companyId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Company',
+    /** Experience level (alias for experienceLevel, used by Drupal migration) */
+    experience: {
+      type: String,
+      enum: EXPERIENCE_LEVELS,
     },
-    languages: [{
-      type: String,
-    }],
-    qualifications: [{
-      type: String,
-    }],
-    sports: [{
-      type: String,
-    }],
+
+    languages: [String],
+    qualifications: [String],
     occupationalAreas: {
-      type: [{
-        type: String,
-        enum: [...JOB_CATEGORIES],
-      }],
-      // Required for new documents, but allow existing documents without it for backward compatibility
-      // Validation is enforced at API level for create/update operations
+      type: [String],
+      enum: JOB_CATEGORY_VALUES,
       default: [],
     },
-    pictures: [{
-      type: String,
-    }],
+    sports: {
+      type: [String],
+      enum: OFFERED_ACTIVITIES_LIST,
+      default: [],
+    },
+
+    pictures: [String],
+
     spam: {
       type: String,
-      enum: ['yes', 'no'],
+      enum: SPAM_FLAGS,
     },
+
     published: {
       type: Boolean,
-      default: true,
+      default: false,
+      index: true,
     },
+
+    legacySlug: {
+      type: String,
+      index: true,
+    },
+
     featured: {
       type: Boolean,
       default: false,
     },
+    featuredUntil: {
+      type: Date,
+      default: null,
+    },
+
     visitCount: {
       type: Number,
       default: 0,
     },
-    applyByEmail: {
-      type: Boolean,
-      default: false,
+
+    applyByEmail: Boolean,
+    applyByWebsite: Boolean,
+    applyByWhatsApp: Boolean,
+    applyViaATS: Boolean,
+    applicationOptions: {
+      ats: { type: Boolean, default: true },
+      email: { type: Boolean, default: false },
+      website: { type: Boolean, default: false },
+      whatsapp: { type: Boolean, default: false },
     },
-    applyByWebsite: {
-      type: Boolean,
-      default: false,
-    },
-    applyByWhatsApp: {
-      type: Boolean,
-      default: false,
-    },
-    applyViaATS: {
-      type: Boolean,
-      default: true,
-    },
-    applicationEmail: {
+
+    applicationEmail: String,
+    applicationWebsite: String,
+    applicationWhatsApp: String,
+
+    datePosted: Date,
+
+    instagramPostId: {
       type: String,
+      default: null,
     },
-    applicationWebsite: {
-      type: String,
-    },
-    applicationWhatsApp: {
-      type: String,
-    },
-    datePosted: {
+    instagramPostedAt: {
       type: Date,
-      // System-managed field - not editable by users
-      // Set automatically when job is first published
+      default: null,
     },
-    validThrough: {
-      type: Date,
-      // System-managed field - not editable by users
-      // Set automatically to datePosted + 90 days
+
+    // 🔹 Legacy / migration
+    legacy: {
+      source: {
+        type: String,
+        enum: ['drupal7', 'drupal'],
+      },
+      jobNodeId: Number,
+      drupalNid: Schema.Types.Mixed,
+      legacySlug: String,
+      authorUserId: Number,
+      originalCompanyText: String,
+      workflowState: String,
+      migratedAt: Date,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Schema-level safeguard: Prevent reintroduction of deprecated `location` field
-// Mongoose strict mode (enabled by default) will ignore fields not in the schema,
-// but we add explicit hooks as an additional safeguard
+// Indexes
+JobSchema.index({ createdAt: -1 });
+JobSchema.index({ featured: 1 });
+JobSchema.index({ featuredUntil: 1 });
+JobSchema.index({ 'legacy.legacySlug': 1 });
 
-// Post-init hook: Set default applyViaATS for existing jobs loaded from database
-JobSchema.post('init', function() {
-  const doc = this as any;
-  // Set default to true if field is missing (for backward compatibility with existing jobs)
-  if (doc.applyViaATS === undefined) {
-    doc.applyViaATS = true;
-  }
-});
-
-// Pre-save hook: Manage system-managed date fields and remove deprecated fields
-JobSchema.pre('save', function(next) {
-  const doc = this as any;
-  
-  // Remove `location` field if present (should not happen due to strict mode + API validation)
-  if (doc.location !== undefined) {
-    delete doc.location;
-  }
-  
-  // Default applyViaATS to true for existing jobs that don't have this field
-  if (doc.applyViaATS === undefined) {
-    doc.applyViaATS = true;
-  }
-  
-  // System-managed date fields for Google Jobs SEO
-  const isNew = this.isNew;
-  const wasPublished = this.get('published') === true;
-  const isBeingPublished = doc.published !== undefined ? doc.published === true : wasPublished;
-  const currentDatePosted = this.get('datePosted');
-  
-  // Only manage dates for published jobs
-  if (isBeingPublished) {
-    // Set datePosted when job is first published (never change it once set)
-    if (!currentDatePosted) {
-      // Use createdAt as fallback for backward compatibility, or current date
-      const createdAt = this.get('createdAt');
-      
-      let normalizedDate: Date;
-      
-      if (createdAt instanceof Date) {
-        normalizedDate = createdAt;
-      } else if (typeof createdAt === 'string' || typeof createdAt === 'number') {
-        normalizedDate = new Date(createdAt);
-      } else {
-        normalizedDate = new Date();
-      }
-      
-      doc.datePosted = normalizedDate;
-    }
-    // datePosted is never changed once set (preserve existing value)
-    
-    // Ensure validThrough exists: datePosted + 90 days
-    if (!doc.validThrough && !this.get('validThrough')) {
-      // Get datePosted value (could be from doc or current value)
-      const datePostedValue = doc.datePosted || currentDatePosted;
-      
-      let datePostedDate: Date;
-      
-      if (datePostedValue instanceof Date) {
-        datePostedDate = datePostedValue;
-      } else if (datePostedValue) {
-        // datePostedValue exists but is not a Date, try to convert it
-        if (typeof datePostedValue === 'string' || typeof datePostedValue === 'number') {
-          datePostedDate = new Date(datePostedValue);
-        } else {
-          // Fallback to createdAt or current date
-          const createdAt = this.get('createdAt');
-          if (createdAt instanceof Date) {
-            datePostedDate = createdAt;
-          } else if (typeof createdAt === 'string' || typeof createdAt === 'number') {
-            datePostedDate = new Date(createdAt);
-          } else {
-            datePostedDate = new Date();
-          }
-        }
-      } else {
-        // No datePosted value, use createdAt or current date
-        const createdAt = this.get('createdAt');
-        if (createdAt instanceof Date) {
-          datePostedDate = createdAt;
-        } else if (typeof createdAt === 'string' || typeof createdAt === 'number') {
-          datePostedDate = new Date(createdAt);
-        } else {
-          datePostedDate = new Date();
-        }
-      }
-      
-      const validThroughDate = new Date(datePostedDate);
-      validThroughDate.setDate(validThroughDate.getDate() + 90);
-      doc.validThrough = validThroughDate;
-    }
-  }
-  
-  next();
-});
-
-// Pre-update hooks: Strip system-managed fields and deprecated fields from update operations
-JobSchema.pre(['updateOne', 'findOneAndUpdate', 'updateMany'], function() {
-  const update = this.getUpdate() as any;
-  if (update && typeof update === 'object') {
-    // Remove deprecated `location` field
-    if (update.$set && update.$set.location !== undefined) {
-      delete update.$set.location;
-    }
-    if (update.location !== undefined) {
-      delete update.location;
-    }
-    
-    // Remove system-managed fields (datePosted, validThrough)
-    // These are managed server-side in API routes, not via direct updates
-    if (update.$set) {
-      delete update.$set.datePosted;
-      delete update.$set.validThrough;
-    }
-    if (update.datePosted !== undefined) {
-      delete update.datePosted;
-    }
-    if (update.validThrough !== undefined) {
-      delete update.validThrough;
-    }
-    
-    // Explicitly unset deprecated fields if they were present
-    if (update.$set?.location !== undefined || update.location !== undefined) {
-      update.$unset = update.$unset || {};
-      update.$unset.location = '';
-    }
-    
-    // Ensure applyViaATS defaults to true for existing jobs if not explicitly set
-    // Only set default if the field is not being explicitly updated
-    if (update.$set && update.$set.applyViaATS === undefined && update.applyViaATS === undefined) {
-      // Check if the document exists and doesn't have the field
-      // We'll handle this at query time via a getter instead to avoid modifying updates
-    }
-  }
-});
-
-// Ensure strict mode is enabled (default, but explicit for clarity)
-JobSchema.set('strict', true);
-
-// Create indexes for efficient querying
-JobSchema.index({ createdAt: -1 }); // For sorting by creation date
-JobSchema.index({ updatedAt: -1 }); // For sorting by update date
-JobSchema.index({ published: 1, createdAt: -1 }); // Compound index for published jobs sorted by date
-JobSchema.index({ featured: 1, published: 1 }); // For featured published jobs
-JobSchema.index({ recruiter: 1 }); // For recruiter's job queries
-JobSchema.index({ companyId: 1 }); // For company-specific job queries
-JobSchema.index({ country: 1 }); // For country-based filtering (semantic location search)
-JobSchema.index({ city: 1 }); // For city-based filtering (semantic location search and exact city filter)
-JobSchema.index({ type: 1 }); // For job type filtering
-
-const Job: Model<IJob> = mongoose.models.Job || mongoose.model<IJob>('Job', JobSchema);
+const Job =
+  (mongoose.models.Job as Model<IJob>) ||
+  mongoose.model<IJob>('Job', JobSchema);
 
 export default Job;

@@ -10,6 +10,7 @@ import '@/models/AuditLog';
 import '@/models/CareerAdvice';
 import '@/models/Application';
 import '@/models/SavedSearch';
+import '@/models/StripeEvent';
 
 if (!process.env.MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
@@ -32,7 +33,7 @@ if (!global.mongoose) {
   global.mongoose = cached;
 }
 
-async function connectDB() {
+async function connectDB(_isRetry = false) {
   // Check if connection string is available
   const uri = process.env.MONGODB_URI?.trim() || MONGODB_URI;
   if (!uri) {
@@ -86,7 +87,7 @@ async function connectDB() {
       serverSelectionTimeoutMS: isLocal ? 5000 : 10000, // Faster for local
       socketTimeoutMS: isLocal ? 30000 : 60000, // Shorter for local
       connectTimeoutMS: isLocal ? 5000 : 10000, // Faster for local
-      maxPoolSize: isLocal ? 15 : 10, // More connections for local (increased from 10)
+      maxPoolSize: isLocal ? 15 : 5, // More connections for local (increased from 10)
       minPoolSize: isLocal ? 3 : 1, // Maintain more connections for local (increased from 2)
       maxIdleTimeMS: isLocal ? 30000 : 10000, // Longer for local
       retryWrites: true,
@@ -119,6 +120,22 @@ async function connectDB() {
     cached.promise = null;
     cached.conn = null;
     throw error;
+  }
+
+  // Only return when connection is actually ready (avoids "Client must be connected before running operations")
+  if (mongoose.connection.readyState !== 1) {
+    cached.conn = null;
+    cached.promise = null;
+    try {
+      await mongoose.disconnect();
+    } catch {
+      // ignore
+    }
+    if (!_isRetry) {
+      return connectDB(true);
+    }
+    console.error('[connectDB] Connection not ready after retry, readyState:', mongoose.connection.readyState);
+    throw new Error('Database connection not ready. Please try again.');
   }
 
   return cached.conn;

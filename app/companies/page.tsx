@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Navbar from '../components/Navbar';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
+import { getCompanyUrl } from '@/lib/companySlug';
 import Link from 'next/link';
 
 interface Company {
@@ -20,6 +21,51 @@ interface Company {
   website?: string;
   featured?: boolean;
   createdAt: string;
+  updatedAt?: string;
+}
+
+function sortCompanies(companies: Company[]): Company[] {
+  return [...companies].sort((a, b) => {
+    // 1. Featured before non-featured
+    const aFeatured = Boolean(a.featured);
+    const bFeatured = Boolean(b.featured);
+    if (aFeatured && !bFeatured) return -1;
+    if (!aFeatured && bFeatured) return 1;
+
+    // 2. Companies with pictures before those without
+    const aHasPictures = Boolean(a.pictures && a.pictures.length > 0);
+    const bHasPictures = Boolean(b.pictures && b.pictures.length > 0);
+    if (aHasPictures && !bHasPictures) return -1;
+    if (!aHasPictures && bHasPictures) return 1;
+
+    // 3. Companies with location before those without
+    const aHasLocation = !!(a.address?.city?.trim() || a.address?.country?.trim());
+    const bHasLocation = !!(b.address?.city?.trim() || b.address?.country?.trim());
+    if (aHasLocation && !bHasLocation) return -1;
+    if (!aHasLocation && bHasLocation) return 1;
+
+    // 4. Within each group: sort by last edited date (updatedAt, fallback to createdAt)
+    const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
+    const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
+    return bDate - aDate;
+  });
+}
+
+/** Only pass valid URLs or absolute paths to Next.js Image to avoid "Failed to construct URL". */
+function isValidImageSrc(src: unknown): src is string {
+  if (typeof src !== 'string') return false;
+  const s = src.trim();
+  if (s.length === 0) return false;
+  if (s.startsWith('/')) return s.length > 1;
+  if (s.startsWith('http://') || s.startsWith('https://')) {
+    try {
+      new URL(s);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 
 // Helper function to format time ago
@@ -130,23 +176,7 @@ function CompaniesPageContent() {
       });
     }
 
-    // Sort: featured companies first, then by creation date (createdAt) descending
-    filtered.sort((a, b) => {
-      // Featured companies come first
-      const aFeatured = Boolean(a.featured);
-      const bFeatured = Boolean(b.featured);
-
-      // If one is featured and the other isn't, featured comes first
-      if (aFeatured && !bFeatured) return -1;
-      if (!aFeatured && bFeatured) return 1;
-
-      // Within each group (both featured or both non-featured), sort by creation date (createdAt) descending
-      const dateA = new Date(a.createdAt || 0).getTime();
-      const dateB = new Date(b.createdAt || 0).getTime();
-      return dateB - dateA; // Descending (newest first)
-    });
-
-    setCompanies(filtered);
+    setCompanies(sortCompanies(filtered));
     // Reset to page 1 when filters change
     setCurrentPage(1);
   }, [selectedCountry, keyword, allCompanies]);
@@ -159,22 +189,7 @@ function CompaniesPageContent() {
       }
       const data = await response.json();
       const companiesList = data.companies || [];
-
-      // Sort companies: featured first, then by creation date descending
-      const sortedCompanies = [...companiesList].sort((a, b) => {
-        // Featured companies come first
-        const aFeatured = Boolean(a.featured);
-        const bFeatured = Boolean(b.featured);
-
-        // If one is featured and the other isn't, featured comes first
-        if (aFeatured && !bFeatured) return -1;
-        if (!aFeatured && bFeatured) return 1;
-
-        // Within each group (both featured or both non-featured), sort by creation date (createdAt) descending
-        const dateA = new Date(a.createdAt || 0).getTime();
-        const dateB = new Date(b.createdAt || 0).getTime();
-        return dateB - dateA; // Descending (newest first)
-      });
+      const sortedCompanies = sortCompanies(companiesList);
 
       setAllCompanies(sortedCompanies);
       setCompanies(sortedCompanies);
@@ -327,7 +342,7 @@ function CompaniesPageContent() {
                       return (
                         <Link
                           key={company.id}
-                          href={`/companies/${company.id}`}
+                          href={getCompanyUrl(company)}
                           className={`rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block ${company.featured
                             ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300'
                             : 'bg-white'
@@ -340,7 +355,7 @@ function CompaniesPageContent() {
                                 ⭐ Featured
                               </div>
                             )}
-                            {firstPicture ? (
+                            {firstPicture && isValidImageSrc(firstPicture) ? (
                               <Image
                                 src={firstPicture}
                                 alt={company.name}

@@ -7,7 +7,7 @@ interface SearchBarProps {
   keyword: string;
   location: string;
   category: string;
-  categories: string[];
+  categories: Array<{ value: string; label: string }>;
   categoriesLoading: boolean;
   onKeywordChange: (value: string) => void;
   onLocationChange: (value: string) => void;
@@ -98,8 +98,8 @@ export default function SearchBar({
                   <option disabled>Loading categories...</option>
                 ) : (
                   categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
+                    <option key={cat.value} value={cat.value}>
+                      {cat.label}
                     </option>
                   ))
                 )}

@@ -7,7 +7,8 @@ import ShareJobButton from '../../../components/ShareJobButton';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { buildJobJsonLd } from '@/lib/seo/jobJsonLd';
 import { generateCompanySummary } from '@/lib/companySummary';
-import { generateJobSlug, generateCountrySlug, generateJobUrlPath } from '@/lib/jobSlug';
+import { getCompanyUrl } from '@/lib/companySlug';
+import { generateJobSlug, generateCountrySlug, generateJobUrlPath, getCountryValuesForSlug } from '@/lib/jobSlug';
 import Link from 'next/link';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
@@ -19,7 +20,11 @@ import JobApplySection from '../../../jobs/[id]/JobApplySection';
 import JobSpamButton from '../../../jobs/[id]/JobSpamButton';
 import JobThumbnailGallery from '../../../jobs/[id]/JobThumbnailGallery';
 import JobHeroImage from '../../../jobs/[id]/JobHeroImage';
+import JobOwnerActions from './JobOwnerActions';
 import { verifyToken } from '@/lib/jwt';
+import { JOB_CATEGORIES } from '@/lib/jobCategories';
+import { getEmploymentTypeLabel } from '@/lib/employmentTypes';
+import { getExperienceLevelLabel } from '@/lib/experienceLevels';
 
 // Reuse interfaces from existing job details page
 export interface CompanyInfo {
@@ -27,8 +32,10 @@ export interface CompanyInfo {
   id?: string;
   name?: string;
   logo?: string;
+  website?: string;
   city?: string;
   country?: string;
+  address?: { city?: string; country?: string };
 }
 
 interface CompanyAddress {
@@ -48,8 +55,11 @@ interface Job {
   country?: string | null;
   salary?: string;
   type: string;
+  experienceLevel?: string;
+  experience?: string;
   languages?: string[];
   occupationalAreas?: string[];
+  sports?: string[];
   qualifications?: string[];
   pictures?: string[];
   recruiter: {
@@ -64,6 +74,8 @@ interface Job {
   companyId?: CompanyInfo;
   spam?: 'yes' | 'no';
   published?: boolean;
+  featured?: boolean;
+  featuredUntil?: string | null;
   applyViaATS?: boolean;
   applyByEmail?: boolean;
   applyByWebsite?: boolean;
@@ -120,42 +132,53 @@ async function getUserFromCookies(): Promise<{ userId: string; role: string } | 
 }
 
 /**
- * Find a job by slug and country
- * Returns the job ID if found, null otherwise
+ * Resolve job from slug: canonical match first, then legacySlug fallback with redirect.
+ * Returns { jobId } | { redirect: path } | null.
  */
-async function findJobBySlug(slug: string, countrySlug: string): Promise<string | null> {
-  try {
-    await connectDB();
-    
-    // Find all published jobs
-    const jobs = await Job.find({ published: { $ne: false } })
-      .select('_id title country')
-      .lean();
-    
-    // Find job where slug matches and country slug matches
-    for (const job of jobs) {
-      const jobSlug = generateJobSlug(job.title);
-      const jobCountrySlug = generateCountrySlug(job.country);
-      
-      if (jobSlug === slug && jobCountrySlug === countrySlug) {
-        return String(job._id);
-      }
+async function resolveJobFromSlug(
+  slug: string,
+  countrySlug: string
+): Promise<{ jobId: string } | { redirect: string } | null> {
+  await connectDB();
+
+  // 1. Canonical slug: filter by country, then match title slug
+  const countryValues = getCountryValuesForSlug(countrySlug);
+  const countryFilter =
+    countryValues.length > 0
+      ? { country: { $in: countryValues } }
+      : { country: { $in: [] } };
+
+  const canonicalCandidates = await Job.find({
+    published: { $ne: false },
+    ...countryFilter,
+  })
+    .select('_id title country')
+    .lean();
+
+  for (const job of canonicalCandidates) {
+    if (
+      generateJobSlug(job.title) === slug &&
+      generateCountrySlug(job.country) === countrySlug
+    ) {
+      return { jobId: String(job._id) };
     }
-    
-    // Fallback: try to find by slug only (if country doesn't match but slug does)
-    // This handles edge cases where country might be missing or different
-    for (const job of jobs) {
-      const jobSlug = generateJobSlug(job.title);
-      if (jobSlug === slug) {
-        return String(job._id);
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Error finding job by slug:', error);
-    return null;
   }
+
+  // 2. Legacy slug fallback: indexed query by legacySlug (no country filter)
+  const legacyJob = await Job.findOne({
+    published: { $ne: false },
+    legacySlug: slug,
+  })
+    .select('_id title country')
+    .lean();
+
+  if (legacyJob) {
+    const correctCountrySlug = generateCountrySlug(legacyJob.country);
+    const correctSlug = generateJobSlug(legacyJob.title);
+    return { redirect: `/job/${correctCountrySlug}/${correctSlug}` };
+  }
+
+  return null;
 }
 
 /**
@@ -167,7 +190,7 @@ async function getJob(id: string): Promise<Job | null> {
     
     const job = await Job.findById(id)
       .populate('recruiter', 'name email')
-      .populate('companyId', 'name logo address.city address.country offeredActivities offeredServices');
+      .populate('companyId', 'name logo website address offeredActivities offeredServices');
     
     if (!job) {
       return null;
@@ -180,12 +203,17 @@ async function getJob(id: string): Promise<Job | null> {
     }
 
     // Increment visit count atomically
-    await Job.findByIdAndUpdate(id, { $inc: { visitCount: 1 } });
+    // timestamps: false prevents updatedAt from changing (so viewing doesn't reorder listing)
+    await Job.findByIdAndUpdate(
+      id,
+      { $inc: { visitCount: 1 } },
+      { timestamps: false }
+    );
     
     // Reload the job to get the updated visit count
     const updatedJob = await Job.findById(id)
       .populate('recruiter', 'name email')
-      .populate('companyId', 'name logo address.city address.country offeredActivities offeredServices');
+      .populate('companyId', 'name logo website address offeredActivities offeredServices');
     
     if (!updatedJob) {
       return null;
@@ -287,8 +315,10 @@ async function getJob(id: string): Promise<Job | null> {
         id: populatedCompany._id ? String(populatedCompany._id) : undefined,
         name: typeof populatedCompany.name === 'string' ? populatedCompany.name : undefined,
         logo: typeof populatedCompany.logo === 'string' ? populatedCompany.logo : undefined,
+        website: typeof populatedCompany.website === 'string' ? populatedCompany.website : undefined,
         city: address?.city,
         country: address?.country,
+        address, // required for getCompanyUrl(company) so "More Company Details" link gets correct country slug
       };
       
       // Store full company data for summary generation
@@ -307,6 +337,7 @@ async function getJob(id: string): Promise<Job | null> {
       recruiter,
       recruiterId, // Include recruiter ID for permission checks
       companyId: serializedCompanyId,
+      company: serializedCompanyId?.name ?? (jobObject.legacy?.originalCompanyText ?? ''), // Display name from populated companyId or legacy migration
       companyForSummary, // Include company data for summary generation
       published: jobObject.published !== undefined ? jobObject.published : true, // Include published status
       heroImageUrl, // Include hero image URL (explicit isHero or first image fallback)
@@ -322,24 +353,52 @@ interface PageProps {
   params: Promise<{ country: string; slug: string }>;
 }
 
+/** Returns the job's hero/first image URL for og:image (raw URL, not Next.js Image). */
+async function getJobOgImageUrl(jobId: string): Promise<string | null> {
+  try {
+    const jobImages = await JobImage.find({ jobId: new mongoose.Types.ObjectId(jobId) })
+      .sort({ order: 1 })
+      .lean();
+    if (jobImages && jobImages.length > 0) {
+      const hero = (jobImages as { imageUrl?: string; isHero?: boolean }[]).find((img) => img.isHero === true);
+      const url = hero?.imageUrl ?? (jobImages[0] as { imageUrl?: string })?.imageUrl;
+      if (url && url.startsWith('http')) return url;
+    }
+    const job = await Job.findById(jobId).select('pictures').lean();
+    const pictures = (job as { pictures?: string[] } | null)?.pictures;
+    if (Array.isArray(pictures) && pictures.length > 0 && pictures[0]?.startsWith('http')) {
+      return pictures[0];
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { country: countrySlug, slug } = await params;
-  
-  // Find job by slug and country
-  const jobId = await findJobBySlug(slug, countrySlug);
-  
-  if (!jobId) {
+
+  const result = await resolveJobFromSlug(slug, countrySlug);
+  if (!result) {
     return {};
   }
+  if ('redirect' in result) {
+    permanentRedirect(result.redirect);
+  }
+  const jobId = result.jobId;
   
   // Get the job data (minimal fetch for metadata)
   try {
     await connectDB();
-    const job = await Job.findById(jobId).select('title company country').lean();
+    const job = await Job.findById(jobId).select('title companyId country').populate('companyId', 'name').lean();
     
     if (!job) {
       return {};
     }
+    
+    const companyName = (job.companyId && typeof job.companyId === 'object' && 'name' in job.companyId)
+      ? String((job.companyId as { name?: string }).name ?? '')
+      : '';
     
     // Generate canonical URL
     const canonicalPath = generateJobUrlPath(job.title, job.country);
@@ -347,12 +406,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const host = headersList.get('host') || 'chickenloop.vercel.app';
     const protocol = headersList.get('x-forwarded-proto') || 'https';
     const canonicalUrl = `${protocol}://${host}${canonicalPath}`;
+
+    // Explicit og:image so Facebook shows the job image, not the site logo (raw URL, not _next/image)
+    const ogImageUrl = await getJobOgImageUrl(jobId);
     
     return {
-      title: `${job.title} at ${job.company} | Chickenloop`,
-      description: `Apply for ${job.title} at ${job.company}. Find watersports jobs on Chickenloop.`,
+      title: `${job.title} at ${companyName} | Chickenloop`,
+      description: `Apply for ${job.title} at ${companyName}. Find watersports jobs on Chickenloop.`,
       alternates: {
         canonical: canonicalUrl,
+      },
+      openGraph: {
+        title: `${job.title} at ${companyName} | Chickenloop`,
+        description: `Apply for ${job.title} at ${companyName}. Find watersports jobs on Chickenloop.`,
+        url: canonicalUrl,
+        type: 'website',
+        ...(ogImageUrl && { images: [{ url: ogImageUrl }] }),
       },
     };
   } catch {
@@ -362,13 +431,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function CanonicalJobDetailPage({ params }: PageProps) {
   const { country: countrySlug, slug } = await params;
-  
-  // Find job by slug and country
-  const jobId = await findJobBySlug(slug, countrySlug);
-  
-  if (!jobId) {
+
+  const result = await resolveJobFromSlug(slug, countrySlug);
+  if (!result) {
     notFound();
   }
+  if ('redirect' in result) {
+    permanentRedirect(result.redirect);
+  }
+  const jobId = result.jobId;
   
   // Get the job data
   const job = await getJob(jobId);
@@ -391,10 +462,11 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
   const user = await getUserFromCookies();
   const isRecruiterView = user?.role === 'recruiter';
   
-  // Determine if user can edit this job
+  // Job owner: recruiter who owns this job (for Job actions box)
   const isJobOwner = user?.role === 'recruiter' && job.recruiterId && user.userId === job.recruiterId;
-  const isAdmin = user?.role === 'admin';
-  const canEditJob = isJobOwner || isAdmin;
+
+  // Featured state: for Job actions (only shown to job owner)
+  const isFeatured = !!(job.featuredUntil && new Date(job.featuredUntil) > new Date()) || job.featured === true;
 
   // Generate current URL for JSON-LD (server-side)
   const headersList = await headers();
@@ -433,6 +505,17 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
           ← Back to Jobs
         </Link>
 
+        {user?.role === 'admin' && (
+          <div className="mb-6 p-3 border border-gray-300 rounded-md bg-gray-50 text-sm">
+            <Link
+              href={`/admin/repair-job/${job._id}`}
+              className="inline-block px-3 py-1.5 border border-gray-400 rounded bg-white text-gray-700 hover:bg-gray-100 font-medium"
+            >
+              Repair Relationships
+            </Link>
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {/* Hero Image - Main featured image at the top */}
           {job.heroImageUrl && (
@@ -448,11 +531,19 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
               <div className="flex items-center gap-3">
                 <ShareJobButton
                   jobTitle={job.title}
-                  shortDescription={`${job.type} position at ${job.company} in ${job.city}`}
+                  shortDescription={`${getEmploymentTypeLabel(job.type)} position at ${job.company} in ${job.city}`}
                   url={currentUrl}
                 />
                 <JobFavouriteButton jobId={job._id} />
               </div>
+              {/* Job actions: Feature / Extend — only for recruiter who owns this job */}
+              {isJobOwner && (
+                <JobOwnerActions
+                  jobId={job._id}
+                  featuredUntil={job.featuredUntil ?? null}
+                  isFeatured={isFeatured}
+                />
+              )}
             </div>
 
             {/* Job Details */}
@@ -470,7 +561,7 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                 )}
                 <div className="flex items-center text-gray-600">
                   <span className="mr-2">💼</span>
-                  <span className="capitalize">{job.type.replace('-', ' ')}</span>
+                  <span>{getEmploymentTypeLabel(job.type)}</span>
                 </div>
                 {job.salary && (
                   <div className="flex items-center text-gray-700 font-semibold">
@@ -480,6 +571,25 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                 )}
               </div>
               
+              {/* Experience Level */}
+              {((job as any).experienceLevel || (job as any).experience) && (
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <div className="flex items-center text-gray-600">
+                    <span className="mr-2">📊</span>
+                    <span className="font-medium">Experience Level:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span
+                      className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium"
+                    >
+                      {getExperienceLevelLabel(
+                        ((job as any).experienceLevel || (job as any).experience) ?? ''
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Languages Required */}
               {job.languages && job.languages.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -508,12 +618,35 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                     <span className="font-medium">Job Category:</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {job.occupationalAreas.map((area, index) => (
+                    {job.occupationalAreas.map((value, index) => {
+                      const label = JOB_CATEGORIES.find((c) => c.value === value)?.label ?? value;
+                      return (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
+                        >
+                          {label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Activities */}
+              {job.sports && job.sports.length > 0 && (
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <div className="flex items-center text-gray-600">
+                    <span className="mr-2">🏄</span>
+                    <span className="font-medium">Activities:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {job.sports.map((activity, index) => (
                       <span
                         key={index}
-                        className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
+                        className="px-3 py-1 bg-cyan-100 text-cyan-800 rounded-full text-sm font-medium capitalize"
                       >
-                        {area}
+                        {activity}
                       </span>
                     ))}
                   </div>
@@ -545,7 +678,7 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Job Description</h2>
               <div
-                className="text-gray-700 leading-relaxed"
+                className="prose prose-p:text-gray-700 prose-li:text-gray-700 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-6 prose-ol:pl-6 prose-li:my-1 max-w-none leading-relaxed"
                 // Description HTML is sanitized on the backend using sanitize-html
                 dangerouslySetInnerHTML={{ __html: job.description || '' }}
               />
@@ -562,10 +695,13 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                   </p>
                 )}
                 
-                {job.companyId && (job.companyId.id || job.companyId._id) && (
+                {job.companyId && (job.companyId.name || job.companyId.id || job.companyId._id) && (
                   <div className="mt-4 text-right">
                     <Link
-                      href={`/companies/${job.companyId.id || (typeof job.companyId._id === 'string' ? job.companyId._id : String(job.companyId._id))}`}
+                      href={getCompanyUrl({
+                        name: (job.companyId as { name?: string }).name ?? 'Company',
+                        address: (job.companyId as { address?: { country?: string } }).address,
+                      })}
                       className="inline-block px-4 py-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 font-semibold transition-colors"
                     >
                       More Company Details
@@ -622,16 +758,8 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                   </p>
                 </div>
                 
-                {/* Right Column - Report Spam and Edit Job Buttons */}
+                {/* Right Column - Report Spam */}
                 <div className="flex-shrink-0 flex items-center gap-3">
-                  {canEditJob && (
-                    <Link
-                      href={isAdmin ? `/admin/jobs/${job._id}/edit` : `/recruiter/jobs/${job._id}/edit`}
-                      className="px-4 py-2 text-sm rounded-lg font-medium transition-colors bg-gray-200 text-gray-600 hover:bg-gray-300"
-                    >
-                      Edit job
-                    </Link>
-                  )}
                   <JobSpamButton jobId={job._id} spamStatus={job.spam} />
                 </div>
               </div>

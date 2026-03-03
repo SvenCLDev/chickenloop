@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense, useRef } from 'react';
+import { useEffect, useState, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Navbar from '../components/Navbar';
@@ -8,7 +8,8 @@ import { jobsApi, savedSearchesApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { parseJobSearchParams, buildJobSearchQuery, buildJobSearchUrl, type JobSearchParams } from '@/lib/jobSearchParams';
 import { getJobUrl } from '@/lib/jobSlug';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORIES } from '@/lib/jobCategories';
+import { EMPLOYMENT_TYPE_OPTIONS, getEmploymentTypeLabel } from '@/lib/employmentTypes';
 import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
 
@@ -99,6 +100,8 @@ function JobsPageContent() {
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [allJobs, setAllJobs] = useState<Job[]>([]); // Store all jobs for filtering
+  const [apiAvailableCategories, setApiAvailableCategories] = useState<string[]>([]);
+  const [apiAvailableEmploymentTypes, setApiAvailableEmploymentTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // Initialize state from URL params immediately if available
@@ -110,6 +113,7 @@ function JobsPageContent() {
 
   const [selectedCountry, setSelectedCountry] = useState<string>(urlParams?.country || '');
   const [selectedCategory, setSelectedCategory] = useState<string>(urlParams?.category || '');
+  const [selectedEmploymentType, setSelectedEmploymentType] = useState<string>(urlParams?.employmentType || '');
   const [selectedActivity, setSelectedActivity] = useState<string>(activityValue);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(urlParams?.language || '');
   const [selectedCity, setSelectedCity] = useState<string>(urlParams?.city || '');
@@ -126,8 +130,39 @@ function JobsPageContent() {
   const [saveSearchFrequency, setSaveSearchFrequency] = useState<'daily' | 'weekly' | 'never'>('weekly');
   const [saveSearchMessage, setSaveSearchMessage] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [favouriteJobIds, setFavouriteJobIds] = useState<Set<string>>(new Set());
+  const [togglingFavouriteId, setTogglingFavouriteId] = useState<string | null>(null);
   const jobsPerPage = 20;
   const isInitialMount = useRef(true);
+
+  useEffect(() => {
+    if (user?.role === 'job-seeker') {
+      jobsApi.getFavourites().then((data: { jobs?: { _id: string }[] }) => {
+        const ids = new Set((data.jobs || []).map((j) => String(j._id)));
+        setFavouriteJobIds(ids);
+      }).catch(() => {});
+    }
+  }, [user]);
+
+  const handleToggleFavourite = useCallback(async (e: React.MouseEvent, jobId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (togglingFavouriteId) return;
+    setTogglingFavouriteId(jobId);
+    try {
+      await jobsApi.toggleFavourite(jobId);
+      setFavouriteJobIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(jobId)) next.delete(jobId);
+        else next.add(jobId);
+        return next;
+      });
+    } catch {
+      // keep UI state unchanged on error
+    } finally {
+      setTogglingFavouriteId(null);
+    }
+  }, [togglingFavouriteId]);
 
   // Sync state with URL query parameters when URL changes (browser back/forward)
   // Skip on initial mount since state is already initialized from URL params
@@ -154,6 +189,7 @@ function JobsPageContent() {
     setLocation(urlParams.location || '');
     setSelectedCountry(urlParams.country || '');
     setSelectedCategory(urlParams.category || '');
+    setSelectedEmploymentType(urlParams.employmentType || '');
     setSelectedActivity(activityValue);
     setSelectedLanguage(urlParams.language || '');
     setSelectedCity(urlParams.city || '');
@@ -187,7 +223,7 @@ function JobsPageContent() {
     loadJobs();
     // Reset to page 1 when filters change
     setCurrentPage(1);
-  }, [selectedCountry, selectedCategory, selectedActivity, selectedLanguage, selectedCity, keyword, location]);
+  }, [selectedCountry, selectedCategory, selectedEmploymentType, selectedActivity, selectedLanguage, selectedCity, keyword, location]);
 
   const loadJobs = async () => {
     try {
@@ -212,6 +248,7 @@ function JobsPageContent() {
       if (location) params.set('location', location);
       if (selectedCountry) params.set('country', selectedCountry);
       if (selectedCategory) params.set('category', selectedCategory);
+      if (selectedEmploymentType) params.set('employmentType', selectedEmploymentType);
       if (selectedActivity) params.set('activity', selectedActivity);
       if (selectedLanguage) params.set('language', selectedLanguage);
       if (selectedCity) params.set('city', selectedCity);
@@ -222,6 +259,12 @@ function JobsPageContent() {
       // API now handles filtering server-side
       const filteredData = await jobsApi.getAll(endpoint);
       const filteredJobsList = filteredData.jobs || [];
+      setApiAvailableCategories(
+        Array.isArray(filteredData.availableCategories) ? filteredData.availableCategories : []
+      );
+      setApiAvailableEmploymentTypes(
+        Array.isArray(filteredData.availableEmploymentTypes) ? filteredData.availableEmploymentTypes : []
+      );
 
       // Sort filtered jobs: featured first, then jobs with pictures, then jobs without pictures
       // Within each group, sort by last edited date (updatedAt) descending, fallback to createdAt
@@ -277,25 +320,8 @@ function JobsPageContent() {
     return countries;
   };
 
-  // Get job categories from canonical source (JOB_CATEGORIES)
-  // Filter to only show categories that exist in the current job results
-  const getAvailableCategories = (): string[] => {
-    const availableCategories = new Set<string>();
-
-    jobs.forEach((job) => {
-      if (job.occupationalAreas && job.occupationalAreas.length > 0) {
-        job.occupationalAreas.forEach((category) => {
-          // Only include categories that are in JOB_CATEGORIES (skip old/invalid values)
-          if (JOB_CATEGORIES.includes(category as any)) {
-            availableCategories.add(category);
-          }
-        });
-      }
-    });
-
-    // Convert to array, filter to JOB_CATEGORIES, and sort alphabetically
-    return JOB_CATEGORIES.filter(cat => availableCategories.has(cat));
-  };
+  const getCategoryLabel = (value: string) =>
+    JOB_CATEGORIES.find((c) => c.value === value)?.label ?? value;
 
   // Get unique sports/activities from filtered jobs (only show available options)
   const getUniqueSports = (): string[] => {
@@ -349,10 +375,11 @@ function JobsPageContent() {
   };
 
   // Handler to update filter and URL
-  const handleFilterChange = (filterType: 'country' | 'category' | 'activity' | 'language' | 'city', value: string) => {
+  const handleFilterChange = (filterType: 'country' | 'category' | 'employmentType' | 'activity' | 'language' | 'city', value: string) => {
     // Update local state
     if (filterType === 'country') setSelectedCountry(value);
     if (filterType === 'category') setSelectedCategory(value);
+    if (filterType === 'employmentType') setSelectedEmploymentType(value);
     if (filterType === 'activity') setSelectedActivity(value);
     if (filterType === 'language') setSelectedLanguage(value);
     if (filterType === 'city') setSelectedCity(value);
@@ -368,6 +395,10 @@ function JobsPageContent() {
     if (filterType === 'category') {
       if (value) newParams.category = value;
       else delete newParams.category;
+    }
+    if (filterType === 'employmentType') {
+      if (value) newParams.employmentType = value;
+      else delete newParams.employmentType;
     }
     if (filterType === 'activity') {
       if (value) newParams.activity = value;
@@ -422,6 +453,7 @@ function JobsPageContent() {
     setSearchLocation('');
     setSelectedCountry('');
     setSelectedCategory('');
+    setSelectedEmploymentType('');
     setSelectedActivity('');
     setSelectedLanguage('');
     setSelectedCity('');
@@ -641,7 +673,7 @@ function JobsPageContent() {
                 {/* Category Filter */}
                 <div>
                   <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700 mb-2">
-                    Job Type
+                    Job Category
                   </label>
                   <div className="flex items-center gap-2 min-w-0">
             <select
@@ -651,17 +683,54 @@ function JobsPageContent() {
                       className="flex-1 min-w-0 w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
             >
               <option value="">All Categories</option>
-                      {getAvailableCategories().map((category) => (
-                <option key={category} value={category} title={category}>
-                  {category}
-                </option>
-              ))}
+                      {JOB_CATEGORIES.filter((cat) =>
+                        apiAvailableCategories.includes(cat.value)
+                      ).map((cat) => (
+                        <option key={cat.value} value={cat.value} title={cat.label}>
+                          {cat.label}
+                        </option>
+                      ))}
             </select>
                     {selectedCategory && (
                       <button
                         onClick={() => handleFilterChange('category', '')}
                         className="text-gray-400 hover:text-gray-600 flex-shrink-0"
                         aria-label="Clear category filter"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Employment Type Filter */}
+                <div>
+                  <label htmlFor="employment-type-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                    Employment Type
+                  </label>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <select
+                      id="employment-type-filter"
+                      value={selectedEmploymentType}
+                      onChange={(e) => handleFilterChange('employmentType', e.target.value)}
+                      className="flex-1 min-w-0 w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white text-sm"
+                    >
+                      <option value="">All Employment Types</option>
+                      {EMPLOYMENT_TYPE_OPTIONS.filter((opt) =>
+                        apiAvailableEmploymentTypes.includes(opt.value)
+                      ).map((opt) => (
+                        <option key={opt.value} value={opt.value} title={opt.label}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedEmploymentType && (
+                      <button
+                        onClick={() => handleFilterChange('employmentType', '')}
+                        className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                        aria-label="Clear employment type filter"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -765,7 +834,7 @@ function JobsPageContent() {
                   </h1>
                 </div>
                 {/* Save Search Button - Only for job seekers */}
-                {user && user.role === 'job-seeker' && (keyword || location || selectedCountry || selectedCategory || selectedActivity || selectedLanguage || selectedCity) && (
+                {user && user.role === 'job-seeker' && (keyword || location || selectedCountry || selectedCategory || selectedEmploymentType || selectedActivity || selectedLanguage || selectedCity) && (
                   <button
                     onClick={() => setShowSaveSearchModal(true)}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 whitespace-nowrap"
@@ -786,7 +855,7 @@ function JobsPageContent() {
         )}
 
             {/* Active Filter Chips */}
-            {(keyword || location || selectedCountry || selectedCategory || selectedActivity || selectedLanguage || selectedCity) && (
+            {(keyword || location || selectedCountry || selectedCategory || selectedEmploymentType || selectedActivity || selectedLanguage || selectedCity) && (
               <div className="mb-4">
                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center sm:justify-between">
                   <div className="flex flex-wrap gap-2 items-center">
@@ -834,11 +903,25 @@ function JobsPageContent() {
             )}
             {selectedCategory && (
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium max-w-full">
-                      <span className="truncate" title={`Job Type: ${selectedCategory}`}>Job Type: <strong>{selectedCategory}</strong></span>
+                      <span className="truncate" title={`Job Category: ${getCategoryLabel(selectedCategory)}`}>Job Category: <strong>{getCategoryLabel(selectedCategory)}</strong></span>
                       <button
                         onClick={() => handleFilterChange('category', '')}
                         className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none flex-shrink-0"
                         aria-label="Remove category filter"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+            {selectedEmploymentType && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium max-w-full">
+                      <span className="truncate" title={`Employment Type: ${getEmploymentTypeLabel(selectedEmploymentType)}`}>Employment Type: <strong>{getEmploymentTypeLabel(selectedEmploymentType)}</strong></span>
+                      <button
+                        onClick={() => handleFilterChange('employmentType', '')}
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none flex-shrink-0"
+                        aria-label="Remove employment type filter"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -917,7 +1000,7 @@ function JobsPageContent() {
               return (
                 <>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {currentJobs.map((job) => {
+                    {currentJobs.map((job, index) => {
                       // Get the most recent date (createdAt or updatedAt if it exists and is more recent)
                       const mostRecentDate = (job.updatedAt && new Date(job.updatedAt) > new Date(job.createdAt))
                         ? job.updatedAt
@@ -928,16 +1011,20 @@ function JobsPageContent() {
                         ? job.pictures[0]
                         : null;
 
+                      const isLcpImage = index === 0;
+                      const isFavourite = favouriteJobIds.has(job._id);
+                      const showHeart = user?.role === 'job-seeker';
+
                       return (
                         <Link
                           key={job._id}
                           href={getJobUrl(job)}
-                          className={`rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block ${job.featured
+                          className={`rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block relative ${job.featured
                             ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300'
                             : 'bg-white'
                             }`}
                         >
-                          {/* Job Picture */}
+                          {/* Job Picture - fixed height to prevent CLS */}
                           <div className="w-full h-48 bg-gray-200 relative overflow-hidden">
                             {job.featured && (
                               <div className="absolute top-2 right-2 z-10 bg-yellow-400 text-yellow-900 px-2 py-1 rounded-md text-xs font-bold shadow-md">
@@ -945,13 +1032,29 @@ function JobsPageContent() {
                               </div>
                             )}
                             {firstPicture ? (
-                              <Image
-                                src={firstPicture}
-                                alt={job.title}
-                                fill
-                                className="object-cover"
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                              />
+                              isLcpImage ? (
+                                <Image
+                                  src={firstPicture}
+                                  alt={job.title}
+                                  fill
+                                  priority
+                                  fetchPriority="high"
+                                  loading="eager"
+                                  quality={60}
+                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <Image
+                                  src={firstPicture}
+                                  alt={job.title}
+                                  fill
+                                  loading="lazy"
+                                  quality={60}
+                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                  className="object-cover"
+                                />
+                              )
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-300 to-gray-400">
                                 <span className="text-gray-500 text-sm">No Image</span>
@@ -959,11 +1062,16 @@ function JobsPageContent() {
                             )}
                           </div>
 
-                          {/* Job Title */}
+                          {/* Job Title & Company */}
                           <div className="p-4">
                             <h2 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
                               {job.title}
                             </h2>
+                            {job.company ? (
+                              <p className="text-sm text-gray-600 mb-2 line-clamp-1" title={job.company}>
+                                {job.company}
+                              </p>
+                            ) : null}
 
                             {/* Location and Time Ago */}
                             <div className="flex flex-col gap-1">
@@ -979,6 +1087,27 @@ function JobsPageContent() {
                               <TimeAgoDisplay date={mostRecentDate} />
                             </div>
                           </div>
+
+                          {/* Favourite heart - bottom right (job seeker only) */}
+                          {showHeart && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleToggleFavourite(e, job._id)}
+                              disabled={togglingFavouriteId === job._id}
+                              className="absolute bottom-2 right-2 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-md text-red-500 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-60"
+                              aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+                            >
+                              {isFavourite ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                  <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+                                </svg>
+                              )}
+                            </button>
+                          )}
                         </Link>
                       );
                     })}
@@ -1107,11 +1236,12 @@ function JobsPageContent() {
                     {keyword && <li className="truncate" title={`Keyword: ${keyword}`}>• Keyword: <strong>{keyword}</strong></li>}
                     {location && <li className="truncate" title={`Location: ${location}`}>• Location: <strong>{location}</strong></li>}
                     {selectedCountry && <li className="truncate" title={`Country: ${getCountryNameFromCode(selectedCountry)}`}>• Country: <strong>{getCountryNameFromCode(selectedCountry)}</strong></li>}
-                    {selectedCategory && <li className="truncate" title={`Category: ${selectedCategory}`}>• Category: <strong>{selectedCategory}</strong></li>}
+                    {selectedCategory && <li className="truncate" title={`Category: ${getCategoryLabel(selectedCategory)}`}>• Category: <strong>{getCategoryLabel(selectedCategory)}</strong></li>}
+                    {selectedEmploymentType && <li className="truncate" title={`Employment Type: ${getEmploymentTypeLabel(selectedEmploymentType)}`}>• Employment Type: <strong>{getEmploymentTypeLabel(selectedEmploymentType)}</strong></li>}
                     {selectedActivity && <li className="truncate" title={`Activity: ${selectedActivity}`}>• Activity: <strong>{selectedActivity}</strong></li>}
                     {selectedLanguage && <li className="truncate" title={`Language: ${selectedLanguage}`}>• Language: <strong>{selectedLanguage}</strong></li>}
                     {selectedCity && <li className="truncate" title={`City: ${selectedCity}`}>• City: <strong>{selectedCity}</strong></li>}
-                    {!keyword && !location && !selectedCountry && !selectedCategory && !selectedActivity && !selectedLanguage && !selectedCity && (
+                    {!keyword && !location && !selectedCountry && !selectedCategory && !selectedEmploymentType && !selectedActivity && !selectedLanguage && !selectedCity && (
                       <li className="text-gray-500">No filters applied</li>
                     )}
                   </ul>

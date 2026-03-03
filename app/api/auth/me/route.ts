@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
     
     if (!userData) {
       return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+        { error: 'Unauthorized' },
+        { status: 401 }
       );
     }
 

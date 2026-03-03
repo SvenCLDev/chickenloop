@@ -6,7 +6,7 @@ import { requireRole } from '@/lib/auth';
 // GET - Get audit logs (admin only)
 export async function GET(request: NextRequest) {
   try {
-    requireRole(request, ['admin']);
+    await requireRole(request, ['admin']);
     await connectDB();
 
     const { searchParams } = new URL(request.url);
@@ -57,6 +57,15 @@ export async function GET(request: NextRequest) {
     // Ensure we always return JSON, even for unexpected errors
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
+      return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'COMPANY_PROFILE_INCOMPLETE') {
+      return NextResponse.json(
+        { error: 'COMPANY_PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
     if (errorMessage === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

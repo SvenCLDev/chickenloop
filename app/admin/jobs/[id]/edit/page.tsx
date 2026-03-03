@@ -5,6 +5,7 @@ import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import Navbar from '../../../../components/Navbar';
 import { adminApi } from '@/lib/api';
+import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
 import { QUALIFICATIONS } from '@/lib/qualifications';
 import {
@@ -12,7 +13,7 @@ import {
   normalizeCountryForStorage,
 } from '@/lib/countryUtils';
 import { SPORTS_LIST } from '@/lib/sports';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import UrlInput from '../../../../components/form/UrlInput';
 import Link from 'next/link';
 
@@ -40,6 +41,7 @@ export default function AdminEditJobPage() {
     applicationWebsite: '',
     applicationWhatsApp: '',
     published: true,
+    legacySlug: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,6 +51,8 @@ export default function AdminEditJobPage() {
   const [selectedPictures, setSelectedPictures] = useState<File[]>([]);
   const [picturePreviews, setPicturePreviews] = useState<string[]>([]);
   const [uploadingPictures, setUploadingPictures] = useState(false);
+  const [companyEmail, setCompanyEmail] = useState('');
+  const [companyWebsite, setCompanyWebsite] = useState('');
   const previewCountryCode = normalizeCountryForStorage(formData.country);
 
   useEffect(() => {
@@ -73,6 +77,12 @@ export default function AdminEditJobPage() {
       const jobCountryCode = (job as any).country;
       const jobCountryName = jobCountryCode ? getCountryNameFromCode(jobCountryCode) : '';
 
+      const company = job.companyId as { _id?: unknown; id?: string; name?: string; email?: string; website?: string } | null;
+      const fallbackEmail = company?.email || '';
+      const fallbackWebsite = company?.website || '';
+      const companyDisplay = company?.name || '';
+      setCompanyEmail(fallbackEmail);
+      setCompanyWebsite(fallbackWebsite);
       setFormData({
         title: job.title || '',
         description: job.description || '',
@@ -80,7 +90,7 @@ export default function AdminEditJobPage() {
         country: jobCountryName,
         salary: job.salary || '',
         type: job.type || 'full-time',
-        company: job.company || '',
+        company: companyDisplay,
         languages: (job as any).languages || [],
         qualifications: (job as any).qualifications || [],
         sports: (job as any).sports || [],
@@ -88,10 +98,11 @@ export default function AdminEditJobPage() {
         applyByEmail: (job as any).applyByEmail || false,
         applyByWebsite: (job as any).applyByWebsite || false,
         applyByWhatsApp: (job as any).applyByWhatsApp || false,
-        applicationEmail: (job as any).applicationEmail || '',
-        applicationWebsite: (job as any).applicationWebsite || '',
+        applicationEmail: (job as any).applicationEmail || fallbackEmail,
+        applicationWebsite: (job as any).applicationWebsite || fallbackWebsite,
         applicationWhatsApp: (job as any).applicationWhatsApp || '',
         published: (job as any).published !== false,
+        legacySlug: (job as any).legacySlug || '',
       });
       setExistingPictures((job as any).pictures || []);
     } catch (err: any) {
@@ -110,20 +121,16 @@ export default function AdminEditJobPage() {
       return;
     }
 
-    // Validate file types and sizes
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSizePerFile = 10 * 1024 * 1024; // 10MB to avoid FormData/body parse errors
 
     for (const file of files) {
       if (!validTypes.includes(file.type)) {
         setError(`Invalid file type: ${file.name}. Only images (JPEG, PNG, WEBP, GIF) are allowed.`);
         return;
       }
-      if (file.size > maxSize) {
-        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        const errorMessage = `File "${file.name}" is too large (${fileSizeMB} MB). Maximum size is 5MB.`;
-        alert(`Warning: ${errorMessage}`);
-        setError(errorMessage);
+      if (file.size > maxSizePerFile) {
+        setError(`${file.name} is too large. Please use an image under 10MB.`);
         return;
       }
     }
@@ -160,7 +167,7 @@ export default function AdminEditJobPage() {
     try {
       const uploadFormData = new FormData();
       selectedPictures.forEach((file) => {
-        uploadFormData.append('pictures', file);
+        uploadFormData.append('pictures', sanitizeFileForUpload(file));
       });
 
       const response = await fetch('/api/jobs/upload', {
@@ -194,12 +201,14 @@ export default function AdminEditJobPage() {
       // Update job with picture paths
       const normalizedCountry = normalizeCountryForStorage(formData.country);
 
+      const { company: _company, ...updatePayload } = formData;
       await adminApi.updateJob(jobId, {
-        ...formData,
+        ...updatePayload,
         country: normalizedCountry,
         sports: formData.sports,
         pictures: allPicturePaths,
         published: formData.published,
+        legacySlug: formData.legacySlug?.trim() || undefined,
       });
 
       // Clean up preview URLs
@@ -268,15 +277,15 @@ export default function AdminEditJobPage() {
             </div>
             <div>
               <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
-                Company *
+                Company
               </label>
               <input
                 id="company"
                 type="text"
                 value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 cursor-not-allowed"
+                aria-label="Company (read-only)"
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -373,6 +382,26 @@ export default function AdminEditJobPage() {
                 </span>
               </label>
             </div>
+
+            {/* Legacy Drupal Slug (admin only, not exposed publicly) */}
+            {user?.role === 'admin' && (
+              <div>
+                <label htmlFor="legacySlug" className="block text-sm font-medium text-gray-700 mb-1">
+                  Legacy Drupal Slug
+                </label>
+                <input
+                  id="legacySlug"
+                  type="text"
+                  value={formData.legacySlug}
+                  onChange={(e) => setFormData({ ...formData, legacySlug: e.target.value })}
+                  placeholder="e.g., old-drupal-url-slug"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Optional. Used for legacy URL redirects from Drupal. Not shown publicly.
+                </p>
+              </div>
+            )}
 
             {/* Languages, Qualifications, Sports, Occupational Areas - Same as recruiter version */}
             <div>
@@ -478,11 +507,11 @@ export default function AdminEditJobPage() {
               )}
 
               <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
-                {JOB_CATEGORIES.map((area) => {
-                  const isSelected = formData.occupationalAreas.includes(area);
+                {JOB_CATEGORIES.map((cat) => {
+                  const isSelected = formData.occupationalAreas.includes(cat.value);
                   return (
                     <label
-                      key={area}
+                      key={cat.value}
                       className="flex items-center py-2 px-2 rounded hover:bg-gray-50 cursor-pointer"
                     >
                       <input
@@ -492,18 +521,18 @@ export default function AdminEditJobPage() {
                           if (e.target.checked) {
                             setFormData({
                               ...formData,
-                              occupationalAreas: [...formData.occupationalAreas, area],
+                              occupationalAreas: [...formData.occupationalAreas, cat.value],
                             });
                           } else {
                             setFormData({
                               ...formData,
-                              occupationalAreas: formData.occupationalAreas.filter((a) => a !== area),
+                              occupationalAreas: formData.occupationalAreas.filter((a) => a !== cat.value),
                             });
                           }
                         }}
                         className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                       />
-                      <span className="text-sm text-gray-900">{area}</span>
+                      <span className="text-sm text-gray-900">{cat.label}</span>
                     </label>
                   );
                 })}
@@ -711,7 +740,7 @@ export default function AdminEditJobPage() {
                 )}
               </div>
               <p className="text-sm text-gray-500 mt-1">
-                Maximum 3 pictures total (including existing ones), 5MB each. Supported formats: JPEG, PNG, WEBP, GIF
+                Maximum 3 pictures total (including existing ones). Supported formats: JPEG, PNG, WEBP, GIF (resized automatically)
               </p>
               {selectedPictures.length > 0 && (
                 <div className="mt-4">
@@ -753,7 +782,7 @@ export default function AdminEditJobPage() {
                       setFormData({
                         ...formData,
                         applyByEmail: e.target.checked,
-                        applicationEmail: e.target.checked ? formData.applicationEmail : '',
+                        applicationEmail: e.target.checked ? (formData.applicationEmail || companyEmail) : '',
                       });
                     }}
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
@@ -783,7 +812,7 @@ export default function AdminEditJobPage() {
                       setFormData({
                         ...formData,
                         applyByWebsite: e.target.checked,
-                        applicationWebsite: e.target.checked ? formData.applicationWebsite : '',
+                        applicationWebsite: e.target.checked ? (formData.applicationWebsite || companyWebsite) : '',
                       });
                     }}
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"

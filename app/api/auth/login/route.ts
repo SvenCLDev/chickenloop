@@ -33,11 +33,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = await User.findOne({ email });
+    const emailNormalized = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const user = await User.findOne({ email: emailNormalized });
     if (!user) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
+      );
+    }
+
+    if (user.mustResetPassword) {
+      return NextResponse.json(
+        { error: 'PASSWORD_RESET_REQUIRED' },
+        { status: 403 }
       );
     }
 

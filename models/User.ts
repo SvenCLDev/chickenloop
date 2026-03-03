@@ -5,10 +5,27 @@ export interface IUser extends Document {
   password: string;
   role: 'recruiter' | 'job-seeker' | 'admin';
   name: string;
+
   favouriteJobs?: mongoose.Types.ObjectId[];
   favouriteCandidates?: mongoose.Types.ObjectId[];
+
+  companyId?: mongoose.Types.ObjectId;
+
   lastOnline?: Date;
-  notesEnabled?: boolean; // Feature flag for recruiterNotes functionality (default: true)
+  notesEnabled?: boolean;
+
+  mustResetPassword?: boolean;
+  passwordMigrated?: boolean;
+
+  // 🔹 Migration metadata
+  legacy?: {
+    source: 'drupal7' | 'drupal';
+    userId?: number;
+    drupalUid?: string;
+    migratedAt?: Date;
+    roles?: string[];
+  };
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,8 +36,7 @@ const UserSchema: Schema = new Schema(
       type: String,
       required: true,
       unique: true,
-      lowercase: true,
-      trim: true,
+      index: true,
     },
     password: {
       type: String,
@@ -35,33 +51,55 @@ const UserSchema: Schema = new Schema(
       type: String,
       required: true,
     },
-    favouriteJobs: [{
+    favouriteJobs: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Job',
+      },
+    ],
+    favouriteCandidates: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'CV',
+      },
+    ],
+    companyId: {
       type: Schema.Types.ObjectId,
-      ref: 'Job',
-    }],
-    favouriteCandidates: [{
-      type: Schema.Types.ObjectId,
-      ref: 'CV',
-    }],
-    lastOnline: {
-      type: Date,
+      ref: 'Company',
+      required: false,
+      index: true,
     },
+    lastOnline: Date,
     notesEnabled: {
       type: Boolean,
-      default: true, // Default enabled for all recruiters
+      default: true,
+    },
+    mustResetPassword: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    passwordMigrated: {
+      type: Boolean,
+      default: false,
+    },
+
+    // 🔹 Legacy / migration
+    legacy: {
+      source: {
+        type: String,
+        enum: ['drupal7', 'drupal'],
+      },
+      userId: Number,
+      drupalUid: String,
+      migratedAt: Date,
+      roles: [String],
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Create indexes for efficient querying
-UserSchema.index({ role: 1 }); // For role-based filtering
-UserSchema.index({ createdAt: -1 }); // For sorting by creation date
-UserSchema.index({ lastOnline: -1 }); // For sorting by last online
-
-const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+const User = (mongoose.models.User as Model<IUser>) ||
+  mongoose.model<IUser>('User', UserSchema);
 
 export default User;
-

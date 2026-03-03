@@ -6,6 +6,7 @@
  */
 
 import { getCountryNameFromCode } from './countryUtils';
+import { COUNTRY_OPTIONS } from './countryUtils';
 
 /**
  * Generate a URL-friendly slug from a string
@@ -91,6 +92,29 @@ export function generateCountrySlug(country: string | null | undefined): string 
   
   // Fallback if slug is empty
   return slug || 'unknown';
+}
+
+/**
+ * Get country values (codes/names) that produce the given country slug.
+ * Used for filtering jobs by country slug in DB queries.
+ */
+export function getCountryValuesForSlug(countrySlug: string): string[] {
+  const values: string[] = [];
+  const seen = new Set<string>();
+  for (const { code, name } of COUNTRY_OPTIONS) {
+    if (generateCountrySlug(code) === countrySlug && !seen.has(code)) {
+      values.push(code);
+      seen.add(code);
+    }
+    if (generateCountrySlug(name) === countrySlug && !seen.has(name)) {
+      values.push(name);
+      seen.add(name);
+    }
+  }
+  if (countrySlug === 'unknown') {
+    values.push(null as unknown as string, '');
+  }
+  return values;
 }
 
 /**

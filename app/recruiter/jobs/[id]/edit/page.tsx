@@ -5,6 +5,7 @@ import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import Navbar from '../../../../components/Navbar';
 import { jobsApi, companyApi } from '@/lib/api';
+import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
 import { QUALIFICATIONS } from '@/lib/qualifications';
 import {
@@ -12,9 +13,17 @@ import {
   normalizeCountryForStorage,
 } from '@/lib/countryUtils';
 import { SPORTS_LIST } from '@/lib/sports';
-import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
+import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import UrlInput from '../../../../components/form/UrlInput';
 import JobDescriptionEditor from '../../../../components/form/JobDescriptionEditor';
+
+const EXPERIENCE_LEVELS = [
+  'internship',
+  'junior',
+  'senior',
+  'expert',
+  'manager',
+];
 
 export default function EditJobPage() {
   const { user, loading: authLoading } = useAuth();
@@ -28,6 +37,7 @@ export default function EditJobPage() {
     country: '',
     salary: '',
     type: 'full-time',
+    experienceLevel: [] as string[],
     languages: [] as string[],
     qualifications: [] as string[],
     sports: [] as string[],
@@ -101,6 +111,10 @@ export default function EditJobPage() {
         country: countryToUse,
         salary: job.salary || '',
         type: job.type,
+        experienceLevel: (() => {
+          const raw = (job as any).experienceLevel ?? (job as any).experience;
+          return Array.isArray(raw) ? raw : raw ? [raw] : [];
+        })(),
         languages: (job as any).languages || [],
         qualifications: (job as any).qualifications || [],
         sports: (job as any).sports || [],
@@ -109,7 +123,7 @@ export default function EditJobPage() {
         applyByEmail: (job as any).applyByEmail || false,
         applyByWebsite: (job as any).applyByWebsite || false,
         applyByWhatsApp: (job as any).applyByWhatsApp || false,
-        applicationEmail: (job as any).applicationEmail || (companyData?.contact?.email || ''),
+        applicationEmail: (job as any).applicationEmail || (companyData?.email || companyData?.contact?.email || ''),
         applicationWebsite: (job as any).applicationWebsite || (companyData?.website || ''),
         applicationWhatsApp: (job as any).applicationWhatsApp || '',
       });
@@ -148,20 +162,16 @@ export default function EditJobPage() {
       return;
     }
 
-    // Validate file types and sizes
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSizePerFile = 10 * 1024 * 1024; // 10MB to avoid FormData/body parse errors
 
     for (const file of files) {
       if (!validTypes.includes(file.type)) {
         setError(`Invalid file type: ${file.name}. Only images (JPEG, PNG, WEBP, GIF) are allowed.`);
         return;
       }
-      if (file.size > maxSize) {
-        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        const errorMessage = `File "${file.name}" is too large (${fileSizeMB} MB). Maximum size is 5MB.`;
-        alert(`Warning: ${errorMessage}`);
-        setError(errorMessage);
+      if (file.size > maxSizePerFile) {
+        setError(`${file.name} is too large. Please use an image under 10MB.`);
         return;
       }
     }
@@ -215,7 +225,7 @@ export default function EditJobPage() {
     try {
       const uploadFormData = new FormData();
       selectedPictures.forEach((file) => {
-        uploadFormData.append('pictures', file);
+        uploadFormData.append('pictures', sanitizeFileForUpload(file));
       });
 
       const response = await fetch('/api/jobs/upload', {
@@ -469,9 +479,6 @@ export default function EditJobPage() {
               />
             </div>
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                Description *
-              </label>
               <JobDescriptionEditor
                 id="description"
                 value={formData.description}
@@ -570,12 +577,73 @@ export default function EditJobPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
               >
                 <option value="">Select a category</option>
-                {JOB_CATEGORIES.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
+                {JOB_CATEGORIES.map((cat) => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
                   </option>
                 ))}
               </select>
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Experience Level
+                </label>
+                {formData.experienceLevel.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {formData.experienceLevel.map((level) => (
+                      <span
+                        key={level}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800"
+                      >
+                        {level}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              experienceLevel: formData.experienceLevel.filter((l) => l !== level),
+                            })
+                          }
+                          className="ml-2 text-purple-600 hover:text-purple-800"
+                          aria-label={`Remove ${level}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
+                  {EXPERIENCE_LEVELS.map((level) => {
+                    const isSelected = formData.experienceLevel.includes(level);
+                    return (
+                      <label
+                        key={level}
+                        className="flex items-center py-2 px-2 rounded hover:bg-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                experienceLevel: [...formData.experienceLevel, level],
+                              });
+                            } else {
+                              setFormData({
+                                ...formData,
+                                experienceLevel: formData.experienceLevel.filter((l) => l !== level),
+                              });
+                            }
+                          }}
+                          className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-900">{level}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -810,7 +878,7 @@ export default function EditJobPage() {
                 )}
               </div>
               <p className="text-sm text-gray-500 mt-1">
-                Maximum 3 pictures total (including existing ones), 5MB each. Supported formats: JPEG, PNG, WEBP, GIF
+                Maximum 3 pictures total (including existing ones). Supported formats: JPEG, PNG, WEBP, GIF (resized automatically)
               </p>
               {selectedPictures.length > 0 && (
                 <div className="mt-4">
@@ -936,7 +1004,7 @@ export default function EditJobPage() {
                       setFormData({
                         ...formData,
                         applyByEmail: e.target.checked,
-                        applicationEmail: e.target.checked ? (formData.applicationEmail || company?.contact?.email || '') : '',
+                        applicationEmail: e.target.checked ? (formData.applicationEmail || company?.email || company?.contact?.email || '') : '',
                       });
                     }}
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"

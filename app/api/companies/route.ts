@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     // Build query
     let query = Company.find(queryFilter)
-      .populate('owner', 'name email')
+      .populate('ownerRecruiter', 'name email')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -35,7 +35,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const companies = await query;
+    let companies = await query;
+
+    // Put "Test-00" prefixed companies at the end so users rarely see them
+    companies = companies.sort((a: any, b: any) => {
+      const aIsTest = (a.name || '').startsWith('Test-00');
+      const bIsTest = (b.name || '').startsWith('Test-00');
+      if (aIsTest && !bIsTest) return 1;
+      if (!aIsTest && bIsTest) return -1;
+      return 0;
+    });
 
     // Format companies for response
     const formattedCompanies = companies.map((company: any) => ({
@@ -49,6 +58,7 @@ export async function GET(request: NextRequest) {
       coordinates: company.coordinates,
       featured: company.featured || false,
       createdAt: company.createdAt,
+      updatedAt: company.updatedAt,
     }));
 
     // Add cache headers - companies can be cached for 5 minutes

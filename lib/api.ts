@@ -1,4 +1,19 @@
+import { getApiRouter } from '@/lib/apiRouterRef';
+
 const API_BASE = '/api';
+
+function handleCompanyProfileIncompleteRedirect(detail?: string) {
+  if (typeof window === 'undefined') return;
+  const path = detail
+    ? `/complete-company-profile?reason=${encodeURIComponent(detail)}`
+    : '/complete-company-profile';
+  const router = getApiRouter();
+  if (router) {
+    router.replace(path);
+  } else {
+    window.location.replace(path);
+  }
+}
 
 export async function apiRequest(
   endpoint: string,
@@ -15,39 +30,72 @@ export async function apiRequest(
 
   // Check if response is JSON before trying to parse
   const contentType = response.headers.get('content-type');
-  let data;
+  const text = await response.text();
+  let data: unknown;
 
   if (contentType && contentType.includes('application/json')) {
-    data = await response.json();
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      console.error('Invalid JSON from API:', { url: `${API_BASE}${endpoint}`, preview: text.substring(0, 200) });
+      throw new Error('Invalid response from server');
+    }
   } else {
-    // Response is not JSON (likely HTML error page)
-    const text = await response.text();
-    console.error('Non-JSON response received:', {
-      status: response.status,
-      statusText: response.statusText,
-      url: `${API_BASE}${endpoint}`,
-      preview: text.substring(0, 200),
-    });
-
-    // Try to extract error message from HTML or use status text
-    throw new Error(
-      response.status === 500
-        ? 'Server error. Please check the server logs.'
-        : response.status === 404
-          ? 'API endpoint not found. Please check the endpoint URL.'
-          : `Unexpected response format. Status: ${response.status} ${response.statusText}`
-    );
+    // No JSON Content-Type: try to parse anyway (some proxies strip headers)
+    const trimmed = text.trim();
+    if (response.status === 401) {
+      // Expected when not logged in – never log as error (body may be empty or HTML)
+      throw new Error('Unauthorized');
+    }
+    if (trimmed && (trimmed.startsWith('{') || trimmed.startsWith('['))) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null;
+      }
+    } else {
+      data = null;
+    }
+    if (data == null) {
+      // /auth/me is only used for session check – any non-JSON response treat as unauthenticated, don't log
+      if (endpoint === '/auth/me') {
+        throw new Error('Unauthorized');
+      }
+      // Truly non-JSON (e.g. HTML error page) – log and throw
+      console.error('Non-JSON response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: `${API_BASE}${endpoint}`,
+        preview: text.substring(0, 200),
+      });
+      throw new Error(
+        response.status === 500
+          ? 'Server error. Please check the server logs.'
+          : response.status === 404
+            ? 'API endpoint not found. Please check the endpoint URL.'
+            : `Unexpected response format. Status: ${response.status} ${response.statusText}`
+      );
+    }
   }
 
+  const dataObj = data as Record<string, unknown> | null;
   if (!response.ok) {
-    throw new Error(data.error || 'An error occurred');
+    // COMPANY_PROFILE_INCOMPLETE: redirect recruiters to complete profile
+    if (response.status === 403 && dataObj?.error === 'COMPANY_PROFILE_INCOMPLETE') {
+      handleCompanyProfileIncompleteRedirect(dataObj.detail as string | undefined);
+      const msg = dataObj.detail
+        ? `COMPANY_PROFILE_INCOMPLETE: ${dataObj.detail}`
+        : dataObj.error;
+      throw new Error(String(msg ?? 'An error occurred'));
+    }
+    throw new Error(String(dataObj?.error ?? 'An error occurred'));
   }
 
   return data;
 }
 
 export const authApi = {
-  register: (data: { email: string; password: string; name: string; role: string }) =>
+  register: (data: { email: string; password: string; name: string; role: string; turnstileToken?: string | null; website?: string }) =>
     apiRequest('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -62,6 +110,16 @@ export const authApi = {
       method: 'POST',
     }),
   me: () => apiRequest('/auth/me'),
+  forgotPassword: (data: { email: string }) =>
+    apiRequest('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    apiRequest('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 export const jobsApi = {
@@ -214,12 +272,13 @@ export const accountApi = {
 };
 
 export const adminApi = {
-  getUsers: (params?: { search?: string; email?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) => {
+  getUsers: (params?: { search?: string; email?: string; sortBy?: string; sortOrder?: 'asc' | 'desc'; role?: string }) => {
     const queryParams = new URLSearchParams();
     if (params?.search) queryParams.set('search', params.search);
     if (params?.email) queryParams.set('email', params.email);
     if (params?.sortBy) queryParams.set('sortBy', params.sortBy);
     if (params?.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+    if (params?.role) queryParams.set('role', params.role);
     const queryString = queryParams.toString();
     return apiRequest(`/admin/users${queryString ? `?${queryString}` : ''}`);
   },
@@ -251,6 +310,16 @@ export const adminApi = {
     apiRequest(`/admin/jobs/${id}`, {
       method: 'DELETE',
     }),
+  repairJobRelationships: (body: {
+    jobId: string;
+    recruiterId: string;
+    companyId?: string;
+    createCompany?: { name: string };
+  }) =>
+    apiRequest('/admin/repair-job-relationships', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   getCompanies: (params?: { search?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) => {
     const queryParams = new URLSearchParams();
     if (params?.search) queryParams.set('search', params.search);
@@ -260,6 +329,13 @@ export const adminApi = {
     return apiRequest(`/admin/companies${queryString ? `?${queryString}` : ''}`);
   },
   getCompany: (id: string) => apiRequest(`/admin/companies/${id}`),
+  getCompanyRelationships: (companyId: string) =>
+    apiRequest(`/admin/repair-company-relationships?companyId=${encodeURIComponent(companyId)}`),
+  repairCompanyRelationships: (body: { companyId: string; ownerRecruiterId?: string; recruiterIds?: string[] }) =>
+    apiRequest('/admin/repair-company-relationships', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   updateCompany: (id: string, data: any) =>
     apiRequest(`/admin/companies/${id}`, {
       method: 'PUT',

@@ -10,12 +10,13 @@
  */
 
 import { stripHtmlToText } from '@/lib/sanitizeText';
+import { getCountryCodeFromName } from '@/lib/countryUtils';
 
 interface JobForJsonLd {
   _id: string;
   title: string;
   description: string;
-  company: string;
+  company?: string;
   city: string;
   country?: string;
   salary?: string;
@@ -24,9 +25,12 @@ interface JobForJsonLd {
   validThrough?: string | Date;
   createdAt?: string | Date;
   companyId?: {
+    name?: string;
     website?: string;
     logo?: string;
   };
+  /** Legacy migration: original company text from Drupal */
+  legacy?: { originalCompanyText?: string };
   applicationWebsite?: string;
   applicationEmail?: string;
 }
@@ -39,51 +43,107 @@ interface JobForJsonLd {
  * @returns A plain JavaScript object ready for JSON.stringify, or null if job is invalid
  */
 export function buildJobJsonLd(job: JobForJsonLd | null, jobUrl?: string): object | null {
-  if (!job || !job._id || !job.title || !job.description || !job.company || !job.city) {
+  if (!job || !job._id) {
     return null;
   }
 
-  // Normalize dates to ISO 8601 strings
+  // Description is required by Google Jobs - must be non-empty after HTML strip and trim
+  const description = stripHtmlToText(job.description);
+  if (!description.trim()) {
+    return null;
+  }
+
+  // Title is required by Google Jobs - must be non-empty after trim
+  const title = (job.title != null && String(job.title).trim()) ? String(job.title).trim() : null;
+  if (!title) {
+    return null;
+  }
+
+  // jobLocation.address.addressLocality (city) is required - must be non-empty after trim
+  const city = (job.city != null && String(job.city).trim()) ? String(job.city).trim() : null;
+  if (!city) {
+    return null;
+  }
+
+  // Derive company name: job.company, populated companyId.name, or legacy migration text
+  const companyName =
+    (job.company && job.company.trim()) ||
+    (job.companyId && typeof job.companyId === 'object' && job.companyId.name
+      ? String(job.companyId.name).trim()
+      : '') ||
+    (job.legacy?.originalCompanyText && job.legacy.originalCompanyText.trim()
+      ? job.legacy.originalCompanyText.trim()
+      : '') ||
+    'Company'; // Fallback so hiringOrganization is always valid for Google
+
+  // Normalize dates to ISO 8601 strings (date-only YYYY-MM-DD preferred by Google Jobs)
   const normalizeDate = (date: string | Date | undefined, fallback?: string | Date): string | undefined => {
+    const tryDate = (d: string | Date): string | undefined => {
+      try {
+        const parsed = d instanceof Date ? d : new Date(d);
+        if (Number.isNaN(parsed.getTime())) return undefined;
+        return parsed.toISOString().slice(0, 10); // YYYY-MM-DD
+      } catch {
+        return undefined;
+      }
+    };
     if (date) {
-      if (date instanceof Date) {
-        return date.toISOString();
-      }
-      if (typeof date === 'string') {
-        // If it's already an ISO string, return it; otherwise try to parse it
-        try {
-          return new Date(date).toISOString();
-        } catch {
-          return undefined;
-        }
-      }
+      const result = tryDate(date);
+      if (result) return result;
     }
     if (fallback) {
-      if (fallback instanceof Date) {
-        return fallback.toISOString();
-      }
-      if (typeof fallback === 'string') {
-        try {
-          return new Date(fallback).toISOString();
-        } catch {
-          return undefined;
-        }
-      }
+      const result = tryDate(fallback);
+      if (result) return result;
     }
     return undefined;
   };
 
-  const datePosted = normalizeDate(job.datePosted, job.createdAt) || new Date().toISOString();
-  const validThrough = normalizeDate(job.validThrough);
+  // datePosted is required by Google Jobs - always output valid YYYY-MM-DD
+  const datePosted =
+    normalizeDate(job.datePosted, job.createdAt) ??
+    new Date().toISOString().slice(0, 10);
+  if (!datePosted || datePosted.length < 10) {
+    return null; // Defensive: never output invalid datePosted
+  }
+  const validThrough = normalizeDate(job.validThrough) ?? undefined;
 
-  // Map employment type to schema.org values
+  // Map our Job.type values to Google Jobs employmentType (schema.org)
+  // Valid values: FULL_TIME, PART_TIME, CONTRACT, TEMPORARY, INTERNSHIP, SEASONAL, OTHER
   const employmentTypeMap: Record<string, string> = {
+    full_time: 'FULL_TIME',
     'full-time': 'FULL_TIME',
+    part_time: 'PART_TIME',
     'part-time': 'PART_TIME',
-    'contract': 'CONTRACTOR',
-    'freelance': 'CONTRACTOR',
+    contract: 'CONTRACT',
+    freelance: 'CONTRACT',
+    internship: 'INTERNSHIP',
+    project: 'CONTRACT', // project-based maps to CONTRACT
+    other: 'OTHER',
   };
-  const employmentType = employmentTypeMap[job.type] || job.type.toUpperCase();
+  const VALID_EMPLOYMENT_TYPES = new Set(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'TEMPORARY', 'INTERNSHIP', 'SEASONAL', 'OTHER']);
+  const rawType = (job.type && String(job.type).trim().toLowerCase()) || '';
+  const mapped = rawType && employmentTypeMap[rawType];
+  const employmentType =
+    mapped ||
+    (rawType && VALID_EMPLOYMENT_TYPES.has(rawType.toUpperCase()) ? rawType.toUpperCase() : null) ||
+    'OTHER';
+  if (!employmentType || !VALID_EMPLOYMENT_TYPES.has(employmentType)) {
+    return null; // Defensive: never output invalid employmentType
+  }
+
+  // Build address - Google requires address with addressLocality; addressCountry improves validity
+  const countryCode =
+    (job.country && String(job.country).trim().length === 2)
+      ? String(job.country).trim().toUpperCase()
+      : (job.country && getCountryCodeFromName(String(job.country).trim())) ?? null;
+
+  const address: Record<string, string> = {
+    '@type': 'PostalAddress',
+    addressLocality: city,
+  };
+  if (countryCode) {
+    address.addressCountry = countryCode;
+  }
 
   // Build the base JobPosting object
   // datePosted is required by Google Jobs, so we ensure it's always present
@@ -94,25 +154,22 @@ export function buildJobJsonLd(job: JobForJsonLd | null, jobUrl?: string): objec
   const jsonLd: any = {
     '@context': 'https://schema.org',
     '@type': 'JobPosting',
-    title: job.title,
-    description: stripHtmlToText(job.description),
+    title,
+    description,
     identifier: {
       '@type': 'PropertyValue',
-      name: job.company,
+      name: companyName,
       value: job._id,
     },
     datePosted: datePosted,
     employmentType: employmentType,
     hiringOrganization: {
       '@type': 'Organization',
-      name: job.company,
+      name: companyName,
     },
     jobLocation: {
       '@type': 'Place',
-      address: {
-        '@type': 'PostalAddress',
-        addressLocality: job.city,
-      },
+      address,
     },
   };
 
@@ -127,11 +184,6 @@ export function buildJobJsonLd(job: JobForJsonLd | null, jobUrl?: string): objec
   // Add validThrough if available
   if (validThrough) {
     jsonLd.validThrough = validThrough;
-  }
-
-  // Add country code if available (must be ISO 3166-1 alpha-2)
-  if (job.country && job.country.length === 2) {
-    jsonLd.jobLocation.address.addressCountry = job.country.toUpperCase();
   }
 
   // Add baseSalary if available
