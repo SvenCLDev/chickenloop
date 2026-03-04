@@ -198,8 +198,16 @@ export default function HomePageContent() {
         }
       });
       
-      // Add job count to each company and get first 8
-      const companiesWithJobCount = companies.slice(0, 8).map((company) => ({
+      // Sort: companies with picture (or logo) first, then without; then take first 8
+      const hasPicture = (c) => (c.pictures && c.pictures.length > 0) || (c.logo && c.logo.trim());
+      const sorted = [...companies].sort((a, b) => {
+        const aHas = hasPicture(a);
+        const bHas = hasPicture(b);
+        if (aHas && !bHas) return -1;
+        if (!aHas && bHas) return 1;
+        return 0;
+      });
+      const companiesWithJobCount = sorted.slice(0, 8).map((company) => ({
         ...company,
         jobCount: jobCountsByCompany[company.id] || 0
       }));

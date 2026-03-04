@@ -27,7 +27,17 @@ export default function CompaniesPreview() {
           throw new Error('Failed to fetch companies');
         }
         const data = await response.json();
-        setCompanies(data.companies || []);
+        const list = data.companies || [];
+        // Sort: companies with picture (or logo) first, then without
+        const hasPicture = (c: Company) => (c.pictures && c.pictures.length > 0) || !!(c.logo && c.logo.trim());
+        const sorted = [...list].sort((a, b) => {
+          const aHas = hasPicture(a);
+          const bHas = hasPicture(b);
+          if (aHas && !bHas) return -1;
+          if (!aHas && bHas) return 1;
+          return 0;
+        });
+        setCompanies(sorted);
       } catch (err) {
         console.error('Failed to load companies:', err);
       } finally {
