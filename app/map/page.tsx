@@ -1,66 +1,102 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import Navbar from '../components/Navbar';
 
+const WorldMapClient = dynamic(() => import('./WorldMapClient'), { ssr: false });
+
+interface MapPoint {
+  id: string;
+  lat: number;
+  lng: number;
+  href: string;
+  title: string;
+  subtitle?: string;
+}
+
 export default function MapPage() {
-  const [mounted, setMounted] = useState(false);
+  const [mode, setMode] = useState<'jobs' | 'companies'>('jobs');
+  const [jobs, setJobs] = useState<MapPoint[]>([]);
+  const [companies, setCompanies] = useState<MapPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setMounted(true);
+    fetch('/api/map')
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load map data');
+        return res.json();
+      })
+      .then((data) => {
+        setJobs(data.jobs || []);
+        setCompanies(data.companies || []);
+      })
+      .catch((err) => setError(err.message || 'Failed to load map data'))
+      .finally(() => setLoading(false));
   }, []);
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
-        <Navbar />
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-xl">Loading...</div>
-        </div>
-      </div>
-    );
-  }
+  const points = useMemo(() => (mode === 'jobs' ? jobs : companies), [mode, jobs, companies]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white rounded-xl shadow-lg p-8 sm:p-12 text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-            Interactive Map
-          </h1>
-          <p className="text-lg sm:text-xl text-gray-600 mb-8">
-            Map coming soon
-          </p>
-          <div className="bg-gray-100 rounded-lg p-12 mb-8">
-            <div className="text-gray-400 text-sm">
-              <svg
-                className="w-24 h-24 mx-auto mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+      <div className="bg-amber-100 border-b border-amber-300 px-4 py-2.5 text-center text-sm text-amber-900">
+        <span className="inline-block mr-1.5" aria-hidden>🚧</span>
+        This map is work in progress; I am waiting for location data updates from recruiters and companies.
+      </div>
+      <main className="flex-1 flex flex-col">
+        <div className="bg-white border-b border-gray-200 px-4 py-3">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-4">
+            <h1 className="text-xl font-bold text-gray-900">Watersports World Map</h1>
+            <div className="flex rounded-lg border border-gray-300 p-0.5 bg-gray-100">
+              <button
+                type="button"
+                onClick={() => setMode('jobs')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  mode === 'jobs'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                />
-              </svg>
-              <p>Interactive map with Mapbox/Leaflet integration</p>
-              <p className="mt-2 text-xs">Will be implemented in a future update</p>
+                Jobs
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('companies')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  mode === 'companies'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Companies
+              </button>
             </div>
+            <span className="text-sm text-gray-500">
+              {mode === 'jobs' ? `${jobs.length} jobs` : `${companies.length} companies`}
+            </span>
           </div>
-          <Link
-            href="/"
-            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            Back to Home
-          </Link>
+        </div>
+
+        <div className="flex-1 relative min-h-[calc(100vh-140px)]">
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 z-10">
+              <p className="text-gray-600">Loading map data...</p>
+            </div>
+          )}
+          {error && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 z-10">
+              <p className="text-red-600">{error}</p>
+            </div>
+          )}
+          {!loading && !error && (
+            <div className="absolute inset-0 z-0">
+              <WorldMapClient points={points} />
+            </div>
+          )}
         </div>
       </main>
     </div>
   );
 }
-

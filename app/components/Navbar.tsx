@@ -77,6 +77,12 @@ export default function Navbar() {
               >
                 Guides
               </Link>
+              <Link
+                href="/map"
+                className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors"
+              >
+                Map
+              </Link>
             </div>
 
             {/* Right: Primary Action Buttons */}
@@ -286,6 +292,13 @@ export default function Navbar() {
                       className="px-4 py-2 rounded hover:bg-blue-700 text-sm"
                     >
                       Career Advice
+                    </Link>
+                    <Link
+                      href="/map"
+                      onClick={closeMobileMenu}
+                      className="px-4 py-2 rounded hover:bg-blue-700 text-sm"
+                    >
+                      Map
                     </Link>
                   </div>
                 </div>
