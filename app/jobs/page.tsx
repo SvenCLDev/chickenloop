@@ -133,6 +133,7 @@ function JobsPageContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [favouriteJobIds, setFavouriteJobIds] = useState<Set<string>>(new Set());
   const [togglingFavouriteId, setTogglingFavouriteId] = useState<string | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const jobsPerPage = 20;
   const isInitialMount = useRef(true);
 
@@ -164,6 +165,16 @@ function JobsPageContent() {
       setTogglingFavouriteId(null);
     }
   }, [togglingFavouriteId]);
+
+  const handleHeartClick = useCallback((e: React.MouseEvent, jobId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (user?.role === 'job-seeker') {
+      handleToggleFavourite(e, jobId);
+    } else if (!user) {
+      setShowLoginPrompt(true);
+    }
+  }, [user, handleToggleFavourite]);
 
   // Sync state with URL query parameters when URL changes (browser back/forward)
   // Skip on initial mount since state is already initialized from URL params
@@ -1086,11 +1097,11 @@ function JobsPageContent() {
                             </div>
                           </div>
 
-                          {/* Favourite heart - bottom right (job seeker only) */}
+                          {/* Favourite heart - bottom right (job seeker and anonymous) */}
                           {showHeart && (
                             <button
                               type="button"
-                              onClick={(e) => handleToggleFavourite(e, job._id)}
+                              onClick={(e) => handleHeartClick(e, job._id)}
                               disabled={togglingFavouriteId === job._id}
                               className="absolute bottom-2 right-2 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-md text-red-500 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-60"
                               aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
@@ -1277,6 +1288,42 @@ function JobsPageContent() {
           </div>
         </div>
       </main>
+
+      {/* Login prompt toast when anonymous user clicks heart */}
+      {showLoginPrompt && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md mx-4 px-4 py-3 rounded-lg bg-gray-900 text-white text-sm shadow-xl flex flex-col gap-2"
+          role="alert"
+        >
+          <p className="text-center">
+            Log in or register as a jobseeker to mark jobs as favourites, create job alerts, list your CV and more.
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <Link
+              href="/login"
+              className="px-3 py-1.5 rounded-md bg-white text-gray-900 font-medium hover:bg-gray-100"
+              onClick={() => setShowLoginPrompt(false)}
+            >
+              Log in
+            </Link>
+            <Link
+              href="/register"
+              className="px-3 py-1.5 rounded-md bg-blue-500 text-white font-medium hover:bg-blue-600"
+              onClick={() => setShowLoginPrompt(false)}
+            >
+              Register
+            </Link>
+            <button
+              type="button"
+              onClick={() => setShowLoginPrompt(false)}
+              className="px-2 py-1 text-gray-400 hover:text-white"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

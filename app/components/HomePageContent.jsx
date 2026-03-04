@@ -52,6 +52,10 @@ export default function HomePageContent() {
   
   // Hero image rotation state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  // Favourite hearts (job-seeker only)
+  const [favouriteJobIds, setFavouriteJobIds] = useState(new Set());
+  const [togglingFavouriteId, setTogglingFavouriteId] = useState(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   useEffect(() => {
     // Load jobs to extract unique categories
@@ -68,7 +72,35 @@ export default function HomePageContent() {
     if (user && (user.role === 'recruiter' || user.role === 'admin')) {
       loadTopCandidates();
     }
+    if (user?.role === 'job-seeker') {
+      jobsApi.getFavourites().then((data) => {
+        const ids = new Set((data.jobs || []).map((j) => String(j._id)));
+        setFavouriteJobIds(ids);
+      }).catch(() => {});
+    } else {
+      setFavouriteJobIds(new Set());
+    }
   }, [user]);
+
+  const handleToggleFavourite = async (e, jobId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (togglingFavouriteId || user?.role !== 'job-seeker') return;
+    setTogglingFavouriteId(jobId);
+    try {
+      await jobsApi.toggleFavourite(jobId);
+      setFavouriteJobIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(jobId)) next.delete(jobId);
+        else next.add(jobId);
+        return next;
+      });
+    } catch {
+      // keep state unchanged on error
+    } finally {
+      setTogglingFavouriteId(null);
+    }
+  };
 
   // Rotate hero background images
   useEffect(() => {
@@ -364,7 +396,17 @@ export default function HomePageContent() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                   {featuredJobs.map((job, index) => (
-                    <JobCard key={job._id} job={job} priority={index === 0} featured />
+                    <JobCard
+                      key={job._id}
+                      job={job}
+                      priority={index === 0}
+                      featured
+                      user={user}
+                      isFavourite={favouriteJobIds.has(job._id)}
+                      togglingFavourite={togglingFavouriteId === job._id}
+                      onHeartClick={handleToggleFavourite}
+                      onLoginPrompt={() => setShowLoginPrompt(true)}
+                    />
                   ))}
                 </div>
               )}
@@ -412,7 +454,16 @@ export default function HomePageContent() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                 {latestExcludingFeatured.map((job, index) => (
-                  <JobCard key={job._id} job={job} priority={featuredJobs.length === 0 && index === 0} />
+                  <JobCard
+                    key={job._id}
+                    job={job}
+                    priority={featuredJobs.length === 0 && index === 0}
+                    user={user}
+                    isFavourite={favouriteJobIds.has(job._id)}
+                    togglingFavourite={togglingFavouriteId === job._id}
+                    onHeartClick={handleToggleFavourite}
+                    onLoginPrompt={() => setShowLoginPrompt(true)}
+                  />
                 ))}
               </div>
             )}
@@ -604,6 +655,42 @@ export default function HomePageContent() {
           </div>
         </section>
       </main>
+
+      {/* Login prompt toast when anonymous user clicks heart */}
+      {showLoginPrompt && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md mx-4 px-4 py-3 rounded-lg bg-gray-900 text-white text-sm shadow-xl flex flex-col gap-2"
+          role="alert"
+        >
+          <p className="text-center">
+            Log in or register as a jobseeker to mark jobs as favourites, create job alerts, list your CV and more.
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <Link
+              href="/login"
+              className="px-3 py-1.5 rounded-md bg-white text-gray-900 font-medium hover:bg-gray-100"
+              onClick={() => setShowLoginPrompt(false)}
+            >
+              Log in
+            </Link>
+            <Link
+              href="/register"
+              className="px-3 py-1.5 rounded-md bg-blue-500 text-white font-medium hover:bg-blue-600"
+              onClick={() => setShowLoginPrompt(false)}
+            >
+              Register
+            </Link>
+            <button
+              type="button"
+              onClick={() => setShowLoginPrompt(false)}
+              className="px-2 py-1 text-gray-400 hover:text-white"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
