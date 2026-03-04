@@ -1,5 +1,8 @@
 /**
  * One-time backfill: set lastRecruiterEditAt = updatedAt (or createdAt) for every job.
+ * NOTE: Using updatedAt causes jobs to jump to the top when they were only updated by
+ * system actions (Instagram post, admin edit, etc.). Prefer running
+ * scripts/correctLastRecruiterEditAtToCreatedAt.ts to set lastRecruiterEditAt = createdAt.
  * Run from chickenloop: npx tsx scripts/backfillLastRecruiterEditAt.ts
  */
 

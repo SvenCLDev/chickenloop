@@ -1296,7 +1296,7 @@ function JobsPageContent() {
           role="alert"
         >
           <p className="text-center">
-            Log in or register as a jobseeker to mark jobs as favourites, create job alerts, list your CV and more.
+            Login or register as a jobseeker to mark jobs as favourites, create job alerts, list your CV and more.
           </p>
           <div className="flex items-center justify-center gap-3">
             <Link
@@ -1304,7 +1304,7 @@ function JobsPageContent() {
               className="px-3 py-1.5 rounded-md bg-white text-gray-900 font-medium hover:bg-gray-100"
               onClick={() => setShowLoginPrompt(false)}
             >
-              Log in
+              Login
             </Link>
             <Link
               href="/register"

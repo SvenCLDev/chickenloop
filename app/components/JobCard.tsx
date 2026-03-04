@@ -85,7 +85,7 @@ export default function JobCard({
             onClick={handleHeartClick}
             disabled={isJobSeeker && togglingFavourite}
             className="absolute bottom-2 right-2 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-md text-red-500 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-60"
-            aria-label={isJobSeeker ? (isFavourite ? 'Remove from favourites' : 'Add to favourites') : 'Log in to add to favourites'}
+            aria-label={isJobSeeker ? (isFavourite ? 'Remove from favourites' : 'Add to favourites') : 'Login to add to favourites'}
           >
             {isJobSeeker && isFavourite ? (
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">

@@ -4,6 +4,7 @@
  * Updates the Job document with instagramPostId and instagramPostedAt on success.
  */
 
+import mongoose from 'mongoose';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 
@@ -423,15 +424,21 @@ export async function postJobToInstagram(
   }
 
   await connectDB();
-  const updated = await Job.findByIdAndUpdate(
-    jobId,
+  // Use native driver so updatedAt is not changed (listing order must not be affected by Instagram post)
+  const db = mongoose.connection.db;
+  if (!db) {
+    throw new Error('Database connection not available');
+  }
+  const result = await db.collection('jobs').updateOne(
+    { _id: new mongoose.Types.ObjectId(jobId) },
     {
-      instagramPostId: postId,
-      instagramPostedAt: new Date(),
-    },
-    { new: true }
+      $set: {
+        instagramPostId: postId,
+        instagramPostedAt: new Date(),
+      },
+    }
   );
-  if (!updated) {
+  if (result.matchedCount === 0) {
     console.error('Job update failed: document not found', { jobId: String(jobId) });
     throw new Error('Failed to save Instagram post ID to job.');
   }
