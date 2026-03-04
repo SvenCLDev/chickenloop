@@ -90,6 +90,12 @@ export interface IJob extends Document {
   /** When the job was posted to Instagram */
   instagramPostedAt?: Date | null;
 
+  /**
+   * Last time the recruiter made a contextual edit to the job (title, description, etc.).
+   * Used for listing order; not updated by system actions (featured toggle, visit count, Instagram post, etc.).
+   */
+  lastRecruiterEditAt?: Date | null;
+
   // 🔹 Legacy / migration metadata
   legacy?: {
     source: 'drupal7' | 'drupal';
@@ -228,6 +234,11 @@ const JobSchema: Schema = new Schema(
       default: null,
     },
 
+    lastRecruiterEditAt: {
+      type: Date,
+      default: null,
+    },
+
     // 🔹 Legacy / migration
     legacy: {
       source: {
@@ -248,6 +259,7 @@ const JobSchema: Schema = new Schema(
 
 // Indexes
 JobSchema.index({ createdAt: -1 });
+JobSchema.index({ lastRecruiterEditAt: -1 });
 JobSchema.index({ featured: 1 });
 JobSchema.index({ featuredUntil: 1 });
 JobSchema.index({ 'legacy.legacySlug': 1 });

@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
       pictures: 1, // Need for list thumbnails
       createdAt: 1,
       updatedAt: 1,
+      lastRecruiterEditAt: 1,
       // Exclude: description, languages, qualifications (loaded on detail page)
     };
 
@@ -83,10 +84,10 @@ export async function GET(request: NextRequest) {
       companyId: job.companyId ? job.companyId.toString() : null,
     }));
 
-    // Sort by updatedAt descending (most recently updated first)
+    // Sort by last recruiter edit (listing order); fallback to createdAt
     jobsWithoutPopulate.sort((a: any, b: any) => {
-      const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
-      const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      const dateA = new Date(a.lastRecruiterEditAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.lastRecruiterEditAt || b.createdAt || 0).getTime();
       return dateB - dateA;
     });
 

@@ -375,6 +375,9 @@ export async function PUT(
       );
     }
 
+    // Only recruiter edits update this; system actions (featured, visit count, Instagram, etc.) do not
+    job.lastRecruiterEditAt = new Date();
+
     await job.save();
 
     // Update JobImage collection with isHero flag

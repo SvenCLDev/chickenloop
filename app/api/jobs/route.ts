@@ -269,6 +269,7 @@ export async function GET(request: NextRequest) {
       pictures: 1, // Need for list thumbnails
       createdAt: 1,
       updatedAt: 1,
+      lastRecruiterEditAt: 1,
       languages: 1, // Needed for language filter
     };
     
@@ -341,6 +342,7 @@ export async function GET(request: NextRequest) {
       pictures: 1, // Keep for fallback
       createdAt: 1,
       updatedAt: 1,
+      lastRecruiterEditAt: 1,
       languages: 1,
     };
     if (filters.keyword) {
@@ -436,6 +438,7 @@ export async function GET(request: NextRequest) {
       },
       createdAt: 1,
       updatedAt: 1,
+      lastRecruiterEditAt: 1,
       languages: 1,
     };
     
@@ -448,8 +451,8 @@ export async function GET(request: NextRequest) {
       $project: finalProjection
     });
     
-    // Stage 7: Sort by updatedAt descending (same as before)
-    aggregationPipeline.push({ $sort: { updatedAt: -1, createdAt: -1 } });
+    // Stage 7: Sort by last recruiter edit (listing order); system updates (featured, visitCount, etc.) do not change this
+    aggregationPipeline.push({ $sort: { lastRecruiterEditAt: -1, createdAt: -1 } });
     
     console.log('[API /jobs] Executing aggregation pipeline...');
     const aggregationPromise = collection.aggregate(aggregationPipeline)
@@ -490,11 +493,10 @@ export async function GET(request: NextRequest) {
     const fetchTime = Date.now() - fetchStart;
     console.log(`[API /jobs] Fetched ${jobsWithoutPopulate.length} jobs in ${fetchTime}ms`);
 
-    // Sort on client side (much faster than database sort)
-    // Sort by updatedAt descending (most recently updated first)
+    // Sort by last recruiter edit (listing order); fallback to createdAt for jobs without it
     jobsWithoutPopulate.sort((a: any, b: any) => {
-      const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
-      const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      const dateA = new Date(a.lastRecruiterEditAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.lastRecruiterEditAt || b.createdAt || 0).getTime();
       return dateB - dateA; // Descending (newest first)
     });
     console.log(`[API /jobs] Sorted ${jobsWithoutPopulate.length} jobs on client side`);
@@ -820,6 +822,7 @@ export async function POST(request: NextRequest) {
       published: true, // Jobs are published by default
       datePosted: now, // System-managed: set when first published
       validThrough: validThroughDate, // System-managed: datePosted + 90 days
+      lastRecruiterEditAt: now, // For listing order: only updated on recruiter create/edit
     });
 
     // Save images to JobImage collection with isHero flag

@@ -33,6 +33,7 @@ interface Job {
   };
   createdAt: string;
   updatedAt?: string;
+  lastRecruiterEditAt?: string;
 }
 
 // Helper function to format time ago
@@ -267,7 +268,7 @@ function JobsPageContent() {
       );
 
       // Sort filtered jobs: featured first, then jobs with pictures, then jobs without pictures
-      // Within each group, sort by last edited date (updatedAt) descending, fallback to createdAt
+      // Within each group, sort by last recruiter edit (lastRecruiterEditAt) descending, fallback to createdAt
       const sortedFilteredJobs = [...filteredJobsList].sort((a, b) => {
         // Primary sort: Featured jobs come first
         const aFeatured = Boolean(a.featured);
@@ -283,10 +284,9 @@ function JobsPageContent() {
           if (!aHasPictures && bHasPictures) return 1;
         }
 
-        // Tertiary sort: Within each group, sort by last edited date (updatedAt) descending
-        // Fallback to createdAt if updatedAt doesn't exist
-        const aDate = a.updatedAt ? new Date(a.updatedAt).getTime() : new Date(a.createdAt || 0).getTime();
-        const bDate = b.updatedAt ? new Date(b.updatedAt).getTime() : new Date(b.createdAt || 0).getTime();
+        // Tertiary sort: by last recruiter edit (system updates like featured/visitCount/Instagram do not affect this)
+        const aDate = a.lastRecruiterEditAt ? new Date(a.lastRecruiterEditAt).getTime() : new Date(a.createdAt || 0).getTime();
+        const bDate = b.lastRecruiterEditAt ? new Date(b.lastRecruiterEditAt).getTime() : new Date(b.createdAt || 0).getTime();
         return bDate - aDate; // Descending (newest first)
       });
 
@@ -1001,10 +1001,8 @@ function JobsPageContent() {
                 <>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {currentJobs.map((job, index) => {
-                      // Get the most recent date (createdAt or updatedAt if it exists and is more recent)
-                      const mostRecentDate = (job.updatedAt && new Date(job.updatedAt) > new Date(job.createdAt))
-                        ? job.updatedAt
-                        : job.createdAt;
+                      // Date used for "last active" display; matches sort order (last recruiter edit, else created)
+                      const mostRecentDate = job.lastRecruiterEditAt || job.createdAt;
 
                       // Get the first picture, or use a placeholder
                       const firstPicture = job.pictures && job.pictures.length > 0
