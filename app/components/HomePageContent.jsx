@@ -481,6 +481,36 @@ export default function HomePageContent() {
         {/* Companies Preview Section */}
         <CompaniesPreview />
         
+        {/* World Watersports Map Section */}
+        <section className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <SectionHeader
+              title="World Watersports Map"
+              actionLabel="View Map"
+              actionHref="/map"
+            />
+            <Link
+              href="/map"
+              className="block rounded-xl overflow-hidden shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 hover:scale-[1.01]"
+            >
+              <div className="aspect-[2/1] w-full relative">
+                <Image
+                  src="/watersports-map.jpg"
+                  alt="World Watersports Map"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1280px) 100vw, 1280px"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/5 transition-colors">
+                  <span className="text-blue-600 font-semibold text-lg px-4 py-2 bg-white/90 rounded-lg shadow-md">
+                    Explore jobs and companies worldwide →
+                  </span>
+                </div>
+              </div>
+            </Link>
+          </div>
+        </section>
+        
         {/* Career Advice Section */}
         {careerAdviceArticles.length > 0 && (
           <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
