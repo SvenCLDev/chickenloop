@@ -94,15 +94,13 @@ export default function CompaniesPreview() {
                         sizes="(max-width: 640px) 120px, 160px"
                         unoptimized={isBlobStorageUrl(company.pictures[0])}
                       />
-                      {/* Logo overlay in top right corner */}
+                      {/* Logo overlay in top right corner - use plain img to match details page (avoids Next.js Image issues in prod) */}
                       {company.logo && (
-                        <div className="absolute top-1 right-1 w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-md shadow-md p-1 flex items-center justify-center z-10">
-                          <Image
+                        <div className="absolute top-1 right-1 w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-md shadow-md p-1 flex items-center justify-center z-10 overflow-hidden">
+                          <img
                             src={company.logo}
                             alt={`${company.name} logo`}
-                            width={40}
-                            height={40}
-                            className="object-contain w-full h-full"
+                            className="w-full h-full object-contain"
                           />
                         </div>
                       )}

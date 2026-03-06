@@ -49,16 +49,13 @@ export default function CompanyCard({ company }: CompanyCardProps) {
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               unoptimized={isBlobStorageUrl(company.pictures[0])}
             />
-            {/* Logo overlay in top right corner */}
+            {/* Logo overlay in top right corner - use plain img to match details page (avoids Next.js Image issues in prod) */}
             {company.logo && (
-              <div className="absolute top-2 right-2 w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-lg shadow-md p-1.5 flex items-center justify-center z-10">
-                <Image
+              <div className="absolute top-2 right-2 w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-lg shadow-md p-1.5 flex items-center justify-center z-10 overflow-hidden">
+                <img
                   src={company.logo}
                   alt={`${company.name} logo`}
-                  width={56}
-                  height={56}
-                  className="object-contain w-full h-full"
-                  unoptimized={isBlobStorageUrl(company.logo)}
+                  className="w-full h-full object-contain"
                 />
               </div>
             )}
