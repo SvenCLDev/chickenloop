@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import SectionHeader from './SectionHeader';
 import { getCompanyUrl } from '@/lib/companySlug';
+import { stripHtmlToText } from '@/lib/sanitizeText';
 
 interface Company {
   id: string;
@@ -48,10 +49,11 @@ export default function CompaniesPreview() {
     loadCompanies();
   }, []);
 
-  // Get short tagline from description (first 100 characters)
+  // Get short tagline from description (first 100 chars of plain text, HTML stripped)
   const getTagline = (description?: string): string => {
     if (!description) return '';
-    return description.length > 100 ? description.substring(0, 100) + '...' : description;
+    const plain = stripHtmlToText(description);
+    return plain.length > 100 ? plain.substring(0, 100) + '...' : plain;
   };
 
   return (

@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import dynamic from 'next/dynamic';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { getJobUrl } from '@/lib/jobSlug';
+import { sanitizeRichTextLite } from '@/utils/sanitizeRichTextLite';
 
 const MapComponent = dynamic(
   () => import('./CompanyMap'),
@@ -177,9 +178,10 @@ export default function CompanyPageClient({ company, jobs }: Props) {
           </div>
 
           {company.description && (
-            <div className="mb-6">
-              <p className="text-gray-700 whitespace-pre-wrap">{company.description}</p>
-            </div>
+            <div
+              className="mb-6 prose prose-sm max-w-none text-gray-700 prose-ul:my-2 prose-li:my-0"
+              dangerouslySetInnerHTML={{ __html: sanitizeRichTextLite(company.description) }}
+            />
           )}
 
           {/* Internal linking: activities, country */}
