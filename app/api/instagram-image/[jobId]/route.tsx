@@ -7,7 +7,19 @@ import Job from '@/models/Job';
 export const runtime = 'nodejs';
 
 const POS_VALUES = ['bl', 'br', 'tl', 'tr'] as const;
-const BG_VALUES = ['grey', 'navy', 'blue', 'teal'] as const;
+const BG_VALUES = [
+  'grey',
+  'navy',
+  'blue',
+  'teal',
+  'yellow',
+  'amber',
+  'emerald',
+  'green',
+  'orange',
+  'sunset',
+  'red',
+] as const;
 type Pos = (typeof POS_VALUES)[number];
 type Bg = (typeof BG_VALUES)[number];
 
@@ -23,6 +35,13 @@ const PANEL_BG: Record<Bg, string> = {
   navy: 'rgba(15, 23, 42, 0.75)',
   blue: 'rgba(37, 99, 235, 0.75)',
   teal: 'rgba(13, 148, 136, 0.75)',
+  yellow: 'rgba(250, 204, 21, 0.75)',
+  amber: 'rgba(234, 179, 8, 0.75)',
+  emerald: 'rgba(16, 185, 129, 0.65)',
+  green: 'rgba(5, 150, 105, 0.65)',
+  orange: 'rgba(249, 115, 22, 0.65)',
+  sunset: 'rgba(234, 88, 12, 0.65)',
+  red: 'rgba(239, 68, 68, 0.65)',
 };
 
 const TITLE_MAX_CHARS = 70;

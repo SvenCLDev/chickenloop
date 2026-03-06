@@ -1999,6 +1999,13 @@ function AdminDashboard() {
                     <option value="navy">Navy</option>
                     <option value="blue">Blue</option>
                     <option value="teal">Teal</option>
+                    <option value="yellow">Yellow</option>
+                    <option value="amber">Amber</option>
+                    <option value="emerald">Emerald</option>
+                    <option value="green">Green</option>
+                    <option value="orange">Orange</option>
+                    <option value="sunset">Sunset</option>
+                    <option value="red">Red</option>
                   </select>
                 </div>
               </div>
