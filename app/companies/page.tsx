@@ -7,6 +7,7 @@ import Navbar from '../components/Navbar';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { getCompanyUrl } from '@/lib/companySlug';
 import { stripHtmlToText } from '@/lib/sanitizeText';
+import { isBlobStorageUrl } from '@/lib/imageUtils';
 import Link from 'next/link';
 
 interface Company {
@@ -370,6 +371,7 @@ function CompaniesPageContent() {
                                 fill
                                 className="object-cover"
                                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                                unoptimized={isBlobStorageUrl(firstPicture)}
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-300 to-gray-400">

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import SectionHeader from './SectionHeader';
 import { getCompanyUrl } from '@/lib/companySlug';
 import { stripHtmlToText } from '@/lib/sanitizeText';
+import { isBlobStorageUrl } from '@/lib/imageUtils';
 
 interface Company {
   id: string;
@@ -91,6 +92,7 @@ export default function CompaniesPreview() {
                         fill
                         className="object-cover transition-transform duration-300 hover:scale-110"
                         sizes="(max-width: 640px) 120px, 160px"
+                        unoptimized={isBlobStorageUrl(company.pictures[0])}
                       />
                       {/* Logo overlay in top right corner */}
                       {company.logo && (
@@ -112,6 +114,7 @@ export default function CompaniesPreview() {
                       fill
                       className="object-cover transition-transform duration-300 hover:scale-110"
                       sizes="(max-width: 640px) 120px, 160px"
+                      unoptimized={isBlobStorageUrl(company.logo)}
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-50 flex items-center justify-center">

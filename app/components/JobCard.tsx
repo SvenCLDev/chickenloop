@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { getJobUrl } from '@/lib/jobSlug';
+import { isBlobStorageUrl } from '@/lib/imageUtils';
 
 interface JobCardProps {
   job: {
@@ -110,6 +111,7 @@ export default function JobCard({
               quality={60}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="object-cover transition-transform duration-300 hover:scale-110"
+              unoptimized={isBlobStorageUrl(thumbnail)}
             />
           ) : (
             <Image
@@ -118,6 +120,7 @@ export default function JobCard({
               fill
               loading="lazy"
               quality={60}
+              unoptimized={isBlobStorageUrl(thumbnail)}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="object-cover transition-transform duration-300 hover:scale-110"
             />
