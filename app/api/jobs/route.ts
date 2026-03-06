@@ -540,7 +540,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Populate company name from Company collection (for job cards)
+    // Populate company name, pictures, and logo from Company collection (for job cards)
     if (jobs.length > 0) {
       try {
         const db = mongoose.connection.db;
@@ -550,16 +550,25 @@ export async function GET(request: NextRequest) {
           const companies = await companiesCollection.find({
             _id: { $in: companyIds.map((id: string) => new mongoose.Types.ObjectId(id)) }
           })
-            .project({ name: 1 })
+            .project({ name: 1, pictures: 1, logo: 1 })
             .maxTimeMS(3000)
             .toArray();
-          const companyNameMap = new Map(
-            companies.map((c: any) => [c._id.toString(), c.name || ''])
+          const companyMap = new Map(
+            companies.map((c: any) => [c._id.toString(), {
+              name: c.name || '',
+              pictures: Array.isArray(c.pictures) ? c.pictures : [],
+              logo: c.logo || null,
+            }])
           );
-          jobs = jobs.map((job: any) => ({
-            ...job,
-            company: job.company || (job.companyId ? companyNameMap.get(job.companyId) || '' : '')
-          }));
+          jobs = jobs.map((job: any) => {
+            const company = job.companyId ? companyMap.get(job.companyId) : null;
+            return {
+              ...job,
+              company: job.company || (company?.name ?? ''),
+              companyPictures: company?.pictures ?? [],
+              companyLogo: company?.logo ?? null,
+            };
+          });
         }
       } catch (companyError: any) {
         console.error('[API /jobs] Company populate error:', companyError.message);
@@ -592,6 +601,7 @@ export async function GET(request: NextRequest) {
           });
           
           // Transform jobs: replace pictures array with single selected image
+          // Fallback: if job has no picture, use company's first picture or logo
           jobs = jobs.map((job: any) => {
             const jobIdStr = job._id.toString();
             let selectedImage: string | null = null;
@@ -604,10 +614,19 @@ export async function GET(request: NextRequest) {
             else if (job.pictures && Array.isArray(job.pictures) && job.pictures.length > 0) {
               selectedImage = job.pictures[0];
             }
+            // Rule 3: Fallback to company's first picture
+            else if (job.companyPictures && job.companyPictures.length > 0) {
+              selectedImage = job.companyPictures[0];
+            }
+            // Rule 4: Fallback to company logo
+            else if (job.companyLogo) {
+              selectedImage = job.companyLogo;
+            }
             
-            // Return job with optimized pictures array (0 or 1 image)
+            // Return job with optimized pictures array (0 or 1 image); omit companyPictures/companyLogo from response
+            const { companyPictures, companyLogo, ...rest } = job;
             return {
-              ...job,
+              ...rest,
               pictures: selectedImage ? [selectedImage] : [],
             };
           });

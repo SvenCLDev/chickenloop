@@ -132,8 +132,8 @@ export default function HomePageContent() {
       const response = await fetch('/api/jobs-list');
       const data = await response.json();
       const jobsList = data.jobs || [];
-      // Fetch enough so that after excluding featured we can show 3 (e.g. up to 3 featured + 3 latest = 6)
-      setLatestJobs(jobsList.slice(0, 9));
+      // Fetch enough so that after excluding featured we can show 6 (e.g. up to 6 featured + 6 latest = 12)
+      setLatestJobs(jobsList.slice(0, 12));
     } catch (err) {
       console.error('Failed to load latest jobs:', err);
     } finally {
@@ -146,8 +146,8 @@ export default function HomePageContent() {
       const response = await fetch('/api/jobs?featured=true');
       const data = await response.json();
       const jobsList = data.jobs || [];
-      // Get the first 3 featured jobs
-      setFeaturedJobs(jobsList.slice(0, 3));
+      // Get the first 6 featured jobs
+      setFeaturedJobs(jobsList.slice(0, 6));
     } catch (err) {
       console.error('Failed to load featured jobs:', err);
     } finally {

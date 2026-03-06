@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Populate company name from Company collection (for job cards)
+    // Populate company name, pictures, and logo from Company collection (for job cards)
     if (jobs.length > 0) {
       try {
         const db = mongoose.connection.db;
@@ -132,16 +132,32 @@ export async function GET(request: NextRequest) {
           const companies = await companiesCollection.find({
             _id: { $in: companyIds.map((id: string) => new mongoose.Types.ObjectId(id)) }
           })
-            .project({ name: 1 })
+            .project({ name: 1, pictures: 1, logo: 1 })
             .maxTimeMS(3000)
             .toArray();
-          const companyNameMap = new Map(
-            companies.map((c: any) => [c._id.toString(), c.name || ''])
+          const companyMap = new Map(
+            companies.map((c: any) => [c._id.toString(), {
+              name: c.name || '',
+              pictures: Array.isArray(c.pictures) ? c.pictures : [],
+              logo: c.logo || null,
+            }])
           );
-          jobs = jobs.map((job: any) => ({
-            ...job,
-            company: job.company || (job.companyId ? companyNameMap.get(job.companyId) || '' : '')
-          }));
+          jobs = jobs.map((job: any) => {
+            const company = job.companyId ? companyMap.get(job.companyId) : null;
+            let pictures = job.pictures && Array.isArray(job.pictures) && job.pictures.length > 0
+              ? job.pictures
+              : [];
+            // Fallback: if job has no picture, use company's first picture or logo
+            if (pictures.length === 0 && company) {
+              const fallback = (company.pictures?.length > 0 ? company.pictures[0] : null) || company.logo;
+              if (fallback) pictures = [fallback];
+            }
+            return {
+              ...job,
+              company: job.company || (company?.name ?? ''),
+              pictures,
+            };
+          });
         }
       } catch (companyError: any) {
         console.error('[API /jobs-list] Company populate error:', companyError.message);
