@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Navbar from '../components/Navbar';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { getCompanyUrl } from '@/lib/companySlug';
+import { stripHtmlToText } from '@/lib/sanitizeText';
 import Link from 'next/link';
 
 interface Company {
@@ -66,6 +67,13 @@ function isValidImageSrc(src: unknown): src is string {
     }
   }
   return false;
+}
+
+/** Short tagline from description (first 100 chars of plain text, HTML stripped). */
+function getTagline(description?: string): string {
+  if (!description) return '';
+  const plain = stripHtmlToText(description);
+  return plain.length > 100 ? plain.substring(0, 100) + '...' : plain;
 }
 
 // Helper function to format time ago
@@ -375,6 +383,12 @@ function CompaniesPageContent() {
                             <h2 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
                               {company.name}
                             </h2>
+
+                            {company.description && (
+                              <p className="text-sm text-gray-600 line-clamp-3 mb-2">
+                                {getTagline(company.description)}
+                              </p>
+                            )}
 
                             {/* Location and Time Ago */}
                             <div className="flex flex-col gap-1">
