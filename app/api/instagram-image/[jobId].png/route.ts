@@ -8,11 +8,12 @@ import { GET as generateImage } from '../[jobId]/route';
  */
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ jobId: string }> }
+  context: { params: Promise<{}> }
 ) {
-  const params = await context.params;
-  const rawId = params.jobId ?? '';
-  const jobId = rawId.replace('.png', '');
+  const resolved = await context.params;
+  const params = resolved as Record<string, string | undefined>;
+  const rawId = (params['jobId'] ?? Object.values(params)[0]) ?? '';
+  const jobId = String(rawId).replace('.png', '');
   return generateImage(request, {
     params: Promise.resolve({ jobId: jobId ? `${jobId}.png` : '' }),
   });
