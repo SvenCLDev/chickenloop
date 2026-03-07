@@ -329,6 +329,9 @@ export async function postJobToInstagram(
     `https://graph.facebook.com/v18.0/${process.env.INSTAGRAM_USER_ID}/media`,
     {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
       body: createParams,
     }
   );
@@ -393,6 +396,9 @@ export async function postJobToInstagram(
     `https://graph.facebook.com/v18.0/${process.env.INSTAGRAM_USER_ID}/media_publish`,
     {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
       body: publishParams,
     }
   );
