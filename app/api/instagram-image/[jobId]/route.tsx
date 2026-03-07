@@ -240,7 +240,7 @@ export async function GET(
     const jpegBuffer = await sharp(pngBuffer)
       .jpeg({ quality: 90 })
       .toBuffer();
-    return new Response(jpegBuffer, {
+    return new Response(new Uint8Array(jpegBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'image/jpeg',
