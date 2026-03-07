@@ -333,6 +333,7 @@ export async function postJobToInstagram(
     access_token: process.env.META_ACCESS_TOKEN!,
   });
 
+  console.log('[instagram] image_url', imageUrl);
   console.log('[instagram] media request', {
     image_url: imageUrl,
     captionLength: caption?.length,
