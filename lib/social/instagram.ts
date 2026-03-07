@@ -236,6 +236,8 @@ export async function postJobToInstagram(
   }
 
   const jobIdStr = typeof jobId === 'string' ? jobId : String(jobId);
+  console.log('[instagram] starting post', { jobId: jobIdStr });
+
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
   if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.startsWith('https://')) {
     throw new Error('NEXT_PUBLIC_SITE_URL must be set to the canonical site URL (e.g. https://www.chickenloop.com)');
@@ -325,11 +327,10 @@ export async function postJobToInstagram(
     access_token: process.env.META_ACCESS_TOKEN!,
   });
 
-  const metaToken = process.env.META_ACCESS_TOKEN;
-  console.log('Instagram media payload:', {
+  console.log('[instagram] sending media request', {
     image_url: imageUrl,
-    caption,
-    access_token: metaToken ? metaToken.slice(0, 8) + '...' : undefined,
+    captionLength: caption?.length,
+    tokenPresent: !!process.env.META_ACCESS_TOKEN,
   });
 
   const createRes = await fetch(
@@ -344,7 +345,7 @@ export async function postJobToInstagram(
   );
 
   const createData = await createRes.json();
-  console.log('Instagram create media response:', createData);
+  console.log('[instagram] create media response', createData);
 
   if (!createRes.ok) {
     throw new Error(
