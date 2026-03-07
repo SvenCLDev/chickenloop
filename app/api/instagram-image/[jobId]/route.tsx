@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { NextRequest } from 'next/server';
 import mongoose from 'mongoose';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
@@ -62,11 +63,12 @@ function clampTitle(title: string, maxChars: number = TITLE_MAX_CHARS): string {
  * Does not call the Instagram API.
  */
 export async function GET(
-  request: Request,
-  { params }: { params: { jobId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
-    const rawId = params.jobId ?? '';
+    const { jobId: rawParam } = await params;
+    const rawId = rawParam ?? '';
 
     // Remove optional .png suffix
     const jobId = rawId.replace('.png', '');
