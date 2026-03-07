@@ -22,6 +22,10 @@ const allowedBots = [
   'Bingbot',
   'DuckDuckBot',
   'Applebot',
+  // Meta / Facebook – required for Instagram Graph API image fetching, link previews, platform integrations
+  'facebookexternalhit',
+  'Facebot',
+  'meta-externalagent',
 ];
 
 export default async function proxy(request: NextRequest) {
@@ -52,12 +56,10 @@ export default async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - robots.txt (robots file)
-     * - sitemap.xml (sitemap file)
+     * Match all request paths except static assets. This includes:
+     * - /api/* (all API routes, including /api/instagram-image/* for Meta crawlers)
+     * - All page routes
+     * Excluded: _next/static, _next/image, favicon.ico, robots.txt, sitemap.xml
      */
     '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
   ],
