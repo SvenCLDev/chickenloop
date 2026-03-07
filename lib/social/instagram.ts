@@ -242,7 +242,7 @@ export async function postJobToInstagram(
   if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.startsWith('https://')) {
     throw new Error('NEXT_PUBLIC_SITE_URL must be set to the canonical site URL (e.g. https://www.chickenloop.com)');
   }
-  const imageUrl = `${baseUrl.replace(/\/$/, '')}/api/instagram-image/${jobIdStr}?pos=${encodeURIComponent(pos)}&bg=${encodeURIComponent(bg)}&v=${Date.now()}`;
+  const imageUrl = `${baseUrl.replace(/\/$/, '')}/api/instagram-image/${jobIdStr}.png?pos=${encodeURIComponent(pos)}&bg=${encodeURIComponent(bg)}&v=${Date.now()}`;
 
   const cityLabel = job.city ?? '';
   const countryLabel = job.country ?? '';

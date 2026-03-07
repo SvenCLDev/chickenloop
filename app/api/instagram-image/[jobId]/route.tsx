@@ -57,9 +57,8 @@ function clampTitle(title: string, maxChars: number = TITLE_MAX_CHARS): string {
 }
 
 /**
- * GET /api/instagram-image/[jobId]
- * Generates a 1080x1080 JPEG image for Instagram post.
- * Instagram Graph API only accepts JPEG for image_url; we generate PNG then convert.
+ * GET /api/instagram-image/[jobId] or /api/instagram-image/[jobId].png
+ * Generates a 1080x1080 image. Supports both URL forms; .png path returns PNG, otherwise JPEG.
  * Does not call the Instagram API.
  */
 export async function GET(
@@ -67,10 +66,12 @@ export async function GET(
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
-    const { jobId } = await params;
+    const { jobId: rawId } = await params;
+    const jobId = rawId ? rawId.replace(/\.png$/i, '') : '';
     if (!jobId) {
       return new Response('Job ID is required', { status: 400 });
     }
+    const requestPng = rawId.toLowerCase().endsWith('.png');
 
     await connectDB();
 
@@ -234,8 +235,18 @@ export async function GET(
       width: 1080,
       height: 1080,
     });
-    // Instagram Graph API only accepts JPEG for image_url; convert PNG → JPEG
     const pngBuffer = Buffer.from(await pngResponse.arrayBuffer());
+
+    if (requestPng) {
+      return new Response(new Uint8Array(pngBuffer), {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/png',
+          'Cache-Control': 'public, max-age=3600',
+        },
+      });
+    }
+    // Non-.png URL: return JPEG for Instagram Graph API compatibility
     const jpegBuffer = await sharp(pngBuffer)
       .jpeg({ quality: 90 })
       .toBuffer();
