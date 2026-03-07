@@ -336,13 +336,9 @@ export async function postJobToInstagram(
   );
 
   const createData = await createRes.json();
+  console.log('Instagram create media response:', createData);
 
   if (!createRes.ok) {
-    console.error('Instagram create media failed:', {
-      status: createRes.status,
-      statusText: createRes.statusText,
-      body: createData,
-    });
     throw new Error(
       createData?.error?.message ||
         `Instagram create media failed: ${createRes.status}`
@@ -404,9 +400,9 @@ export async function postJobToInstagram(
   );
 
   const publishData = await publishRes.json();
+  console.log('Instagram publish response:', publishData);
 
   if (!publishRes.ok) {
-    console.error('Instagram publish failed:', publishData);
     throw new Error(
       publishData?.error?.message ||
         `Instagram publish failed: ${publishRes.status}`
