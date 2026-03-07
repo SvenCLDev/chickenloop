@@ -2,8 +2,9 @@ import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
+import sharp from 'sharp';
 
-// Node.js required: Mongoose does not support Edge runtime
+// Node.js required: Mongoose and sharp do not support Edge runtime
 export const runtime = 'nodejs';
 
 const POS_VALUES = ['bl', 'br', 'tl', 'tr'] as const;
@@ -57,7 +58,8 @@ function clampTitle(title: string, maxChars: number = TITLE_MAX_CHARS): string {
 
 /**
  * GET /api/instagram-image/[jobId]
- * Generates a 1080x1080 PNG image for Instagram post.
+ * Generates a 1080x1080 JPEG image for Instagram post.
+ * Instagram Graph API only accepts JPEG for image_url; we generate PNG then convert.
  * Does not call the Instagram API.
  */
 export async function GET(
@@ -73,14 +75,14 @@ export async function GET(
     await connectDB();
 
     const job = await Job.findById(jobId)
-      .populate('companyId', 'name')
+      .populate('companyId', 'name pictures logo')
       .lean();
 
     if (!job) {
       return new Response('Job not found', { status: 404 });
     }
 
-    const company = job.companyId as { name?: string } | null;
+    const company = job.companyId as { name?: string; pictures?: string[]; logo?: string } | null;
     const companyName = company?.name ?? '';
     const activity =
       (job.sports && job.sports[0]) ??
@@ -92,10 +94,14 @@ export async function GET(
     const locationLine = [city, country].filter(Boolean).join(', ');
     const title = job.title ?? 'Job';
     const displayTitle = clampTitle(title, TITLE_MAX_CHARS);
+    // Fallback: job picture → company first picture → company logo (same as job cards)
     const backgroundImageUrl =
-      job.pictures && job.pictures[0] && typeof job.pictures[0] === 'string'
+      (job.pictures && job.pictures[0] && typeof job.pictures[0] === 'string'
         ? job.pictures[0]
-        : null;
+        : null) ??
+      (company?.pictures && company.pictures[0] ? company.pictures[0] : null) ??
+      (company?.logo && typeof company.logo === 'string' ? company.logo : null) ??
+      null;
 
     const searchParams = request.url ? new URL(request.url).searchParams : null;
     const posRaw = searchParams?.get('pos')?.toLowerCase();
@@ -225,9 +231,21 @@ export async function GET(
       </div>
     );
 
-    return new ImageResponse(element, {
+    const pngResponse = new ImageResponse(element, {
       width: 1080,
       height: 1080,
+    });
+    // Instagram Graph API only accepts JPEG for image_url; convert PNG → JPEG
+    const pngBuffer = Buffer.from(await pngResponse.arrayBuffer());
+    const jpegBuffer = await sharp(pngBuffer)
+      .jpeg({ quality: 90 })
+      .toBuffer();
+    return new Response(jpegBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=3600',
+      },
     });
   } catch (error) {
     console.error('[instagram-image]', error);
