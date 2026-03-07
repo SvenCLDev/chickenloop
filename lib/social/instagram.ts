@@ -211,6 +211,12 @@ export async function postJobToInstagram(
   job: any,
   options?: { pos?: string; bg?: string; customTags?: string }
 ): Promise<string> {
+  console.log('[instagram] function called', {
+    jobId: job?._id,
+    hasToken: !!process.env.META_ACCESS_TOKEN,
+    igUser: process.env.INSTAGRAM_USER_ID,
+  });
+
   if (!process.env.INSTAGRAM_USER_ID || !process.env.META_ACCESS_TOKEN) {
     throw new Error('Missing Instagram environment variables.');
   }
@@ -327,10 +333,9 @@ export async function postJobToInstagram(
     access_token: process.env.META_ACCESS_TOKEN!,
   });
 
-  console.log('[instagram] sending media request', {
+  console.log('[instagram] media request', {
     image_url: imageUrl,
     captionLength: caption?.length,
-    tokenPresent: !!process.env.META_ACCESS_TOKEN,
   });
 
   const createRes = await fetch(
