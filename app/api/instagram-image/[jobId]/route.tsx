@@ -75,14 +75,14 @@ export async function GET(
     await connectDB();
 
     const job = await Job.findById(jobId)
-      .populate('companyId', 'name pictures logo')
+      .populate('companyId', 'name')
       .lean();
 
     if (!job) {
       return new Response('Job not found', { status: 404 });
     }
 
-    const company = job.companyId as { name?: string; pictures?: string[]; logo?: string } | null;
+    const company = job.companyId as { name?: string } | null;
     const companyName = company?.name ?? '';
     const activity =
       (job.sports && job.sports[0]) ??
@@ -94,14 +94,13 @@ export async function GET(
     const locationLine = [city, country].filter(Boolean).join(', ');
     const title = job.title ?? 'Job';
     const displayTitle = clampTitle(title, TITLE_MAX_CHARS);
-    // Fallback: job picture → company first picture → company logo (same as job cards)
+    // Use only job.pictures[0] for background. No company fallback here: ImageResponse fetches
+    // the URL server-side and that can fail for blob URLs in serverless, causing 500 text
+    // response and Instagram "Only photo or video" error.
     const backgroundImageUrl =
-      (job.pictures && job.pictures[0] && typeof job.pictures[0] === 'string'
+      job.pictures && job.pictures[0] && typeof job.pictures[0] === 'string'
         ? job.pictures[0]
-        : null) ??
-      (company?.pictures && company.pictures[0] ? company.pictures[0] : null) ??
-      (company?.logo && typeof company.logo === 'string' ? company.logo : null) ??
-      null;
+        : null;
 
     const searchParams = request.url ? new URL(request.url).searchParams : null;
     const posRaw = searchParams?.get('pos')?.toLowerCase();
