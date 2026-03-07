@@ -166,13 +166,6 @@ export function buildInstagramPreview(job: any): InstagramPreview {
   };
 }
 
-/** Base URL of the app for public links (e.g. generated image). Instagram API fetches image_url from here. */
-function getAppBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://chickenloop.com')
-  );
-}
 
 /** Parse customTags into customHashtags and customMentions. Dedupe against auto hashtags. */
 function parseCustomTags(
@@ -245,8 +238,11 @@ export async function postJobToInstagram(
   const pos = options?.pos ?? 'bl';
   const bg = options?.bg ?? 'grey';
   const jobIdStr = typeof jobId === 'string' ? jobId : String(jobId);
-  const baseUrl = getAppBaseUrl();
-  const imageUrl = `${baseUrl}/api/instagram-image/${jobIdStr}?pos=${encodeURIComponent(pos)}&bg=${encodeURIComponent(bg)}&v=${Date.now()}`;
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.startsWith('https://')) {
+    throw new Error('NEXT_PUBLIC_SITE_URL must be set to the canonical site URL (e.g. https://www.chickenloop.com)');
+  }
+  const imageUrl = `${baseUrl.replace(/\/$/, '')}/api/instagram-image/${jobIdStr}?pos=${encodeURIComponent(pos)}&bg=${encodeURIComponent(bg)}&v=${Date.now()}`;
 
   const cityLabel = job.city ?? '';
   const countryLabel = job.country ?? '';

@@ -85,10 +85,17 @@ Or use any random secure string.
 
 **How to add**: Same process as above, use key `CRON_SECRET`
 
-### 6. NEXT_PUBLIC_BASE_URL (OPTIONAL)
-**Purpose**: Base URL for job links in emails
+### 6. NEXT_PUBLIC_SITE_URL (REQUIRED for Instagram posting)
+**Purpose**: Canonical site URL used when posting jobs to Instagram. The Instagram Graph API fetches the generated image from this URL, so it must be publicly reachable and use the **www** subdomain (e.g. `https://www.chickenloop.com`).
 
-**Value**: `https://chickenloop.com` (or your production domain)
+**Value**: `https://www.chickenloop.com`
+
+**How to add**: Add as `NEXT_PUBLIC_SITE_URL` in Production (and Preview if you test Instagram there). Do not use a non-www fallback for Instagram.
+
+### 7. NEXT_PUBLIC_BASE_URL (OPTIONAL)
+**Purpose**: Base URL for job links in emails (legacy; prefer NEXT_PUBLIC_SITE_URL for canonical URL)
+
+**Value**: `https://www.chickenloop.com` or your production domain
 
 **How to add**: Same process as above, use key `NEXT_PUBLIC_BASE_URL`
 
