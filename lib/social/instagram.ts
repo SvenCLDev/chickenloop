@@ -325,6 +325,13 @@ export async function postJobToInstagram(
     access_token: process.env.META_ACCESS_TOKEN!,
   });
 
+  const metaToken = process.env.META_ACCESS_TOKEN;
+  console.log('Instagram media payload:', {
+    image_url: imageUrl,
+    caption,
+    access_token: metaToken ? metaToken.slice(0, 8) + '...' : undefined,
+  });
+
   const createRes = await fetch(
     `https://graph.facebook.com/v18.0/${process.env.INSTAGRAM_USER_ID}/media`,
     {
