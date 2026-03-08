@@ -5,6 +5,7 @@ import Job from '@/models/Job';
 import {
   generateInstagramImageBuffer,
   generateInstagramImagePngBuffer,
+  type InstagramImageJob,
   type Pos,
   type Bg,
   POS_VALUES,
@@ -57,8 +58,9 @@ export async function GET(
     const bgRaw = searchParams?.get('bg')?.toLowerCase();
     const bg: Bg = bgRaw && BG_VALUES.includes(bgRaw as Bg) ? (bgRaw as Bg) : 'grey';
 
+    const jobForImage = job as InstagramImageJob;
     if (requestPng) {
-      const pngBuffer = await generateInstagramImagePngBuffer(job, { pos, bg });
+      const pngBuffer = await generateInstagramImagePngBuffer(jobForImage, { pos, bg });
       return new Response(new Uint8Array(pngBuffer), {
         status: 200,
         headers: {
@@ -67,7 +69,7 @@ export async function GET(
         },
       });
     }
-    const jpegBuffer = await generateInstagramImageBuffer(job, { pos, bg });
+    const jpegBuffer = await generateInstagramImageBuffer(jobForImage, { pos, bg });
     return new Response(new Uint8Array(jpegBuffer), {
       status: 200,
       headers: {
