@@ -101,6 +101,9 @@ export async function POST(
     if (message === 'Missing Instagram environment variables.') {
       return NextResponse.json({ error: message }, { status: 503 });
     }
+    if (message.includes('BLOB_READ_WRITE_TOKEN')) {
+      return NextResponse.json({ error: message }, { status: 503 });
+    }
 
     console.error('[admin/instagram-post]', error);
     return NextResponse.json(

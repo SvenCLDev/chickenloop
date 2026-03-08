@@ -1,12 +1,15 @@
 /**
  * Post a job to Instagram via Graph API (create media container + publish).
- * Requires INSTAGRAM_USER_ID and META_ACCESS_TOKEN in environment.
- * Updates the Job document with instagramPostId and instagramPostedAt on success.
+ * Requires INSTAGRAM_USER_ID, META_ACCESS_TOKEN, and BLOB_READ_WRITE_TOKEN in environment.
+ * Generates the card image once, uploads it to Vercel Blob, then sends the static blob URL to Instagram
+ * so Meta's crawler can fetch it reliably (dynamic image URLs often timeout).
  */
 
 import mongoose from 'mongoose';
+import { put } from '@vercel/blob';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
+import { generateInstagramImageBuffer } from '@/lib/instagram-image';
 
 const MAX_HASHTAGS = 10;
 const MIN_HASHTAG_LENGTH = 3;
@@ -211,12 +214,6 @@ export async function postJobToInstagram(
   job: any,
   options?: { pos?: string; bg?: string; customTags?: string }
 ): Promise<string> {
-  console.log('[instagram] function called', {
-    jobId: job?._id,
-    hasToken: !!process.env.META_ACCESS_TOKEN,
-    igUser: process.env.INSTAGRAM_USER_ID,
-  });
-
   if (!process.env.INSTAGRAM_USER_ID || !process.env.META_ACCESS_TOKEN) {
     throw new Error('Missing Instagram environment variables.');
   }
@@ -242,13 +239,24 @@ export async function postJobToInstagram(
   }
 
   const jobIdStr = typeof jobId === 'string' ? jobId : String(jobId);
-  console.log('[instagram] starting post', { jobId: jobIdStr });
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.startsWith('https://')) {
-    throw new Error('NEXT_PUBLIC_SITE_URL must be set to the canonical site URL (e.g. https://www.chickenloop.com)');
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error(
+      'BLOB_READ_WRITE_TOKEN is required to post to Instagram. The image is generated and uploaded to Vercel Blob so Meta can fetch it reliably.'
+    );
   }
-  const imageUrl = `${baseUrl.replace(/\/$/, '')}/api/instagram-image/${jobIdStr}.png`;
+
+  // Generate the card image once and upload to Vercel Blob; Instagram requires a fast, static URL.
+  const imageBuffer = await generateInstagramImageBuffer(job, {
+    pos: options?.pos,
+    bg: options?.bg,
+  });
+  const blobPath = `instagram/${jobIdStr}-${Date.now()}.jpg`;
+  const blob = await put(blobPath, imageBuffer, {
+    access: 'public',
+    contentType: 'image/jpeg',
+  });
+  const imageUrl = blob.url;
 
   const cityLabel = job.city ?? '';
   const countryLabel = job.country ?? '';
@@ -333,12 +341,6 @@ export async function postJobToInstagram(
     access_token: process.env.META_ACCESS_TOKEN!,
   });
 
-  console.log('[instagram] image_url', imageUrl);
-  console.log('[instagram] media request', {
-    image_url: imageUrl,
-    captionLength: caption?.length,
-  });
-
   const createRes = await fetch(
     `https://graph.facebook.com/v18.0/${process.env.INSTAGRAM_USER_ID}/media`,
     {
@@ -351,7 +353,6 @@ export async function postJobToInstagram(
   );
 
   const createData = await createRes.json();
-  console.log('[instagram] create media response', createData);
 
   if (!createRes.ok) {
     throw new Error(
@@ -387,7 +388,6 @@ export async function postJobToInstagram(
     status = statusData?.status_code ?? 'IN_PROGRESS';
     attempts++;
 
-    console.log('Instagram media status:', status);
 
     if (status === 'FINISHED' || status === 'ERROR') {
       break;
@@ -418,7 +418,6 @@ export async function postJobToInstagram(
   );
 
   const publishData = await publishRes.json();
-  console.log('Instagram publish response:', publishData);
 
   if (!publishRes.ok) {
     throw new Error(
