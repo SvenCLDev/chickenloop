@@ -57,14 +57,14 @@ function clampTitle(title: string, maxChars: number = TITLE_MAX_CHARS): string {
 
 export interface InstagramImageJob {
   _id?: unknown;
-  title?: string;
-  city?: string;
-  country?: string;
+  title?: string | null;
+  city?: string | null;
+  country?: string | null;
   sports?: unknown[];
   occupationalAreas?: unknown[];
-  companyId?: { name?: string };
-  company?: { name?: string; logo?: string };
-  pictures?: string[];
+  companyId?: { name?: string | null };
+  company?: { name?: string | null; logo?: string | null };
+  pictures?: (string | null)[];
 }
 
 export interface GenerateInstagramImageOptions {
