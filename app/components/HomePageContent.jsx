@@ -359,7 +359,7 @@ export default function HomePageContent() {
           {/* Hero Content */}
           <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 sm:mb-6 drop-shadow-lg">
-              Find Your Next Watersports Job
+              #1 Free Global Watersports Job Board
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-white/90 mb-6 sm:mb-8 drop-shadow-md max-w-2xl mx-auto">
               Kite, surf, foil, sail, dive or more — discover job opportunities worldwide.
