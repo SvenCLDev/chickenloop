@@ -59,6 +59,11 @@ export async function requireRole(
   if (userDoc?.mustResetPassword) {
     throw new Error('PASSWORD_RESET_REQUIRED');
   }
+  // Update lastOnline so "last logged in" is accurate on candidate cards and elsewhere
+  await User.updateOne(
+    { _id: user.userId },
+    { $set: { lastOnline: new Date() } }
+  ).catch(() => { /* ignore update errors */ });
   if (user.role === 'recruiter' && !options?.skipCompanyProfileCheck) {
     const path = new URL(request.url).pathname;
     const bypassCompanyMissing =
@@ -106,6 +111,10 @@ export async function requireRecruiterAllowIncomplete(request: NextRequest): Pro
   if (userDoc?.mustResetPassword) {
     throw new Error('PASSWORD_RESET_REQUIRED');
   }
+  await User.updateOne(
+    { _id: user.userId },
+    { $set: { lastOnline: new Date() } }
+  ).catch(() => {});
   return user;
 }
 

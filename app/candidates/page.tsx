@@ -437,8 +437,8 @@ function CVsPageContent() {
                 ? cv.pictures[0]
                 : null;
 
-              // Get user's last online date
-              const lastOnlineDate = cv.jobSeeker?.lastOnline;
+              // Get user's last online date (fallback to CV updatedAt for users without lastOnline set yet)
+              const lastOnlineDate = cv.jobSeeker?.lastOnline || cv.updatedAt;
 
               const isFavourite = favouriteCvIds.has(cv._id);
               const showHeart = user && (user.role === 'recruiter' || user.role === 'admin');
@@ -551,7 +551,7 @@ function CVsPageContent() {
                         </p>
                       )}
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500">Last logged in:</span>
+                        <span className="text-xs text-gray-500">Last online:</span>
                         {lastOnlineDate ? (
                           <TimeAgoDisplay date={lastOnlineDate} />
                         ) : (

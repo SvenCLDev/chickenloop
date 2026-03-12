@@ -221,6 +221,7 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         featured: '$isFeatured',
         pictures: 1,
         createdAt: 1,
+        updatedAt: 1,
         jobSeeker: {
           _id: '$jobSeekerInfo._id',
           name: '$jobSeekerInfo.name',
