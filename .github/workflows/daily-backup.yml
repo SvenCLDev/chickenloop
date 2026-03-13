@@ -1,3 +1,5 @@
+# Daily Backup: scheduled and manual runs use the workflow from the branch they run on.
+# For schedule (03:00 UTC) and default manual run, that is usually "main". Merge workflow changes to main for them to take effect.
 name: Daily Backup
 
 on:
@@ -21,10 +23,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install MongoDB tools
+      - name: Install MongoDB Database Tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y mongodb-database-tools
+          # Install mongodump via tarball (avoids apt repo / package name issues on ubuntu-latest)
+          TOOLS_VER=100.14.1
+          curl -sSLO "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-${TOOLS_VER}.tgz"
+          tar -zxf "mongodb-database-tools-ubuntu2204-x86_64-${TOOLS_VER}.tgz"
+          sudo cp "mongodb-database-tools-ubuntu2204-x86_64-${TOOLS_VER}/bin/mongodump" /usr/local/bin/
+          sudo chmod +x /usr/local/bin/mongodump
+          mongodump --version
 
       - name: Run Mongo Backup
         run: npx tsx scripts/backupMongoAtlas.ts

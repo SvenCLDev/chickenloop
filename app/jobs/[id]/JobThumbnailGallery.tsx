@@ -27,10 +27,14 @@ export default function JobThumbnailGallery({ pictures, jobTitle, allPictures }:
     return null;
   }
 
+  const count = pictures.length;
+  const gridCols = count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : 'grid-cols-3';
+  const thumbHeight = count === 1 ? 'h-64 sm:h-80' : 'h-32';
+
   return (
     <>
-      {/* Thumbnail Grid Only - No Featured Image */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* Thumbnail Grid - 1 = full width, 2 = half each, 3 = third each */}
+      <div className={`grid ${gridCols} gap-2`}>
         {pictures.map((picture, index) => (
           <button
             key={index}
@@ -38,7 +42,7 @@ export default function JobThumbnailGallery({ pictures, jobTitle, allPictures }:
               setLightboxIndex(getLightboxIndex(index));
               setIsLightboxOpen(true);
             }}
-            className="w-full h-32 overflow-hidden rounded-lg border border-gray-300 p-0"
+            className={`w-full ${thumbHeight} overflow-hidden rounded-lg border border-gray-300 p-0`}
             type="button"
           >
             <img
