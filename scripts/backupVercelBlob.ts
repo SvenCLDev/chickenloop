@@ -70,7 +70,7 @@ async function main(): Promise<void> {
     }
 
     console.log('Compressing...');
-    execSync('tar', ['-czf', archivePath, TEMP_FOLDER], { cwd, stdio: 'inherit' });
+    execSync(`tar -czf ${JSON.stringify(archivePath)} ${JSON.stringify(TEMP_FOLDER)}`, { cwd, stdio: 'inherit' });
 
     console.log('Removing temp folder...');
     fs.rmSync(tempDir, { recursive: true, force: true });
