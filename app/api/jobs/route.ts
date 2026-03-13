@@ -13,6 +13,7 @@ import { isValidJobCategory } from '@/lib/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
+import { geocodeJobLocation } from '@/lib/geocodeJobLocation';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 export async function GET(request: NextRequest) {
@@ -843,6 +844,15 @@ export async function POST(request: NextRequest) {
       validThrough: validThroughDate, // System-managed: datePosted + 90 days
       lastRecruiterEditAt: now, // For listing order: only updated on recruiter create/edit
     });
+
+    // Geocode location for map pin (city + country → coordinates; fallback to country centroid on map if null)
+    const coords = await geocodeJobLocation(city, normalizedCountry);
+    if (coords) {
+      await Job.updateOne(
+        { _id: job._id },
+        { $set: { coordinates: coords } }
+      );
+    }
 
     // Save images to JobImage collection with isHero flag
     if (pictures && Array.isArray(pictures) && pictures.length > 0) {

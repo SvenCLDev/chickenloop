@@ -27,7 +27,7 @@ export async function GET() {
 
     const [jobs, companies] = await Promise.all([
       Job.find({ published: { $ne: false } })
-        .select('_id title city country')
+        .select('_id title city country coordinates')
         .lean(),
       Company.find({})
         .select('_id name address coordinates')
@@ -36,10 +36,24 @@ export async function GET() {
 
     const jobPoints: MapPoint[] = [];
     for (const job of jobs) {
-      const countryCode = job.country?.trim();
-      const centroid = getCountryCentroid(countryCode);
-      if (!centroid) continue;
-      const [lat, lng] = centroid;
+      let lat: number;
+      let lng: number;
+      const coords = job.coordinates;
+      if (
+        coords &&
+        typeof coords.latitude === 'number' &&
+        typeof coords.longitude === 'number' &&
+        Number.isFinite(coords.latitude) &&
+        Number.isFinite(coords.longitude)
+      ) {
+        lat = coords.latitude;
+        lng = coords.longitude;
+      } else {
+        const countryCode = job.country?.trim();
+        const centroid = getCountryCentroid(countryCode);
+        if (!centroid) continue;
+        [lat, lng] = centroid;
+      }
       const href = getJobUrl({ title: job.title, country: job.country });
       const subtitle = [job.city, job.country].filter(Boolean).join(', ') || undefined;
       jobPoints.push({

@@ -9,6 +9,7 @@ import { JOB_CATEGORY_VALUES } from '@/lib/jobCategories';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
+import { geocodeJobLocation } from '@/lib/geocodeJobLocation';
 
 /** Job document shape for admin updates; may include fields not on current IJob (e.g. legacy). */
 type AdminJobDoc = IJob & {
@@ -296,6 +297,10 @@ export async function PUT(
       );
     }
 
+    // Re-geocode location for map pin
+    const coords = await geocodeJobLocation(job.city, job.country);
+    (job as IJob).coordinates = coords ?? null;
+
     await job.save();
 
     const updatedJob = await Job.findById(job._id)
@@ -392,4 +397,3 @@ export async function DELETE(
     );
   }
 }
-

@@ -46,6 +46,12 @@ export interface IJob extends Document {
   city: string;
   country?: string | null;
 
+  /** Geocoded from city + country for map display (e.g. /map). When set, map uses this instead of country centroid. */
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  } | null;
+
   salary?: string;
   type: (typeof EMPLOYMENT_TYPES)[number];
   experienceLevel?: (typeof EXPERIENCE_LEVELS)[number];
@@ -145,6 +151,11 @@ const JobSchema: Schema = new Schema(
     country: {
       type: String,
       default: null,
+    },
+
+    coordinates: {
+      latitude: Number,
+      longitude: Number,
     },
 
     salary: String,
