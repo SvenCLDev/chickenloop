@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
         title: 1,
         author: 1,
         createdAt: 1,
+        viewCount: 1,
       }
     });
 
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest) {
     pipeline.push({
       $addFields: {
         authorName: { $ifNull: ['$authorInfo.name', ''] },
+        viewCount: { $ifNull: ['$viewCount', 0] },
       }
     });
 
@@ -102,6 +104,9 @@ export async function GET(request: NextRequest) {
       case 'created':
         sortField = 'createdAt';
         break;
+      case 'views':
+        sortField = 'viewCount';
+        break;
       default:
         sortField = 'createdAt';
     }
@@ -130,6 +135,7 @@ export async function GET(request: NextRequest) {
         ? { name: article.authorInfo.name || 'Unknown', email: article.authorInfo.email || 'unknown@example.com' }
         : { name: 'Unknown', email: 'unknown@example.com' },
       createdAt: article.createdAt,
+      viewCount: article.viewCount ?? 0,
     }));
 
     return NextResponse.json({ articles: articlesWithData }, { status: 200 });

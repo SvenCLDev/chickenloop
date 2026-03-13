@@ -25,6 +25,8 @@ export async function GET(
       return NextResponse.json({ error: 'Article not found' }, { status: 404 });
     }
 
+    await CareerAdvice.updateOne({ _id: id }, { $inc: { viewCount: 1 } });
+
     return NextResponse.json({
       article: {
         id: article._id.toString(),

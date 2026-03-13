@@ -6,6 +6,7 @@ export interface ICareerAdvice extends Document {
   content: string; // HTML formatted content
   author: mongoose.Types.ObjectId; // Admin who created it
   published: boolean;
+  viewCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +33,10 @@ const CareerAdviceSchema: Schema = new Schema(
     published: {
       type: Boolean,
       default: true,
+    },
+    viewCount: {
+      type: Number,
+      default: 0,
     },
   },
   {

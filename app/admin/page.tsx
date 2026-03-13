@@ -446,6 +446,7 @@ function AdminDashboard() {
             'title': 'title',
             'author': 'author',
             'created': 'created',
+            'views': 'views',
           };
           const careerAdviceApiSortBy = careerAdviceSortByMap[sortColumn] || 'created';
           const careerAdviceData = await adminApi.getCareerAdvice({
@@ -1538,6 +1539,17 @@ function AdminDashboard() {
                             </th>
                             <th 
                               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('views')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Views
+                                {getSortIndicator('views') && (
+                                  <span className="text-gray-400">{getSortIndicator('views')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                               onClick={() => handleSort('created')}
                             >
                               <div className="flex items-center gap-1">
@@ -1889,6 +1901,9 @@ function AdminDashboard() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.author?.name || 'Unknown'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.viewCount ?? 0}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {new Date(entry.createdAt).toLocaleDateString()}
