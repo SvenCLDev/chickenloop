@@ -43,6 +43,12 @@ export default function Footer() {
             >
               Cookie Settings
             </Link>
+            <Link
+              href="/affiliate-disclosure"
+              className="text-sm text-gray-300 hover:text-white transition-colors"
+            >
+              Affiliate Disclosure
+            </Link>
           </div>
         </div>
       </div>

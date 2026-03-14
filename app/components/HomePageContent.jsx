@@ -478,6 +478,35 @@ export default function HomePageContent() {
           </div>
         </section>
         
+        {/* Career Advice Section */}
+        {careerAdviceArticles.length > 0 && (
+          <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <SectionHeader
+                title="Career Advice"
+                actionLabel="View All Articles"
+                actionHref="/career-advice"
+              />
+              
+              {careerAdviceLoading ? (
+                <div className="text-center py-16">
+                  <p className="text-gray-600 text-lg">Loading articles...</p>
+                </div>
+              ) : careerAdviceArticles.length === 0 ? (
+                <div className="text-center py-16">
+                  <p className="text-gray-600 text-lg">No articles available at the moment.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 sm:gap-6">
+                  {careerAdviceArticles.map((article) => (
+                    <CareerAdviceCard key={article.id} article={article} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+        
         {/* Companies Preview Section */}
         <CompaniesPreview />
         
@@ -510,35 +539,6 @@ export default function HomePageContent() {
             </Link>
           </div>
         </section>
-        
-        {/* Career Advice Section */}
-        {careerAdviceArticles.length > 0 && (
-          <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <SectionHeader
-                title="Career Advice"
-                actionLabel="View All Articles"
-                actionHref="/career-advice"
-              />
-              
-              {careerAdviceLoading ? (
-                <div className="text-center py-16">
-                  <p className="text-gray-600 text-lg">Loading articles...</p>
-                </div>
-              ) : careerAdviceArticles.length === 0 ? (
-                <div className="text-center py-16">
-                  <p className="text-gray-600 text-lg">No articles available at the moment.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 sm:gap-6">
-                  {careerAdviceArticles.map((article) => (
-                    <CareerAdviceCard key={article.id} article={article} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        )}
         
         {/* Top Candidates Section - Only visible to recruiters and admins */}
         {user && (user.role === 'recruiter' || user.role === 'admin') && (
