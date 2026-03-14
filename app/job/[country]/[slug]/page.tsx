@@ -14,6 +14,7 @@ import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import Company from '@/models/Company';
 import JobImage from '@/models/JobImage';
+import CareerAdvice from '@/models/CareerAdvice';
 import mongoose from 'mongoose';
 import JobFavouriteButton from '../../../jobs/[id]/JobFavouriteButton';
 import JobApplySection from '../../../jobs/[id]/JobApplySection';
@@ -21,6 +22,9 @@ import JobSpamButton from '../../../jobs/[id]/JobSpamButton';
 import JobThumbnailGallery from '../../../jobs/[id]/JobThumbnailGallery';
 import JobHeroImage from '../../../jobs/[id]/JobHeroImage';
 import JobOwnerActions from './JobOwnerActions';
+import OtherJobsAtCompany from './OtherJobsAtCompany';
+import OtherJobsInCountry from './OtherJobsInCountry';
+import CareerAdviceSection from './CareerAdviceSection';
 import { verifyToken } from '@/lib/jwt';
 import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import { getEmploymentTypeLabel } from '@/lib/employmentTypes';
@@ -349,6 +353,126 @@ async function getJob(id: string): Promise<Job | null> {
   }
 }
 
+/** Shape for "other jobs" cards: matches JobCard props */
+export interface OtherJobForCard {
+  _id: string;
+  title: string;
+  company: string;
+  city: string;
+  country?: string | null;
+  pictures?: string[];
+  featured?: boolean;
+}
+
+/**
+ * Fetch other published jobs at the same company (excluding the current job).
+ * Returns jobs in a shape suitable for JobCard.
+ */
+async function getOtherJobsAtCompany(
+  currentJobId: string,
+  companyId: string | undefined
+): Promise<OtherJobForCard[]> {
+  if (!companyId) return [];
+  try {
+    await connectDB();
+    const companyObjId = new mongoose.Types.ObjectId(companyId);
+    const others = await Job.find({
+      companyId: companyObjId,
+      _id: { $ne: new mongoose.Types.ObjectId(currentJobId) },
+      published: { $ne: false },
+    })
+      .select('_id title city country pictures featured')
+      .populate('companyId', 'name')
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .lean();
+
+    return others.map((j: any) => ({
+      _id: String(j._id),
+      title: j.title ?? '',
+      company: (j.companyId && typeof j.companyId === 'object' && j.companyId.name) ? j.companyId.name : '',
+      city: j.city ?? '',
+      country: j.country ?? null,
+      pictures: Array.isArray(j.pictures) ? j.pictures : [],
+      featured: j.featured ?? false,
+    }));
+  } catch (err) {
+    console.error('getOtherJobsAtCompany:', err);
+    return [];
+  }
+}
+
+/** Shape for career advice card (matches CareerAdviceCard props) */
+export interface CareerAdviceForCard {
+  id: string;
+  title: string;
+  picture?: string;
+  createdAt: string;
+}
+
+/**
+ * Fetch published career advice articles for filling "Other jobs at company" section.
+ * Returns up to `limit` most recent articles.
+ */
+async function getCareerAdviceForFill(limit: number): Promise<CareerAdviceForCard[]> {
+  if (limit <= 0) return [];
+  try {
+    await connectDB();
+    const articles = await CareerAdvice.find({ published: { $ne: false } })
+      .select('_id title picture createdAt')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    return articles.map((a: any) => ({
+      id: String(a._id),
+      title: a.title ?? '',
+      picture: a.picture,
+      createdAt: a.createdAt ? new Date(a.createdAt).toISOString() : '',
+    }));
+  } catch (err) {
+    console.error('getCareerAdviceForFill:', err);
+    return [];
+  }
+}
+
+/**
+ * Fetch other published jobs in the same country (excluding the current job).
+ * Returns up to 3 most recent jobs in a shape suitable for JobCard.
+ */
+async function getOtherJobsInCountry(
+  currentJobId: string,
+  country: string | null | undefined
+): Promise<OtherJobForCard[]> {
+  if (!country || typeof country !== 'string' || !country.trim()) return [];
+  try {
+    await connectDB();
+    const normalizedCountry = country.trim().toUpperCase();
+    const others = await Job.find({
+      country: normalizedCountry,
+      _id: { $ne: new mongoose.Types.ObjectId(currentJobId) },
+      published: { $ne: false },
+    })
+      .select('_id title city country pictures featured')
+      .populate('companyId', 'name')
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .lean();
+
+    return others.map((j: any) => ({
+      _id: String(j._id),
+      title: j.title ?? '',
+      company: (j.companyId && typeof j.companyId === 'object' && j.companyId.name) ? j.companyId.name : '',
+      city: j.city ?? '',
+      country: j.country ?? null,
+      pictures: Array.isArray(j.pictures) ? j.pictures : [],
+      featured: j.featured ?? false,
+    }));
+  } catch (err) {
+    console.error('getOtherJobsInCountry:', err);
+    return [];
+  }
+}
+
 interface PageProps {
   params: Promise<{ country: string; slug: string }>;
 }
@@ -486,6 +610,22 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
   const companySummary = job.companyForSummary 
     ? generateCompanySummary(job.companyForSummary)
     : null;
+
+  // Other jobs at same company (for section below main card); skip section if none
+  const companyIdStr = job.companyId?.id ?? job.companyId?._id;
+  const otherJobs = await getOtherJobsAtCompany(job._id, companyIdStr);
+  const careerAdviceFill =
+    otherJobs.length >= 1 && otherJobs.length <= 2
+      ? await getCareerAdviceForFill(3 - otherJobs.length)
+      : [];
+
+  // Other jobs in same country (limit 3, most recent)
+  const otherJobsInCountry = await getOtherJobsInCountry(job._id, job.country);
+  const countryDisplayName = job.country ? getCountryNameFromCode(job.country) || job.country : 'this country';
+
+  // When "Other jobs at [company]" is skipped, show Career Advice section (3 most recent) below "Other jobs in [country]"
+  const careerAdviceSection =
+    otherJobs.length === 0 ? await getCareerAdviceForFill(3) : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
@@ -766,6 +906,24 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
             </div>
           </div>
         </div>
+
+        {/* Other jobs at the same company (hidden if none); filled with career advice when 1–2 jobs */}
+        <OtherJobsAtCompany
+          otherJobs={otherJobs}
+          companyName={job.company || 'this company'}
+          user={user}
+          fillWithCareerAdvice={careerAdviceFill}
+        />
+
+        {/* Other jobs in the same country */}
+        <OtherJobsInCountry
+          otherJobs={otherJobsInCountry}
+          countryName={countryDisplayName}
+          user={user}
+        />
+
+        {/* Career Advice (only when "Other jobs at [company]" was skipped) */}
+        <CareerAdviceSection articles={careerAdviceSection} />
       </main>
     </div>
   );
