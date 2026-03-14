@@ -10,7 +10,7 @@ interface JobCardProps {
     title: string;
     company?: string;
     city: string;
-    country?: string;
+    country?: string | null;
     pictures?: string[];
     featured?: boolean;
   };
