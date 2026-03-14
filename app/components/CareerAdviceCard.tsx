@@ -31,6 +31,7 @@ export default function CareerAdviceCard({ article }: CareerAdviceCardProps) {
             fill
             className="object-cover transition-transform duration-300 hover:scale-110"
             sizes="(max-width: 640px) 120px, 160px"
+            unoptimized
           />
         ) : (
           <div className="w-full h-full bg-gray-50 flex items-center justify-center">

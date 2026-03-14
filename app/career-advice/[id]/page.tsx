@@ -97,6 +97,7 @@ export default function CareerAdviceArticlePage() {
                 alt={article.title}
                 fill
                 className="object-cover"
+                unoptimized
                 onError={(e) => {
                   console.error('Image load error:', e);
                 }}
