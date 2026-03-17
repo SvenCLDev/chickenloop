@@ -14,6 +14,7 @@ import { normalizeUrl } from '@/lib/normalizeUrl';
 import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import { geocodeJobLocation } from '@/lib/geocodeJobLocation';
+import { postJobToFacebook } from '@/lib/social/facebook';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 export async function GET(request: NextRequest) {
@@ -887,6 +888,18 @@ export async function POST(request: NextRequest) {
     }
 
     const populatedJob = await Job.findById(job._id).populate('recruiter', 'name email');
+
+    try {
+      await postJobToFacebook({
+        title: job.title,
+        city: job.city,
+        country: job.country,
+        description: job.description,
+        company: job.company,
+      });
+    } catch (err) {
+      console.error('[facebook] auto-post failed:', err);
+    }
 
     return NextResponse.json(
       { message: 'Job created successfully', job: populatedJob },
