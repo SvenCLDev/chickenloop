@@ -53,7 +53,7 @@ export async function postJobToFacebook(job: FacebookJobInput) {
 
   const countryDisplay = job.country ? getCountryNameFromCode(job.country) || job.country : '';
   const companyName = getCompanyName(job);
-  const summary = extractDescriptionSummary(job.description);
+  const summary = extractDescriptionSummary(job.description ?? undefined);
 
   const message = `${job.title}
 📍 ${job.city}${countryDisplay ? `, ${countryDisplay}` : ''}
