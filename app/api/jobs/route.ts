@@ -895,7 +895,7 @@ export async function POST(request: NextRequest) {
         city: job.city,
         country: job.country,
         description: job.description,
-        company: job.company,
+        company,
       });
     } catch (err) {
       console.error('[facebook] auto-post failed:', err);
