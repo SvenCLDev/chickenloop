@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
         createdAt: 1,
         visitCount: 1,
         instagramPostId: 1,
+        facebookPostId: 1,
       }
     });
 
@@ -188,6 +189,7 @@ export async function GET(request: NextRequest) {
       visitCount: job.visitCount ?? 0,
       likeCount: job.likeCount ?? 0,
       instagramPostId: job.instagramPostId ?? null,
+      facebookPostId: job.facebookPostId ?? null,
     }));
 
     return NextResponse.json({ jobs: jobsWithData }, { status: 200 });

@@ -96,6 +96,9 @@ export interface IJob extends Document {
   /** When the job was posted to Instagram */
   instagramPostedAt?: Date | null;
 
+  /** Facebook post ID after publishing job to Facebook Page */
+  facebookPostId?: string | null;
+
   /**
    * Last time the recruiter made a contextual edit to the job (title, description, etc.).
    * Used for listing order; not updated by system actions (featured toggle, visit count, Instagram post, etc.).
@@ -242,6 +245,11 @@ const JobSchema: Schema = new Schema(
     },
     instagramPostedAt: {
       type: Date,
+      default: null,
+    },
+
+    facebookPostId: {
+      type: String,
       default: null,
     },
 

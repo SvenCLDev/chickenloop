@@ -173,6 +173,7 @@ function AdminDashboard() {
   const [deletingCompany, setDeletingCompany] = useState<string | null>(null);
   const [deletingJob, setDeletingJob] = useState<string | null>(null);
   const [postingToInstagramJobId, setPostingToInstagramJobId] = useState<string | null>(null);
+  const [postingToFacebookJobId, setPostingToFacebookJobId] = useState<string | null>(null);
   const [instagramModalJobId, setInstagramModalJobId] = useState<string | null>(null);
   const [instagramModalPos, setInstagramModalPos] = useState<string>('bl');
   const [instagramModalBg, setInstagramModalBg] = useState<string>('grey');
@@ -704,6 +705,31 @@ function AdminDashboard() {
       alert(`Failed to post to Instagram: ${msg}`);
     } finally {
       setPostingToInstagramJobId(null);
+    }
+  };
+
+  const handlePostToFacebook = async (jobId: string) => {
+    setPostingToFacebookJobId(jobId);
+    try {
+      const res = await fetch(`/api/admin/facebook-post/${jobId}`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data?.error || `Failed to post to Facebook (${res.status})`);
+        return;
+      }
+      if (data.postId && selectedCategory === 'jobs' && tableData) {
+        setTableData(
+          tableData.map((row) =>
+            row.id === jobId ? { ...row, facebookPostId: data.postId } : row
+          )
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[Admin] Error posting job to Facebook:', err);
+      alert(`Failed to post to Facebook: ${msg}`);
+    } finally {
+      setPostingToFacebookJobId(null);
     }
   };
 
@@ -1386,6 +1412,9 @@ function AdminDashboard() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Insta Post
                             </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Facebook Post
+                            </th>
                             <th 
                               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                               style={{ width: '160px', minWidth: '160px' }}
@@ -1730,6 +1759,32 @@ function AdminDashboard() {
                                     title="Post to Instagram"
                                   >
                                     Post to Instagram
+                                  </button>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                {entry.facebookPostId ? (
+                                  <a
+                                    href={`https://www.facebook.com/${String(entry.facebookPostId).replace('_', '/posts/')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200"
+                                  >
+                                    Posted
+                                  </a>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePostToFacebook(entry.id)}
+                                    disabled={postingToFacebookJobId === entry.id}
+                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                                      postingToFacebookJobId === entry.id
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    }`}
+                                    title="Post to Facebook"
+                                  >
+                                    {postingToFacebookJobId === entry.id ? 'Posting...' : 'Post to Facebook'}
                                   </button>
                                 )}
                               </td>
