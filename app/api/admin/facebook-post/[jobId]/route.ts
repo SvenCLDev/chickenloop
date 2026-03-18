@@ -42,10 +42,7 @@ export async function POST(
     }
 
     const company = job.companyId as { name?: string } | null;
-    const companyName =
-      (company?.name as string | undefined) ||
-      (job.companyName as string | undefined) ||
-      '';
+    const companyName = (company?.name as string | undefined) || '';
 
     const jobForFacebook = {
       title: job.title,
