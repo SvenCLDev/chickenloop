@@ -60,26 +60,11 @@ export async function GET(
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
-    // Increment visit count atomically using MongoDB's $inc operator
-    // This prevents race conditions and double counting
-    // timestamps: false prevents updatedAt from changing (so viewing doesn't reorder listing)
-    await Job.findByIdAndUpdate(
-      id,
-      { $inc: { visitCount: 1 } },
-      { timestamps: false }
-    );
-    
-    // Reload the job to get the updated visit count
-    const updatedJob = await Job.findById(id)
-      .populate('recruiter', 'name email')
-      .populate('companyId');
-    
-    if (!updatedJob) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
-    }
+    // Do not increment visitCount here — this endpoint is used by edit screens and tools.
+    // Public job views are counted on the canonical job detail page (/job/...).
 
     // Convert to plain object and ensure all fields are included, including country
-    const jobObject = updatedJob.toObject();
+    const jobObject = job.toObject();
     // Handle country field - normalize if it exists, ensure field is always present
     const countryValue = jobObject.country != null && typeof jobObject.country === 'string'
       ? (jobObject.country.trim() ? jobObject.country.trim().toUpperCase() : null)

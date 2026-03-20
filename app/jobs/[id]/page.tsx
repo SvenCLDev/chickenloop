@@ -24,12 +24,9 @@ async function getJob(id: string): Promise<JobForRedirect | null> {
       return null;
     }
 
-    // Increment visit count atomically (we don't need to wait for this)
-    // timestamps: false prevents updatedAt from changing (so viewing doesn't reorder listing)
-    Job.findByIdAndUpdate(id, { $inc: { visitCount: 1 } }, { timestamps: false }).catch(err => {
-      console.error('Error incrementing visit count:', err);
-    });
-    
+    // No visit increment here — this route only redirects to the canonical URL.
+    // Counting on both /jobs/[id] and /job/... would double-count.
+
     // Normalize country field
     const countryValue = job.country != null && typeof job.country === 'string'
       ? (job.country.trim() ? job.country.trim().toUpperCase() : null)

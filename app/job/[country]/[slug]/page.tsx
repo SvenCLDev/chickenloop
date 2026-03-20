@@ -186,6 +186,23 @@ async function resolveJobFromSlug(
 }
 
 /**
+ * Next.js <Link> prefetch and browser prefetch requests run the RSC tree; they should not bump visit counts.
+ */
+async function shouldSkipVisitCountForPrefetch(): Promise<boolean> {
+  try {
+    const h = await headers();
+    // Next.js sets this to "1" or "2" for prefetch / segment prefetch (see fetch-server-response.js)
+    const prefetch = h.get('next-router-prefetch') ?? h.get('Next-Router-Prefetch');
+    if (prefetch === '1' || prefetch === '2') return true;
+    const purpose = h.get('purpose') ?? h.get('sec-purpose') ?? h.get('Sec-Purpose');
+    if (purpose?.toLowerCase() === 'prefetch') return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Get job by ID (reused from existing job details page)
  */
 async function getJob(id: string): Promise<Job | null> {
@@ -206,25 +223,25 @@ async function getJob(id: string): Promise<Job | null> {
       return null;
     }
 
-    // Increment visit count atomically
-    // timestamps: false prevents updatedAt from changing (so viewing doesn't reorder listing)
-    await Job.findByIdAndUpdate(
-      id,
-      { $inc: { visitCount: 1 } },
-      { timestamps: false }
-    );
-    
-    // Reload the job to get the updated visit count
-    const updatedJob = await Job.findById(id)
-      .populate('recruiter', 'name email')
-      .populate('companyId', 'name logo website address offeredActivities offeredServices');
-    
-    if (!updatedJob) {
-      return null;
+    // Count only real navigations, not RSC/link prefetch (which would inflate "Visits").
+    const skipCount = await shouldSkipVisitCountForPrefetch();
+    let docForResponse = job;
+    if (!skipCount) {
+      await Job.findByIdAndUpdate(
+        id,
+        { $inc: { visitCount: 1 } },
+        { timestamps: false }
+      );
+      const reloaded = await Job.findById(id)
+        .populate('recruiter', 'name email')
+        .populate('companyId', 'name logo website address offeredActivities offeredServices');
+      if (reloaded) {
+        docForResponse = reloaded;
+      }
     }
 
     // Convert to plain object
-    const jobObject = updatedJob.toObject();
+    const jobObject = docForResponse.toObject();
     
     // Normalize country field
     const countryValue = jobObject.country != null && typeof jobObject.country === 'string'
@@ -232,10 +249,10 @@ async function getJob(id: string): Promise<Job | null> {
       : jobObject.country;
     
     // Ensure recruiter is properly typed after populate
-    const recruiter = updatedJob.recruiter && typeof updatedJob.recruiter === 'object' && 'name' in updatedJob.recruiter
+    const recruiter = docForResponse.recruiter && typeof docForResponse.recruiter === 'object' && 'name' in docForResponse.recruiter
       ? {
-          name: (updatedJob.recruiter as any).name || '',
-          email: (updatedJob.recruiter as any).email || '',
+          name: (docForResponse.recruiter as any).name || '',
+          email: (docForResponse.recruiter as any).email || '',
         }
       : {
           name: '',
