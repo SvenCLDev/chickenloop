@@ -890,13 +890,19 @@ export async function POST(request: NextRequest) {
     const populatedJob = await Job.findById(job._id).populate('recruiter', 'name email');
 
     try {
-      await postJobToFacebook({
+      const fbResult = await postJobToFacebook({
         title: job.title,
         city: job.city,
         country: job.country,
         description: job.description,
         company,
       });
+      if (fbResult?.id && typeof fbResult.id === 'string') {
+        await Job.updateOne(
+          { _id: job._id },
+          { $set: { facebookPostId: fbResult.id } }
+        );
+      }
     } catch (err) {
       console.error('[facebook] auto-post failed:', err);
     }
