@@ -5,7 +5,6 @@ import connectDB from './db';
 import User from '@/models/User';
 import Company from '@/models/Company';
 import { getCompanyProfileIncompleteReason } from './companyProfile';
-import { getToken } from 'next-auth/jwt';
 
 /** Reject providerAccountId-like strings; only accept real 24-hex ObjectIds. */
 function isMongoObjectIdString(id: string): boolean {
@@ -50,6 +49,7 @@ export async function verifyAuthIncludingNextAuth(request: NextRequest): Promise
   const nextSecret = process.env.NEXTAUTH_SECRET;
   if (nextSecret) {
     try {
+      const { getToken } = await import('next-auth/jwt');
       const naToken = await getToken({ req: request as any, secret: nextSecret });
       if (naToken) {
         const email = typeof naToken.email === 'string' ? naToken.email.trim().toLowerCase() : '';
