@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Application from '@/models/Application';
-import { requireAuth } from '@/lib/auth';
+import { requireAuthAsync } from '@/lib/auth';
 import { guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
 
 // PATCH - Archive/unarchive application (job seeker or recruiter)
@@ -11,7 +11,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
     await connectDB();
     const { id } = await params;
 

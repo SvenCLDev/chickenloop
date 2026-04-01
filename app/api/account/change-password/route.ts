@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
-import { requireAuth } from '@/lib/auth';
+import { requireAuthAsync } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
 // POST - Change user password
 export async function POST(request: NextRequest) {
   try {
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
     await connectDB();
 
     const userData = await User.findById(user.userId);
@@ -26,6 +26,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify current password
+    if (!userData.password || typeof userData.password !== 'string') {
+      return NextResponse.json(
+        { error: 'Password not set for this account' },
+        { status: 400 }
+      );
+    }
+
     const isPasswordValid = await bcrypt.compare(currentPassword, userData.password);
     if (!isPasswordValid) {
       return NextResponse.json(
@@ -43,7 +50,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash and update password
-    userData.password = await bcrypt.hash(newPassword, 10);
+    const hashed = await bcrypt.hash(newPassword, 10);
+    userData.password = hashed;
+    userData.providers = userData.providers || {};
+    userData.providers.credentials = { passwordHash: hashed };
     await userData.save();
 
     return NextResponse.json(

@@ -5,7 +5,7 @@ import Job from '@/models/Job';
 import User from '@/models/User';
 import Company from '@/models/Company';
 import CV from '@/models/CV';
-import { requireAuth } from '@/lib/auth';
+import { requireAuthAsync } from '@/lib/auth';
 import { requireRole } from '@/lib/auth';
 import { sendEmailAsync, EmailCategory } from '@/lib/email';
 import { getStatusChangedEmail } from '@/lib/emailTemplates';
@@ -20,7 +20,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
     await connectDB();
     const { id } = await params;
 
@@ -448,9 +448,9 @@ export async function GET(
                 : undefined;
 
               const emailTemplate = getStatusChangedEmail({
-                candidateName: candidate.name,
+                candidateName: candidate.name ?? 'there',
                 candidateEmail: candidate.email,
-                recruiterName: recruiter.name,
+                recruiterName: recruiter.name ?? 'Recruiter',
                 recruiterEmail: recruiter.email,
                 jobTitle: job?.title,
                 jobCompany: jobCompanyName,

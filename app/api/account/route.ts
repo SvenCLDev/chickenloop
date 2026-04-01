@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
-import { requireAuth } from '@/lib/auth';
+import { requireAuthAsync } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
 // PUT - Update user account (name and email)
 export async function PUT(request: NextRequest) {
   try {
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
     await connectDB();
 
     const userData = await User.findById(user.userId);
@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete user account
 export async function DELETE(request: NextRequest) {
   try {
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
     await connectDB();
 
     const userData = await User.findById(user.userId);

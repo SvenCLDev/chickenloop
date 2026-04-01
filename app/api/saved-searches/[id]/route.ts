@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import SavedSearch from '@/models/SavedSearch';
-import { requireAuth } from '@/lib/auth';
+import { requireAuthAsync } from '@/lib/auth';
 
 // PATCH - Update a saved search
 export async function PATCH(
@@ -9,7 +9,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
     await connectDB();
     const { id } = await params;
 
@@ -85,7 +85,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
     await connectDB();
     const { id } = await params;
 

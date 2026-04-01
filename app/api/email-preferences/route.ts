@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { requireAuthAsync } from '@/lib/auth';
 import EmailPreferences from '@/models/EmailPreferences';
 import mongoose from 'mongoose';
 
@@ -19,7 +19,7 @@ const DEFAULT_PREFERENCES = {
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
     await connectDB();
 
     const userId = new mongoose.Types.ObjectId(user.userId);
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
     await connectDB();
 
     const userId = new mongoose.Types.ObjectId(user.userId);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendTestEmail, isEmailConfigured } from '@/lib/email';
-import { requireAuth } from '@/lib/auth';
+import { requireAuthAsync } from '@/lib/auth';
 
 /**
  * POST /api/email/test
@@ -10,7 +10,7 @@ import { requireAuth } from '@/lib/auth';
 export async function POST(request: NextRequest) {
   try {
     // Require authentication
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
 
     const { email } = await request.json();
 
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Require authentication
-    requireAuth(request);
+    await requireAuthAsync(request);
 
     const configured = isEmailConfigured();
 

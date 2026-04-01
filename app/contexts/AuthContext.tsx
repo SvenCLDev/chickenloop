@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authApi, companyApi } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { setApiRouter } from '@/lib/apiRouterRef';
+import { signOut } from 'next-auth/react';
 
 interface User {
   id: string;
@@ -105,6 +106,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    try {
+      await signOut({ redirect: false });
+    } catch {
+      // Still clear legacy session if NextAuth sign-out fails
+    }
     await authApi.logout();
     setUser(null);
     router.push('/');

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import SavedSearch from '@/models/SavedSearch';
-import { requireAuth } from '@/lib/auth';
+import { requireAuthAsync } from '@/lib/auth';
 
 // GET - Get all saved searches for the current user
 export async function GET(request: NextRequest) {
   try {
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
     await connectDB();
 
     const savedSearches = await SavedSearch.find({ userId: user.userId })
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 // POST - Create a new saved search
 export async function POST(request: NextRequest) {
   try {
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
     await connectDB();
 
     const { name, keyword, location, country, category, activity, sport, language, frequency } = await request.json();

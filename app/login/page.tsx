@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Navbar from '../components/Navbar';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
+import { signIn } from 'next-auth/react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,6 +43,15 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogle = async () => {
+    const redirectTo =
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('redirect')
+        : null;
+    const callbackUrl = redirectTo ? `/auth/post-login?redirect=${encodeURIComponent(redirectTo)}` : '/auth/post-login';
+    await signIn('google', { callbackUrl });
+  };
+
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotError('');
@@ -70,6 +80,13 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold text-center mb-6 text-gray-900">
             Login to ChickenLoop
           </h1>
+          <button
+            type="button"
+            onClick={handleGoogle}
+            className="w-full mb-4 bg-white border border-gray-300 text-gray-900 py-2 px-4 rounded-md hover:bg-gray-50 font-semibold"
+          >
+            Continue with Google
+          </button>
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
               {error}

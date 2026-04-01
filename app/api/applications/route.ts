@@ -3,7 +3,7 @@ import connectDB from '@/lib/db';
 import Application from '@/models/Application';
 import Job from '@/models/Job';
 import User from '@/models/User';
-import { requireRole, requireAuth } from '@/lib/auth';
+import { requireRole, requireAuthAsync } from '@/lib/auth';
 import { sendEmailAsync, EmailCategory } from '@/lib/email';
 import { getCandidateAppliedEmail, getRecruiterContactedEmail } from '@/lib/emailTemplates';
 import { guardAgainstRecruiterNotesLeak } from '@/lib/applicationUtils';
@@ -15,7 +15,7 @@ import mongoose from 'mongoose';
 // For recruiters: Get all applications for the recruiter (grouped by job)
 export async function GET(request: NextRequest) {
   try {
-    const user = requireAuth(request);
+    const user = await requireAuthAsync(request);
     await connectDB();
 
     const { searchParams } = new URL(request.url);
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   let user: any = null;
   try {
-    user = requireAuth(request);
+    user = await requireAuthAsync(request);
     await connectDB();
 
     const { jobId, candidateId, coverNote } = await request.json();
@@ -378,9 +378,9 @@ export async function POST(request: NextRequest) {
             ? (job.companyId as { name: string }).name
             : undefined;
           const emailTemplate = getCandidateAppliedEmail({
-            candidateName: candidate.name,
+            candidateName: candidate.name ?? 'there',
             candidateEmail: candidate.email,
-            recruiterName: recruiter.name,
+            recruiterName: recruiter.name ?? 'Recruiter',
             recruiterEmail: recruiter.email,
             jobTitle: job.title,
             jobCompany: jobCompanyName,
@@ -589,9 +589,9 @@ export async function POST(request: NextRequest) {
               }
 
               const emailTemplate = getRecruiterContactedEmail({
-                candidateName: candidate.name,
+                candidateName: candidate.name ?? 'there',
                 candidateEmail: candidate.email,
-                recruiterName: recruiter.name,
+                recruiterName: recruiter.name ?? 'Recruiter',
                 recruiterEmail: recruiter.email,
                 jobTitle,
                 jobCompany,
@@ -696,9 +696,9 @@ export async function POST(request: NextRequest) {
           }
 
           const emailTemplate = getRecruiterContactedEmail({
-            candidateName: candidate.name,
+            candidateName: candidate.name ?? 'there',
             candidateEmail: candidate.email,
-            recruiterName: recruiter.name,
+            recruiterName: recruiter.name ?? 'Recruiter',
             recruiterEmail: recruiter.email,
             jobTitle,
             jobCompany,
@@ -748,7 +748,7 @@ export async function POST(request: NextRequest) {
       // Try to get user if not already available
       if (!user) {
         try {
-          user = requireAuth(request);
+          user = await requireAuthAsync(request);
         } catch {
           // If we can't get user, default to job application error (more common case)
           return NextResponse.json(
