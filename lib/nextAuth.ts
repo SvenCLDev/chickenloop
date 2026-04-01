@@ -266,10 +266,11 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = typeof token.userId === 'string' ? token.userId : undefined;
-        session.user.role = typeof token.role === 'string' ? token.role : null;
+        const sessionUser = session.user as { id?: string; role?: string | null; email?: string | null };
+        sessionUser.id = typeof token.userId === 'string' ? token.userId : undefined;
+        sessionUser.role = typeof token.role === 'string' ? token.role : null;
         if (typeof token.email === 'string') {
-          session.user.email = token.email;
+          sessionUser.email = token.email;
         }
       }
       return session;
