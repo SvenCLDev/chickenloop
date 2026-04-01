@@ -217,8 +217,9 @@ export const authOptions: NextAuthOptions = {
         if (isValidUserObjectId(uid)) {
           const userDoc = await User.findById(uid).select('_id role email').lean();
           if (userDoc) {
-            token.userId = String(userDoc._id);
-            (token as { id?: string }).id = token.userId;
+            const resolvedUserId = String(userDoc._id);
+            token.userId = resolvedUserId;
+            (token as { id?: string }).id = resolvedUserId;
             token.role = (userDoc.role ?? null) as string | null;
             token.email = userDoc.email?.trim().toLowerCase() ?? undefined;
             return token;
@@ -230,8 +231,9 @@ export const authOptions: NextAuthOptions = {
       if (fromToken && isValidUserObjectId(fromToken)) {
         const userDoc = await User.findById(fromToken).select('_id role email').lean();
         if (userDoc) {
-          token.userId = String(userDoc._id);
-          (token as { id?: string }).id = token.userId;
+          const resolvedUserId = String(userDoc._id);
+          token.userId = resolvedUserId;
+          (token as { id?: string }).id = resolvedUserId;
           token.role = (userDoc.role ?? null) as string | null;
           token.email = userDoc.email?.trim().toLowerCase() ?? undefined;
           return token;
@@ -242,8 +244,9 @@ export const authOptions: NextAuthOptions = {
       if (email) {
         const userDoc = await User.findOne({ email }).select('_id role email').lean();
         if (userDoc) {
-          token.userId = String(userDoc._id);
-          (token as { id?: string }).id = token.userId;
+          const resolvedUserId = String(userDoc._id);
+          token.userId = resolvedUserId;
+          (token as { id?: string }).id = resolvedUserId;
           token.role = (userDoc.role ?? null) as string | null;
           token.email = userDoc.email?.trim().toLowerCase() ?? undefined;
           return token;
