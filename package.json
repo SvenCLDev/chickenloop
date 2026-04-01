@@ -12,6 +12,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@auth/mongodb-adapter": "^3.11.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tiptap/pm": "^2.10.0",
     "@tiptap/react": "^2.10.0",
@@ -26,6 +27,7 @@
     "leaflet": "^1.9.4",
     "mongoose": "^8.19.4",
     "next": "^16.0.7",
+    "next-auth": "^4.24.13",
     "nodemailer": "^7.0.11",
     "react": "19.2.0",
     "react-dom": "19.2.0",
