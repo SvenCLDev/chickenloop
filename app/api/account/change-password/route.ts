@@ -52,8 +52,7 @@ export async function POST(request: NextRequest) {
     // Hash and update password
     const hashed = await bcrypt.hash(newPassword, 10);
     userData.password = hashed;
-    userData.providers = userData.providers || {};
-    userData.providers.credentials = { passwordHash: hashed };
+    userData.set('providers.credentials.passwordHash', hashed);
     await userData.save();
 
     return NextResponse.json(
