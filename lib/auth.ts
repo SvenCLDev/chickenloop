@@ -38,6 +38,87 @@ export function verifyAuth(request: NextRequest): JWTPayload | null {
   }
 }
 
+const SECURE_NEXT_AUTH_SESSION = '__Secure-next-auth.session-token';
+const PLAIN_NEXT_AUTH_SESSION = 'next-auth.session-token';
+
+/** Join chunked NextAuth session cookies (same logic as next-auth SessionStore). */
+function joinNextAuthSessionCookieValue(
+  cookies: { name: string; value: string }[],
+  prefix: string
+): string | null {
+  const matching = cookies.filter((c) => c.name === prefix || c.name.startsWith(`${prefix}.`));
+  if (matching.length === 0) return null;
+  const sorted = matching.sort((a, b) => {
+    if (a.name === prefix) return -1;
+    if (b.name === prefix) return 1;
+    const na = parseInt(a.name.split('.').pop() ?? '0', 10);
+    const nb = parseInt(b.name.split('.').pop() ?? '0', 10);
+    return na - nb;
+  });
+  return sorted.map((c) => c.value).join('');
+}
+
+/**
+ * Read NextAuth JWT from the incoming request.
+ * If `NEXTAUTH_URL` is mis-set (e.g. http://localhost in production), default `getToken`
+ * looks for the wrong cookie name while the browser only has `__Secure-next-auth.session-token`.
+ */
+async function getNextAuthJwtPayload(
+  request: NextRequest,
+  secret: string
+): Promise<Record<string, unknown> | null> {
+  const { getToken, decode } = await import('next-auth/jwt');
+  const cookieList = typeof request.cookies.getAll === 'function' ? request.cookies.getAll() : [];
+
+  const hasSecureSession = cookieList.some((c) => c.name.startsWith(SECURE_NEXT_AUTH_SESSION));
+  const hasPlainSession = cookieList.some(
+    (c) => c.name.startsWith(PLAIN_NEXT_AUTH_SESSION) && !c.name.startsWith('__')
+  );
+
+  const tryDecode = async (secureCookie: boolean) =>
+    getToken({
+      req: request as any,
+      secret,
+      secureCookie,
+      cookieName: secureCookie ? SECURE_NEXT_AUTH_SESSION : PLAIN_NEXT_AUTH_SESSION,
+    });
+
+  if (hasSecureSession) {
+    const t = await tryDecode(true);
+    if (t) return t as Record<string, unknown>;
+  }
+  if (hasPlainSession) {
+    const t = await tryDecode(false);
+    if (t) return t as Record<string, unknown>;
+  }
+
+  let t = await tryDecode(true);
+  if (t) return t as Record<string, unknown>;
+  t = await tryDecode(false);
+  if (t) return t as Record<string, unknown>;
+
+  const rawSecure = joinNextAuthSessionCookieValue(cookieList, SECURE_NEXT_AUTH_SESSION);
+  if (rawSecure) {
+    try {
+      const payload = await decode({ token: rawSecure, secret });
+      if (payload) return payload as Record<string, unknown>;
+    } catch {
+      /* ignore */
+    }
+  }
+  const rawPlain = joinNextAuthSessionCookieValue(cookieList, PLAIN_NEXT_AUTH_SESSION);
+  if (rawPlain) {
+    try {
+      const payload = await decode({ token: rawPlain, secret });
+      if (payload) return payload as Record<string, unknown>;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return null;
+}
+
 export async function verifyAuthIncludingNextAuth(request: NextRequest): Promise<JWTPayload | null> {
   /**
    * NextAuth MUST take precedence over the legacy `token` cookie when both are present.
@@ -49,12 +130,13 @@ export async function verifyAuthIncludingNextAuth(request: NextRequest): Promise
   const nextSecret = process.env.NEXTAUTH_SECRET;
   if (nextSecret) {
     try {
-      const { getToken } = await import('next-auth/jwt');
-      const naToken = await getToken({ req: request as any, secret: nextSecret });
+      const naToken = await getNextAuthJwtPayload(request, nextSecret);
       if (naToken) {
         const email = typeof naToken.email === 'string' ? naToken.email.trim().toLowerCase() : '';
         const uidFromJwt =
-          typeof (naToken as any).userId === 'string' ? (naToken as any).userId : undefined;
+          typeof (naToken as { userId?: string }).userId === 'string'
+            ? (naToken as { userId?: string }).userId
+            : undefined;
 
         await connectDB();
         let userDoc: { _id: unknown; email?: string; role?: string | null } | null = null;
