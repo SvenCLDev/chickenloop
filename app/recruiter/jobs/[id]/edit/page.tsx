@@ -5,6 +5,10 @@ import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import Navbar from '../../../../components/Navbar';
 import { jobsApi, companyApi } from '@/lib/api';
+import {
+  assertJobJsonPayloadFits,
+  sanitizeJobDescriptionForSubmit,
+} from '@/lib/jobPostPayload';
 import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
 import { QUALIFICATIONS } from '@/lib/qualifications';
@@ -329,13 +333,29 @@ export default function EditJobPage() {
       // Update job with picture paths
       const normalizedCountry = normalizeCountryForStorage(formData.country);
 
-      await jobsApi.update(jobId, {
+      const { description: cleanDescription, strippedImageCount } =
+        sanitizeJobDescriptionForSubmit(formData.description);
+      if (strippedImageCount > 0) {
+        setFormData((prev) => ({ ...prev, description: cleanDescription }));
+      }
+
+      const updatePayload = {
         ...formData,
+        description: cleanDescription,
         country: normalizedCountry,
         sports: formData.sports,
         pictures: allPicturePaths,
         heroImageUrl: finalHeroImageUrl,
-      });
+      };
+
+      const sizeError = assertJobJsonPayloadFits(updatePayload);
+      if (sizeError) {
+        setError(sizeError);
+        setLoading(false);
+        return;
+      }
+
+      await jobsApi.update(jobId, updatePayload);
 
       // Clean up preview URLs
       picturePreviews.forEach(url => URL.revokeObjectURL(url));

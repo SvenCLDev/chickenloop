@@ -5,6 +5,10 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Navbar from '../../../components/Navbar';
 import { jobsApi, companyApi } from '@/lib/api';
+import {
+  assertJobJsonPayloadFits,
+  sanitizeJobDescriptionForSubmit,
+} from '@/lib/jobPostPayload';
 import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
 import { QUALIFICATIONS } from '@/lib/qualifications';
@@ -255,15 +259,31 @@ export default function NewJobPage() {
       // Create job with picture paths
       const normalizedCountry = normalizeCountryForStorage(formData.country);
 
-      await jobsApi.create({
+      const { description: cleanDescription, strippedImageCount } =
+        sanitizeJobDescriptionForSubmit(formData.description);
+      if (strippedImageCount > 0) {
+        setFormData((prev) => ({ ...prev, description: cleanDescription }));
+      }
+
+      const createPayload = {
         ...formData,
+        description: cleanDescription,
         company: company?.name || '', // Include company name from company object
         country: normalizedCountry,
         sports: formData.sports,
         occupationalAreas: formData.occupationalAreas,
         pictures: picturePaths,
         heroImageIndex: heroImageIndex !== null ? heroImageIndex : undefined,
-      });
+      };
+
+      const sizeError = assertJobJsonPayloadFits(createPayload);
+      if (sizeError) {
+        setError(sizeError);
+        setLoading(false);
+        return;
+      }
+
+      await jobsApi.create(createPayload);
 
       // Clean up preview URLs
       picturePreviews.forEach(url => URL.revokeObjectURL(url));

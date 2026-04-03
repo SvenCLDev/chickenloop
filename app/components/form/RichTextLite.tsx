@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useCallback } from 'react';
 import { sanitizeRichTextLite } from '@/utils/sanitizeRichTextLite';
+import { stripDataImageUris } from '@/lib/jobPostPayload';
 
 export interface RichTextLiteProps {
   value: string;
@@ -47,14 +48,16 @@ export default function RichTextLite({
   const handleBlur = () => {
     if (!editorRef.current) return;
     const html = editorRef.current.innerHTML;
-    onChange(sanitizeRichTextLite(html));
+    onChange(stripDataImageUris(sanitizeRichTextLite(html)).text);
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
     const html = e.clipboardData?.getData('text/html') ?? '';
     const text = e.clipboardData?.getData('text/plain') ?? '';
-    const toInsert = html ? sanitizeRichTextLite(html) : document.createTextNode(text);
+    const toInsert = html
+      ? stripDataImageUris(sanitizeRichTextLite(html)).text
+      : document.createTextNode(stripDataImageUris(text).text);
     const selection = window.getSelection();
     if (!selection?.rangeCount) return;
     const range = selection.getRangeAt(0);

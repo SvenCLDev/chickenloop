@@ -1,4 +1,8 @@
 import { getApiRouter } from '@/lib/apiRouterRef';
+import {
+  looksLikePayloadTooLargeError,
+  PAYLOAD_TOO_LARGE_USER_MESSAGE,
+} from '@/lib/jobPostPayload';
 
 const API_BASE = '/api';
 
@@ -31,6 +35,14 @@ export async function apiRequest(
   // Check if response is JSON before trying to parse
   const contentType = response.headers.get('content-type');
   const text = await response.text();
+
+  if (
+    response.status === 413 ||
+    (!response.ok && looksLikePayloadTooLargeError(text))
+  ) {
+    throw new Error(PAYLOAD_TOO_LARGE_USER_MESSAGE);
+  }
+
   let data: unknown;
 
   if (contentType && contentType.includes('application/json')) {
@@ -80,6 +92,15 @@ export async function apiRequest(
 
   const dataObj = data as Record<string, unknown> | null;
   if (!response.ok) {
+    const errStr = dataObj?.error != null ? String(dataObj.error) : '';
+    const bodyHaystack = `${errStr} ${JSON.stringify(dataObj ?? {})}`;
+    if (
+      response.status === 413 ||
+      looksLikePayloadTooLargeError(text) ||
+      looksLikePayloadTooLargeError(bodyHaystack)
+    ) {
+      throw new Error(PAYLOAD_TOO_LARGE_USER_MESSAGE);
+    }
     // COMPANY_PROFILE_INCOMPLETE: redirect recruiters to complete profile
     if (response.status === 403 && dataObj?.error === 'COMPANY_PROFILE_INCOMPLETE') {
       handleCompanyProfileIncompleteRedirect(dataObj.detail as string | undefined);
