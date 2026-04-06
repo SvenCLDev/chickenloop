@@ -194,6 +194,44 @@ async function resolveJobFromSlug(
 /**
  * Next.js <Link> prefetch and browser prefetch requests run the RSC tree; they should not bump visit counts.
  */
+/**
+ * Job documents store URLs in `pictures`; JobImage rows add ordering/hero. Some flows
+ * (e.g. admin) only write all URLs to `pictures` but create fewer JobImage docs.
+ * Merge both sources so the public page shows every picture without duplicates.
+ */
+function mergeJobImageSources(
+  jobImages: { imageUrl?: string; isHero?: boolean; order?: number }[],
+  picturesFromJob: string[] | undefined
+): { allImages: string[]; heroImageUrl: string | undefined } {
+  const sorted = [...jobImages].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const fromDocs = sorted
+    .map((img) => img.imageUrl)
+    .filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
+
+  const seen = new Set<string>();
+  const merged: string[] = [];
+  const addUrl = (url: string) => {
+    const key = url.trim();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(url);
+  };
+
+  for (const u of fromDocs) {
+    addUrl(u);
+  }
+  const fromPictures = Array.isArray(picturesFromJob) ? picturesFromJob : [];
+  for (const u of fromPictures) {
+    addUrl(u);
+  }
+
+  const heroDoc = sorted.find((img) => img.isHero === true && img.imageUrl);
+  const heroImageUrl =
+    heroDoc?.imageUrl?.trim() || (merged.length > 0 ? merged[0] : undefined);
+
+  return { allImages: merged, heroImageUrl };
+}
+
 async function shouldSkipVisitCountForPrefetch(): Promise<boolean> {
   try {
     const h = await headers();
@@ -371,7 +409,7 @@ async function getJob(id: string, options?: GetJobOptions): Promise<Job | null> 
       companyForSummary, // Include company data for summary generation
       published: jobObject.published !== undefined ? jobObject.published : true, // Include published status
       heroImageUrl, // Include hero image URL (explicit isHero or first image fallback)
-      pictures: allImages.length > 0 ? allImages : (jobObject.pictures || []), // Use images from JobImage collection, fallback to job.pictures
+      pictures: allImages.length > 0 ? allImages : jobObject.pictures || [], // merged JobImage + job.pictures
     } as Job;
   } catch (error) {
     console.error('Error fetching job:', error);
