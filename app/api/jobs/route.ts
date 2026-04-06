@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import Job from '@/models/Job';
+import Job, { EXPERIENCE_LEVELS } from '@/models/Job';
 import JobImage from '@/models/JobImage';
 import Company from '@/models/Company';
 import User from '@/models/User';
@@ -698,10 +698,10 @@ function rejectIfStripeRedirect(
   return { reject: false };
 }
 
-// POST - Create a new job (recruiters only)
+// POST - Create a new job (recruiters for self; admins may set recruiterId for any recruiter)
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireRole(request, ['recruiter']);
+    const user = await requireRole(request, ['recruiter', 'admin']);
     await connectDB();
 
     const requestBody = await request.json();
@@ -753,7 +753,10 @@ export async function POST(request: NextRequest) {
       applyByWhatsApp,
       applicationEmail,
       applicationWebsite,
-      applicationWhatsApp
+      applicationWhatsApp,
+      recruiterId: recruiterIdBody,
+      status: statusBody,
+      experienceLevel: experienceLevelFromBody,
     } = requestBody;
 
     // Validate required fields - check for empty strings and whitespace
@@ -803,17 +806,86 @@ export async function POST(request: NextRequest) {
     // Normalize employment type: lowercase, hyphens to underscores (e.g. full-time → full_time)
     const normalizedType = normalizeEmploymentType(type);
 
-    // Use recruiter's companyId from User (optimized); fallback to Company lookup for legacy users
-    const userDoc = await User.findById(user.userId).select('companyId').lean();
-    let companyId = userDoc?.companyId ?? undefined;
-    if (companyId === undefined) {
-      const recruiterCompany = await Company.findOne({ ownerRecruiter: user.userId });
-      companyId = recruiterCompany ? (recruiterCompany._id as mongoose.Types.ObjectId) : undefined;
+    // Experience level: UI may send an array (first wins) or a string; must match Job schema enum
+    let experienceLevelResolved: (typeof EXPERIENCE_LEVELS)[number] | undefined;
+    if (experienceLevelFromBody !== undefined) {
+      const raw = Array.isArray(experienceLevelFromBody)
+        ? experienceLevelFromBody.length > 0
+          ? String(experienceLevelFromBody[0])
+          : undefined
+        : typeof experienceLevelFromBody === 'string' && experienceLevelFromBody.trim()
+          ? experienceLevelFromBody.trim()
+          : undefined;
+      if (raw && (EXPERIENCE_LEVELS as readonly string[]).includes(raw)) {
+        experienceLevelResolved = raw as (typeof EXPERIENCE_LEVELS)[number];
+      }
     }
 
-    // System-managed date fields for Google Jobs SEO
-    // datePosted is set when job is first published
-    // validThrough is set to datePosted + 90 days
+    // --- Target recruiter (admin assigns any recruiter; recruiter only self) ---
+    let targetRecruiterId: mongoose.Types.ObjectId;
+    if (user.role === 'admin') {
+      if (
+        !recruiterIdBody ||
+        typeof recruiterIdBody !== 'string' ||
+        !mongoose.Types.ObjectId.isValid(recruiterIdBody)
+      ) {
+        return NextResponse.json(
+          { error: 'recruiterId is required and must be a valid id when creating a job as admin' },
+          { status: 400 }
+        );
+      }
+      targetRecruiterId = new mongoose.Types.ObjectId(recruiterIdBody);
+    } else {
+      if (!user.userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      if (
+        recruiterIdBody !== undefined &&
+        recruiterIdBody !== null &&
+        String(recruiterIdBody) !== String(user.userId)
+      ) {
+        return NextResponse.json(
+          { error: 'Recruiters may only create jobs for themselves' },
+          { status: 403 }
+        );
+      }
+      targetRecruiterId = new mongoose.Types.ObjectId(user.userId);
+    }
+
+    const recruiterDoc = await User.findById(targetRecruiterId).select('role companyId').lean();
+    if (!recruiterDoc) {
+      return NextResponse.json({ error: 'Recruiter not found' }, { status: 404 });
+    }
+    if (recruiterDoc.role !== 'recruiter') {
+      return NextResponse.json(
+        { error: 'Selected user must have role recruiter' },
+        { status: 400 }
+      );
+    }
+
+    let companyId = recruiterDoc.companyId ?? undefined;
+    if (companyId === undefined) {
+      const recruiterCompany = await Company.findOne({ ownerRecruiter: targetRecruiterId });
+      companyId = recruiterCompany ? (recruiterCompany._id as mongoose.Types.ObjectId) : undefined;
+    }
+    if (!companyId) {
+      return NextResponse.json(
+        { error: 'Recruiter has no company; complete company profile first.' },
+        { status: 400 }
+      );
+    }
+
+    // draft | published — recruiters default to published (backward compatible); admins default to draft
+    let resolvedStatus: 'draft' | 'published';
+    if (statusBody === 'draft' || statusBody === 'published') {
+      resolvedStatus = statusBody;
+    } else if (user.role === 'admin') {
+      resolvedStatus = 'draft';
+    } else {
+      resolvedStatus = 'published';
+    }
+    const isPublished = resolvedStatus === 'published';
+
     const now = new Date();
     const validThroughDate = new Date(now);
     validThroughDate.setDate(validThroughDate.getDate() + 90);
@@ -826,12 +898,14 @@ export async function POST(request: NextRequest) {
       country: normalizedCountry,
       salary,
       type: normalizedType,
-      recruiter: user.userId,
-      companyId: companyId,
+      recruiter: targetRecruiterId,
+      companyId,
       languages: languages || [],
       qualifications: qualifications || [],
       sports: sports || [],
       occupationalAreas: occupationalAreas || [],
+      experienceLevel: experienceLevelResolved,
+      experience: experienceLevelResolved,
       pictures: pictures || [],
       applyViaATS: applyViaATS !== undefined ? applyViaATS === true : true,
       applyByEmail: applyByEmail === true,
@@ -840,10 +914,12 @@ export async function POST(request: NextRequest) {
       applicationEmail: applicationEmail || undefined,
       applicationWebsite: normalizeUrl(applicationWebsite),
       applicationWhatsApp: applicationWhatsApp || undefined,
-      published: true, // Jobs are published by default
-      datePosted: now, // System-managed: set when first published
-      validThrough: validThroughDate, // System-managed: datePosted + 90 days
-      lastRecruiterEditAt: now, // For listing order: only updated on recruiter create/edit
+      status: resolvedStatus,
+      published: isPublished,
+      publishedAt: isPublished ? now : null,
+      datePosted: isPublished ? now : undefined,
+      validThrough: isPublished ? validThroughDate : undefined,
+      lastRecruiterEditAt: now,
     });
 
     // Geocode location for map pin (city + country → coordinates; fallback to country centroid on map if null)
@@ -887,21 +963,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const populatedJob = await Job.findById(job._id).populate('recruiter', 'name email');
+    let populatedJob = await Job.findById(job._id)
+      .populate('recruiter', 'name email')
+      .populate('companyId', 'name logo website address');
 
     try {
-      const fbResult = await postJobToFacebook({
-        title: job.title,
-        city: job.city,
-        country: job.country,
-        description: job.description,
-        company,
-      });
-      if (fbResult?.id && typeof fbResult.id === 'string') {
-        await Job.updateOne(
-          { _id: job._id },
-          { $set: { facebookPostId: fbResult.id } }
-        );
+      if (isPublished) {
+        const fbResult = await postJobToFacebook({
+          title: job.title,
+          city: job.city,
+          country: job.country,
+          description: job.description,
+          company,
+        });
+        if (fbResult?.id && typeof fbResult.id === 'string') {
+          await Job.updateOne(
+            { _id: job._id },
+            { $set: { facebookPostId: fbResult.id } }
+          );
+          populatedJob = await Job.findById(job._id)
+            .populate('recruiter', 'name email')
+            .populate('companyId', 'name logo website address');
+        }
       }
     } catch (err) {
       console.error('[facebook] auto-post failed:', err);

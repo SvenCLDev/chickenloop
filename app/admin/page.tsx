@@ -990,27 +990,37 @@ function AdminDashboard() {
         {/* Data Table */}
         {selectedCategory && (
           <div className="bg-white rounded-lg shadow-md overflow-hidden mt-8">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900 capitalize">
-                {selectedCategory === 'job-seekers' ? 'Job Seekers' : 
-                 selectedCategory === 'recruiters' ? 'Recruiters' :
-                 selectedCategory === 'jobs' ? 'Jobs' : 
-                 selectedCategory === 'cvs' ? 'CVs' : 
-                 selectedCategory === 'companies' ? 'Companies' :
-                 selectedCategory === 'applications' ? 'Applications' :
-                 selectedCategory === 'career-advice' ? 'Career Advice' : ''}
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                {selectedCategory === 'career-advice' ? (
-                  'Manage career advice articles and content'
-                ) : selectedCategory === 'applications' ? (
-                  applicationsTotalCount > 0 
-                    ? `Showing ${indexOfFirstEntry} to ${indexOfLastEntry} of ${applicationsTotalCount} ${applicationsTotalCount === 1 ? 'entry' : 'entries'}`
-                    : 'No entries'
-                ) : (
-                  `Showing ${indexOfFirstEntry + 1} to ${Math.min(indexOfLastEntry, tableData.length)} of ${tableData.length} entries`
-                )}
-              </p>
+            <div className="px-6 py-4 border-b border-gray-200 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 capitalize">
+                  {selectedCategory === 'job-seekers' ? 'Job Seekers' : 
+                   selectedCategory === 'recruiters' ? 'Recruiters' :
+                   selectedCategory === 'jobs' ? 'Jobs' : 
+                   selectedCategory === 'cvs' ? 'CVs' : 
+                   selectedCategory === 'companies' ? 'Companies' :
+                   selectedCategory === 'applications' ? 'Applications' :
+                   selectedCategory === 'career-advice' ? 'Career Advice' : ''}
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {selectedCategory === 'career-advice' ? (
+                    'Manage career advice articles and content'
+                  ) : selectedCategory === 'applications' ? (
+                    applicationsTotalCount > 0 
+                      ? `Showing ${indexOfFirstEntry} to ${indexOfLastEntry} of ${applicationsTotalCount} ${applicationsTotalCount === 1 ? 'entry' : 'entries'}`
+                      : 'No entries'
+                  ) : (
+                    `Showing ${indexOfFirstEntry + 1} to ${Math.min(indexOfLastEntry, tableData.length)} of ${tableData.length} entries`
+                  )}
+                </p>
+              </div>
+              {selectedCategory === 'jobs' && (
+                <Link
+                  href="/admin/jobs/new"
+                  className="inline-flex items-center justify-center shrink-0 rounded-md bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                >
+                  Create job for recruiter
+                </Link>
+              )}
             </div>
 
             {/* Search and email filter inputs for job-seekers */}
