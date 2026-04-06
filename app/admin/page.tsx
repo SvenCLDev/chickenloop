@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import { adminApi } from '@/lib/api';
+import { getJobUrl } from '@/lib/jobSlug';
 
 interface Statistics {
   jobSeekers: number;
@@ -1711,7 +1712,16 @@ function AdminDashboard() {
                           ) : selectedCategory === 'jobs' ? (
                             <>
                               <td className="px-6 py-4 text-sm font-medium text-gray-900" style={{ maxWidth: '400px' }}>
-                                <div className="truncate" title={entry.title}>{entry.title}</div>
+                                <Link
+                                  href={getJobUrl({
+                                    title: entry.title,
+                                    country: entry.country,
+                                  })}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline truncate block"
+                                  title={`View job: ${entry.title}`}
+                                >
+                                  {entry.title}
+                                </Link>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.companyName ?? '—'}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

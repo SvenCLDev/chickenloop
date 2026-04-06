@@ -139,9 +139,12 @@ async function getUserFromCookies(): Promise<{ userId: string; role: string } | 
  * Resolve job from slug: canonical match first, then legacySlug fallback with redirect.
  * Returns { jobId } | { redirect: path } | null.
  */
+type ResolveSlugOptions = { includeUnpublished?: boolean };
+
 async function resolveJobFromSlug(
   slug: string,
-  countrySlug: string
+  countrySlug: string,
+  options?: ResolveSlugOptions
 ): Promise<{ jobId: string } | { redirect: string } | null> {
   await connectDB();
 
@@ -152,8 +155,10 @@ async function resolveJobFromSlug(
       ? { country: { $in: countryValues } }
       : { country: { $in: [] } };
 
+  const publishedFilter = options?.includeUnpublished ? {} : { published: { $ne: false } };
+
   const canonicalCandidates = await Job.find({
-    published: { $ne: false },
+    ...publishedFilter,
     ...countryFilter,
   })
     .select('_id title country')
@@ -169,10 +174,11 @@ async function resolveJobFromSlug(
   }
 
   // 2. Legacy slug fallback: indexed query by legacySlug (no country filter)
-  const legacyJob = await Job.findOne({
-    published: { $ne: false },
-    legacySlug: slug,
-  })
+  const legacyQuery: Record<string, unknown> = { legacySlug: slug };
+  if (!options?.includeUnpublished) {
+    legacyQuery.published = { $ne: false };
+  }
+  const legacyJob = await Job.findOne(legacyQuery)
     .select('_id title country')
     .lean();
 
@@ -202,10 +208,12 @@ async function shouldSkipVisitCountForPrefetch(): Promise<boolean> {
   }
 }
 
+type GetJobOptions = { includeUnpublished?: boolean };
+
 /**
  * Get job by ID (reused from existing job details page)
  */
-async function getJob(id: string): Promise<Job | null> {
+async function getJob(id: string, options?: GetJobOptions): Promise<Job | null> {
   try {
     await connectDB();
     
@@ -217,16 +225,17 @@ async function getJob(id: string): Promise<Job | null> {
       return null;
     }
 
-    // Check if job is published (unpublished jobs are hidden from public)
+    // Unpublished jobs are hidden from public; admins may preview when includeUnpublished is set.
     const jobPublished = job.published;
-    if (jobPublished === false) {
+    if (jobPublished === false && !options?.includeUnpublished) {
       return null;
     }
 
     // Count only real navigations, not RSC/link prefetch (which would inflate "Visits").
+    // Do not increment visits for unpublished jobs (e.g. admin preview of draft).
     const skipCount = await shouldSkipVisitCountForPrefetch();
     let docForResponse = job;
-    if (!skipCount) {
+    if (!skipCount && jobPublished !== false) {
       await Job.findByIdAndUpdate(
         id,
         { $inc: { visitCount: 1 } },
@@ -519,7 +528,12 @@ async function getJobOgImageUrl(jobId: string): Promise<string | null> {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { country: countrySlug, slug } = await params;
 
-  const result = await resolveJobFromSlug(slug, countrySlug);
+  const viewer = await getUserFromCookies();
+  const adminPreview = viewer?.role === 'admin';
+
+  const result = await resolveJobFromSlug(slug, countrySlug, {
+    includeUnpublished: adminPreview,
+  });
   if (!result) {
     return {};
   }
@@ -531,11 +545,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // Get the job data (minimal fetch for metadata)
   try {
     await connectDB();
-    const job = await Job.findById(jobId).select('title companyId country').populate('companyId', 'name').lean();
+    const job = await Job.findById(jobId).select('title companyId country published').populate('companyId', 'name').lean();
     
     if (!job) {
       return {};
     }
+
+    const isUnpublished = (job as { published?: boolean }).published === false;
+    const robots =
+      isUnpublished && adminPreview
+        ? { index: false as const, follow: false as const }
+        : undefined;
     
     const companyName = (job.companyId && typeof job.companyId === 'object' && 'name' in job.companyId)
       ? String((job.companyId as { name?: string }).name ?? '')
@@ -557,6 +577,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       alternates: {
         canonical: canonicalUrl,
       },
+      ...(robots && { robots }),
       openGraph: {
         title: `${job.title} at ${companyName} | Chickenloop`,
         description: `Apply for ${job.title} at ${companyName}. Find watersports jobs on Chickenloop.`,
@@ -573,7 +594,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function CanonicalJobDetailPage({ params }: PageProps) {
   const { country: countrySlug, slug } = await params;
 
-  const result = await resolveJobFromSlug(slug, countrySlug);
+  const user = await getUserFromCookies();
+  const adminPreview = user?.role === 'admin';
+
+  const result = await resolveJobFromSlug(slug, countrySlug, {
+    includeUnpublished: adminPreview,
+  });
   if (!result) {
     notFound();
   }
@@ -583,7 +609,7 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
   const jobId = result.jobId;
   
   // Get the job data
-  const job = await getJob(jobId);
+  const job = await getJob(jobId, { includeUnpublished: adminPreview });
   
   if (!job) {
     notFound();
@@ -599,8 +625,6 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
     permanentRedirect(canonicalPath); // 308 Permanent Redirect (SEO-safe)
   }
   
-  // Get user info from cookies to determine viewer role and permissions
-  const user = await getUserFromCookies();
   const isRecruiterView = user?.role === 'recruiter';
   
   // Job owner: recruiter who owns this job (for Job actions box)
@@ -621,7 +645,8 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
     ...job,
     country: job.country ?? undefined,
   };
-  const jsonLd = buildJobJsonLd(jobForJsonLd, currentUrl);
+  const jsonLd =
+    job.published !== false ? buildJobJsonLd(jobForJsonLd, currentUrl) : null;
 
   // Generate company summary for display (computed, not stored)
   const companySummary = job.companyForSummary 
@@ -644,10 +669,12 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
   const careerAdviceSection =
     otherJobs.length === 0 ? await getCareerAdviceForFill(3) : [];
 
+  const showDraftBanner = adminPreview && job.published === false;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
-        {/* Google Jobs JSON-LD structured data */}
-        {jsonLd && (
+        {/* Google Jobs JSON-LD — omit for unpublished jobs (admin preview) */}
+        {jsonLd && job.published !== false && (
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -661,6 +688,15 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
         >
           ← Back to Jobs
         </Link>
+
+        {showDraftBanner && (
+          <div
+            className="mb-4 p-3 rounded-md border border-amber-300 bg-amber-50 text-amber-900 text-sm"
+            role="status"
+          >
+            This job is <strong>not published</strong>. Only you (admin) can view this page.
+          </div>
+        )}
 
         {user?.role === 'admin' && (
           <div className="mb-6 p-3 border border-gray-300 rounded-md bg-gray-50 text-sm">
