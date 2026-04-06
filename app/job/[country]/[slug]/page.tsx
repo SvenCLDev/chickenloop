@@ -313,39 +313,29 @@ async function getJob(id: string, options?: GetJobOptions): Promise<Job | null> 
           : String(jobObject.recruiter))
       : undefined;
     
-    // Get all images from JobImage collection (for complete list including hero)
+    // Merge JobImage rows with job.pictures (admin flows often have all URLs on Job, fewer JobImage rows)
     let allImages: string[] = [];
     let heroImageUrl: string | undefined;
+    const rawPictures = Array.isArray(jobObject.pictures) ? jobObject.pictures : [];
     try {
-      const jobImages = await JobImage.find({ 
-        jobId: new mongoose.Types.ObjectId(id)
+      const jobImages = await JobImage.find({
+        jobId: new mongoose.Types.ObjectId(id),
       })
-      .sort({ order: 1 })
-      .lean();
-      
-      if (jobImages && jobImages.length > 0) {
-        // Extract all image URLs
-        allImages = jobImages.map((img: any) => img.imageUrl);
-        
-        // Find hero image
-        const heroImage = jobImages.find((img: any) => img.isHero === true);
-        if (heroImage && heroImage.imageUrl) {
-          heroImageUrl = heroImage.imageUrl;
-        }
-      }
+        .sort({ order: 1 })
+        .lean();
+
+      const merged = mergeJobImageSources(
+        (jobImages || []) as { imageUrl?: string; isHero?: boolean; order?: number }[],
+        rawPictures
+      );
+      allImages = merged.allImages;
+      heroImageUrl = merged.heroImageUrl;
     } catch (error) {
-      // If JobImage query fails, fall back to pictures array
       console.error('Error fetching images from JobImage collection:', error);
-    }
-    
-    // Fallback to job.pictures array if JobImage collection is empty
-    if (allImages.length === 0 && jobObject.pictures && Array.isArray(jobObject.pictures) && jobObject.pictures.length > 0) {
-      allImages = jobObject.pictures;
-    }
-    
-    // Fallback hero image: use first image if no explicit hero found
-    if (!heroImageUrl && allImages.length > 0) {
-      heroImageUrl = allImages[0];
+      if (rawPictures.length > 0) {
+        allImages = rawPictures;
+        heroImageUrl = rawPictures[0];
+      }
     }
     
     // Convert ObjectIds to strings for Client Component compatibility
