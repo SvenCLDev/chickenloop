@@ -1,10 +1,14 @@
 import {
   assertJobJsonPayloadFits,
   estimateJsonPayloadBytes,
+  JOB_PHOTO_MAX_BYTES_PER_FILE,
   looksLikePayloadTooLargeError,
+  MAX_JOB_IMAGE_ORIGINAL_BYTES,
   MAX_JOB_JSON_PAYLOAD_BYTES,
   sanitizeJobDescriptionForSubmit,
   stripDataImageUris,
+  validateJobPhotoFilesForUpload,
+  validateOriginalJobPhotoFiles,
 } from '@/lib/jobPostPayload';
 
 describe('jobPostPayload', () => {
@@ -50,6 +54,35 @@ describe('jobPostPayload', () => {
     it('matches Blob size of JSON.stringify', () => {
       const p = { foo: 'bar', n: 1 };
       expect(estimateJsonPayloadBytes(p)).toBe(new Blob([JSON.stringify(p)]).size);
+    });
+  });
+
+  describe('validateOriginalJobPhotoFiles', () => {
+    it('rejects a file over 6MB', () => {
+      const huge = new File([new Uint8Array(1)], 'big.jpg', { type: 'image/jpeg' });
+      Object.defineProperty(huge, 'size', { value: MAX_JOB_IMAGE_ORIGINAL_BYTES + 1 });
+      expect(validateOriginalJobPhotoFiles([huge])).toBeTruthy();
+    });
+
+    it('allows a file at exactly 6MB', () => {
+      const ok = new File([new Uint8Array(1)], 'ok.jpg', { type: 'image/jpeg' });
+      Object.defineProperty(ok, 'size', { value: MAX_JOB_IMAGE_ORIGINAL_BYTES });
+      expect(validateOriginalJobPhotoFiles([ok])).toBeNull();
+    });
+  });
+
+  describe('validateJobPhotoFilesForUpload', () => {
+    it('rejects a file over per-file limit', () => {
+      const big = new File([new Uint8Array(JOB_PHOTO_MAX_BYTES_PER_FILE + 1)], 'a.jpg', {
+        type: 'image/jpeg',
+      });
+      const msg = validateJobPhotoFilesForUpload([big]);
+      expect(msg).toBeTruthy();
+      expect(msg).toMatch(/a\.jpg/);
+    });
+
+    it('allows empty list', () => {
+      expect(validateJobPhotoFilesForUpload([])).toBeNull();
     });
   });
 

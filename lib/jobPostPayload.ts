@@ -78,3 +78,47 @@ export function assertJobJsonPayloadFits(payload: unknown): string | null {
   }
   return null;
 }
+
+/**
+ * Vercel serverless request bodies are capped (~4.5 MB including multipart overhead).
+ * One POST /api/jobs/upload sends all new files in a single FormData — stay under the cap.
+ * After client-side compression, each file should stay below this; originals can be larger (see MAX_JOB_IMAGE_ORIGINAL_BYTES).
+ */
+export const JOB_PHOTO_MAX_BYTES_PER_FILE = 1200 * 1024; // 1.2 MiB per uploaded file (post-compression)
+const JOB_PHOTO_MAX_TOTAL_NEW_BYTES = 3800 * 1024; // combined new files in one request
+
+/** Max size for a user-selected file before browser compression. */
+export const MAX_JOB_IMAGE_ORIGINAL_BYTES = 6 * 1024 * 1024;
+
+export const JOB_PHOTO_UPLOAD_TOO_LARGE_MESSAGE =
+  'The photos are still too large to upload in one request (hosting limit). Try fewer images per save, or contact support if this persists after optimization.';
+
+function formatMb(n: number): string {
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Reject originals over 6 MB before client-side compression runs. */
+export function validateOriginalJobPhotoFiles(files: File[]): string | null {
+  for (const f of files) {
+    if (f.size > MAX_JOB_IMAGE_ORIGINAL_BYTES) {
+      return `${f.name} is too large (${formatMb(f.size)}). Each image must be under 6 MB. Try a smaller file or compress it first.`;
+    }
+  }
+  return null;
+}
+
+/** Validate compressed files that will be sent together in POST /api/jobs/upload. */
+export function validateJobPhotoFilesForUpload(files: File[]): string | null {
+  let total = 0;
+  const perMb = (JOB_PHOTO_MAX_BYTES_PER_FILE / (1024 * 1024)).toFixed(1);
+  for (const f of files) {
+    if (f.size > JOB_PHOTO_MAX_BYTES_PER_FILE) {
+      return `${f.name} is ${formatMb(f.size)}. Each photo must be under ${perMb} MB so the upload fits our hosting limit. Try a smaller JPEG or resize the image.`;
+    }
+    total += f.size;
+  }
+  if (files.length > 0 && total > JOB_PHOTO_MAX_TOTAL_NEW_BYTES) {
+    return `Total size of these photos (${formatMb(total)}) is too large for one upload. Try fewer images or smaller files.`;
+  }
+  return null;
+}

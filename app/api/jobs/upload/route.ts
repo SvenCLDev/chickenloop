@@ -6,9 +6,10 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-// User-friendly message when request body cannot be parsed as multipart (e.g. bad image or size limit)
+// User-friendly message when request body cannot be parsed as multipart (e.g. bad image or size limit).
+// Note: Vercel rejects the whole request with 413 before this runs if multipart body exceeds ~4.5 MB — client caps uploads.
 const FORM_DATA_PARSE_ERROR =
-  'The image(s) you selected could not be processed. Please try a different image, use a smaller file (e.g. under 5MB), or use JPEG, PNG, WEBP or GIF.';
+  'The image(s) you selected could not be processed. Please try a different image, use a smaller file (e.g. under 1.2 MB each), or use JPEG, PNG, WEBP or GIF.';
 
 // POST - Upload job pictures (recruiters and admins)
 export async function POST(request: NextRequest) {

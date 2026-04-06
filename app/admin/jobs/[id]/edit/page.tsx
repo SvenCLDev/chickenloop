@@ -5,7 +5,13 @@ import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import Navbar from '../../../../components/Navbar';
 import { adminApi } from '@/lib/api';
+import { compressIncomingJobPhotoFiles } from '@/lib/compressJobImage';
 import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
+import {
+  JOB_PHOTO_UPLOAD_TOO_LARGE_MESSAGE,
+  looksLikePayloadTooLargeError,
+  validateJobPhotoFilesForUpload,
+} from '@/lib/jobPostPayload';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
 import { QUALIFICATIONS } from '@/lib/qualifications';
 import {
@@ -51,6 +57,8 @@ export default function AdminEditJobPage() {
   const [selectedPictures, setSelectedPictures] = useState<File[]>([]);
   const [picturePreviews, setPicturePreviews] = useState<string[]>([]);
   const [uploadingPictures, setUploadingPictures] = useState(false);
+  const [optimizingPictures, setOptimizingPictures] = useState(false);
+  const [optimizingMessage, setOptimizingMessage] = useState('');
   const [companyEmail, setCompanyEmail] = useState('');
   const [companyWebsite, setCompanyWebsite] = useState('');
   const previewCountryCode = normalizeCountryForStorage(formData.country);
@@ -113,35 +121,56 @@ export default function AdminEditJobPage() {
   };
 
   const handlePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const totalPictures = existingPictures.length + selectedPictures.length + files.length;
+    const input = e.target;
+    const files = Array.from(input.files || []);
+    input.value = '';
 
-    if (totalPictures > 3) {
-      setError('Maximum 3 pictures allowed (including existing ones)');
-      return;
-    }
+    void (async () => {
+      const totalPictures = existingPictures.length + selectedPictures.length + files.length;
 
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    const maxSizePerFile = 10 * 1024 * 1024; // 10MB to avoid FormData/body parse errors
-
-    for (const file of files) {
-      if (!validTypes.includes(file.type)) {
-        setError(`Invalid file type: ${file.name}. Only images (JPEG, PNG, WEBP, GIF) are allowed.`);
+      if (totalPictures > 3) {
+        setError('Maximum 3 pictures allowed (including existing ones)');
         return;
       }
-      if (file.size > maxSizePerFile) {
-        setError(`${file.name} is too large. Please use an image under 10MB.`);
+
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      for (const file of files) {
+        if (!validTypes.includes(file.type)) {
+          setError(`Invalid file type: ${file.name}. Only images (JPEG, PNG, WEBP, GIF) are allowed.`);
+          return;
+        }
+      }
+
+      setOptimizingPictures(true);
+      setOptimizingMessage('Optimizing image…');
+      setError('');
+
+      const compressed = await compressIncomingJobPhotoFiles(files, (msg) =>
+        setOptimizingMessage(msg)
+      );
+      if (!compressed.ok) {
+        setError(compressed.error);
+        setOptimizingPictures(false);
+        setOptimizingMessage('');
         return;
       }
-    }
 
-    const newPictures = [...selectedPictures, ...files];
-    setSelectedPictures(newPictures);
-    setError('');
+      const newPictures = [...selectedPictures, ...compressed.files];
+      const uploadErr = validateJobPhotoFilesForUpload(newPictures);
+      if (uploadErr) {
+        setError(uploadErr);
+        setOptimizingPictures(false);
+        setOptimizingMessage('');
+        return;
+      }
 
-    // Create preview URLs
-    const newPreviews = files.map(file => URL.createObjectURL(file));
-    setPicturePreviews([...picturePreviews, ...newPreviews]);
+      setSelectedPictures(newPictures);
+      const newPreviews = compressed.files.map((file) => URL.createObjectURL(file));
+      setPicturePreviews((prev) => [...prev, ...newPreviews]);
+
+      setOptimizingPictures(false);
+      setOptimizingMessage('');
+    })();
   };
 
   const removeExistingPicture = (index: number) => {
@@ -163,6 +192,12 @@ export default function AdminEditJobPage() {
   const uploadPictures = async (): Promise<string[]> => {
     if (selectedPictures.length === 0) return existingPictures;
 
+    const preflight = validateJobPhotoFilesForUpload(selectedPictures);
+    if (preflight) {
+      setError(preflight);
+      throw new Error(preflight);
+    }
+
     setUploadingPictures(true);
     try {
       const uploadFormData = new FormData();
@@ -176,7 +211,22 @@ export default function AdminEditJobPage() {
         credentials: 'include',
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      if (response.status === 413 || looksLikePayloadTooLargeError(text)) {
+        throw new Error(JOB_PHOTO_UPLOAD_TOO_LARGE_MESSAGE);
+      }
+
+      let data: { error?: string; paths?: string[] };
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          throw new Error(`Server error: ${text.substring(0, 200)}`);
+        }
+      } else {
+        throw new Error(`Server error: ${text.substring(0, 200)}`);
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to upload pictures');
@@ -721,7 +771,7 @@ export default function AdminEditJobPage() {
                   accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
                   multiple
                   onChange={handlePictureChange}
-                  disabled={existingPictures.length + selectedPictures.length >= 3}
+                  disabled={existingPictures.length + selectedPictures.length >= 3 || optimizingPictures}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
                 />
                 {existingPictures.length + selectedPictures.length >= 3 ? (
@@ -740,8 +790,14 @@ export default function AdminEditJobPage() {
                 )}
               </div>
               <p className="text-sm text-gray-500 mt-1">
-                Maximum 3 pictures total (including existing ones). Supported formats: JPEG, PNG, WEBP, GIF (resized automatically)
+                Maximum 3 pictures total (including existing). Up to ~6 MB each; images are optimized in the
+                browser before upload.
               </p>
+              {optimizingPictures && (
+                <p className="text-sm text-blue-700 mt-2" role="status" aria-live="polite">
+                  {optimizingMessage || 'Optimizing image…'}
+                </p>
+              )}
               {selectedPictures.length > 0 && (
                 <div className="mt-4">
                   <p className="text-sm text-gray-600 mb-2">New Pictures:</p>
