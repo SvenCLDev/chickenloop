@@ -112,6 +112,7 @@ export async function GET(request: NextRequest) {
           name: 1,
           email: 1,
           role: 1,
+          companyId: 1,
           lastOnline: 1,
           updatedAt: 1,
           createdAt: 1,
@@ -228,6 +229,7 @@ export async function GET(request: NextRequest) {
         const recruiterId = user._id.toString();
         return {
           ...baseUser,
+          companyId: user.companyId ? String(user.companyId) : null,
           companyName: companyMap.get(recruiterId) || null,
           lastActive: user.lastOnline || user.updatedAt || user.createdAt,
           jobCount: jobCountMap.get(recruiterId) || 0,

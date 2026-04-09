@@ -15,6 +15,7 @@ import {
 } from '@/lib/jobPostPayload';
 import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import { normalizeCountryForStorage } from '@/lib/countryUtils';
+import CreateCompanyForRecruiterModal from '@/components/admin/CreateCompanyForRecruiterModal';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
 import { QUALIFICATIONS } from '@/lib/qualifications';
 import { SPORTS_LIST } from '@/lib/sports';
@@ -42,6 +43,7 @@ export default function AdminNewJobPage() {
   const [recruiterDropdownOpen, setRecruiterDropdownOpen] = useState(false);
   const [recruiterSearching, setRecruiterSearching] = useState(false);
   const [selectedRecruiter, setSelectedRecruiter] = useState<RecruiterOption | null>(null);
+  const [recruiterHasCompany, setRecruiterHasCompany] = useState<boolean | null>(null);
   const recruiterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const recruiterContainerRef = useRef<HTMLDivElement>(null);
 
@@ -72,6 +74,8 @@ export default function AdminNewJobPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successToast, setSuccessToast] = useState('');
+  const [showCreateCompanyModal, setShowCreateCompanyModal] = useState(false);
   const [selectedPictures, setSelectedPictures] = useState<File[]>([]);
   const [picturePreviews, setPicturePreviews] = useState<string[]>([]);
   const [uploadingPictures, setUploadingPictures] = useState(false);
@@ -130,14 +134,31 @@ export default function AdminNewJobPage() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  useEffect(() => {
+    if (!successToast) return;
+    const timer = setTimeout(() => setSuccessToast(''), 2500);
+    return () => clearTimeout(timer);
+  }, [successToast]);
+
+  const loadRecruiterCompanyState = async (recruiterId: string) => {
+    try {
+      const data = await adminApi.getUser(recruiterId);
+      setRecruiterHasCompany(Boolean(data?.user?.companyId));
+    } catch {
+      setRecruiterHasCompany(null);
+    }
+  };
+
   const pickRecruiter = (r: RecruiterOption) => {
     setSelectedRecruiter(r);
     setRecruiterSearch(`${r.name} (${r.email})`);
     setRecruiterDropdownOpen(false);
+    setShowCreateCompanyModal(false);
     setFormData((prev) => ({
       ...prev,
       company: (r.companyName && r.companyName.trim()) || prev.company,
     }));
+    void loadRecruiterCompanyState(r.id);
   };
 
   const handlePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -267,6 +288,10 @@ export default function AdminNewJobPage() {
       setError('Please select a recruiter.');
       return;
     }
+    if (recruiterHasCompany === false) {
+      setError('Selected recruiter has no company assigned. Create one first.');
+      return;
+    }
 
     const validationErrors: string[] = [];
     if (!formData.title?.trim()) validationErrors.push('Job Title is required');
@@ -362,6 +387,11 @@ export default function AdminNewJobPage() {
               {error}
             </div>
           )}
+          {successToast && (
+            <div className="bg-green-100 border border-green-400 text-green-800 px-4 py-3 rounded mb-4">
+              {successToast}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative" ref={recruiterContainerRef}>
@@ -413,6 +443,18 @@ export default function AdminNewJobPage() {
               <p className="text-sm text-gray-600">
                 Selected: <span className="font-medium text-gray-900">{selectedRecruiter.name}</span> ({selectedRecruiter.email})
               </p>
+            )}
+            {selectedRecruiter && recruiterHasCompany === false && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
+                <p className="text-amber-900 font-medium">⚠️ No company assigned</p>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateCompanyModal(true)}
+                  className="mt-2 inline-flex items-center rounded-md bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+                >
+                  Create Company
+                </button>
+              </div>
             )}
 
             <div>
@@ -1030,6 +1072,19 @@ export default function AdminNewJobPage() {
           </div>
         </div>
       )}
+      <CreateCompanyForRecruiterModal
+        isOpen={showCreateCompanyModal}
+        recruiter={selectedRecruiter}
+        onClose={() => setShowCreateCompanyModal(false)}
+        onSuccess={({ companyName }) => {
+          setRecruiterHasCompany(true);
+          setFormData((prev) => ({ ...prev, company: companyName }));
+          setSelectedRecruiter((prev) =>
+            prev ? { ...prev, companyName } : prev
+          );
+          setSuccessToast('Company created and linked');
+        }}
+      />
     </div>
   );
 }

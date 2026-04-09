@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
+import CreateCompanyForRecruiterModal from '@/components/admin/CreateCompanyForRecruiterModal';
 import { adminApi } from '@/lib/api';
 import { getJobUrl } from '@/lib/jobSlug';
 
@@ -121,6 +122,7 @@ interface User {
   lastOnline?: string;
   jobs?: any[];
   cv?: any;
+  companyId?: string | null;
   companyName?: string | null;
   lastActive?: string | null;
   jobCount?: number;
@@ -198,6 +200,20 @@ function AdminDashboard() {
   
   // Track if section query param has been processed
   const sectionProcessedRef = useRef(false);
+
+  const [createCompanyModalRecruiter, setCreateCompanyModalRecruiter] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    companyName?: string | null;
+  } | null>(null);
+  const [adminSuccessToast, setAdminSuccessToast] = useState('');
+
+  useEffect(() => {
+    if (!adminSuccessToast) return;
+    const timer = setTimeout(() => setAdminSuccessToast(''), 2500);
+    return () => clearTimeout(timer);
+  }, [adminSuccessToast]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -1023,6 +1039,14 @@ function AdminDashboard() {
               )}
             </div>
 
+            {adminSuccessToast && (
+              <div className="px-6 pt-4">
+                <div className="bg-green-100 border border-green-400 text-green-800 px-4 py-3 rounded">
+                  {adminSuccessToast}
+                </div>
+              </div>
+            )}
+
             {/* Search and email filter inputs for job-seekers */}
             {selectedCategory === 'job-seekers' && (
               <div className="px-6 py-4 border-b border-gray-200">
@@ -1350,6 +1374,9 @@ function AdminDashboard() {
                                   <span className="text-gray-400">{getSortIndicator('jobCount')}</span>
                                 )}
                               </div>
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Company setup
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                           </>
@@ -1709,6 +1736,32 @@ function AdminDashboard() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.jobCount ?? 0}
                               </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                <button
+                                  type="button"
+                                  disabled={Boolean(entry.companyId)}
+                                  onClick={() =>
+                                    setCreateCompanyModalRecruiter({
+                                      id: entry.id,
+                                      name: entry.name,
+                                      email: entry.email,
+                                      companyName: entry.companyName ?? null,
+                                    })
+                                  }
+                                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                                    entry.companyId
+                                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                      : 'bg-amber-600 text-white hover:bg-amber-700'
+                                  }`}
+                                  title={
+                                    entry.companyId
+                                      ? 'Recruiter already has a company'
+                                      : 'Create and link a company'
+                                  }
+                                >
+                                  Create company
+                                </button>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <button
                                   onClick={() => handleEditUser(entry.id)}
@@ -2059,6 +2112,29 @@ function AdminDashboard() {
       </main>
 
       {/* Instagram post modal */}
+      <CreateCompanyForRecruiterModal
+        isOpen={createCompanyModalRecruiter !== null}
+        recruiter={createCompanyModalRecruiter}
+        onClose={() => setCreateCompanyModalRecruiter(null)}
+        onSuccess={({ companyName, companyId }) => {
+          const targetId = createCompanyModalRecruiter?.id;
+          if (!targetId) return;
+          setAdminSuccessToast('Company created and linked');
+          setCreateCompanyModalRecruiter(null);
+          setTableData((prev) =>
+            prev.map((row) =>
+              row.id === targetId
+                ? {
+                    ...row,
+                    companyId: companyId ?? row.companyId ?? 'linked',
+                    companyName,
+                  }
+                : row
+            )
+          );
+        }}
+      />
+
       {instagramModalJobId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setInstagramModalJobId(null)}>
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>

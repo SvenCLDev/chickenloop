@@ -40,6 +40,7 @@ export async function GET(
         email: user.email,
         name: user.name,
         role: user.role,
+        companyId: user.companyId,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
         ...additionalData,
