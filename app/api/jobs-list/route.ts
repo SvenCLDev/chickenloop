@@ -35,13 +35,14 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const featured = searchParams.get('featured');
+    const now = new Date();
 
     const collection = dbConnection.collection('jobs');
     const queryFilter: any = {};
 
-    // If featured=true, filter for featured jobs
+    // If featured=true, filter for currently featured jobs (now <= featuredUntil)
     if (featured === 'true') {
-      queryFilter.featured = true;
+      queryFilter.featuredUntil = { $gte: now };
     }
 
     // Use index hint for better performance
@@ -60,6 +61,7 @@ export async function GET(request: NextRequest) {
       occupationalAreas: 1,
       published: 1,
       featured: 1,
+      featuredUntil: 1,
       pictures: 1, // Need for list thumbnails
       createdAt: 1,
       updatedAt: 1,
@@ -163,6 +165,16 @@ export async function GET(request: NextRequest) {
         console.error('[API /jobs-list] Company populate error:', companyError.message);
       }
     }
+
+    // Runtime source of truth for featured display: now <= featuredUntil
+    jobs = jobs.map((job: any) => {
+      const until = job.featuredUntil ? new Date(job.featuredUntil) : null;
+      const isFeatured = !!(until && !Number.isNaN(until.getTime()) && until.getTime() >= Date.now());
+      return {
+        ...job,
+        featured: isFeatured,
+      };
+    });
 
     // Add cache headers - jobs can be cached for 2 minutes with stale-while-revalidate
     const cacheHeaders = CachePresets.short();

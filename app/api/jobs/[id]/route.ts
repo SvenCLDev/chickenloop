@@ -70,10 +70,18 @@ export async function GET(
       ? (jobObject.country.trim() ? jobObject.country.trim().toUpperCase() : null)
       : jobObject.country; // Preserve null if explicitly set, or undefined if never set
     
+    const featuredUntil = jobObject.featuredUntil ? new Date(jobObject.featuredUntil as any) : null;
+    const isCurrentlyFeatured = !!(
+      featuredUntil &&
+      !Number.isNaN(featuredUntil.getTime()) &&
+      featuredUntil.getTime() >= Date.now()
+    );
+
     const jobResponse = {
       ...jobObject,
       city: jobObject.city, // Renamed from location
       country: countryValue,
+      featured: isCurrentlyFeatured,
     };
 
     return NextResponse.json({ job: jobResponse }, { status: 200 });

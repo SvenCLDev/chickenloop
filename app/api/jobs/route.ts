@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const featured = searchParams.get('featured');
+    const now = new Date();
     
     // Parse canonical job search parameters
     const filters = parseJobSearchParams(searchParams);
@@ -86,9 +87,9 @@ export async function GET(request: NextRequest) {
     // Always filter for published jobs (exclude only where published is explicitly false)
     queryFilter.published = { $ne: false };
 
-    // Featured filter
+    // Featured filter: a job is featured only while now <= featuredUntil
     if (featured === 'true') {
-      queryFilter.featured = true;
+      queryFilter.featuredUntil = { $gte: now };
     }
 
     // Keyword filter: free-text search in title, description, or company
@@ -268,6 +269,7 @@ export async function GET(request: NextRequest) {
       occupationalAreas: 1,
       published: 1,
       featured: 1,
+      featuredUntil: 1,
       pictures: 1, // Need for list thumbnails
       createdAt: 1,
       updatedAt: 1,
@@ -341,6 +343,7 @@ export async function GET(request: NextRequest) {
       occupationalAreas: 1,
       published: 1,
       featured: 1,
+      featuredUntil: 1,
       pictures: 1, // Keep for fallback
       createdAt: 1,
       updatedAt: 1,
@@ -431,6 +434,7 @@ export async function GET(request: NextRequest) {
       occupationalAreas: 1,
       published: 1,
       featured: 1,
+      featuredUntil: 1,
       pictures: {
         $cond: {
           if: { $ne: ['$selectedImage', null] },
@@ -641,6 +645,16 @@ export async function GET(request: NextRequest) {
         // Continue without optimization if it fails (fallback to original behavior)
       }
     }
+
+    // Runtime source of truth for featured display: now <= featuredUntil
+    jobs = jobs.map((job: any) => {
+      const until = job.featuredUntil ? new Date(job.featuredUntil) : null;
+      const isFeatured = !!(until && !Number.isNaN(until.getTime()) && until.getTime() >= Date.now());
+      return {
+        ...job,
+        featured: isFeatured,
+      };
+    });
 
     const queryTime = Date.now() - queryStart;
     console.log(`[API /jobs] Total query time: ${queryTime}ms`);

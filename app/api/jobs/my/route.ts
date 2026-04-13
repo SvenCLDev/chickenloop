@@ -22,7 +22,17 @@ export async function GET(request: NextRequest) {
       .populate('recruiter', 'name email')
       .sort({ createdAt: -1 });
 
-    return NextResponse.json({ jobs }, { status: 200 });
+    const normalizedJobs = jobs.map((job) => {
+      const obj = job.toObject();
+      const until = obj.featuredUntil ? new Date(obj.featuredUntil) : null;
+      const isFeatured = !!(until && !Number.isNaN(until.getTime()) && until.getTime() >= Date.now());
+      return {
+        ...obj,
+        featured: isFeatured,
+      };
+    });
+
+    return NextResponse.json({ jobs: normalizedJobs }, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {

@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
         city: 1,
         country: 1,
         featured: 1,
+        featuredUntil: 1,
         recruiter: 1,
         companyId: 1,
         createdAt: 1,
@@ -178,12 +179,18 @@ export async function GET(request: NextRequest) {
       .toArray();
 
     const jobsWithData = jobs.map((job: any) => ({
+      // Featured display source of truth: now <= featuredUntil
+      // (legacy boolean is ignored for runtime display)
+      featured:
+        !!job.featuredUntil &&
+        !Number.isNaN(new Date(job.featuredUntil).getTime()) &&
+        new Date(job.featuredUntil).getTime() >= Date.now(),
       id: job._id.toString(),
       title: job.title,
       companyName: job.companyName || '—',
       city: job.city,
       country: job.country,
-      featured: job.featured || false,
+      featuredUntil: job.featuredUntil ?? null,
       recruiter: job.recruiterInfo || { name: 'Unknown', email: 'unknown@example.com' },
       createdAt: job.createdAt,
       visitCount: job.visitCount ?? 0,

@@ -254,9 +254,19 @@ export async function PUT(
       }
     }
 
-    // Update featured flag (admin can feature/unfeature any job)
+    // Update featured state (admin toggle): set 7-day window when featuring.
     if (featured !== undefined) {
-      job.featured = featured === true;
+      const shouldFeature = featured === true;
+      if (shouldFeature) {
+        const now = new Date();
+        const featuredUntil = new Date(now);
+        featuredUntil.setDate(featuredUntil.getDate() + 7);
+        job.featured = true;
+        (job as any).featuredUntil = featuredUntil;
+      } else {
+        job.featured = false;
+        (job as any).featuredUntil = null;
+      }
     }
 
     // Update application fields

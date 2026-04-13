@@ -473,7 +473,7 @@ function RecruiterDashboardClient() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {jobs.map((job) => {
-                      const isFeatured = !!(job.featuredUntil && new Date(job.featuredUntil) > new Date()) || job.featured === true;
+                      const isFeatured = !!(job.featuredUntil && new Date(job.featuredUntil) >= new Date());
                       const featuredUntilDate = job.featuredUntil
                         ? (() => {
                             try {

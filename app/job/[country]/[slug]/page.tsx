@@ -659,7 +659,7 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
   const isJobOwner = user?.role === 'recruiter' && job.recruiterId && user.userId === job.recruiterId;
 
   // Featured state: for Job actions (only shown to job owner)
-  const isFeatured = !!(job.featuredUntil && new Date(job.featuredUntil) > new Date()) || job.featured === true;
+  const isFeatured = !!(job.featuredUntil && new Date(job.featuredUntil) >= new Date());
 
   // Generate current URL for JSON-LD (server-side)
   const headersList = await headers();
