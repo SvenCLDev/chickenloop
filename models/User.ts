@@ -2,9 +2,15 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IUser extends Document {
   email: string;
-  password: string;
-  role: 'recruiter' | 'job-seeker' | 'admin';
-  name: string;
+  password?: string;
+  role?: 'recruiter' | 'job-seeker' | 'admin' | null;
+  name?: string;
+
+  providers?: {
+    google?: { id: string };
+    facebook?: { id: string };
+    credentials?: { passwordHash: string };
+  };
 
   favouriteJobs?: mongoose.Types.ObjectId[];
   favouriteCandidates?: mongoose.Types.ObjectId[];
@@ -40,16 +46,29 @@ const UserSchema: Schema = new Schema(
     },
     password: {
       type: String,
-      required: true,
+      required: false,
     },
     role: {
       type: String,
       enum: ['recruiter', 'job-seeker', 'admin'],
-      required: true,
+      required: false,
+      default: null,
     },
     name: {
       type: String,
-      required: true,
+      required: false,
+    },
+    providers: {
+      google: {
+        id: { type: String },
+      },
+      facebook: {
+        id: { type: String },
+      },
+      credentials: {
+        passwordHash: { type: String },
+      },
+      default: {},
     },
     favouriteJobs: [
       {

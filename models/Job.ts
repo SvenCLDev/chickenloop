@@ -36,6 +36,9 @@ export const EXPERIENCE_LEVELS = [
   'manager',
 ] as const;
 
+export const JOB_STATUS_VALUES = ['draft', 'published'] as const;
+export type JobStatus = (typeof JOB_STATUS_VALUES)[number];
+
 export interface IJob extends Document {
   title: string;
   description: string;
@@ -201,6 +204,17 @@ const JobSchema: Schema = new Schema(
       type: Boolean,
       default: false,
       index: true,
+    },
+
+    status: {
+      type: String,
+      enum: JOB_STATUS_VALUES,
+      default: 'draft',
+      index: true,
+    },
+    publishedAt: {
+      type: Date,
+      default: null,
     },
 
     legacySlug: {

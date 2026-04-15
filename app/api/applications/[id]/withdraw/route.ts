@@ -90,9 +90,9 @@ export async function POST(
 
       if (recruiter && recruiter.email && candidate) {
         const emailTemplate = getApplicationWithdrawnEmail({
-          candidateName: candidate.name,
+          candidateName: candidate.name ?? 'there',
           candidateEmail: candidate.email,
-          recruiterName: recruiter.name,
+          recruiterName: recruiter.name ?? 'Recruiter',
           recruiterEmail: recruiter.email,
           jobTitle: job?.title,
           jobCompany: jobCompanyName,

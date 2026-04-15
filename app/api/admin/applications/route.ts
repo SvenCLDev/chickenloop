@@ -102,10 +102,10 @@ export async function GET(request: NextRequest) {
         jobTitle: job?.title || 'No job linked',
         company: job?.company || 'N/A',
         candidateId: app.candidateId?.toString(),
-        candidateName: candidate.name,
+        candidateName: candidate.name ?? 'Unknown',
         candidateEmail: candidate.email,
         recruiterId: app.recruiterId?.toString(),
-        recruiterName: recruiter.name,
+        recruiterName: recruiter.name ?? 'Unknown',
         recruiterEmail: recruiter.email,
         status: app.status || 'applied',
         published: app.published !== undefined ? app.published : true, // Default to true for legacy records

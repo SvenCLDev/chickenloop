@@ -58,9 +58,9 @@ export async function POST(
     // Send email notification to candidate
     try {
       const emailTemplate = getRecruiterContactedEmail({
-        candidateName: candidate.name,
+        candidateName: candidate.name ?? 'there',
         candidateEmail: candidate.email,
-        recruiterName: recruiter.name,
+        recruiterName: recruiter.name ?? 'Recruiter',
         recruiterEmail: recruiter.email,
         jobTitle,
         jobCompany,

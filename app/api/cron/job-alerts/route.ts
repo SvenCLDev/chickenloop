@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
           if (shouldSendHeartbeat) {
             try {
               const heartbeatTemplate = getJobAlertHeartbeatEmail({
-                userName: user.name,
+                userName: user.name ?? 'there',
                 userEmail: user.email,
                 searchName: search.name,
               });
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
 
         // Send email with jobs
         const emailTemplate = getJobAlertEmail({
-          userName: user.name,
+          userName: user.name ?? 'there',
           userEmail: user.email,
           searchName: search.name,
           jobs: jobsForEmail,

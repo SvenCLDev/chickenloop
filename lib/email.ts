@@ -92,7 +92,7 @@ async function generateUnsubscribeFooter(
         // Ensure database connection (might already be connected from canSendEmail)
         await connectDB();
         const user = await User.findById(userId).select('role').lean();
-        role = user?.role;
+        role = user?.role ?? undefined;
       } catch (error) {
         // If fetch fails, default to job-seeker URL
         console.warn('[Email Footer] Failed to fetch user role, defaulting to job-seeker URL:', error);

@@ -66,6 +66,9 @@ export async function POST(request: NextRequest) {
       password: hashedPassword,
       name,
       role,
+      providers: {
+        credentials: { passwordHash: hashedPassword },
+      },
     });
 
     // Create default email preferences for new user
@@ -89,7 +92,7 @@ export async function POST(request: NextRequest) {
         : `${baseUrl}/job-seeker`;
 
       const welcomeTemplate = getWelcomeEmail({
-        userName: user.name,
+        userName: user.name ?? '',
         dashboardUrl,
       });
 
@@ -104,7 +107,7 @@ export async function POST(request: NextRequest) {
         tags: [
           { name: 'type', value: 'welcome' },
           { name: 'event', value: 'user_welcome' },
-          { name: 'role', value: user.role },
+          { name: 'role', value: String(user.role ?? '') },
         ],
       });
     } catch (emailError) {

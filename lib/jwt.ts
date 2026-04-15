@@ -10,10 +10,13 @@ export interface JWTPayload {
 }
 
 export function generateToken(user: IUser): string {
+  if (!user.email || !user.role) {
+    throw new Error('Cannot generate token: user is missing email or role');
+  }
   const payload: JWTPayload = {
     userId: String(user._id),
     email: user.email,
-    role: user.role,
+    role: String(user.role),
   };
 
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
