@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Job, { IJob, EXPERIENCE_LEVELS } from '@/models/Job';
 import JobImage from '@/models/JobImage';
-import { requireAuth, requireRole } from '@/lib/auth';
+import { requireAuth, requireRole, verifyAuthIncludingNextAuth } from '@/lib/auth';
 import { JOB_CATEGORY_VALUES } from '@/lib/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
@@ -52,12 +52,27 @@ export async function GET(
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
-    // Check if job is published (unpublished jobs are hidden from public)
-    // Show jobs where published is true OR undefined (default is true)
-    // Hide only jobs where published is explicitly false
+    // Unpublished jobs are hidden from the public, but the owning recruiter (and admins)
+    // must still load them for the dashboard edit flow.
     const jobPublished = job.published;
     if (jobPublished === false) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      const auth = await verifyAuthIncludingNextAuth(request);
+      const recruiterRef = job.recruiter as unknown;
+      const ownerId =
+        recruiterRef &&
+        typeof recruiterRef === 'object' &&
+        recruiterRef !== null &&
+        '_id' in recruiterRef
+          ? String((recruiterRef as { _id: mongoose.Types.ObjectId })._id)
+          : String(recruiterRef);
+      const canLoadUnpublished =
+        auth &&
+        (auth.role === 'admin' ||
+          (auth.role === 'recruiter' && ownerId === auth.userId));
+
+      if (!canLoadUnpublished) {
+        return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      }
     }
 
     // Do not increment visitCount here — this endpoint is used by edit screens and tools.
