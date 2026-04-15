@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Navbar from '../../../components/Navbar';
-import { jobsApi, companyApi } from '@/lib/api';
+import { apiRequest, jobsApi, companyApi } from '@/lib/api';
 import { compressIncomingJobPhotoFiles } from '@/lib/compressJobImage';
 import {
   assertJobJsonPayloadFits,
@@ -14,6 +14,7 @@ import {
   validateJobPhotoFilesForUpload,
 } from '@/lib/jobPostPayload';
 import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
+import { stripHtmlToText } from '@/lib/sanitizeText';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
 import { QUALIFICATIONS } from '@/lib/qualifications';
 import {
@@ -67,6 +68,7 @@ export default function NewJobPage() {
   const [uploadingPictures, setUploadingPictures] = useState(false);
   const [optimizingPictures, setOptimizingPictures] = useState(false);
   const [optimizingMessage, setOptimizingMessage] = useState('');
+  const [parsingDescription, setParsingDescription] = useState(false);
   const [heroImageIndex, setHeroImageIndex] = useState<number | null>(null);
   const previewCountryCode = normalizeCountryForStorage(formData.country);
 
@@ -170,6 +172,67 @@ export default function NewJobPage() {
       setOptimizingPictures(false);
       setOptimizingMessage('');
     })();
+  };
+
+  const handleAutoFillFromDescription = async () => {
+    const plain = stripHtmlToText(formData.description).trim();
+    if (!plain) {
+      setError('Add some description text before using auto-fill.');
+      return;
+    }
+    setParsingDescription(true);
+    setError('');
+    try {
+      const data = (await apiRequest('/ai/parse-job', {
+        method: 'POST',
+        body: JSON.stringify({ description: plain }),
+      })) as {
+        employmentType?: string | null;
+        language?: string | null;
+        experienceLevel?: string[];
+        languages?: string[];
+        sports?: string[];
+        qualifications?: string[];
+        occupationalAreas?: string[];
+        salary?: string | null;
+        city?: string | null;
+        country?: string | null;
+      };
+      const parsedLanguages = Array.isArray(data.languages)
+        ? data.languages
+        : typeof data.language === 'string' && data.language.trim()
+          ? [data.language]
+          : [];
+      const allowedLanguages = parsedLanguages.filter((lang) =>
+        OFFICIAL_LANGUAGES.includes(lang)
+      );
+      setFormData((prev) => ({
+        ...prev,
+        ...(data.employmentType != null && data.employmentType !== ''
+          ? { type: data.employmentType }
+          : {}),
+        ...(data.city != null && data.city !== '' ? { city: data.city } : {}),
+        ...(data.country != null && data.country !== ''
+          ? { country: data.country }
+          : {}),
+        salary: data.salary != null && data.salary.trim() !== '' ? data.salary : '',
+        experienceLevel: Array.isArray(data.experienceLevel)
+          ? data.experienceLevel
+          : prev.experienceLevel,
+        languages: allowedLanguages.length > 0 ? allowedLanguages : ['English'],
+        sports: Array.isArray(data.sports) ? data.sports : prev.sports,
+        qualifications: Array.isArray(data.qualifications)
+          ? data.qualifications
+          : prev.qualifications,
+        occupationalAreas: Array.isArray(data.occupationalAreas)
+          ? data.occupationalAreas
+          : prev.occupationalAreas,
+      }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Auto-fill failed');
+    } finally {
+      setParsingDescription(false);
+    }
   };
 
   const removePicture = (index: number) => {
@@ -418,6 +481,126 @@ export default function NewJobPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 cursor-not-allowed"
               />
               <p className="text-sm text-gray-500 mt-1">This is your company profile. To change it, edit your company profile.</p>
+            </div>
+            <div>
+              <label
+                htmlFor="description"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Description <span className="text-red-500">*</span>
+              </label>
+              <JobDescriptionEditor
+                id="description"
+                label=""
+                value={formData.description}
+                onChange={(html) => setFormData({ ...formData, description: html })}
+                required
+                className="mt-0"
+              />
+            </div>
+            <div>
+              <label htmlFor="pictures" className="block text-sm font-medium text-gray-700 mb-1">
+                Pictures (up to 3)
+              </label>
+              <div className="relative">
+                <input
+                  id="pictures"
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  multiple
+                  onChange={handlePictureChange}
+                  disabled={selectedPictures.length >= 3 || optimizingPictures}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
+                />
+                {selectedPictures.length >= 3 ? (
+                  <div className="block w-full px-3 py-2 border border-gray-200 rounded-md text-sm text-center bg-gray-100 text-gray-400">
+                    Image limit reached (3 of 3)
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="pictures"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-center cursor-pointer transition-colors bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+                  >
+                    {selectedPictures.length === 0
+                      ? 'Choose images (up to 3)'
+                      : 'Choose another image'}
+                  </label>
+                )}
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                Maximum 3 pictures. You can pick images up to about 6 MB each; they are optimized in your
+                browser before upload (target under ~1 MB each).
+              </p>
+              {optimizingPictures && (
+                <p className="text-sm text-blue-700 mt-2" role="status" aria-live="polite">
+                  {optimizingMessage || 'Optimizing image…'}
+                </p>
+              )}
+              {selectedPictures.length > 0 && (
+                <div className="mt-4">
+                  <div className="mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Header image
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      This image will be shown as the main image at the top of the job post.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    {picturePreviews.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className={`w-full h-32 object-cover rounded-lg border-2 ${
+                            heroImageIndex === index
+                              ? 'border-blue-600 ring-2 ring-blue-300'
+                              : 'border-gray-300'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePicture(index)}
+                          className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-sm font-bold"
+                          aria-label="Remove picture"
+                        >
+                          ×
+                        </button>
+                        <div className="absolute bottom-1 left-1 right-1">
+                          <label className="flex items-center justify-center bg-white/90 rounded px-2 py-1 cursor-pointer hover:bg-white transition-colors">
+                            <input
+                              type="radio"
+                              name="heroImage"
+                              checked={heroImageIndex === index}
+                              onChange={() => setHeroImageIndex(index)}
+                              className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                            />
+                            <span className="text-xs font-medium text-gray-700">
+                              {heroImageIndex === index ? 'Header image' : 'Set as header'}
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedPictures.length === 0 && (
+                <p className="text-sm text-red-600 mt-2 font-medium">
+                  Job posts without picture will be less visible and shown below posts with pictures
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleAutoFillFromDescription()}
+                disabled={
+                  parsingDescription ||
+                  !stripHtmlToText(formData.description).trim()
+                }
+                className="mt-4 w-full sm:w-auto rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {parsingDescription ? 'Filling…' : '✨ Auto-fill from description'}
+              </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -765,109 +948,6 @@ export default function NewJobPage() {
                 </p>
               </div>
             </div>
-            <div>
-              <JobDescriptionEditor
-                id="description"
-                value={formData.description}
-                onChange={(html) => setFormData({ ...formData, description: html })}
-                required
-                className="mt-1"
-              />
-            </div>
-          <div>
-              <label htmlFor="pictures" className="block text-sm font-medium text-gray-700 mb-1">
-                Pictures (up to 3)
-              </label>
-              <div className="relative">
-                <input
-                  id="pictures"
-                  type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
-                  multiple
-                  onChange={handlePictureChange}
-                  disabled={selectedPictures.length >= 3 || optimizingPictures}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
-                />
-                {selectedPictures.length >= 3 ? (
-                  <div className="block w-full px-3 py-2 border border-gray-200 rounded-md text-sm text-center bg-gray-100 text-gray-400">
-                    Image limit reached (3 of 3)
-                  </div>
-                ) : (
-                  <label
-                    htmlFor="pictures"
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-center cursor-pointer transition-colors bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
-                  >
-                    {selectedPictures.length === 0
-                      ? 'Choose images (up to 3)'
-                      : 'Choose another image'}
-                  </label>
-                )}
-              </div>
-              <p className="text-sm text-gray-500 mt-1">
-                Maximum 3 pictures. You can pick images up to about 6 MB each; they are optimized in your
-                browser before upload (target under ~1 MB each).
-              </p>
-              {optimizingPictures && (
-                <p className="text-sm text-blue-700 mt-2" role="status" aria-live="polite">
-                  {optimizingMessage || 'Optimizing image…'}
-                </p>
-              )}
-              {selectedPictures.length > 0 && (
-                <div className="mt-4">
-                  <div className="mb-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Header image
-                    </label>
-                    <p className="text-xs text-gray-500">
-                      This image will be shown as the main image at the top of the job post.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    {picturePreviews.map((preview, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={preview}
-                          alt={`Preview ${index + 1}`}
-                          className={`w-full h-32 object-cover rounded-lg border-2 ${
-                            heroImageIndex === index
-                              ? 'border-blue-600 ring-2 ring-blue-300'
-                              : 'border-gray-300'
-                          }`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removePicture(index)}
-                          className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-sm font-bold"
-                          aria-label="Remove picture"
-                        >
-                          ×
-                        </button>
-                        <div className="absolute bottom-1 left-1 right-1">
-                          <label className="flex items-center justify-center bg-white/90 rounded px-2 py-1 cursor-pointer hover:bg-white transition-colors">
-                            <input
-                              type="radio"
-                              name="heroImage"
-                              checked={heroImageIndex === index}
-                              onChange={() => setHeroImageIndex(index)}
-                              className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                            />
-                            <span className="text-xs font-medium text-gray-700">
-                              {heroImageIndex === index ? 'Header image' : 'Set as header'}
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {selectedPictures.length === 0 && (
-                <p className="text-sm text-red-600 mt-2 font-medium">
-                  Job posts without picture will be less visible and shown below posts with pictures
-                </p>
-              )}
-            </div>
-
             {/* How to Apply Section */}
             <div className="border-t pt-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">How to Apply</h2>
