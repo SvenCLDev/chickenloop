@@ -1,0 +1,669 @@
+'use client';
+
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import Navbar from '../../../../components/Navbar';
+import UrlInput from '../../../../components/form/UrlInput';
+import { OFFICIAL_LANGUAGES } from '@/lib/languages';
+import { QUALIFICATIONS } from '@/lib/qualifications';
+import { SPORTS_LIST } from '@/lib/sports';
+import { JOB_CATEGORIES } from '@/lib/jobCategories';
+import { useRecruiterNewJob } from '../RecruiterNewJobContext';
+
+const EXPERIENCE_LEVELS = [
+  'internship',
+  'junior',
+  'senior',
+  'expert',
+  'manager',
+];
+
+export default function NewJobContinuePage() {
+  const router = useRouter();
+  const {
+    authLoading,
+    company,
+    companyLoading,
+    user,
+    formData,
+    setFormData,
+    error,
+    setError,
+    loading,
+    handleSubmit,
+    saveAsDraft,
+    setSaveAsDraft,
+    showSuccessModal,
+  } = useRecruiterNewJob();
+
+  if (authLoading || companyLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+        <Navbar />
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!company) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+        <Navbar />
+        <main className="max-w-3xl mx-auto px-4 py-12">
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+            <h1 className="text-3xl font-bold mb-4 text-gray-900">Company Profile Required</h1>
+            <p className="text-gray-600 mb-6">
+              Before you can post jobs, you need to create a company profile.
+            </p>
+            <Link
+              href="/recruiter/company/new"
+              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
+            >
+              Create Company Profile
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+      <Navbar />
+      <main className="max-w-3xl mx-auto px-4 py-12">
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <div className="mb-6">
+            <Link
+              href="/recruiter/jobs/new"
+              className="text-sm font-medium text-blue-600 hover:text-blue-800"
+            >
+              ← Back to description & pictures
+            </Link>
+          </div>
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-900">We extracted the following meta-data.</h1>
+            <p className="mt-2 text-xl text-gray-600">Please check and correct if needed</p>
+          </div>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                  City *
+                </label>
+                <input
+                  id="city"
+                  type="text"
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                />
+              </div>
+              <div>
+                <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
+                  Country <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="country"
+                  type="text"
+                  value={formData.country}
+                  onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                  placeholder="e.g., United States"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                />
+                <p className="text-xs text-gray-500 mt-1">Enter the country name in English</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
+                  Employment Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="type"
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                >
+                  <option value="full-time">Full-time</option>
+                  <option value="part-time">Part-time</option>
+                  <option value="contract">Contract</option>
+                  <option value="freelance">Freelance</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="salary" className="block text-sm font-medium text-gray-700 mb-1">
+                  Salary
+                </label>
+                <input
+                  id="salary"
+                  type="text"
+                  value={formData.salary}
+                  onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
+                  placeholder="e.g., $50,000 - $70,000"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="occupationalAreas" className="block text-sm font-medium text-gray-700 mb-2">
+                  Job Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="occupationalAreas"
+                  value={formData.occupationalAreas[0] || ''}
+                  onChange={(e) => {
+                    const selectedCategory = e.target.value;
+                    setFormData({
+                      ...formData,
+                      occupationalAreas: selectedCategory ? [selectedCategory] : [],
+                    });
+                  }}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                >
+                  <option value="">Select a category</option>
+                  {JOB_CATEGORIES.map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Experience Level
+                  </label>
+                  {formData.experienceLevel.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {formData.experienceLevel.map((level) => (
+                        <span
+                          key={level}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800"
+                        >
+                          {level}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                experienceLevel: formData.experienceLevel.filter((l) => l !== level),
+                              })
+                            }
+                            className="ml-2 text-purple-600 hover:text-purple-800"
+                            aria-label={`Remove ${level}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
+                    {EXPERIENCE_LEVELS.map((level) => {
+                      const isSelected = formData.experienceLevel.includes(level);
+                      return (
+                        <label
+                          key={level}
+                          className="flex items-center py-2 px-2 rounded hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({
+                                  ...formData,
+                                  experienceLevel: [...formData.experienceLevel, level],
+                                });
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  experienceLevel: formData.experienceLevel.filter((l) => l !== level),
+                                });
+                              }
+                            }}
+                            className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-900">{level}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Languages Required
+                </label>
+                {formData.languages.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {formData.languages.map((lang) => (
+                      <span
+                        key={lang}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                      >
+                        {lang}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              languages: formData.languages.filter((l) => l !== lang),
+                            });
+                          }}
+                          className="ml-2 text-blue-600 hover:text-blue-800"
+                          aria-label={`Remove ${lang}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
+                  {OFFICIAL_LANGUAGES.map((lang) => {
+                    const isSelected = formData.languages.includes(lang);
+                    return (
+                      <label
+                        key={lang}
+                        className="flex items-center py-2 px-2 rounded hover:bg-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                languages: [...formData.languages, lang],
+                              });
+                            } else {
+                              setFormData({
+                                ...formData,
+                                languages: formData.languages.filter((l) => l !== lang),
+                              });
+                            }
+                          }}
+                          className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-900">{lang}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sport / Activities
+                </label>
+                {formData.sports.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {formData.sports.map((sport) => (
+                      <span
+                        key={sport}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800"
+                      >
+                        {sport}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              sports: formData.sports.filter((s) => s !== sport),
+                            })
+                          }
+                          className="ml-2 text-indigo-600 hover:text-indigo-800"
+                          aria-label={`Remove ${sport}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="max-h-56 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
+                  {SPORTS_LIST.map((sport) => (
+                    <label
+                      key={sport}
+                      className="flex items-center py-2 px-2 rounded hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.sports.includes(sport)}
+                        onChange={() => {
+                          const exists = formData.sports.includes(sport);
+                          setFormData({
+                            ...formData,
+                            sports: exists
+                              ? formData.sports.filter((s) => s !== sport)
+                              : [...formData.sports, sport],
+                          });
+                        }}
+                        className="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <span className="text-sm text-gray-900">{sport}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Select any sport or activity that applies (multiple selections allowed).
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Required Qualifications
+                </label>
+                {formData.qualifications.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {formData.qualifications.map((qual) => (
+                      <span
+                        key={qual}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
+                      >
+                        {qual}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              qualifications: formData.qualifications.filter((q) => q !== qual),
+                            })
+                          }
+                          className="ml-2 text-green-600 hover:text-green-800"
+                          aria-label={`Remove ${qual}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="max-h-64 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
+                  {QUALIFICATIONS.map((category, categoryIndex) => (
+                    <div key={categoryIndex} className="mb-4 last:mb-0">
+                      <div className="sticky top-0 bg-gray-100 px-2 py-2 mb-2 rounded font-semibold text-sm text-gray-700 border-b border-gray-200">
+                        {category.header}
+                      </div>
+                      {category.items.map((qual) => {
+                        const isSelected = formData.qualifications.includes(qual);
+                        return (
+                          <label
+                            key={qual}
+                            className="flex items-center py-2 px-2 ml-4 rounded hover:bg-gray-50 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {
+                                const exists = formData.qualifications.includes(qual);
+                                setFormData({
+                                  ...formData,
+                                  qualifications: exists
+                                    ? formData.qualifications.filter((q) => q !== qual)
+                                    : [...formData.qualifications, qual],
+                                });
+                              }}
+                              className="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                            />
+                            <span className="text-sm text-gray-900">{qual}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  {formData.qualifications.length > 0
+                    ? `${formData.qualifications.length} qualification(s) selected`
+                    : 'Select required qualifications (tap to select)'}
+                </p>
+              </div>
+            </div>
+            {/* How to Apply Section */}
+            <div className="border-t pt-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">How to Apply</h2>
+
+              {error && error.includes('Please select at least one way for candidates to apply') && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-700">
+                    Please select at least one way for candidates to apply.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div className="flex items-start">
+                  <input
+                    type="checkbox"
+                    id="applyViaATS"
+                    checked={formData.applyViaATS}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        applyViaATS: e.target.checked,
+                      });
+                    }}
+                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div className="ml-3 flex-1">
+                    <label htmlFor="applyViaATS" className="block text-sm font-medium text-gray-700 mb-1">
+                      Chickenloop ATS (recommended)
+                    </label>
+                    <p className="text-sm text-gray-500 mt-1">
+                      The Chickenloop Application Tracking System lets you receive and manage applications directly in your dashboard. Applicants can apply instantly, increasing response rates.
+                    </p>
+                  </div>
+                </div>
+
+                {!formData.applyViaATS && (
+                  <div className="ml-7 mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-amber-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-amber-800 mb-1">
+                          Disabling the Chickenloop ATS means:
+                        </p>
+                        <ul className="text-sm text-amber-700 space-y-0.5 list-disc list-inside">
+                          <li>Job seekers cannot apply instantly</li>
+                          <li>Applications will not appear in your dashboard</li>
+                          <li>You will not be able to track candidates</li>
+                        </ul>
+                        <p className="text-sm text-amber-800 mt-2 font-medium">
+                          We strongly recommend keeping ATS enabled.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-start">
+                  <input
+                    type="checkbox"
+                    id="applyByEmail"
+                    checked={formData.applyByEmail}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        applyByEmail: e.target.checked,
+                        applicationEmail: e.target.checked
+                          ? formData.applicationEmail ||
+                            user?.email ||
+                            company?.email ||
+                            company?.contact?.email ||
+                            ''
+                          : '',
+                      });
+                    }}
+                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div className="ml-3 flex-1">
+                    <label htmlFor="applyByEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                      By email
+                    </label>
+                    {formData.applyByEmail && (
+                      <input
+                        type="email"
+                        value={formData.applicationEmail}
+                        onChange={(e) => setFormData({ ...formData, applicationEmail: e.target.value })}
+                        placeholder="application@example.com"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start">
+                  <input
+                    type="checkbox"
+                    id="applyByWebsite"
+                    checked={formData.applyByWebsite}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        applyByWebsite: e.target.checked,
+                        applicationWebsite: e.target.checked
+                          ? formData.applicationWebsite || company?.website || ''
+                          : '',
+                      });
+                    }}
+                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div className="ml-3 flex-1">
+                    <label htmlFor="applyByWebsite" className="block text-sm font-medium text-gray-700 mb-1">
+                      Via our Website
+                    </label>
+                    {formData.applyByWebsite && (
+                      <UrlInput
+                        label=""
+                        name="applicationWebsite"
+                        value={formData.applicationWebsite}
+                        onChange={(value) => setFormData({ ...formData, applicationWebsite: value })}
+                        placeholder="example.com/apply"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start">
+                  <input
+                    type="checkbox"
+                    id="applyByWhatsApp"
+                    checked={formData.applyByWhatsApp}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        applyByWhatsApp: e.target.checked,
+                        applicationWhatsApp: e.target.checked ? formData.applicationWhatsApp || '' : '',
+                      });
+                    }}
+                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div className="ml-3 flex-1">
+                    <label htmlFor="applyByWhatsApp" className="block text-sm font-medium text-gray-700 mb-1">
+                      By WhatsApp
+                    </label>
+                    {formData.applyByWhatsApp && (
+                      <input
+                        type="tel"
+                        value={formData.applicationWhatsApp}
+                        onChange={(e) => setFormData({ ...formData, applicationWhatsApp: e.target.value })}
+                        placeholder="+1234567890"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <label className="inline-flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={saveAsDraft}
+                  onChange={(e) => setSaveAsDraft(e.target.checked)}
+                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="text-sm text-gray-700">
+                  save as draft (can be published from recruiter dashboard).
+                </span>
+              </label>
+            </div>
+
+            {error && (
+              <div id="error-banner" className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                <div className="flex items-center justify-between">
+                  <span>{error}</span>
+                  <button
+                    type="button"
+                    onClick={() => setError('')}
+                    className="text-red-700 hover:text-red-900 ml-4"
+                    aria-label="Dismiss error"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              >
+                {loading ? 'Posting...' : 'Post Job'}
+              </button>
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+            <div className="mb-4 flex justify-center items-center" style={{ minHeight: '200px' }}>
+              <img
+                src="/success-chicken.gif"
+                alt="Success"
+                className="max-w-xs w-auto h-auto"
+                style={{ maxHeight: '300px', display: 'block', objectFit: 'contain' }}
+                onLoad={() => console.log('Success GIF loaded')}
+                onError={(e) => {
+                  console.error('Failed to load success GIF:', e);
+                }}
+              />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Your Job has been posted successfully
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Redirecting to your dashboard...
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
