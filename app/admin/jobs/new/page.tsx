@@ -64,7 +64,7 @@ export default function AdminNewJobPage() {
     sports: [] as string[],
     occupationalAreas: [] as string[],
     applyViaATS: true,
-    applyByEmail: false,
+    applyByEmail: true,
     applyByWebsite: false,
     applyByWhatsApp: false,
     applicationEmail: '',
@@ -159,6 +159,8 @@ export default function AdminNewJobPage() {
     setFormData((prev) => ({
       ...prev,
       company: (r.companyName && r.companyName.trim()) || prev.company,
+      applyByEmail: true,
+      applicationEmail: r.email || prev.applicationEmail,
     }));
     void loadRecruiterCompanyState(r.id);
   };
@@ -576,7 +578,6 @@ export default function AdminNewJobPage() {
                 label=""
                 value={formData.description}
                 onChange={(html: string) => setFormData({ ...formData, description: html })}
-                required
                 className="mt-0"
               />
             </div>
@@ -1041,7 +1042,7 @@ export default function AdminNewJobPage() {
                       setFormData({
                         ...formData,
                         applyByEmail: e.target.checked,
-                        applicationEmail: e.target.checked ? formData.applicationEmail : '',
+                        applicationEmail: e.target.checked ? (formData.applicationEmail || selectedRecruiter?.email || '') : '',
                       })
                     }
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"

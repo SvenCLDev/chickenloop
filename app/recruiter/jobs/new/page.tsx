@@ -51,7 +51,7 @@ export default function NewJobPage() {
     sports: [] as string[],
     occupationalAreas: [] as string[],
     applyViaATS: true,
-    applyByEmail: false,
+    applyByEmail: true,
     applyByWebsite: false,
     applyByWhatsApp: false,
     applicationEmail: '',
@@ -69,6 +69,7 @@ export default function NewJobPage() {
   const [optimizingPictures, setOptimizingPictures] = useState(false);
   const [optimizingMessage, setOptimizingMessage] = useState('');
   const [parsingDescription, setParsingDescription] = useState(false);
+  const [saveAsDraft, setSaveAsDraft] = useState(false);
   const [heroImageIndex, setHeroImageIndex] = useState<number | null>(null);
   const previewCountryCode = normalizeCountryForStorage(formData.country);
 
@@ -100,11 +101,16 @@ export default function NewJobPage() {
         }));
       }
       
-      // Prefill application email and website from company profile
+      // Prefill contact details (prefer recruiter account email, then company email)
       if (data.company) {
         setFormData(prev => ({
           ...prev,
-          applicationEmail: data.company.email || data.company.contact?.email || prev.applicationEmail,
+          applicationEmail:
+            prev.applicationEmail ||
+            user?.email ||
+            data.company.email ||
+            data.company.contact?.email ||
+            '',
           applicationWebsite: data.company.website || prev.applicationWebsite,
         }));
       }
@@ -371,6 +377,7 @@ export default function NewJobPage() {
         description: cleanDescription,
         company: company?.name || '', // Include company name from company object
         country: normalizedCountry,
+        status: saveAsDraft ? 'draft' : 'published',
         sports: formData.sports,
         occupationalAreas: formData.occupationalAreas,
         pictures: picturePaths,
@@ -480,7 +487,7 @@ export default function NewJobPage() {
                 disabled
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 cursor-not-allowed"
               />
-              <p className="text-sm text-gray-500 mt-1">This is your company profile. To change it, edit your company profile.</p>
+              <p className="text-sm text-gray-500 mt-1">To change the company name, edit your company profile from the recruiter dashboard.</p>
             </div>
             <div>
               <label
@@ -494,7 +501,6 @@ export default function NewJobPage() {
                 label=""
                 value={formData.description}
                 onChange={(html) => setFormData({ ...formData, description: html })}
-                required
                 className="mt-0"
               />
             </div>
@@ -1020,7 +1026,7 @@ export default function NewJobPage() {
                       setFormData({
                         ...formData,
                         applyByEmail: e.target.checked,
-                        applicationEmail: e.target.checked ? (formData.applicationEmail || company?.email || company?.contact?.email || '') : '',
+                        applicationEmail: e.target.checked ? (formData.applicationEmail || user?.email || company?.email || company?.contact?.email || '') : '',
                       });
                     }}
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
@@ -1103,6 +1109,20 @@ export default function NewJobPage() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <label className="inline-flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={saveAsDraft}
+                  onChange={(e) => setSaveAsDraft(e.target.checked)}
+                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="text-sm text-gray-700">
+                  save as draft (can be published from recruiter dashboard).
+                </span>
+              </label>
             </div>
 
             {/* Error banner near submit button */}
