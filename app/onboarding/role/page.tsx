@@ -23,7 +23,22 @@ export default function RoleOnboardingPage() {
         body: JSON.stringify({ role }),
         credentials: 'include',
       });
-      const data = await res.json();
+
+      const contentType = res.headers.get('content-type') || '';
+      let data: { error?: string; redirectTo?: string } = {};
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        // When the API route is missing/misconfigured, Next.js may return an HTML page.
+        const raw = await res.text();
+        const statusLabel = `${res.status} ${res.statusText}`.trim();
+        const preview = raw.replace(/\s+/g, ' ').slice(0, 80);
+        throw new Error(
+          `Role setup endpoint returned ${statusLabel || 'an unexpected response'} (non-JSON: ${preview || 'empty response'}).`
+        );
+      }
+
       if (!res.ok) {
         setError(data?.error || 'Failed to set role.');
         return;
