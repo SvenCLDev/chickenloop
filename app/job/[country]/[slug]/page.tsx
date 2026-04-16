@@ -6,9 +6,9 @@ import Navbar from '../../../components/Navbar';
 import ShareJobButton from '../../../components/ShareJobButton';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { buildJobJsonLd } from '@/lib/seo/jobJsonLd';
-import { generateCompanySummary } from '@/lib/companySummary';
 import { getCompanyUrl } from '@/lib/companySlug';
 import { generateJobSlug, generateCountrySlug, generateJobUrlPath, getCountryValuesForSlug } from '@/lib/jobSlug';
+import { stripHtmlToText } from '@/lib/sanitizeText';
 import Link from 'next/link';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
@@ -35,11 +35,29 @@ export interface CompanyInfo {
   _id?: string;
   id?: string;
   name?: string;
+  description?: string;
   logo?: string;
   website?: string;
   city?: string;
   country?: string;
   address?: { city?: string; country?: string };
+}
+
+function abbreviateBySentence(text: string, maxChars: number): string {
+  const clean = text.trim();
+  if (!clean) return '';
+  if (clean.length <= maxChars) return clean;
+
+  const sentences = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length === 0) return clean;
+
+  let out = sentences[0] ?? '';
+  for (let i = 1; i < sentences.length; i++) {
+    const candidate = `${out} ${sentences[i]}`.trim();
+    if (candidate.length > maxChars) break;
+    out = candidate;
+  }
+  return out.trim();
 }
 
 interface CompanyAddress {
@@ -257,7 +275,10 @@ async function getJob(id: string, options?: GetJobOptions): Promise<Job | null> 
     
     const job = await Job.findById(id)
       .populate('recruiter', 'name email')
-      .populate('companyId', 'name logo website address offeredActivities offeredServices');
+      .populate(
+        'companyId',
+        'name description logo website address offeredActivities offeredServices'
+      );
     
     if (!job) {
       return null;
@@ -281,7 +302,10 @@ async function getJob(id: string, options?: GetJobOptions): Promise<Job | null> 
       );
       const reloaded = await Job.findById(id)
         .populate('recruiter', 'name email')
-        .populate('companyId', 'name logo website address offeredActivities offeredServices');
+        .populate(
+          'companyId',
+          'name description logo website address offeredActivities offeredServices'
+        );
       if (reloaded) {
         docForResponse = reloaded;
       }
@@ -372,6 +396,10 @@ async function getJob(id: string, options?: GetJobOptions): Promise<Job | null> 
         _id: populatedCompany._id ? String(populatedCompany._id) : undefined,
         id: populatedCompany._id ? String(populatedCompany._id) : undefined,
         name: typeof populatedCompany.name === 'string' ? populatedCompany.name : undefined,
+        description:
+          typeof populatedCompany.description === 'string'
+            ? populatedCompany.description
+            : undefined,
         logo: typeof populatedCompany.logo === 'string' ? populatedCompany.logo : undefined,
         website: typeof populatedCompany.website === 'string' ? populatedCompany.website : undefined,
         city: address?.city,
@@ -676,10 +704,10 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
   const jsonLd =
     job.published !== false ? buildJobJsonLd(jobForJsonLd, currentUrl) : null;
 
-  // Generate company summary for display (computed, not stored)
-  const companySummary = job.companyForSummary 
-    ? generateCompanySummary(job.companyForSummary)
-    : null;
+  const companyDescriptionText = stripHtmlToText(job.companyId?.description);
+  const companyDescriptionShort = companyDescriptionText
+    ? abbreviateBySentence(companyDescriptionText, 320)
+    : '';
 
   // Other jobs at same company (for section below main card); skip section if none
   const companyIdStr = job.companyId?.id ?? job.companyId?._id;
@@ -909,10 +937,9 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-3">Company Info</h2>
                 
-                {/* Company Summary - neutral, factual description */}
-                {companySummary && (
+                {companyDescriptionShort && (
                   <p className="text-gray-700 mb-4 leading-relaxed">
-                    {companySummary}
+                    {companyDescriptionShort}
                   </p>
                 )}
                 
