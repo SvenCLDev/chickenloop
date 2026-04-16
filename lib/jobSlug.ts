@@ -7,6 +7,7 @@
 
 import { getCountryNameFromCode } from './countryUtils';
 import { COUNTRY_OPTIONS } from './countryUtils';
+import { stripHtmlToText } from './sanitizeText';
 
 /**
  * Generate a URL-friendly slug from a string
@@ -51,7 +52,9 @@ export function generateSlug(text: string): string {
  * @returns Job slug
  */
 export function generateJobSlug(title: string): string {
-  return generateSlug(title);
+  // Titles should be plain text, but some legacy/admin inputs may include HTML.
+  // Strip tags/entities first so we don't accidentally create empty/garbled slugs.
+  return generateSlug(stripHtmlToText(title));
 }
 
 /**
@@ -127,7 +130,7 @@ export function getCountryValuesForSlug(countrySlug: string): string[] {
  * @returns Canonical job URL path
  */
 export function generateJobUrlPath(jobTitle: string, country?: string | null): string {
-  const jobSlug = generateJobSlug(jobTitle);
+  const jobSlug = generateJobSlug(jobTitle) || 'job';
   const countrySlug = generateCountrySlug(country);
   
   return `/job/${countrySlug}/${jobSlug}`;
