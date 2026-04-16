@@ -27,11 +27,9 @@ declare global {
   var mongoose: MongooseCache | undefined;
 }
 
-const cached: MongooseCache = global.mongoose || { conn: null, promise: null };
-
-if (!global.mongoose) {
-  global.mongoose = cached;
-}
+// Cache the connection across hot reloads in dev.
+global.mongoose = global.mongoose || { conn: null, promise: null };
+const cached = global.mongoose;
 
 async function connectDB(_isRetry = false) {
   // Check if connection string is available
@@ -40,104 +38,41 @@ async function connectDB(_isRetry = false) {
     console.error('[connectDB] MONGODB_URI not found in process.env or module scope');
     throw new Error('MONGODB_URI is not defined. Please check your .env.local file.');
   }
-  
-  console.log('[connectDB] Starting connection, readyState:', mongoose.connection.readyState);
 
-  // Check if we have an existing connection that's actually ready
-  if (cached.conn && mongoose.connection.readyState === 1) {
+  if (cached.conn) {
+    console.log('[connectDB] Reusing existing MongoDB connection');
     return cached.conn;
-  }
-
-  // If connection exists but is not ready, close it and reconnect
-  if (cached.conn && mongoose.connection.readyState !== 1) {
-    try {
-      await mongoose.connection.close();
-    } catch {
-      // Ignore errors when closing
-    }
-    cached.conn = null;
-    cached.promise = null;
-  }
-
-  // If there's a pending promise that's taking too long, cancel it
-  if (cached.promise) {
-    // Check if the promise has been pending for more than 5 seconds
-    // This is a safety check for stuck connections
-    const promiseWithTimestamp = cached.promise as Promise<typeof mongoose> & { _startTime?: number };
-    const promiseAge = Date.now() - (promiseWithTimestamp._startTime || 0);
-    if (promiseAge > 5000) {
-      console.warn('Clearing stale connection promise');
-      cached.promise = null;
-      cached.conn = null;
-      // Force disconnect mongoose
-      try {
-        await mongoose.disconnect();
-      } catch {
-        // Ignore
-      }
-    }
   }
 
   if (!cached.promise) {
     // Detect if we're using local MongoDB or Atlas
     const isLocal = uri.includes('localhost') || uri.includes('127.0.0.1');
-    
+
     const opts = {
       bufferCommands: false,
-      serverSelectionTimeoutMS: isLocal ? 5000 : 10000, // Faster for local
-      socketTimeoutMS: isLocal ? 30000 : 60000, // Shorter for local
-      connectTimeoutMS: isLocal ? 5000 : 10000, // Faster for local
-      maxPoolSize: isLocal ? 15 : 5, // More connections for local (increased from 10)
-      minPoolSize: isLocal ? 3 : 1, // Maintain more connections for local (increased from 2)
-      maxIdleTimeMS: isLocal ? 30000 : 10000, // Longer for local
+      serverSelectionTimeoutMS: isLocal ? 5000 : 10000,
+      socketTimeoutMS: isLocal ? 30000 : 60000,
+      connectTimeoutMS: isLocal ? 5000 : 10000,
+      maxPoolSize: isLocal ? 15 : 5,
+      minPoolSize: isLocal ? 3 : 1,
+      maxIdleTimeMS: isLocal ? 30000 : 10000,
       retryWrites: true,
       retryReads: true,
-      // Use direct connection for local MongoDB
       directConnection: isLocal ? true : false,
-      // Compression for better network performance
       compressors: ['zlib' as const],
-      // Note: maxTimeMS is a query option, not a connection option
-      // It should be set on individual queries, not here
     };
 
-    // Mark start time for the promise
-    const connectPromise = mongoose.connect(uri, opts).then((mongoose) => {
-      return mongoose;
-    }).catch((error) => {
-      // Clear the promise on error so we can retry
+    console.log('[connectDB] Creating new MongoDB connection');
+    cached.promise = mongoose.connect(uri, opts).catch((error) => {
       cached.promise = null;
-      cached.conn = null;
-      console.error('MongoDB connection error:', error.message);
+      console.error('[connectDB] MongoDB connection error:', error?.message || error);
       throw error;
-    }) as Promise<typeof mongoose> & { _startTime?: number };
-    connectPromise._startTime = Date.now();
-    cached.promise = connectPromise;
+    });
+  } else {
+    console.log('[connectDB] Reusing pending MongoDB connection promise');
   }
 
-  try {
-    cached.conn = await cached.promise;
-  } catch (error) {
-    cached.promise = null;
-    cached.conn = null;
-    throw error;
-  }
-
-  // Only return when connection is actually ready (avoids "Client must be connected before running operations")
-  if (mongoose.connection.readyState !== 1) {
-    cached.conn = null;
-    cached.promise = null;
-    try {
-      await mongoose.disconnect();
-    } catch {
-      // ignore
-    }
-    if (!_isRetry) {
-      return connectDB(true);
-    }
-    console.error('[connectDB] Connection not ready after retry, readyState:', mongoose.connection.readyState);
-    throw new Error('Database connection not ready. Please try again.');
-  }
-
+  cached.conn = await cached.promise;
   return cached.conn;
 }
 
