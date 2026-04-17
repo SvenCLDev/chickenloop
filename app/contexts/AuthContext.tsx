@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { authApi, companyApi } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { setApiRouter } from '@/lib/apiRouterRef';
@@ -27,25 +27,37 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialAuthCheckedRef = useRef(false);
   const router = useRouter();
 
-  const refreshUser = async () => {
+  const setUserIfChanged = useCallback((nextUser: User | null) => {
+    setUser((prev) => {
+      const same =
+        prev?.id === nextUser?.id &&
+        prev?.email === nextUser?.email &&
+        prev?.name === nextUser?.name &&
+        prev?.role === nextUser?.role;
+      return same ? prev : nextUser;
+    });
+  }, []);
+
+  const refreshUser = useCallback(async () => {
     try {
       const data = await authApi.me();
-      setUser(data.user);
+      setUserIfChanged(data.user ?? null);
     } catch (error: any) {
-      // 401 is expected when user is not logged in - not an error
+      // 401 is expected when user is not logged in - keep it silent and stable.
       if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-        setUser(null);
+        setUserIfChanged(null);
       } else {
         // Log other errors but don't break the app
         console.error('Error refreshing user:', error);
-        setUser(null);
+        setUserIfChanged(null);
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [setUserIfChanged]);
 
   useEffect(() => {
     setApiRouter(router);
@@ -53,8 +65,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   useEffect(() => {
+    // React Strict Mode can run effects twice in development.
+    // Avoid duplicate /api/auth/me calls during initial page load.
+    if (initialAuthCheckedRef.current) {
+      return;
+    }
+    initialAuthCheckedRef.current = true;
     refreshUser();
-  }, []);
+  }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
     try {
