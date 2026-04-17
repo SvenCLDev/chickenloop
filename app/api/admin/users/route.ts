@@ -250,7 +250,7 @@ export async function GET(request: NextRequest) {
         const cid = user.companyId ? String(user.companyId) : null;
         const nameFromLinkedCompany = cid ? companyIdToName.get(cid) : null;
         const nameFromOwnership = companyMap.get(recruiterId) || null;
-        const companyRecordMissing = Boolean(cid) && !companyIdToName.has(cid);
+        const companyRecordMissing = cid != null && !companyIdToName.has(cid);
         // Prefer name from User.companyId; if unset, fall back to owned company. Do not use ownership
         // name when companyId points to a missing doc (would mislabel the stale link).
         const companyName =
