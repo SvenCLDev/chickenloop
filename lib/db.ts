@@ -31,6 +31,11 @@ declare global {
 global.mongoose = global.mongoose || { conn: null, promise: null };
 const cached = global.mongoose;
 
+/** Mongoose readyState: 0 disconnected, 1 connected, 2 connecting, 3 disconnecting */
+function isMongooseConnected(): boolean {
+  return mongoose.connection.readyState === 1;
+}
+
 async function connectDB(_isRetry = false) {
   // Check if connection string is available
   const uri = process.env.MONGODB_URI?.trim() || MONGODB_URI;
@@ -39,9 +44,23 @@ async function connectDB(_isRetry = false) {
     throw new Error('MONGODB_URI is not defined. Please check your .env.local file.');
   }
 
-  if (cached.conn) {
+  // Reuse only when the default connection is actually connected. Returning a stale
+  // `cached.conn` after idle disconnect / pool close causes buffered ops to time out
+  // ("buffering timed out after 10000ms") on User.findOne and similar.
+  if (cached.conn && isMongooseConnected()) {
     console.log('[connectDB] Reusing existing MongoDB connection');
     return cached.conn;
+  }
+
+  if (cached.conn && !isMongooseConnected()) {
+    console.warn('[connectDB] Cached connection is not ready; clearing and reconnecting');
+    cached.conn = null;
+    cached.promise = null;
+    try {
+      await mongoose.disconnect();
+    } catch {
+      /* ignore */
+    }
   }
 
   if (!cached.promise) {

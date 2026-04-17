@@ -129,7 +129,15 @@ export async function GET(request: NextRequest) {
     const recruiterIds = users.filter((u: any) => u.role === 'recruiter').map((u: any) => u._id);
     const jobSeekerIds = users.filter((u: any) => u.role === 'job-seeker').map((u: any) => u._id);
     
-    const [jobsByRecruiter, cvsByJobSeeker, companiesByOwner] = await Promise.all([
+    const recruiterCompanyIds = users
+      .filter((u: any) => u.role === 'recruiter' && u.companyId)
+      .map((u: any) => u.companyId)
+      .filter((id: any) => mongoose.Types.ObjectId.isValid(String(id)));
+    const uniqueCompanyOids = [...new Set(recruiterCompanyIds.map((id: any) => String(id)))].map(
+      (id) => new mongoose.Types.ObjectId(id)
+    );
+
+    const [jobsByRecruiter, cvsByJobSeeker, companiesByOwner, companiesByUserCompanyId] = await Promise.all([
       recruiterIds.length > 0
         ? dbConnection.collection('jobs')
             .find({ recruiter: { $in: recruiterIds } })
@@ -155,7 +163,13 @@ export async function GET(request: NextRequest) {
             .find({ ownerRecruiter: { $in: recruiterIds } }, { projection: { name: 1, ownerRecruiter: 1 } })
             .maxTimeMS(5000)
             .toArray()
-        : []
+        : [],
+      uniqueCompanyOids.length > 0
+        ? dbConnection.collection('companies')
+            .find({ _id: { $in: uniqueCompanyOids } }, { projection: { name: 1 } })
+            .maxTimeMS(5000)
+            .toArray()
+        : [],
     ]);
     
     // Group jobs by recruiter and CVs by job seeker
@@ -168,11 +182,17 @@ export async function GET(request: NextRequest) {
       jobsMap.get(recruiterId)!.push(job);
     });
     
-    // Map companies by owner (recruiter ID)
+    // Map companies by owner (recruiter ID) — fallback when user.companyId is unset but they own a company
     const companyMap = new Map<string, string>();
     companiesByOwner.forEach((company: any) => {
       const ownerId = company.ownerRecruiter.toString();
       companyMap.set(ownerId, company.name);
+    });
+
+    // Resolve names by User.companyId (source of truth for the recruiter ↔ company link)
+    const companyIdToName = new Map<string, string>();
+    companiesByUserCompanyId.forEach((company: any) => {
+      companyIdToName.set(company._id.toString(), company.name);
     });
     
     // Count jobs per recruiter
@@ -227,10 +247,19 @@ export async function GET(request: NextRequest) {
       // Add recruiter-specific fields
       if (user.role === 'recruiter') {
         const recruiterId = user._id.toString();
+        const cid = user.companyId ? String(user.companyId) : null;
+        const nameFromLinkedCompany = cid ? companyIdToName.get(cid) : null;
+        const nameFromOwnership = companyMap.get(recruiterId) || null;
+        const companyRecordMissing = Boolean(cid) && !companyIdToName.has(cid);
+        // Prefer name from User.companyId; if unset, fall back to owned company. Do not use ownership
+        // name when companyId points to a missing doc (would mislabel the stale link).
+        const companyName =
+          nameFromLinkedCompany ?? (cid ? null : nameFromOwnership ?? null);
         return {
           ...baseUser,
-          companyId: user.companyId ? String(user.companyId) : null,
-          companyName: companyMap.get(recruiterId) || null,
+          companyId: cid,
+          companyName,
+          companyRecordMissing,
           lastActive: user.lastOnline || user.updatedAt || user.createdAt,
           jobCount: jobCountMap.get(recruiterId) || 0,
         };

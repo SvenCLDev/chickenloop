@@ -124,6 +124,8 @@ interface User {
   cv?: any;
   companyId?: string | null;
   companyName?: string | null;
+  /** True when user.companyId points to a deleted company (orphaned reference) */
+  companyRecordMissing?: boolean;
   lastActive?: string | null;
   jobCount?: number;
 }
@@ -1728,7 +1730,28 @@ function AdminDashboard() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.name}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.email}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {entry.companyName || '—'}
+                                {entry.companyId && !entry.companyRecordMissing ? (
+                                  <Link
+                                    href={`/companies/${entry.companyId}`}
+                                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                                    title={
+                                      entry.companyName
+                                        ? `View company: ${entry.companyName}`
+                                        : 'View company'
+                                    }
+                                  >
+                                    {entry.companyName || 'View company'}
+                                  </Link>
+                                ) : entry.companyRecordMissing ? (
+                                  <span
+                                    className="text-amber-700"
+                                    title="User references a company that no longer exists. Use Create company to fix or clear the stale link."
+                                  >
+                                    Missing company
+                                  </span>
+                                ) : (
+                                  '—'
+                                )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {getTimeAgo(entry.lastActive)}
@@ -1739,7 +1762,7 @@ function AdminDashboard() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 <button
                                   type="button"
-                                  disabled={Boolean(entry.companyId)}
+                                  disabled={Boolean(entry.companyId) && !entry.companyRecordMissing}
                                   onClick={() =>
                                     setCreateCompanyModalRecruiter({
                                       id: entry.id,
@@ -1749,14 +1772,16 @@ function AdminDashboard() {
                                     })
                                   }
                                   className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                                    entry.companyId
+                                    entry.companyId && !entry.companyRecordMissing
                                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                       : 'bg-amber-600 text-white hover:bg-amber-700'
                                   }`}
                                   title={
-                                    entry.companyId
+                                    entry.companyId && !entry.companyRecordMissing
                                       ? 'Recruiter already has a company'
-                                      : 'Create and link a company'
+                                      : entry.companyRecordMissing
+                                        ? 'Create a company (stale company link will be cleared)'
+                                        : 'Create and link a company'
                                   }
                                 >
                                   Create company

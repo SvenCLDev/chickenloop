@@ -57,7 +57,12 @@ export async function POST(request: NextRequest) {
       throw new Error('Selected user is not a recruiter');
     }
     if (recruiter.companyId) {
-      throw new Error('Recruiter already has company');
+      const existingCompany = await Company.findById(recruiter.companyId).session(session);
+      if (existingCompany) {
+        throw new Error('Recruiter already has company');
+      }
+      recruiter.set('companyId', null);
+      await recruiter.save({ session });
     }
 
     const company = await Company.create(
