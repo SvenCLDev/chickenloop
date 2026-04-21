@@ -12,6 +12,7 @@ interface JobCardProps {
     country?: string | null;
     pictures?: string[];
     featured?: boolean;
+    createdAt?: Date | string;
   };
   /** Set true only for the first visible job card (LCP optimization). */
   priority?: boolean;
@@ -23,6 +24,33 @@ interface JobCardProps {
   togglingFavourite?: boolean;
   onHeartClick?: (e: React.MouseEvent, jobId: string) => void;
   onLoginPrompt?: () => void;
+}
+
+function formatPostedAgo(value?: Date | string): string | null {
+  if (!value) return null;
+  const postedAt = new Date(value);
+  if (Number.isNaN(postedAt.getTime())) return null;
+
+  const elapsedMs = Date.now() - postedAt.getTime();
+  if (elapsedMs < 0) return null;
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const dayCount = Math.floor(elapsedMs / dayMs);
+
+  if (dayCount < 1) {
+    return 'today';
+  }
+  if (dayCount < 30) {
+    return `${dayCount} day${dayCount === 1 ? '' : 's'} ago`;
+  }
+
+  const monthCount = Math.floor(dayCount / 30);
+  if (monthCount < 12) {
+    return `${monthCount} month${monthCount === 1 ? '' : 's'} ago`;
+  }
+
+  const yearCount = Math.floor(dayCount / 365);
+  return `${yearCount} year${yearCount === 1 ? '' : 's'} ago`;
 }
 
 export default function JobCard({
@@ -62,6 +90,7 @@ export default function JobCard({
   const locationText = locationParts.length > 0
     ? locationParts.join(', ')
     : 'Location not specified';
+  const postedAgoText = formatPostedAgo(job.createdAt);
 
   return (
     <Link
@@ -121,6 +150,11 @@ export default function JobCard({
           <span className="mr-1.5">📍</span>
           <span className="line-clamp-1">{locationText}</span>
         </p>
+        {postedAgoText ? (
+          <p className="text-sm text-gray-500 mt-1">
+            Posted {postedAgoText}
+          </p>
+        ) : null}
       </div>
     </Link>
   );

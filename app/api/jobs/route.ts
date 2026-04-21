@@ -56,25 +56,37 @@ export async function GET(request: NextRequest) {
     const pageParam = searchParams.get('page');
     const limitParam = searchParams.get('limit');
     const hasPaginationParams = pageParam !== null || limitParam !== null;
-    const hasFilteringParams =
-      searchParams.has('featured') ||
-      searchParams.has('keyword') ||
-      searchParams.has('location') ||
-      searchParams.has('country') ||
-      searchParams.has('category') ||
-      searchParams.has('activity') ||
-      searchParams.has('sport') ||
-      searchParams.has('language') ||
-      searchParams.has('city') ||
-      searchParams.has('employmentType');
     const now = new Date();
 
     // Fast path for paginated list endpoints used by /jobs infinite scroll.
     // Keep legacy behavior unchanged when pagination is not requested.
-    if (hasPaginationParams && !hasFilteringParams) {
+    if (hasPaginationParams) {
       const page = Math.max(1, Number(pageParam || '1') || 1);
       const limit = Math.min(50, Math.max(1, Number(limitParam || '20') || 20));
-      const { jobs, hasMore } = await getPaginatedJobs({ page, limit });
+      const {
+        jobs,
+        hasMore,
+        totalCount,
+        availableCountries,
+        availableCities,
+        availableCategories,
+        availableEmploymentTypes,
+        availableActivities,
+        availableLanguages,
+      } = await getPaginatedJobs({
+        page,
+        limit,
+        filters: {
+          keyword: searchParams.get('keyword') || undefined,
+          location: searchParams.get('location') || undefined,
+          country: searchParams.get('country') || undefined,
+          city: searchParams.get('city') || undefined,
+          category: searchParams.get('category') || undefined,
+          employmentType: searchParams.get('employmentType') || undefined,
+          activity: searchParams.get('activity') || searchParams.get('sport') || undefined,
+          language: searchParams.get('language') || undefined,
+        },
+      });
       const cacheHeaders = CachePresets.short();
       return NextResponse.json(
         {
@@ -82,6 +94,13 @@ export async function GET(request: NextRequest) {
           page,
           limit,
           hasMore,
+          totalCount,
+          availableCountries,
+          availableCities,
+          availableCategories,
+          availableEmploymentTypes,
+          availableActivities,
+          availableLanguages,
         },
         {
           status: 200,
