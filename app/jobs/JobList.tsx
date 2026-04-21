@@ -309,7 +309,7 @@ export default function JobList({
         />
       </div>
 
-      <div className="lg:hidden sticky top-0 z-40 bg-white border-b shadow-sm py-2">
+      <div className="lg:hidden sticky top-16 z-40 mt-2 bg-white border border-gray-200 rounded-lg shadow-sm py-2 px-1">
         <div className="flex items-center justify-between gap-3 px-1">
           <button
             type="button"
