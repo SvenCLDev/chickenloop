@@ -316,7 +316,7 @@ export default function JobList({
             onClick={() => setMobileFiltersOpen(true)}
             className="px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 text-sm"
           >
-            More Filters
+            Set Search Filters
           </button>
           {activeFilterChips.length > 0 && (
             <button
