@@ -2,8 +2,8 @@
 
 import { useEffect, useState, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Image from 'next/image';
 import Navbar from '../components/Navbar';
+import JobCardImage from '../components/JobCardImage';
 import { jobsApi, savedSearchesApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { parseJobSearchParams, buildJobSearchQuery, buildJobSearchUrl, type JobSearchParams } from '@/lib/jobSearchParams';
@@ -1020,7 +1020,7 @@ function JobsPageContent() {
                         ? job.pictures[0]
                         : null;
 
-                      const isLcpImage = index === 0;
+                      const shouldPrioritizeImage = index < 3;
                       const isFavourite = favouriteJobIds.has(job._id);
                       const showHeart = user?.role === 'job-seeker';
 
@@ -1028,7 +1028,7 @@ function JobsPageContent() {
                         <Link
                           key={job._id}
                           href={getJobUrl(job)}
-                          className={`rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block relative ${job.featured
+                          className={`group rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer block relative ${job.featured
                             ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300'
                             : 'bg-white'
                             }`}
@@ -1041,29 +1041,11 @@ function JobsPageContent() {
                               </div>
                             )}
                             {firstPicture ? (
-                              isLcpImage ? (
-                                <Image
-                                  src={firstPicture}
-                                  alt={job.title}
-                                  fill
-                                  priority
-                                  fetchPriority="high"
-                                  loading="eager"
-                                  quality={60}
-                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                  className="object-cover"
-                                />
-                              ) : (
-                                <Image
-                                  src={firstPicture}
-                                  alt={job.title}
-                                  fill
-                                  loading="lazy"
-                                  quality={60}
-                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                  className="object-cover"
-                                />
-                              )
+                              <JobCardImage
+                                src={firstPicture}
+                                alt={job.title}
+                                priority={shouldPrioritizeImage}
+                              />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-300 to-gray-400">
                                 <span className="text-gray-500 text-sm">No Image</span>

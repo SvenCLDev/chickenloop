@@ -407,7 +407,7 @@ export default function HomePageContent() {
                     <JobCard
                       key={job._id}
                       job={job}
-                      priority={index === 0}
+                      priority={index < 3}
                       featured
                       user={user}
                       isFavourite={favouriteJobIds.has(job._id)}
@@ -465,7 +465,7 @@ export default function HomePageContent() {
                   <JobCard
                     key={job._id}
                     job={job}
-                    priority={featuredJobs.length === 0 && index === 0}
+                    priority={featuredJobs.length === 0 && index < 3}
                     user={user}
                     isFavourite={favouriteJobIds.has(job._id)}
                     togglingFavourite={togglingFavouriteId === job._id}

@@ -1,8 +1,7 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { getJobUrl } from '@/lib/jobSlug';
-import { isBlobStorageUrl } from '@/lib/imageUtils';
+import JobCardImage from '@/app/components/JobCardImage';
 
 interface JobCardProps {
   job: {
@@ -67,7 +66,7 @@ export default function JobCard({
   return (
     <Link
       href={getJobUrl(job)}
-      className={`rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer block overflow-hidden transform hover:-translate-y-1 ${
+      className={`group rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer block overflow-hidden transform hover:-translate-y-1 ${
         isFeatured
           ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300'
           : 'bg-white border border-gray-100'
@@ -100,31 +99,7 @@ export default function JobCard({
           </button>
         )}
         {thumbnail ? (
-          priority ? (
-            <Image
-              src={thumbnail}
-              alt={job.title}
-              fill
-              priority
-              fetchPriority="high"
-              loading="eager"
-              quality={60}
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-cover transition-transform duration-300 hover:scale-110"
-              unoptimized={isBlobStorageUrl(thumbnail)}
-            />
-          ) : (
-            <Image
-              src={thumbnail}
-              alt={job.title}
-              fill
-              loading="lazy"
-              quality={60}
-              unoptimized={isBlobStorageUrl(thumbnail)}
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-cover transition-transform duration-300 hover:scale-110"
-            />
-          )
+          <JobCardImage src={thumbnail} alt={job.title} priority={priority} />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-300 to-gray-400">
             <span className="text-gray-500 text-sm">No Image</span>

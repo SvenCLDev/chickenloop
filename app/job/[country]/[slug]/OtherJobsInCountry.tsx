@@ -78,7 +78,7 @@ export default function OtherJobsInCountry({
           <JobCard
             key={job._id}
             job={job}
-            priority={index === 0}
+            priority={index < 3}
             user={user ? { role: user.role } : null}
             isFavourite={favouriteJobIds.has(job._id)}
             togglingFavourite={togglingFavouriteId === job._id}
