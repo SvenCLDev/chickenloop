@@ -15,6 +15,7 @@ import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import { geocodeJobLocation } from '@/lib/geocodeJobLocation';
 import { postJobToFacebook } from '@/lib/social/facebook';
+import { getJobs as getPaginatedJobs } from '@/lib/jobs';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 export async function GET(request: NextRequest) {
@@ -52,7 +53,42 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const featured = searchParams.get('featured');
+    const pageParam = searchParams.get('page');
+    const limitParam = searchParams.get('limit');
+    const hasPaginationParams = pageParam !== null || limitParam !== null;
+    const hasFilteringParams =
+      searchParams.has('featured') ||
+      searchParams.has('keyword') ||
+      searchParams.has('location') ||
+      searchParams.has('country') ||
+      searchParams.has('category') ||
+      searchParams.has('activity') ||
+      searchParams.has('sport') ||
+      searchParams.has('language') ||
+      searchParams.has('city') ||
+      searchParams.has('employmentType');
     const now = new Date();
+
+    // Fast path for paginated list endpoints used by /jobs infinite scroll.
+    // Keep legacy behavior unchanged when pagination is not requested.
+    if (hasPaginationParams && !hasFilteringParams) {
+      const page = Math.max(1, Number(pageParam || '1') || 1);
+      const limit = Math.min(50, Math.max(1, Number(limitParam || '20') || 20));
+      const { jobs, hasMore } = await getPaginatedJobs({ page, limit });
+      const cacheHeaders = CachePresets.short();
+      return NextResponse.json(
+        {
+          jobs,
+          page,
+          limit,
+          hasMore,
+        },
+        {
+          status: 200,
+          headers: cacheHeaders,
+        }
+      );
+    }
     
     // Parse canonical job search parameters
     const filters = parseJobSearchParams(searchParams);
