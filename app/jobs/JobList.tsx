@@ -70,9 +70,7 @@ export default function JobList({
   const [searchKeyword, setSearchKeyword] = useState(initialFilters.keyword || '');
   const [searchLocation, setSearchLocation] = useState(initialFilters.location || '');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [mobileSearchBarHeight, setMobileSearchBarHeight] = useState(0);
   const observerRef = useRef<HTMLDivElement | null>(null);
-  const mobileSearchBarRef = useRef<HTMLDivElement | null>(null);
   const loadedPagesRef = useRef<Set<number>>(new Set([initialPage]));
   const hasMountedRef = useRef(false);
   const router = useRouter();
@@ -206,25 +204,6 @@ export default function JobList({
     return () => observer.disconnect();
   }, [loadMore]);
 
-  useEffect(() => {
-    const node = mobileSearchBarRef.current;
-    if (!node) return;
-
-    const updateHeight = () => {
-      setMobileSearchBarHeight(node.getBoundingClientRect().height);
-    };
-
-    updateHeight();
-    const resizeObserver = new ResizeObserver(() => updateHeight());
-    resizeObserver.observe(node);
-    window.addEventListener('resize', updateHeight);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateHeight);
-    };
-  }, []);
-
   const renderedJobs = useMemo(() => jobs, [jobs]);
   const cities = useMemo(
     () => Array.from(new Set(availableCities)).sort((a, b) => a.localeCompare(b)),
@@ -320,7 +299,7 @@ export default function JobList({
 
   return (
     <>
-      <div ref={mobileSearchBarRef} className="sticky top-0 z-50 bg-white border-b shadow-sm py-2">
+      <div className="bg-white border-b shadow-sm py-2">
         <JobSearchBar
           keyword={searchKeyword}
           location={searchLocation}
@@ -330,10 +309,7 @@ export default function JobList({
         />
       </div>
 
-      <div
-        className="lg:hidden sticky z-40 bg-white border-b shadow-sm py-2"
-        style={{ top: `${mobileSearchBarHeight}px` }}
-      >
+      <div className="lg:hidden sticky top-0 z-40 bg-white border-b shadow-sm py-2">
         <div className="flex items-center justify-between gap-3 px-1">
           <button
             type="button"
