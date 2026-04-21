@@ -176,6 +176,7 @@ export async function getJobs({
   if (!db) {
     throw new Error('Database connection not available');
   }
+  const jobsCollection = db.collection<RawJobDoc>('jobs');
 
   const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
   const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 50) : 20;
@@ -225,8 +226,7 @@ export async function getJobs({
   };
 
   if (featuredOnly) {
-    const featuredResults = await db
-      .collection('jobs')
+    const featuredResults = await jobsCollection
       .find(featuredQuery)
       .project(projection)
       .sort({ lastRecruiterEditAt: -1, createdAt: -1, _id: -1 })
@@ -235,19 +235,19 @@ export async function getJobs({
       .toArray();
 
     const hasMore = featuredResults.length > safeLimit;
-    const jobs = featuredResults.slice(0, safeLimit);
+    const jobs = featuredResults.slice(0, safeLimit) as RawJobDoc[];
     const [totalCount, availableCountries, availableCities, availableCategories, availableEmploymentTypes, availableActivities, availableLanguages] = await Promise.all([
-      db.collection('jobs').countDocuments(featuredQuery),
-      db.collection('jobs').distinct('country', countryFacetQuery),
-      db.collection('jobs').distinct('city', cityFacetQuery),
-      db.collection('jobs').distinct('occupationalAreas', categoryFacetQuery),
-      db.collection('jobs').distinct('type', employmentTypeFacetQuery),
-      db.collection('jobs').distinct('sports', activityFacetQuery),
-      db.collection('jobs').distinct('languages', languageFacetQuery),
+      jobsCollection.countDocuments(featuredQuery),
+      jobsCollection.distinct('country', countryFacetQuery),
+      jobsCollection.distinct('city', cityFacetQuery),
+      jobsCollection.distinct('occupationalAreas', categoryFacetQuery),
+      jobsCollection.distinct('type', employmentTypeFacetQuery),
+      jobsCollection.distinct('sports', activityFacetQuery),
+      jobsCollection.distinct('languages', languageFacetQuery),
     ]);
 
     return {
-      jobs: jobs.map((job: RawJobDoc) => ({
+      jobs: jobs.map((job) => ({
         _id: job._id.toString(),
         title: job.title,
         company: job.company,
@@ -272,15 +272,13 @@ export async function getJobs({
     };
   }
 
-  const featuredResults = await db
-    .collection('jobs')
+  const featuredResults = await jobsCollection
     .find(featuredQuery)
     .project(projection)
     .sort({ lastRecruiterEditAt: -1, createdAt: -1, _id: -1 })
     .toArray();
 
-  const standardResults = await db
-    .collection('jobs')
+  const standardResults = await jobsCollection
     .find(standardQuery)
     .project(projection)
     .sort({ lastRecruiterEditAt: -1, createdAt: -1, _id: -1 })
@@ -290,21 +288,21 @@ export async function getJobs({
 
   const hasMore = standardResults.length > safeLimit;
   const standardPage = standardResults.slice(0, safeLimit);
-  const jobs = [...featuredResults, ...standardPage];
+  const jobs = [...featuredResults, ...standardPage] as RawJobDoc[];
   const nowMs = now.getTime();
   const [featuredCount, standardCount, availableCountries, availableCities, availableCategories, availableEmploymentTypes, availableActivities, availableLanguages] = await Promise.all([
-    db.collection('jobs').countDocuments(featuredQuery),
-    db.collection('jobs').countDocuments(standardQuery),
-    db.collection('jobs').distinct('country', countryFacetQuery),
-    db.collection('jobs').distinct('city', cityFacetQuery),
-    db.collection('jobs').distinct('occupationalAreas', categoryFacetQuery),
-    db.collection('jobs').distinct('type', employmentTypeFacetQuery),
-    db.collection('jobs').distinct('sports', activityFacetQuery),
-    db.collection('jobs').distinct('languages', languageFacetQuery),
+    jobsCollection.countDocuments(featuredQuery),
+    jobsCollection.countDocuments(standardQuery),
+    jobsCollection.distinct('country', countryFacetQuery),
+    jobsCollection.distinct('city', cityFacetQuery),
+    jobsCollection.distinct('occupationalAreas', categoryFacetQuery),
+    jobsCollection.distinct('type', employmentTypeFacetQuery),
+    jobsCollection.distinct('sports', activityFacetQuery),
+    jobsCollection.distinct('languages', languageFacetQuery),
   ]);
 
   return {
-    jobs: jobs.map((job: RawJobDoc) => ({
+    jobs: jobs.map((job) => ({
       _id: job._id.toString(),
       title: job.title,
       company: job.company,
