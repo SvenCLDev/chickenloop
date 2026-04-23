@@ -37,14 +37,14 @@ export default function Navbar() {
           <div className="hidden md:flex justify-between items-center h-16">
             {/* Left: Logo */}
             <div className="flex items-center flex-shrink-0">
-              <Link href="/" onClick={handleLogoClick} className="flex items-center">
+              <Link href="/" onClick={handleLogoClick} className="relative block h-16 w-[480px] overflow-visible">
                 <Image
-                  src="/logo.png"
+                  src="/CL-2026-v3.png"
                   alt="ChickenLoop logo"
-                  width={300}
-                  height={80}
+                  width={480}
+                  height={128}
                   priority
-                  className="h-auto w-auto max-h-[50px] sm:max-h-[60px] md:max-h-[70px]"
+                  className="absolute left-0 -top-[5px] h-32 w-auto max-w-none"
                 />
               </Link>
             </div>
@@ -130,7 +130,7 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Header */}
-          <div className="md:hidden flex justify-between items-center h-16">
+          <div className="md:hidden relative flex justify-between items-center h-16">
             {/* Left: Hamburger Menu */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -162,15 +162,15 @@ export default function Navbar() {
             </button>
 
             {/* Center: Logo */}
-            <div className="flex items-center flex-1 justify-center">
-              <Link href="/" onClick={handleLogoClick} className="flex items-center">
+            <div className="absolute left-1/2 top-0 flex h-full -translate-x-1/2 items-start pt-[5px]">
+              <Link href="/" onClick={handleLogoClick} className="flex items-start">
                 <Image
-                  src="/logo.png"
+                  src="/CL-2026-v3.png"
                   alt="ChickenLoop logo"
                   width={300}
                   height={80}
                   priority
-                  className="h-auto w-auto max-h-[40px]"
+                  className="block h-auto w-auto max-h-[100px]"
                 />
               </Link>
             </div>
