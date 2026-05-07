@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     const jobs = await Job.find(query)
       .populate('recruiter', 'name email')
-      .sort({ createdAt: -1 });
+      .sort({ lastRecruiterEditAt: -1, createdAt: -1 });
 
     const normalizedJobs = jobs.map((job) => {
       const obj = job.toObject();

@@ -22,6 +22,7 @@ interface Job {
   featured?: boolean;
   featuredUntil?: string | null;
   visitCount?: number;
+  lastRecruiterEditAt?: string | null;
   createdAt: string;
 }
 
@@ -280,6 +281,25 @@ function RecruiterDashboardClient() {
     }
   };
 
+  const handleRefreshJob = async (id: string) => {
+    try {
+      const response = await fetch(`/api/recruiter/jobs/refresh/${id}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to refresh job');
+      }
+      await loadJobs();
+      setToastMessage('Job refreshed');
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err: any) {
+      setToastMessage(err?.message || 'Failed to refresh job');
+      setTimeout(() => setToastMessage(null), 5000);
+    }
+  };
+
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -528,6 +548,14 @@ function RecruiterDashboardClient() {
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
                           <span className="inline-flex flex-nowrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleRefreshJob(job._id)}
+                              title="Move this job back to the top of search results."
+                              className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 font-medium text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              🔄 Refresh Job
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleTogglePublish(job._id, job.published === true)}
