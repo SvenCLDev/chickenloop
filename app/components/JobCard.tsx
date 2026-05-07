@@ -12,6 +12,7 @@ interface JobCardProps {
     country?: string | null;
     pictures?: string[];
     featured?: boolean;
+    lastRecruiterEditAt?: Date | string;
     createdAt?: Date | string;
   };
   /** Set true only for the first visible job card (LCP optimization). */
@@ -26,12 +27,12 @@ interface JobCardProps {
   onLoginPrompt?: () => void;
 }
 
-function formatPostedAgo(value?: Date | string): string | null {
+function formatUpdatedAgo(value?: Date | string): string | null {
   if (!value) return null;
-  const postedAt = new Date(value);
-  if (Number.isNaN(postedAt.getTime())) return null;
+  const updatedAt = new Date(value);
+  if (Number.isNaN(updatedAt.getTime())) return null;
 
-  const elapsedMs = Date.now() - postedAt.getTime();
+  const elapsedMs = Date.now() - updatedAt.getTime();
   if (elapsedMs < 0) return null;
 
   const dayMs = 24 * 60 * 60 * 1000;
@@ -90,7 +91,7 @@ export default function JobCard({
   const locationText = locationParts.length > 0
     ? locationParts.join(', ')
     : 'Location not specified';
-  const postedAgoText = formatPostedAgo(job.createdAt);
+  const updatedAgoText = formatUpdatedAgo(job.lastRecruiterEditAt || job.createdAt);
 
   return (
     <Link
@@ -150,9 +151,9 @@ export default function JobCard({
           <span className="mr-1.5">📍</span>
           <span className="line-clamp-1">{locationText}</span>
         </p>
-        {postedAgoText ? (
+        {updatedAgoText ? (
           <p className="text-sm text-gray-500 mt-1">
-            Posted {postedAgoText}
+            Updated {updatedAgoText}
           </p>
         ) : null}
       </div>

@@ -14,6 +14,7 @@ export interface JobListItem {
   languages?: string[];
   occupationalAreas?: string[];
   type?: string;
+  lastRecruiterEditAt?: Date | string;
   createdAt?: Date | string;
 }
 
@@ -259,6 +260,7 @@ export async function getJobs({
         occupationalAreas: Array.isArray(job.occupationalAreas) ? job.occupationalAreas : [],
         type: job.type,
         featured: true,
+        lastRecruiterEditAt: job.lastRecruiterEditAt,
         createdAt: job.createdAt,
       })),
       hasMore,
@@ -314,6 +316,7 @@ export async function getJobs({
       occupationalAreas: Array.isArray(job.occupationalAreas) ? job.occupationalAreas : [],
       type: job.type,
       featured: Boolean(job.featuredUntil && new Date(job.featuredUntil).getTime() >= nowMs),
+      lastRecruiterEditAt: job.lastRecruiterEditAt,
       createdAt: job.createdAt,
     })),
     hasMore,

@@ -63,6 +63,15 @@ async function connectDB(_isRetry = false) {
     }
   }
 
+  // If we have a cached promise but the default connection is fully disconnected,
+  // that promise may already be resolved from an older connection cycle.
+  // Reusing it returns immediately while readyState stays 0.
+  if (cached.promise && mongoose.connection.readyState === 0) {
+    console.warn('[connectDB] Cached promise exists while disconnected; forcing reconnect');
+    cached.promise = null;
+    cached.conn = null;
+  }
+
   if (!cached.promise) {
     // Detect if we're using local MongoDB or Atlas
     const isLocal = uri.includes('localhost') || uri.includes('127.0.0.1');
