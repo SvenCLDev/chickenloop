@@ -250,6 +250,38 @@ function mergeJobImageSources(
   return { allImages: merged, heroImageUrl };
 }
 
+/** Facebook / OG expect a stable default when a job has no usable image URL. */
+const DEFAULT_JOB_OG_IMAGE = 'https://www.chickenloop.com/default-job-image.jpg';
+
+function getSiteOriginForMetadata(headersList: Headers): string {
+  const fromEnv =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '') ||
+    process.env.NEXT_PUBLIC_BASE_URL?.trim().replace(/\/$/, '');
+  if (fromEnv) {
+    return fromEnv;
+  }
+  const host = headersList.get('host') || 'www.chickenloop.com';
+  const protocol = headersList.get('x-forwarded-proto') || 'https';
+  return `${protocol}://${host}`;
+}
+
+/** Stored URLs may be absolute (Blob) or site-relative (`/uploads/...`). */
+function toAbsolutePublicImageUrl(raw: string, siteOrigin: string): string {
+  const u = raw.trim();
+  if (!u) {
+    return DEFAULT_JOB_OG_IMAGE;
+  }
+  if (/^https?:\/\//i.test(u)) {
+    return u;
+  }
+  if (u.startsWith('//')) {
+    return `https:${u}`;
+  }
+  const base = siteOrigin.replace(/\/$/, '');
+  const path = u.startsWith('/') ? u : `/${u}`;
+  return `${base}${path}`;
+}
+
 async function shouldSkipVisitCountForPrefetch(): Promise<boolean> {
   try {
     const h = await headers();
@@ -559,28 +591,6 @@ interface PageProps {
   params: Promise<{ country: string; slug: string }>;
 }
 
-/** Returns the job's hero/first image URL for og:image (raw URL, not Next.js Image). */
-async function getJobOgImageUrl(jobId: string): Promise<string | null> {
-  try {
-    const jobImages = await JobImage.find({ jobId: new mongoose.Types.ObjectId(jobId) })
-      .sort({ order: 1 })
-      .lean();
-    if (jobImages && jobImages.length > 0) {
-      const hero = (jobImages as { imageUrl?: string; isHero?: boolean }[]).find((img) => img.isHero === true);
-      const url = hero?.imageUrl ?? (jobImages[0] as { imageUrl?: string })?.imageUrl;
-      if (url && url.startsWith('http')) return url;
-    }
-    const job = await Job.findById(jobId).select('pictures').lean();
-    const pictures = (job as { pictures?: string[] } | null)?.pictures;
-    if (Array.isArray(pictures) && pictures.length > 0 && pictures[0]?.startsWith('http')) {
-      return pictures[0];
-    }
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { country: countrySlug, slug } = await params;
 
@@ -597,12 +607,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     permanentRedirect(result.redirect);
   }
   const jobId = result.jobId;
-  
-  // Get the job data (minimal fetch for metadata)
+
   try {
     await connectDB();
-    const job = await Job.findById(jobId).select('title companyId country published').populate('companyId', 'name').lean();
-    
+    const headersList = await headers();
+    const siteOrigin = getSiteOriginForMetadata(headersList);
+
+    const [job, jobImages] = await Promise.all([
+      Job.findById(jobId)
+        .select('title description city country published pictures type companyId')
+        .populate('companyId', 'name')
+        .lean(),
+      JobImage.find({ jobId: new mongoose.Types.ObjectId(jobId) })
+        .sort({ order: 1 })
+        .lean(),
+    ]);
+
     if (!job) {
       return {};
     }
@@ -612,34 +632,71 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       isUnpublished && adminPreview
         ? { index: false as const, follow: false as const }
         : undefined;
-    
-    const companyName = (job.companyId && typeof job.companyId === 'object' && 'name' in job.companyId)
-      ? String((job.companyId as { name?: string }).name ?? '')
-      : '';
-    
-    // Generate canonical URL
-    const canonicalPath = generateJobUrlPath(job.title, job.country);
-    const headersList = await headers();
-    const host = headersList.get('host') || 'chickenloop.vercel.app';
-    const protocol = headersList.get('x-forwarded-proto') || 'https';
-    const canonicalUrl = `${protocol}://${host}${canonicalPath}`;
 
-    // Explicit og:image so Facebook shows the job image, not the site logo (raw URL, not _next/image)
-    const ogImageUrl = await getJobOgImageUrl(jobId);
-    
+    const companyName =
+      job.companyId && typeof job.companyId === 'object' && 'name' in job.companyId
+        ? String((job.companyId as { name?: string }).name ?? '')
+        : '';
+
+    const canonicalPath = generateJobUrlPath(job.title, job.country);
+    const canonicalUrl = `${siteOrigin.replace(/\/$/, '')}${canonicalPath}`;
+
+    const rawPictures = Array.isArray((job as { pictures?: string[] }).pictures)
+      ? (job as { pictures: string[] }).pictures
+      : [];
+    const { heroImageUrl } = mergeJobImageSources(
+      (jobImages || []) as { imageUrl?: string; isHero?: boolean; order?: number }[],
+      rawPictures
+    );
+    const ogImageUrl = heroImageUrl?.trim()
+      ? toAbsolutePublicImageUrl(heroImageUrl, siteOrigin)
+      : DEFAULT_JOB_OG_IMAGE;
+
+    const descriptionHtml =
+      typeof (job as { description?: string }).description === 'string'
+        ? (job as { description: string }).description
+        : '';
+    const plainDesc = stripHtmlToText(descriptionHtml).trim();
+    const typeVal = typeof (job as { type?: string }).type === 'string' ? (job as { type: string }).type : 'other';
+    const cityVal = typeof (job as { city?: string }).city === 'string' ? (job as { city: string }).city : '';
+    const description =
+      plainDesc.length > 0
+        ? plainDesc.length <= 160
+          ? plainDesc
+          : `${plainDesc.slice(0, 157)}...`
+        : `${getEmploymentTypeLabel(typeVal)} position at ${companyName} in ${cityVal}`
+            .replace(/\s+in\s+$/i, '')
+            .trim()
+            .slice(0, 160);
+
+    const pageTitle = `${job.title} | Chickenloop Watersports Jobs`;
+
     return {
-      title: `${job.title} at ${companyName} | Chickenloop`,
-      description: `Apply for ${job.title} at ${companyName}. Find watersports jobs on Chickenloop.`,
+      title: pageTitle,
+      description,
       alternates: {
         canonical: canonicalUrl,
       },
       ...(robots && { robots }),
       openGraph: {
-        title: `${job.title} at ${companyName} | Chickenloop`,
-        description: `Apply for ${job.title} at ${companyName}. Find watersports jobs on Chickenloop.`,
+        title: job.title,
+        description,
         url: canonicalUrl,
-        type: 'website',
-        ...(ogImageUrl && { images: [{ url: ogImageUrl }] }),
+        type: 'article',
+        images: [
+          {
+            url: ogImageUrl,
+            width: 1200,
+            height: 630,
+            alt: job.title,
+          },
+        ],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: job.title,
+        description,
+        images: [ogImageUrl],
       },
     };
   } catch {

@@ -29,6 +29,7 @@ export default function CareerAdviceCard({ article }: CareerAdviceCardProps) {
             src={article.picture}
             alt={article.title}
             fill
+            loading="lazy"
             className="object-cover transition-transform duration-300 hover:scale-110"
             sizes="(max-width: 640px) 120px, 160px"
             unoptimized
