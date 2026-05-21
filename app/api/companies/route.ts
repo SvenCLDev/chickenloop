@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Company from '@/models/Company';
 import { CachePresets } from '@/lib/cache';
+import { getPaginatedCompanies } from '@/lib/companiesList';
 
 // GET - Get companies with optional limit (public endpoint)
 export async function GET(request: NextRequest) {
@@ -10,6 +11,29 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
+    const pageParam = searchParams.get('page');
+    const limitParam = searchParams.get('limit');
+    const hasPaginationParams = pageParam !== null || limitParam !== null;
+
+    // Paginated list for /companies infinite scroll (legacy behavior when omitted)
+    if (hasPaginationParams) {
+      const page = Math.max(1, Number(pageParam || '1') || 1);
+      const limit = Math.min(50, Math.max(1, Number(limitParam || '20') || 20));
+      const { companies, hasMore, totalCount, availableCountries } = await getPaginatedCompanies({
+        page,
+        limit,
+        filters: {
+          keyword: searchParams.get('keyword') || undefined,
+          country: searchParams.get('country') || undefined,
+        },
+      });
+      const cacheHeaders = CachePresets.short();
+      return NextResponse.json(
+        { companies, page, limit, hasMore, totalCount, availableCountries },
+        { status: 200, headers: cacheHeaders }
+      );
+    }
+
     const limit = searchParams.get('limit');
     const featured = searchParams.get('featured');
 
