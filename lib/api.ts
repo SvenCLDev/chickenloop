@@ -350,6 +350,11 @@ export const adminApi = {
     return apiRequest(`/admin/companies${queryString ? `?${queryString}` : ''}`);
   },
   getCompany: (id: string) => apiRequest(`/admin/companies/${id}`),
+  createCompany: (recruiterId: string, data: Record<string, unknown>) =>
+    apiRequest('/admin/companies', {
+      method: 'POST',
+      body: JSON.stringify({ recruiterId, ...data }),
+    }),
   getCompanyRelationships: (companyId: string) =>
     apiRequest(`/admin/repair-company-relationships?companyId=${encodeURIComponent(companyId)}`),
   repairCompanyRelationships: (body: { companyId: string; ownerRecruiterId?: string; recruiterIds?: string[] }) =>

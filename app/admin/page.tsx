@@ -1039,6 +1039,22 @@ function AdminDashboard() {
                   Create job for recruiter
                 </Link>
               )}
+              {selectedCategory === 'recruiters' && (
+                <Link
+                  href="/admin/create-recruiter"
+                  className="inline-flex items-center justify-center shrink-0 rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                >
+                  Create recruiter
+                </Link>
+              )}
+              {selectedCategory === 'companies' && (
+                <Link
+                  href="/admin/companies/new"
+                  className="inline-flex items-center justify-center shrink-0 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                  Create Company
+                </Link>
+              )}
             </div>
 
             {adminSuccessToast && (
