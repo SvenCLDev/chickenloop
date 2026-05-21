@@ -77,65 +77,6 @@ function getTagline(description?: string): string {
   return plain.length > 100 ? plain.substring(0, 100) + '...' : plain;
 }
 
-// Helper function to format time ago
-function getTimeAgo(date: string): string {
-  const now = new Date();
-  const past = new Date(date);
-  const diffInSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
-
-  if (diffInSeconds < 60) {
-    return 'Just now';
-  }
-
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) {
-    return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`;
-  }
-
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) {
-    return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
-  }
-
-  const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays < 30) {
-    return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
-  }
-
-  const diffInMonths = Math.floor(diffInDays / 30);
-  if (diffInMonths < 12) {
-    return `${diffInMonths} ${diffInMonths === 1 ? 'month' : 'months'} ago`;
-  }
-
-  const diffInYears = Math.floor(diffInDays / 365);
-  return `${diffInYears} ${diffInYears === 1 ? 'year' : 'years'} ago`;
-}
-
-// Component to handle time ago display (prevents hydration mismatch)
-function TimeAgoDisplay({ date }: { date: string }) {
-  const [timeAgo, setTimeAgo] = useState<string>('');
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    setTimeAgo(getTimeAgo(date));
-
-    // Update every minute
-    const interval = setInterval(() => {
-      setTimeAgo(getTimeAgo(date));
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [date]);
-
-  // Don't render until mounted to prevent hydration mismatch
-  if (!mounted) {
-    return <span className="text-xs text-gray-500">Loading...</span>;
-  }
-
-  return <span className="text-xs text-gray-500">{timeAgo}</span>;
-}
-
 function CompaniesPageContent() {
   const searchParams = useSearchParams();
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -392,14 +333,10 @@ function CompaniesPageContent() {
                               </p>
                             )}
 
-                            {/* Location and Time Ago */}
-                            <div className="flex flex-col gap-1">
-                              <p className="text-sm text-gray-600 flex flex-wrap items-center gap-1">
-                                <span className="mr-1">📍</span>
-                                <span className="font-medium text-gray-800">{locationText}</span>
-                              </p>
-                              <TimeAgoDisplay date={company.createdAt} />
-                            </div>
+                            <p className="text-sm text-gray-600 flex flex-wrap items-center gap-1">
+                              <span className="mr-1">📍</span>
+                              <span className="font-medium text-gray-800">{locationText}</span>
+                            </p>
                           </div>
                         </Link>
                       );
