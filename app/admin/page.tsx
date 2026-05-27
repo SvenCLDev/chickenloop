@@ -2024,7 +2024,22 @@ function AdminDashboard() {
                           ) : selectedCategory === 'applications' ? (
                             <>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {entry.jobTitle || 'N/A'}
+                                {entry.jobTitle && entry.jobTitle !== 'No job linked' ? (
+                                  <Link
+                                    href={getJobUrl({
+                                      title: entry.jobTitle,
+                                      country: entry.jobCountry,
+                                    })}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                                    title={`Open job posting: ${entry.jobTitle}`}
+                                  >
+                                    {entry.jobTitle}
+                                  </Link>
+                                ) : (
+                                  entry.jobTitle || 'N/A'
+                                )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.company || 'N/A'}

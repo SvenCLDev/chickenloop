@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     const [jobs, candidates, recruiters] = await Promise.all([
       jobIds.length > 0
         ? dbConnection.collection('jobs')
-            .find({ _id: { $in: jobIds } }, { projection: { title: 1, company: 1 } })
+            .find({ _id: { $in: jobIds } }, { projection: { title: 1, company: 1, country: 1 } })
             .maxTimeMS(5000)
             .toArray()
         : [],
@@ -84,7 +84,12 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Create maps for quick lookup
-    const jobMap = new Map(jobs.map((j: any) => [j._id.toString(), { title: j.title, company: j.company }]));
+    const jobMap = new Map(
+      jobs.map((j: any) => [
+        j._id.toString(),
+        { title: j.title, company: j.company, country: j.country },
+      ])
+    );
     const candidateMap = new Map(candidates.map((c: any) => [c._id.toString(), { name: c.name, email: c.email }]));
     const recruiterMap = new Map(recruiters.map((r: any) => [r._id.toString(), { name: r.name, email: r.email }]));
 
@@ -100,6 +105,7 @@ export async function GET(request: NextRequest) {
         id: app._id.toString(),
         jobId: app.jobId ? app.jobId.toString() : null,
         jobTitle: job?.title || 'No job linked',
+        jobCountry: job?.country || null,
         company: job?.company || 'N/A',
         candidateId: app.candidateId?.toString(),
         candidateName: candidate.name ?? 'Unknown',
