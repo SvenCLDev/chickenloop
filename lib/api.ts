@@ -313,6 +313,15 @@ export const adminApi = {
     apiRequest(`/admin/users/${id}`, {
       method: 'DELETE',
     }),
+  blockEmail: (email: string) =>
+    apiRequest('/admin/blocked-emails', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  unblockEmail: (email: string) =>
+    apiRequest(`/admin/blocked-emails?email=${encodeURIComponent(email)}`, {
+      method: 'DELETE',
+    }),
   getJobs: (params?: { search?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) => {
     const queryParams = new URLSearchParams();
     if (params?.search) queryParams.set('search', params.search);

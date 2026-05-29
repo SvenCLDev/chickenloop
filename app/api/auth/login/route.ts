@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
 import { generateToken } from '@/lib/jwt';
+import { isEmailBlocked } from '@/lib/blockedEmail';
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +35,14 @@ export async function POST(request: NextRequest) {
     }
 
     const emailNormalized = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+    if (emailNormalized && (await isEmailBlocked(emailNormalized))) {
+      return NextResponse.json(
+        { error: 'ACCOUNT_BLOCKED', message: 'This account has been blocked and cannot sign in.' },
+        { status: 403 }
+      );
+    }
+
     const user = await User.findOne({ email: emailNormalized });
     if (!user) {
       return NextResponse.json(

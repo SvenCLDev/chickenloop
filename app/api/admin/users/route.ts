@@ -5,6 +5,7 @@ import Job from '@/models/Job';
 import CV from '@/models/CV';
 import { requireRole } from '@/lib/auth';
 import mongoose from 'mongoose';
+import { getBlockedEmailSet, normalizeBlockedEmail } from '@/lib/blockedEmail';
 
 // GET - Get all users with their data (admin only)
 export async function GET(request: NextRequest) {
@@ -227,6 +228,9 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    const blockedEmails =
+      roleFilter === 'recruiter' || !roleFilter ? await getBlockedEmailSet() : new Set<string>();
+
     // Transform to match expected format
     let formattedUsers = usersWithData.map((user: any) => {
       const baseUser = {
@@ -262,6 +266,7 @@ export async function GET(request: NextRequest) {
           companyRecordMissing,
           lastActive: user.lastOnline || user.updatedAt || user.createdAt,
           jobCount: jobCountMap.get(recruiterId) || 0,
+          blocked: blockedEmails.has(normalizeBlockedEmail(user.email || '')),
         };
       }
       

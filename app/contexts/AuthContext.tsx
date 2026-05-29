@@ -98,6 +98,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push(`/reset-password-required?email=${encodeURIComponent(email)}`);
         return;
       }
+      if (err.message === 'ACCOUNT_BLOCKED') {
+        throw new Error('This account has been blocked and cannot sign in.');
+      }
       throw err;
     }
   };

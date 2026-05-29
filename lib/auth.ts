@@ -5,6 +5,7 @@ import connectDB from './db';
 import User from '@/models/User';
 import Company from '@/models/Company';
 import { getCompanyProfileIncompleteReason } from './companyProfile';
+import { isEmailBlocked } from './blockedEmail';
 
 /** Reject providerAccountId-like strings; only accept real 24-hex ObjectIds. */
 function isMongoObjectIdString(id: string): boolean {
@@ -149,11 +150,15 @@ export async function verifyAuthIncludingNextAuth(request: NextRequest): Promise
         }
 
         if (userDoc?._id != null) {
+          const resolvedEmail = userDoc.email ?? email;
+          if (resolvedEmail && (await isEmailBlocked(resolvedEmail))) {
+            return null;
+          }
           const roleStr = userDoc.role != null ? String(userDoc.role) : '';
           return {
             userId: String(userDoc._id),
             role: roleStr,
-            email: userDoc.email ?? email,
+            email: resolvedEmail,
           } as JWTPayload;
         }
       }
@@ -167,11 +172,15 @@ export async function verifyAuthIncludingNextAuth(request: NextRequest): Promise
     await connectDB();
     const fromDb = await User.findById(legacy.userId).select('email role').lean();
     if (fromDb?._id) {
+      const resolvedEmail = fromDb.email ?? legacy.email;
+      if (resolvedEmail && (await isEmailBlocked(resolvedEmail))) {
+        return null;
+      }
       const roleStr = fromDb.role != null ? String(fromDb.role) : '';
       return {
         userId: String(fromDb._id),
         role: roleStr,
-        email: fromDb.email ?? legacy.email,
+        email: resolvedEmail,
       } as JWTPayload;
     }
     return legacy;

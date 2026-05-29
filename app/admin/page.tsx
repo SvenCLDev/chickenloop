@@ -128,6 +128,7 @@ interface User {
   companyRecordMissing?: boolean;
   lastActive?: string | null;
   jobCount?: number;
+  blocked?: boolean;
 }
 
 interface Job {
@@ -185,6 +186,7 @@ function AdminDashboard() {
   const [instagramModalCustomTags, setInstagramModalCustomTags] = useState<string>('');
   const [instagramPreviewCaption, setInstagramPreviewCaption] = useState<string>('');
   const [deletingJobSeeker, setDeletingJobSeeker] = useState<string | null>(null);
+  const [blockingRecruiterId, setBlockingRecruiterId] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string>('lastActive');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -767,6 +769,48 @@ function AdminDashboard() {
 
   const handleEditUser = (userId: string) => {
     router.push(`/admin/users/${userId}/edit`);
+  };
+
+  const handleBlockRecruiter = async (userId: string, email: string) => {
+    if (
+      !confirm(
+        `Block ${email}? They will not be able to log in (email/password or Google).`
+      )
+    ) {
+      return;
+    }
+    setBlockingRecruiterId(userId);
+    try {
+      await adminApi.blockEmail(email);
+      setTableData((prev) =>
+        prev.map((entry) => (entry.id === userId ? { ...entry, blocked: true } : entry))
+      );
+      setAdminSuccessToast(`Blocked ${email}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Failed to block recruiter: ${msg}`);
+    } finally {
+      setBlockingRecruiterId(null);
+    }
+  };
+
+  const handleUnblockRecruiter = async (userId: string, email: string) => {
+    if (!confirm(`Unblock ${email}? They will be able to log in again.`)) {
+      return;
+    }
+    setBlockingRecruiterId(userId);
+    try {
+      await adminApi.unblockEmail(email);
+      setTableData((prev) =>
+        prev.map((entry) => (entry.id === userId ? { ...entry, blocked: false } : entry))
+      );
+      setAdminSuccessToast(`Unblocked ${email}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Failed to unblock recruiter: ${msg}`);
+    } finally {
+      setBlockingRecruiterId(null);
+    }
   };
 
   const handleDeleteJobSeeker = async (userId: string, name: string, email: string) => {
@@ -1397,6 +1441,9 @@ function AdminDashboard() {
                               Company setup
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Block
+                            </th>
                           </>
                         ) : selectedCategory === 'jobs' ? (
                           <>
@@ -1811,6 +1858,37 @@ function AdminDashboard() {
                                 >
                                   Edit
                                 </button>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
+                                {entry.blocked ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnblockRecruiter(entry.id, entry.email)}
+                                    disabled={blockingRecruiterId === entry.id}
+                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                                      blockingRecruiterId === entry.id
+                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                        : 'bg-gray-600 text-white hover:bg-gray-700'
+                                    }`}
+                                    title="Remove email from blacklist and allow login"
+                                  >
+                                    {blockingRecruiterId === entry.id ? 'Updating...' : 'Unblock'}
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleBlockRecruiter(entry.id, entry.email)}
+                                    disabled={blockingRecruiterId === entry.id}
+                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                                      blockingRecruiterId === entry.id
+                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                        : 'bg-red-600 text-white hover:bg-red-700'
+                                    }`}
+                                    title="Block this email from logging in"
+                                  >
+                                    {blockingRecruiterId === entry.id ? 'Blocking...' : 'Block'}
+                                  </button>
+                                )}
                               </td>
                             </>
                           ) : selectedCategory === 'jobs' ? (

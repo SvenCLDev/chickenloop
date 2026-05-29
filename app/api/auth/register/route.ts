@@ -8,6 +8,7 @@ import { sendEmailAsync, EmailCategory } from '@/lib/email';
 import { getWelcomeEmail } from '@/lib/emailTemplates';
 import { getBaseUrlForAuthEmails } from '@/lib/baseUrlForAuthEmails';
 import { verifyTurnstile } from '@/lib/security/verifyTurnstile';
+import { isEmailBlocked } from '@/lib/blockedEmail';
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,7 +52,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existingUser = await User.findOne({ email });
+    const emailNormalized = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (emailNormalized && (await isEmailBlocked(emailNormalized))) {
+      return NextResponse.json(
+        { error: 'ACCOUNT_BLOCKED', message: 'This email address cannot be used to register.' },
+        { status: 403 }
+      );
+    }
+
+    const existingUser = await User.findOne({ email: emailNormalized || email });
     if (existingUser) {
       return NextResponse.json(
         { error: 'User already exists' },
@@ -62,7 +71,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      email,
+      email: emailNormalized || email,
       password: hashedPassword,
       name,
       role,

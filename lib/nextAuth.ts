@@ -5,6 +5,7 @@ import { ObjectId } from 'mongodb';
 import clientPromise from '@/lib/mongodb';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
+import { isEmailBlocked } from '@/lib/blockedEmail';
 
 /** Only trust strings that are real MongoDB ObjectIds (never providerAccountId). */
 function isValidUserObjectId(id: string | undefined): boolean {
@@ -65,6 +66,11 @@ export const authOptions: NextAuthOptions = {
       // Require email and verified email from Google (security requirement).
       if (!providerAccountId || !canonicalEmail) return false;
       if (googleProfile?.email_verified !== true) return false;
+
+      if (await isEmailBlocked(canonicalEmail)) {
+        console.log('[NextAuth] Blocked email attempted Google sign-in:', canonicalEmail);
+        return false;
+      }
 
       await connectDB();
       const client = await clientPromise;

@@ -4,6 +4,7 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import { verifyAuthIncludingNextAuth } from '@/lib/auth';
 import { authOptions } from '@/lib/nextAuth';
+import { isEmailBlocked } from '@/lib/blockedEmail';
 
 /** Mongoose requires Node; keeps behavior consistent with NextAuth on Vercel. */
 export const runtime = 'nodejs';
@@ -31,6 +32,12 @@ export async function GET(request: NextRequest) {
       }
 
       if (userData) {
+        if (await isEmailBlocked(userData.email)) {
+          return NextResponse.json(
+            { error: 'ACCOUNT_BLOCKED', message: 'This account has been blocked.' },
+            { status: 403 }
+          );
+        }
         return NextResponse.json({
           user: {
             id: userData._id,
@@ -63,6 +70,13 @@ export async function GET(request: NextRequest) {
 
     if (!userData) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (await isEmailBlocked(userData.email)) {
+      return NextResponse.json(
+        { error: 'ACCOUNT_BLOCKED', message: 'This account has been blocked.' },
+        { status: 403 }
+      );
     }
 
     return NextResponse.json({
