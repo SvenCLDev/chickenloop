@@ -28,6 +28,7 @@ export default function Navbar() {
 
   const isRecruiter = user && (user.role === 'recruiter' || user.role === 'admin');
   const isJobSeeker = user && user.role === 'job-seeker';
+  const isAdmin = user?.role === 'admin';
 
   return (
     <>
@@ -83,6 +84,14 @@ export default function Navbar() {
               >
                 Map
               </Link>
+              {isAdmin && (
+                <Link
+                  href="/maintenance-log"
+                  className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors"
+                >
+                  Maintenance Log
+                </Link>
+              )}
             </div>
 
             {/* Right: Primary Action Buttons */}
@@ -300,6 +309,15 @@ export default function Navbar() {
                     >
                       Map
                     </Link>
+                    {isAdmin && (
+                      <Link
+                        href="/maintenance-log"
+                        onClick={closeMobileMenu}
+                        className="px-4 py-2 rounded hover:bg-blue-700 text-sm"
+                      >
+                        Maintenance Log
+                      </Link>
+                    )}
                   </div>
                 </div>
 
