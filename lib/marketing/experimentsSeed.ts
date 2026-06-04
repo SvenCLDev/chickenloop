@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Experiment from '@/models/Experiment';
 import MarketingBanner from '@/models/MarketingBanner';
 import MarketingPlacement from '@/models/MarketingPlacement';
@@ -29,7 +30,7 @@ export async function ensureDefaultMarketingExperiments(): Promise<void> {
     });
   }
 
-  const experimentId = experiment._id;
+  const experimentId = experiment._id as mongoose.Types.ObjectId;
 
   for (const variant of ['A', 'B', 'C'] as const) {
     const config = equipmentBannerConfig[variant];
@@ -70,7 +71,7 @@ export async function ensureDefaultMarketingExperiments(): Promise<void> {
 
 /** Point seeded banners at high-res assets when still using removed placeholder paths */
 async function migrateLegacyBannerImagePaths(
-  experimentId: import('mongoose').Types.ObjectId
+  experimentId: mongoose.Types.ObjectId
 ): Promise<void> {
   const legacyByVariant: Record<string, string[]> = {
     A: ['/images/equipment-tracking/banner-chaos.jpg'],
