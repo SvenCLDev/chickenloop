@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import dynamic from 'next/dynamic';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { getJobUrl } from '@/lib/jobSlug';
+import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
 import { sanitizeRichTextLite } from '@/utils/sanitizeRichTextLite';
 
 const MapComponent = dynamic(
@@ -164,6 +165,8 @@ export default function CompanyPageClient({ company, jobs }: Props) {
             </Link>
           </div>
         )}
+
+        <PageHeaderMarketingBanner placementKey="company-details-page" />
 
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="flex items-center gap-6 mb-4">

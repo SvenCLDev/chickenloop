@@ -74,10 +74,10 @@ export default async function JobsPage({
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <PageHeaderMarketingBanner placementKey="jobs-listing-page" />
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
           Latest Jobs
         </h1>
-        <PageHeaderMarketingBanner placementKey="jobs-listing-sidebar" />
         <JobList
           initialJobs={initialJobs}
           initialCountries={availableCountries}

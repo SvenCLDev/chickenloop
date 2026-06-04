@@ -20,10 +20,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     }).lean();
 
     if (!placement) {
-      const experimentCount = await Experiment.countDocuments({});
-      if (experimentCount === 0) {
-        await ensureDefaultMarketingExperiments();
-      }
+      await ensureDefaultMarketingExperiments();
       placement = await MarketingPlacement.findOne({
         key: placementKey,
         enabled: true,

@@ -12,10 +12,7 @@ export async function GET(request: NextRequest) {
     await requireRole(request, ['admin']);
     await connectDB();
 
-    const count = await Experiment.countDocuments({});
-    if (count === 0) {
-      await ensureDefaultMarketingExperiments();
-    }
+    await ensureDefaultMarketingExperiments();
 
     const experiments = await Experiment.find({}).sort({ name: 1 }).lean();
     return NextResponse.json({

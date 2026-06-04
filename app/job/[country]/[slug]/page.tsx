@@ -22,6 +22,7 @@ import JobSpamButton from '../../../jobs/[id]/JobSpamButton';
 import JobThumbnailGallery from '../../../jobs/[id]/JobThumbnailGallery';
 import JobHeroImage from '../../../jobs/[id]/JobHeroImage';
 import JobOwnerActions from './JobOwnerActions';
+import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
 import OtherJobsAtCompany from './OtherJobsAtCompany';
 import OtherJobsInCountry from './OtherJobsInCountry';
 import CareerAdviceSection from './CareerAdviceSection';
@@ -821,6 +822,8 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
             </Link>
           </div>
         )}
+
+        <PageHeaderMarketingBanner placementKey="job-details-page" />
 
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {/* Hero Image - Main featured image at the top */}
