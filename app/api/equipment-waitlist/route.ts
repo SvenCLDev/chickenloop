@@ -1,53 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import EquipmentWaitlist from '@/models/EquipmentWaitlist';
+import { parseEquipmentWaitlistBody } from '@/lib/equipmentWaitlist';
 
-function parseOptionalInt(value: unknown): number | undefined {
-  if (value === undefined || value === null || value === '') return undefined;
-  const n = Number(value);
-  if (!Number.isFinite(n) || n < 0) return undefined;
-  return Math.floor(n);
-}
+const DEFAULT_SOURCE = 'equipment-tracking-page';
 
+/** POST - Save an equipment tracking early access waitlist signup (public). */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const name = typeof body.name === 'string' ? body.name.trim() : '';
-    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-
-    if (!name) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-    }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'A valid email is required' }, { status: 400 });
-    }
-
-    const schoolName = typeof body.schoolName === 'string' ? body.schoolName.trim() : undefined;
-    const country = typeof body.country === 'string' ? body.country.trim() : undefined;
-    const equipmentCount = parseOptionalInt(body.equipmentCount);
-    const instructorCount = parseOptionalInt(body.instructorCount);
-    const interestedPrice = parseOptionalInt(body.interestedPrice);
-
     await connectDB();
 
-    await EquipmentWaitlist.create({
-      name,
-      email,
-      schoolName: schoolName || undefined,
-      country: country || undefined,
-      equipmentCount,
-      instructorCount,
-      interestedPrice,
-      source: 'equipment-tracking-page',
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
+    }
+
+    const { data, error: parseError } = parseEquipmentWaitlistBody(body);
+    if (parseError || !data) {
+      return NextResponse.json({ error: parseError || 'Invalid request body' }, { status: 400 });
+    }
+
+    const entry = await EquipmentWaitlist.create({
+      name: data.name,
+      email: data.email,
+      schoolName: data.schoolName,
+      country: data.country,
+      equipmentCount: data.equipmentCount,
+      instructorCount: data.instructorCount,
+      interestedPrice: data.interestedPrice,
+      source: data.source || DEFAULT_SOURCE,
     });
 
     return NextResponse.json(
-      { success: true, message: 'Thanks! You are on the early access list.' },
+      {
+        success: true,
+        message: 'Thanks! You are on the early access list.',
+        id: String(entry._id),
+      },
       { status: 201 }
     );
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[API /equipment-waitlist POST] Error:', error);
-    return NextResponse.json({ error: errorMessage || 'Internal server error' }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[API /equipment-waitlist POST] Error:', err);
+
+    // Duplicate key on email if a unique index is added later
+    if (typeof err === 'object' && err !== null && (err as { code?: number }).code === 11000) {
+      return NextResponse.json(
+        { error: 'This email is already on the waitlist' },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({ error: message || 'Internal server error' }, { status: 500 });
   }
 }

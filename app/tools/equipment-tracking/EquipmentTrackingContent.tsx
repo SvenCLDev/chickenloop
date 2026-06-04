@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import Image from 'next/image';
 import Navbar from '@/app/components/Navbar';
+import EquipmentWaitlistForm from '@/components/tools/EquipmentWaitlistForm';
 
 const PROBLEM_ITEMS = [
   'Equipment gets used by multiple instructors',
@@ -36,65 +36,6 @@ const BENEFIT_ITEMS = [
 ];
 
 export default function EquipmentTrackingContent() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [schoolName, setSchoolName] = useState('');
-  const [country, setCountry] = useState('');
-  const [equipmentCount, setEquipmentCount] = useState('');
-  const [instructorCount, setInstructorCount] = useState('');
-  const [interestedPrice, setInterestedPrice] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [status, setStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setStatus(null);
-    setSubmitting(true);
-
-    try {
-      const res = await fetch('/api/equipment-waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim(),
-          schoolName: schoolName.trim(),
-          country: country.trim(),
-          equipmentCount: equipmentCount.trim() || undefined,
-          instructorCount: instructorCount.trim() || undefined,
-          interestedPrice: interestedPrice.trim() || undefined,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok) {
-        setStatus({
-          type: 'success',
-          text: data.message || 'Thanks! You are on the early access list.',
-        });
-        setName('');
-        setEmail('');
-        setSchoolName('');
-        setCountry('');
-        setEquipmentCount('');
-        setInstructorCount('');
-        setInterestedPrice('');
-      } else {
-        setStatus({
-          type: 'error',
-          text: data.error || 'Something went wrong. Please try again.',
-        });
-      }
-    } catch {
-      setStatus({
-        type: 'error',
-        text: 'Something went wrong. Please try again.',
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
       <Navbar />
@@ -205,138 +146,7 @@ export default function EquipmentTrackingContent() {
             Join the waitlist and be first to try equipment tracking built for watersports schools.
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="waitlist-name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Your name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="waitlist-name"
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  placeholder="Your name"
-                />
-              </div>
-              <div>
-                <label htmlFor="waitlist-email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="waitlist-email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  placeholder="you@school.com"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="waitlist-school" className="block text-sm font-medium text-gray-700 mb-1">
-                  School name
-                </label>
-                <input
-                  id="waitlist-school"
-                  type="text"
-                  value={schoolName}
-                  onChange={(e) => setSchoolName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  placeholder="Your kitesurf school"
-                />
-              </div>
-              <div>
-                <label htmlFor="waitlist-country" className="block text-sm font-medium text-gray-700 mb-1">
-                  Country
-                </label>
-                <input
-                  id="waitlist-country"
-                  type="text"
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  placeholder="e.g. Spain"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label
-                  htmlFor="waitlist-equipment"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Equipment count
-                </label>
-                <input
-                  id="waitlist-equipment"
-                  type="number"
-                  min={0}
-                  value={equipmentCount}
-                  onChange={(e) => setEquipmentCount(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  placeholder="e.g. 40"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="waitlist-instructors"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Instructor count
-                </label>
-                <input
-                  id="waitlist-instructors"
-                  type="number"
-                  min={0}
-                  value={instructorCount}
-                  onChange={(e) => setInstructorCount(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  placeholder="e.g. 6"
-                />
-              </div>
-              <div>
-                <label htmlFor="waitlist-price" className="block text-sm font-medium text-gray-700 mb-1">
-                  Monthly price (€)
-                </label>
-                <input
-                  id="waitlist-price"
-                  type="number"
-                  min={0}
-                  value={interestedPrice}
-                  onChange={(e) => setInterestedPrice(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  placeholder="e.g. 49"
-                />
-              </div>
-            </div>
-
-            {status && (
-              <p
-                className={
-                  status.type === 'success'
-                    ? 'text-green-600 font-medium'
-                    : 'text-red-600 font-medium'
-                }
-              >
-                {status.text}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {submitting ? 'Submitting...' : 'Join Early Access'}
-            </button>
-          </form>
+          <EquipmentWaitlistForm source="equipment-tracking-page" />
         </section>
       </main>
     </div>
