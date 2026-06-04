@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import EquipmentWaitlist from '@/models/EquipmentWaitlist';
 import { parseEquipmentWaitlistBody } from '@/lib/equipmentWaitlist';
+import { recordEquipmentAnalyticsEvent } from '@/lib/equipmentAnalytics';
 
 const DEFAULT_SOURCE = 'equipment-tracking-page';
 
@@ -22,6 +23,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parseError || 'Invalid request body' }, { status: 400 });
     }
 
+    const signupSource = data.source || DEFAULT_SOURCE;
+
     const entry = await EquipmentWaitlist.create({
       name: data.name,
       email: data.email,
@@ -30,8 +33,19 @@ export async function POST(request: NextRequest) {
       equipmentCount: data.equipmentCount,
       instructorCount: data.instructorCount,
       interestedPrice: data.interestedPrice,
-      source: data.source || DEFAULT_SOURCE,
+      source: signupSource,
     });
+
+    try {
+      await recordEquipmentAnalyticsEvent({
+        event: 'equipment_waitlist_signup',
+        source: signupSource,
+        userAgent: request.headers.get('user-agent') || undefined,
+        metadata: { waitlistId: String(entry._id) },
+      });
+    } catch (analyticsError) {
+      console.error('[API /equipment-waitlist POST] Analytics log failed:', analyticsError);
+    }
 
     return NextResponse.json(
       {

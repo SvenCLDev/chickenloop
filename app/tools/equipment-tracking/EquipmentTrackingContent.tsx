@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import Navbar from '@/app/components/Navbar';
 import EquipmentWaitlistForm from '@/components/tools/EquipmentWaitlistForm';
 
@@ -36,6 +37,9 @@ const BENEFIT_ITEMS = [
 ];
 
 export default function EquipmentTrackingContent() {
+  const searchParams = useSearchParams();
+  const waitlistSource = searchParams.get('source')?.trim() || 'equipment-tracking-page';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
       <Navbar />
@@ -146,7 +150,7 @@ export default function EquipmentTrackingContent() {
             Join the waitlist and be first to try equipment tracking built for watersports schools.
           </p>
 
-          <EquipmentWaitlistForm source="equipment-tracking-page" />
+          <EquipmentWaitlistForm source={waitlistSource} />
         </section>
       </main>
     </div>

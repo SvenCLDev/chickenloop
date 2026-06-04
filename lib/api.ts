@@ -457,6 +457,44 @@ export const adminApi = {
     const queryString = queryParams.toString();
     return apiRequest(`/admin/career-advice${queryString ? `?${queryString}` : ''}`);
   },
+  getExperiments: () => apiRequest('/admin/experiments'),
+  createExperiment: (data: Record<string, unknown>) =>
+    apiRequest('/admin/experiments', { method: 'POST', body: JSON.stringify(data) }),
+  updateExperiment: (id: string, data: Record<string, unknown>) =>
+    apiRequest(`/admin/experiments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteExperiment: (id: string) =>
+    apiRequest(`/admin/experiments/${id}`, { method: 'DELETE' }),
+  getExperimentBanners: (experimentId: string) =>
+    apiRequest(`/admin/experiments/${experimentId}/banners`),
+  createExperimentBanner: (experimentId: string, data: Record<string, unknown>) =>
+    apiRequest(`/admin/experiments/${experimentId}/banners`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateMarketingBanner: (id: string, data: Record<string, unknown>) =>
+    apiRequest(`/admin/marketing-banners/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteMarketingBanner: (id: string) =>
+    apiRequest(`/admin/marketing-banners/${id}`, { method: 'DELETE' }),
+  getMarketingPlacements: (experimentId?: string) => {
+    const q = experimentId ? `?experimentId=${encodeURIComponent(experimentId)}` : '';
+    return apiRequest(`/admin/marketing-placements${q}`);
+  },
+  createMarketingPlacement: (data: Record<string, unknown>) =>
+    apiRequest('/admin/marketing-placements', { method: 'POST', body: JSON.stringify(data) }),
+  updateMarketingPlacement: (id: string, data: Record<string, unknown>) =>
+    apiRequest(`/admin/marketing-placements/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteMarketingPlacement: (id: string) =>
+    apiRequest(`/admin/marketing-placements/${id}`, { method: 'DELETE' }),
+  getExperimentAnalytics: (experimentId: string) =>
+    apiRequest(`/admin/experiments/analytics?experimentId=${encodeURIComponent(experimentId)}`),
+  getEquipmentWaitlist: (params?: { search?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.set('search', params.search);
+    if (params?.sortBy) queryParams.set('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+    const queryString = queryParams.toString();
+    return apiRequest(`/admin/equipment-waitlist${queryString ? `?${queryString}` : ''}`);
+  },
 };
 
 export const careerAdviceApi = {

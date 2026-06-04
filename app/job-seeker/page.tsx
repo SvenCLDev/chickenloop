@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '../components/Navbar';
+import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
 import { jobsApi, cvApi, savedSearchesApi, applicationsApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { ApplicationStatus, TERMINAL_STATES, getAllowedTransitions } from '@/lib/applicationStatusTransitions';
@@ -414,7 +415,8 @@ function JobSeekerDashboardClient() {
         )}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Job Seeker Dashboard</h1>
-          
+          <PageHeaderMarketingBanner placementKey="job-seeker-dashboard" className="mb-6" />
+
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-2xl font-bold mb-4 text-gray-900">My CV</h2>
             {cv ? (
