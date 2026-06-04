@@ -6,24 +6,24 @@ import Navbar from '@/app/components/Navbar';
 
 const PROBLEM_ITEMS = [
   'Equipment gets used by multiple instructors',
-  'Maintenance records are hard to manage',
+  'Usage and maintenance records are hard to manage',
   'Insurance documentation is difficult',
 ];
 
 const SOLUTION_ITEMS = [
   'QR sticker on every kite, board and bar',
   'Scan before and after sessions',
-  'Automatic maintenance logs',
+  'Automatic usage and maintenance logs',
 ];
 
 const BENEFIT_ITEMS = [
   {
     title: 'Insurance audit readiness',
-    description: 'Keep inspection and maintenance records organized when insurers ask.',
+    description: 'Generate inspection and maintenance proof PDF documents at the touch of a button',
   },
   {
     title: 'Track equipment lifespan',
-    description: 'See usage hours and wear across your full fleet over time.',
+    description: 'See usage hours for each of your inventory items over time.',
   },
   {
     title: 'Maintenance history',
@@ -101,17 +101,31 @@ export default function EquipmentTrackingContent() {
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
         {/* Hero */}
-        <section className="text-center mb-12 sm:mb-16">
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-600 mb-3">
-            For kitesurf schools
-          </p>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 sm:mb-6">
-            Equipment Tracking for Kitesurf Schools
-          </h1>
-          <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Track equipment usage, maintenance history and safety inspections with waterproof QR
-            codes.
-          </p>
+        <section className="mb-12 sm:mb-16">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
+            <div className="flex-shrink-0">
+              <Image
+                src="/QR-safety.png"
+                alt="Waterproof QR safety sticker for kitesurf equipment"
+                width={140}
+                height={140}
+                className="w-28 h-28 sm:w-36 sm:h-36 object-contain"
+                priority
+              />
+            </div>
+            <div className="flex-1 text-center sm:text-left min-w-0">
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600 mb-3">
+                For kitesurf schools
+              </p>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 sm:mb-6">
+                Equipment Tracking for Kitesurf Schools
+              </h1>
+              <p className="text-lg sm:text-xl text-gray-600 leading-relaxed">
+                Track equipment usage, maintenance history and safety inspections with waterproof QR
+                codes.
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* The Problem */}
@@ -128,7 +142,7 @@ export default function EquipmentTrackingContent() {
             </ul>
             <div className="relative w-full md:w-2/5 md:flex-shrink-0 aspect-[4/3] rounded-lg overflow-hidden">
               <Image
-                src="/problem.png"
+                src="/problems.png"
                 alt="Kitesurf school equipment management challenges"
                 fill
                 className="object-cover"
