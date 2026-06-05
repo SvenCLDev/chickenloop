@@ -354,6 +354,7 @@ function AdminDashboard() {
             'lastActive': 'lastActive',
             'hasCV': 'hasCV',
             'availability': 'availability',
+            'jobAlerts': 'jobAlerts',
           };
           const apiSortBy = sortByMap[sortColumn] || 'lastActive';
           
@@ -1378,6 +1379,17 @@ function AdminDashboard() {
                                 )}
                               </div>
                             </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('jobAlerts')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Job Alerts
+                                {getSortIndicator('jobAlerts') && (
+                                  <span className="text-gray-400">{getSortIndicator('jobAlerts')}</span>
+                                )}
+                              </div>
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                           </>
                         ) : selectedCategory === 'recruiters' ? (
@@ -1763,6 +1775,9 @@ function AdminDashboard() {
                                 ) : (
                                   '—'
                                 )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.jobAlertCount ?? 0}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" style={{ width: '160px', minWidth: '160px' }}>
                                 <div className="flex space-x-2">

@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     // For recruiter-specific computed fields (companyName, jobCount), we'll sort after fetching
     // For database fields (name, email), we can sort at DB level
     // For lastActive, it's computed from lastOnline/updatedAt/createdAt, so we sort after fetching
-    const computedSortFields = ['companyName', 'jobCount', 'lastActive'];
+    const computedSortFields = ['companyName', 'jobCount', 'lastActive', 'jobAlerts'];
     const dbSortFields = ['name', 'email'];
     const isComputedSort = computedSortFields.includes(sortBy);
     const isDbSortable = dbSortFields.includes(sortBy);
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
       (id) => new mongoose.Types.ObjectId(id)
     );
 
-    const [jobsByRecruiter, cvsByJobSeeker, companiesByOwner, companiesByUserCompanyId] = await Promise.all([
+    const [jobsByRecruiter, cvsByJobSeeker, savedSearchesByJobSeeker, companiesByOwner, companiesByUserCompanyId] = await Promise.all([
       recruiterIds.length > 0
         ? dbConnection.collection('jobs')
             .find({ recruiter: { $in: recruiterIds } })
@@ -158,6 +158,15 @@ export async function GET(request: NextRequest) {
               .toArray();
             return result;
           })()
+        : [],
+      jobSeekerIds.length > 0
+        ? dbConnection.collection('savedsearches')
+            .aggregate([
+              { $match: { userId: { $in: jobSeekerIds } } },
+              { $group: { _id: '$userId', count: { $sum: 1 } } },
+            ])
+            .maxTimeMS(5000)
+            .toArray()
         : [],
       recruiterIds.length > 0
         ? dbConnection.collection('companies')
@@ -214,6 +223,11 @@ export async function GET(request: NextRequest) {
         cvAvailabilityMap.set(jobSeekerId, cv.availability);
       }
     });
+
+    const jobAlertCountMap = new Map<string, number>();
+    savedSearchesByJobSeeker.forEach((row: any) => {
+      jobAlertCountMap.set(row._id.toString(), row.count);
+    });
     
     const usersWithData = users.map((user: any) => {
       const userId = user._id.toString();
@@ -247,6 +261,13 @@ export async function GET(request: NextRequest) {
         hasCv: user.hasCv !== undefined ? user.hasCv : (user.cv ? true : false),
         cvAvailability: user.cvAvailability || null,
       };
+
+      if (user.role === 'job-seeker') {
+        return {
+          ...baseUser,
+          jobAlertCount: jobAlertCountMap.get(user._id.toString()) || 0,
+        };
+      }
       
       // Add recruiter-specific fields
       if (user.role === 'recruiter') {
@@ -275,7 +296,7 @@ export async function GET(request: NextRequest) {
 
     // Sorting logic
     // Allowed sort fields for job-seekers
-    const allowedJobSeekerSortFields = ['name', 'email', 'lastActive', 'hasCV', 'availability'];
+    const allowedJobSeekerSortFields = ['name', 'email', 'lastActive', 'hasCV', 'availability', 'jobAlerts'];
     // Allowed sort fields for recruiters
     const allowedRecruiterSortFields = ['name', 'email', 'companyName', 'lastActive', 'jobCount'];
     
@@ -340,6 +361,10 @@ export async function GET(request: NextRequest) {
           // Use cvAvailability field if available, otherwise fallback to cv?.availability
           aValue = a.cvAvailability || a.cv?.availability || '';
           bValue = b.cvAvailability || b.cv?.availability || '';
+          break;
+        case 'jobAlerts':
+          aValue = a.jobAlertCount ?? 0;
+          bValue = b.jobAlertCount ?? 0;
           break;
         default:
           // Default: lastActive DESC

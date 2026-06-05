@@ -6,6 +6,10 @@ import JobCard from '../components/JobCard';
 import JobSearchBar from './JobSearchBar';
 import JobFiltersSidebar from './JobFiltersSidebar';
 import MobileFiltersPanel from './MobileFiltersPanel';
+import SaveJobAlertModal, { SaveJobAlertLoginPrompt } from './SaveJobAlertModal';
+import JobAlertToast from './JobAlertToast';
+import { hasSavableAlertFilters } from './savedSearchUtils';
+import { useAuth } from '../contexts/AuthContext';
 import type { JobListFilters, JobListItem } from '@/lib/jobs';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { JOB_CATEGORIES } from '@/lib/jobCategories';
@@ -70,10 +74,20 @@ export default function JobList({
   const [searchKeyword, setSearchKeyword] = useState(initialFilters.keyword || '');
   const [searchLocation, setSearchLocation] = useState(initialFilters.location || '');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [saveAlertModalOpen, setSaveAlertModalOpen] = useState(false);
+  const [saveAlertLoginOpen, setSaveAlertLoginOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const observerRef = useRef<HTMLDivElement | null>(null);
   const loadedPagesRef = useRef<Set<number>>(new Set([initialPage]));
   const hasMountedRef = useRef(false);
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => setToastMessage(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
 
   const loadJobs = useCallback(async (pageToLoad: number, activeFilters: JobListFilters, replace = false) => {
     setLoading(true);
@@ -297,8 +311,23 @@ export default function JobList({
     return chips;
   }, [filters]);
 
+  const savableFiltersActive = useMemo(() => hasSavableAlertFilters(filters), [filters]);
+  const canShowSaveAlertButton = !authLoading && savableFiltersActive;
+  const activeCategoryLabel = filters.category
+    ? categories.find((item) => item.value === filters.category)?.label
+    : undefined;
+
+  const handleSaveJobAlertClick = () => {
+    if (!user || user.role !== 'job-seeker') {
+      setSaveAlertLoginOpen(true);
+      return;
+    }
+    setSaveAlertModalOpen(true);
+  };
+
   return (
     <>
+      <JobAlertToast message={toastMessage} />
       <div className="bg-white border-b shadow-sm py-2">
         <JobSearchBar
           keyword={searchKeyword}
@@ -365,9 +394,20 @@ export default function JobList({
         </aside>
 
         <div className="flex-1 min-w-0">
-          <p className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">
-            We have {totalCount} {totalCount === 1 ? 'job' : 'jobs'} meeting these criteria
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">
+              We have {totalCount} {totalCount === 1 ? 'job' : 'jobs'} meeting these criteria
+            </p>
+            {canShowSaveAlertButton && (
+              <button
+                type="button"
+                onClick={handleSaveJobAlertClick}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 whitespace-nowrap self-start sm:self-auto"
+              >
+                🔔 Save Job Alert
+              </button>
+            )}
+          </div>
 
           {activeFilterChips.length > 0 && (
             <div className="hidden lg:flex mb-4 flex-wrap gap-2 items-center justify-between">
@@ -425,6 +465,18 @@ export default function JobList({
         employmentTypes={employmentTypes}
         activities={activities}
         languages={languages}
+      />
+
+      <SaveJobAlertModal
+        open={saveAlertModalOpen}
+        filters={filters}
+        alertNameLabels={{ category: activeCategoryLabel }}
+        onClose={() => setSaveAlertModalOpen(false)}
+        onSuccess={() => setToastMessage('Job alert created successfully.')}
+      />
+      <SaveJobAlertLoginPrompt
+        open={saveAlertLoginOpen}
+        onClose={() => setSaveAlertLoginOpen(false)}
       />
     </>
   );

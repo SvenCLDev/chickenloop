@@ -747,7 +747,8 @@ function JobSeekerDashboardClient() {
             <div className="bg-white rounded-lg shadow-md p-8 text-center">
               <p className="text-gray-600">You don't have any saved searches yet.</p>
               <p className="text-gray-500 text-sm mt-2">
-                Use the "Save Search" button on the jobs page to create email alerts for new jobs matching your criteria.
+                Use the &quot;🔔 Save Job Alert&quot; button on the jobs page when you have search filters
+                applied to create email alerts for matching new listings.
               </p>
               <Link
                 href="/jobs"

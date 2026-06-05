@@ -17,6 +17,7 @@ import JobImage from '@/models/JobImage';
 import CareerAdvice from '@/models/CareerAdvice';
 import mongoose from 'mongoose';
 import JobFavouriteButton from '../../../jobs/[id]/JobFavouriteButton';
+import JobSimilarJobsAlertButton from '../../../jobs/JobSimilarJobsAlertButton';
 import JobApplySection from '../../../jobs/[id]/JobApplySection';
 import JobSpamButton from '../../../jobs/[id]/JobSpamButton';
 import JobThumbnailGallery from '../../../jobs/[id]/JobThumbnailGallery';
@@ -833,14 +834,34 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
             <div className="mb-6">
               <h1 className="text-4xl font-bold text-gray-900 mb-2">{job.title}</h1>
               <p className="text-2xl text-gray-600 mb-2">{job.company}</p>
-              {/* Share and Favourites Buttons */}
-              <div className="flex items-center gap-3">
+              {/* Share, favourites, and job alert actions */}
+              <div className="flex flex-wrap items-center gap-3 mt-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
                 <ShareJobButton
                   jobTitle={job.title}
                   shortDescription={`${getEmploymentTypeLabel(job.type)} position at ${job.company} in ${job.city}`}
                   url={currentUrl}
                 />
                 <JobFavouriteButton jobId={job._id} />
+                <JobSimilarJobsAlertButton
+                  category={job.occupationalAreas?.[0]}
+                  activity={job.sports?.[0]}
+                  country={
+                    job.country && typeof job.country === 'string' && job.country.trim()
+                      ? job.country.trim().toUpperCase()
+                      : undefined
+                  }
+                  language={job.languages?.[0]}
+                  categoryLabel={
+                    job.occupationalAreas?.[0]
+                      ? JOB_CATEGORIES.find((c) => c.value === job.occupationalAreas![0])?.label
+                      : undefined
+                  }
+                  countryLabel={
+                    job.country && typeof job.country === 'string' && job.country.trim()
+                      ? getCountryNameFromCode(job.country.trim().toUpperCase())
+                      : undefined
+                  }
+                />
               </div>
               {/* Job actions: Feature / Extend — only for recruiter who owns this job */}
               {isJobOwner && (
