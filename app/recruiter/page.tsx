@@ -8,6 +8,7 @@ import FeatureJobModal from '../components/FeatureJobModal';
 import { jobsApi, companyApi, candidatesApi } from '@/lib/api';
 import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
+import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
 
 interface Job {
   _id: string;
@@ -432,19 +433,10 @@ function RecruiterDashboardClient() {
         );
       })()}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-wrap justify-between items-center gap-3 mb-8">
-          <h1 className="text-4xl font-bold text-gray-900">
-            {companyName ? `${companyName} Recruiter Dashboard` : 'Recruiter Dashboard'}
-          </h1>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/recruiter/jobs/new"
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
-            >
-              Post New Job
-            </Link>
-          </div>
-        </div>
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          {companyName ? `${companyName} Recruiter Dashboard` : 'Recruiter Dashboard'}
+        </h1>
+        <PageHeaderMarketingBanner placementKey="recruiter-dashboard" />
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -454,7 +446,15 @@ function RecruiterDashboardClient() {
 
         {/* My Job Postings Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">My Job Postings</h2>
+          <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
+            <h2 className="text-3xl font-bold text-gray-900">My Job Postings</h2>
+            <Link
+              href="/recruiter/jobs/new"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
+            >
+              Post New Job
+            </Link>
+          </div>
           {jobs.length === 0 ? (
             <div className="bg-white rounded-lg shadow-md p-8 text-center">
               <p className="text-gray-600 mb-4">You haven't posted any jobs yet.</p>
