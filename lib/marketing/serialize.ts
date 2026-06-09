@@ -31,6 +31,7 @@ export function serializeBanner(doc: IMarketingBanner | Record<string, unknown>)
     image: d.image,
     analyticsSource: d.analyticsSource,
     styleKey: d.styleKey,
+    backgroundColor: d.backgroundColor ?? '',
     enabled: d.enabled,
     sortOrder: d.sortOrder,
     createdAt: d.createdAt,

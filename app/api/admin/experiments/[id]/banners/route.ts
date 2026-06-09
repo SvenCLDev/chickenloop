@@ -5,6 +5,7 @@ import Experiment from '@/models/Experiment';
 import MarketingBanner from '@/models/MarketingBanner';
 import { serializeBanner } from '@/lib/marketing/serialize';
 import { adminErrorResponse } from '@/lib/marketing/adminErrors';
+import { parseHexColor } from '@/lib/marketing/hexColor';
 import mongoose from 'mongoose';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -72,6 +73,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Variant key already exists for this experiment' }, { status: 409 });
     }
 
+    let backgroundColor = '';
+    if ('backgroundColor' in body) {
+      const parsed = parseHexColor(body.backgroundColor);
+      if (!parsed.ok) {
+        return NextResponse.json({ error: parsed.error }, { status: 400 });
+      }
+      backgroundColor = parsed.value ?? '';
+    }
+
     const banner = await MarketingBanner.create({
       experimentId: id,
       variantKey,
@@ -81,6 +91,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       image,
       analyticsSource,
       styleKey: typeof body.styleKey === 'string' ? body.styleKey.trim() : 'A',
+      backgroundColor,
       enabled: body.enabled !== false,
       sortOrder: typeof body.sortOrder === 'number' ? body.sortOrder : 0,
     });

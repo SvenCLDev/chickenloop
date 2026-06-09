@@ -5,6 +5,7 @@ import MarketingBanner from '@/models/MarketingBanner';
 import MarketingPlacement from '@/models/MarketingPlacement';
 import { serializeBanner } from '@/lib/marketing/serialize';
 import { adminErrorResponse } from '@/lib/marketing/adminErrors';
+import { parseHexColor } from '@/lib/marketing/hexColor';
 import mongoose from 'mongoose';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -36,6 +37,13 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     if (typeof body.styleKey === 'string') updates.styleKey = body.styleKey.trim();
     if (typeof body.enabled === 'boolean') updates.enabled = body.enabled;
     if (typeof body.sortOrder === 'number') updates.sortOrder = body.sortOrder;
+    if ('backgroundColor' in body) {
+      const parsed = parseHexColor(body.backgroundColor);
+      if (!parsed.ok) {
+        return NextResponse.json({ error: parsed.error }, { status: 400 });
+      }
+      updates.backgroundColor = parsed.value ?? '';
+    }
 
     const banner = await MarketingBanner.findByIdAndUpdate(id, updates, {
       new: true,

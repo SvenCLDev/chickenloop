@@ -10,6 +10,8 @@ export interface IMarketingBanner extends Document {
   analyticsSource: string;
   /** Visual style preset (A/B/C) for layout theming */
   styleKey: string;
+  /** Optional banner background as HEX (e.g. #1e40af); empty uses style preset */
+  backgroundColor: string;
   enabled: boolean;
   sortOrder: number;
   createdAt: Date;
@@ -57,6 +59,11 @@ const MarketingBannerSchema: Schema = new Schema(
     styleKey: {
       type: String,
       default: 'A',
+      trim: true,
+    },
+    backgroundColor: {
+      type: String,
+      default: '',
       trim: true,
     },
     enabled: {

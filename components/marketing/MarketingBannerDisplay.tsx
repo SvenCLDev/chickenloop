@@ -16,6 +16,8 @@ export interface MarketingBannerDisplayProps {
   analyticsSource: string;
   variantKey: string;
   styleKey?: string;
+  /** Optional HEX background; empty uses style preset */
+  backgroundColor?: string;
   className?: string;
 }
 
@@ -64,10 +66,12 @@ export default function MarketingBannerDisplay({
   analyticsSource,
   variantKey,
   styleKey,
+  backgroundColor = '',
   className = '',
 }: MarketingBannerDisplayProps) {
   const variant = resolveStyle(styleKey, variantKey);
   const styles = VARIANT_STYLES[variant];
+  const customBackground = backgroundColor.trim();
   const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -125,7 +129,12 @@ export default function MarketingBannerDisplay({
       <Link
         href={href}
         onClick={handleClick}
-        className={`group block rounded-lg overflow-hidden transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${styles.container}`}
+        style={customBackground ? { backgroundColor: customBackground } : undefined}
+        className={`group block rounded-lg overflow-hidden transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+          customBackground
+            ? 'border border-black/10 hover:brightness-[0.97]'
+            : styles.container
+        }`}
         aria-label={`${headline} — ${cta}`}
       >
         <div className={layoutClass}>

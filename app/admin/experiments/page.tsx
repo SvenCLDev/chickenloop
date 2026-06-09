@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/app/components/Navbar';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { adminApi } from '@/lib/api';
+import { hexColorForPicker, isValidHexColor } from '@/lib/marketing/hexColor';
 
 interface Experiment {
   id: string;
@@ -28,6 +29,7 @@ interface Banner {
   image: string;
   analyticsSource: string;
   styleKey: string;
+  backgroundColor: string;
   enabled: boolean;
   sortOrder: number;
 }
@@ -80,6 +82,7 @@ const EMPTY_BANNER_FORM = {
   image: '',
   analyticsSource: '',
   styleKey: 'A',
+  backgroundColor: '',
   enabled: true,
   sortOrder: 0,
 };
@@ -213,6 +216,7 @@ export default function AdminExperimentsPage() {
       image: banner.image,
       analyticsSource: banner.analyticsSource,
       styleKey: banner.styleKey,
+      backgroundColor: banner.backgroundColor ?? '',
       enabled: banner.enabled,
       sortOrder: banner.sortOrder,
     });
@@ -221,6 +225,10 @@ export default function AdminExperimentsPage() {
 
   const saveBanner = async () => {
     if (!selectedExperimentId) return;
+    if (bannerForm.backgroundColor.trim() && !isValidHexColor(bannerForm.backgroundColor)) {
+      setError('Background colour must be a valid HEX code (e.g. #1e40af) or left empty');
+      return;
+    }
     setSavingBanner(true);
     setError('');
     try {
@@ -478,6 +486,45 @@ export default function AdminExperimentsPage() {
                   />
                 </div>
               ))}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Background colour (HEX)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={hexColorForPicker(bannerForm.backgroundColor)}
+                    onChange={(e) =>
+                      setBannerForm((f) => ({ ...f, backgroundColor: e.target.value }))
+                    }
+                    className="h-10 w-12 cursor-pointer rounded border border-gray-300 bg-white p-1"
+                    aria-label="Pick background colour"
+                  />
+                  <input
+                    type="text"
+                    value={bannerForm.backgroundColor}
+                    onChange={(e) =>
+                      setBannerForm((f) => ({ ...f, backgroundColor: e.target.value }))
+                    }
+                    placeholder="#1e40af (optional)"
+                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white placeholder:text-gray-500 font-mono"
+                  />
+                  {bannerForm.backgroundColor.trim() && (
+                    <span
+                      className="h-10 w-10 shrink-0 rounded-md border border-gray-300"
+                      style={{ backgroundColor: bannerForm.backgroundColor }}
+                      title="Preview"
+                    />
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Leave empty to use the style preset background. Use 3- or 6-digit HEX codes.
+                </p>
+                {bannerForm.backgroundColor.trim() &&
+                  !isValidHexColor(bannerForm.backgroundColor) && (
+                    <p className="mt-1 text-xs text-red-600">Enter a valid HEX code (e.g. #2563eb)</p>
+                  )}
+              </div>
               <div className="flex items-center gap-2">
                 <input
                   id="banner-enabled"
@@ -513,7 +560,7 @@ export default function AdminExperimentsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Variant', 'Headline', 'Source', 'Style', 'Enabled', 'Actions'].map((h) => (
+                  {['Variant', 'Headline', 'Source', 'Style', 'Background', 'Enabled', 'Actions'].map((h) => (
                     <th
                       key={h}
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -526,7 +573,7 @@ export default function AdminExperimentsPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {banners.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                       No banners yet
                     </td>
                   </tr>
@@ -539,6 +586,19 @@ export default function AdminExperimentsPage() {
                         {b.analyticsSource}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{b.styleKey}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {b.backgroundColor ? (
+                          <span className="inline-flex items-center gap-2">
+                            <span
+                              className="inline-block h-5 w-5 rounded border border-gray-300"
+                              style={{ backgroundColor: b.backgroundColor }}
+                            />
+                            <span className="font-mono text-xs text-gray-600">{b.backgroundColor}</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">Preset</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {b.enabled ? (
                           <span className="text-green-700">Yes</span>

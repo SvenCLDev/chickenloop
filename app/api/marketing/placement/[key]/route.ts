@@ -56,6 +56,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         image: banner.image,
         analyticsSource: banner.analyticsSource,
         styleKey: banner.styleKey,
+        backgroundColor: banner.backgroundColor ?? '',
         href,
         experimentKey: experiment.key,
         placementKey: placement.key,

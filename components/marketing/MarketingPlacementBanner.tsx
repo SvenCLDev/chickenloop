@@ -11,6 +11,7 @@ export interface PlacementBannerData {
   analyticsSource: string;
   variantKey: string;
   styleKey: string;
+  backgroundColor?: string;
   href: string;
 }
 
@@ -60,6 +61,7 @@ export default function MarketingPlacementBanner({
       analyticsSource={banner.analyticsSource}
       variantKey={banner.variantKey}
       styleKey={banner.styleKey}
+      backgroundColor={banner.backgroundColor}
       className={className}
     />
   );
