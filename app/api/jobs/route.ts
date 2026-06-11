@@ -16,6 +16,10 @@ import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import { geocodeJobLocation } from '@/lib/geocodeJobLocation';
 import { postJobToFacebook } from '@/lib/social/facebook';
 import { getJobs as getPaginatedJobs } from '@/lib/jobs';
+import {
+  buildJobPostedConfirmationUrls,
+  sendJobPostedConfirmation,
+} from '@/lib/email/sendJobPostedConfirmation';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 export async function GET(request: NextRequest) {
@@ -1057,6 +1061,26 @@ export async function POST(request: NextRequest) {
       }
     } catch (err) {
       console.error('[facebook] auto-post failed:', err);
+    }
+
+    if (isPublished) {
+      try {
+        const recruiterForEmail = await User.findById(targetRecruiterId).select('name email').lean();
+        if (recruiterForEmail?.email) {
+          const { jobUrl, dashboardUrl } = buildJobPostedConfirmationUrls(job.title, job.country);
+          await sendJobPostedConfirmation({
+            recruiterEmail: recruiterForEmail.email,
+            recruiterName: recruiterForEmail.name ?? undefined,
+            recruiterUserId: targetRecruiterId.toString(),
+            jobTitle: job.title,
+            jobUrl,
+            dashboardUrl,
+          });
+          console.log(`[Email] Job confirmation sent for job ${job._id}`);
+        }
+      } catch (error) {
+        console.error('Failed to send job confirmation email', error);
+      }
     }
 
     return NextResponse.json(
