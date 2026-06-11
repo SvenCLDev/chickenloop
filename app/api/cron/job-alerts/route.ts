@@ -5,6 +5,7 @@ import User from '@/models/User';
 import { findMatchingJobs, getCompanyName } from '@/lib/jobMatching';
 import { sendEmail, EmailCategory } from '@/lib/email';
 import { getJobAlertEmail, getJobAlertHeartbeatEmail } from '@/lib/emailTemplates';
+import { verifyCronRequest } from '@/lib/cronAuth';
 
 /**
  * Vercel Cron Job: Send job alerts
@@ -15,9 +16,7 @@ import { getJobAlertEmail, getJobAlertHeartbeatEmail } from '@/lib/emailTemplate
  * For weekly alerts, we check if 7 days have passed since lastSent
  */
 export async function GET(request: NextRequest) {
-  // Verify this is a cron request (Vercel adds Authorization header)
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

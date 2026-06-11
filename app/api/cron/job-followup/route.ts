@@ -4,6 +4,7 @@ import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import User from '@/models/User';
 import { buildJobFollowUpUrls, sendJobFollowUp } from '@/lib/email/sendJobFollowUp';
+import { verifyCronRequest } from '@/lib/cronAuth';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -27,8 +28,7 @@ interface EligibleRecruiter {
  * Schedule: daily at 08:00 UTC (vercel.json).
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
