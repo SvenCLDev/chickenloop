@@ -1,4 +1,4 @@
-import { sendEmailAsync, EmailCategory } from '@/lib/email';
+import { sendEmail, EmailCategory } from '@/lib/email';
 import { getBaseUrlForAuthEmails } from '@/lib/baseUrlForAuthEmails';
 import { jobPostedConfirmationEmail } from '@/lib/email/templates/jobPostedConfirmation';
 import { generateJobUrlPath } from '@/lib/jobSlug';
@@ -25,7 +25,7 @@ export async function sendJobPostedConfirmation({
   jobTitle: string;
   jobUrl: string;
   dashboardUrl: string;
-}): Promise<void> {
+}): Promise<{ success: boolean; error?: string }> {
   const email = jobPostedConfirmationEmail({
     recruiterName,
     jobTitle,
@@ -33,7 +33,7 @@ export async function sendJobPostedConfirmation({
     dashboardUrl,
   });
 
-  await sendEmailAsync({
+  return sendEmail({
     to: recruiterEmail,
     subject: email.subject,
     html: email.html,

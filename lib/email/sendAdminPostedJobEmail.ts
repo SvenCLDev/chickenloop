@@ -1,4 +1,4 @@
-import { sendEmailAsync, EmailCategory } from '@/lib/email';
+import { sendEmail, EmailCategory } from '@/lib/email';
 import { adminPostedJobEmail } from '@/lib/email/templates/adminPostedJobEmail';
 
 export async function sendAdminPostedJobEmail({
@@ -17,7 +17,7 @@ export async function sendAdminPostedJobEmail({
   jobUrl: string;
   dashboardUrl: string;
   recruiterUserId?: string;
-}): Promise<void> {
+}): Promise<{ success: boolean; error?: string }> {
   const email = adminPostedJobEmail({
     recruiterName,
     recruiterEmail,
@@ -27,7 +27,7 @@ export async function sendAdminPostedJobEmail({
     dashboardUrl,
   });
 
-  await sendEmailAsync({
+  return sendEmail({
     to: recruiterEmail,
     subject: email.subject,
     html: email.html,

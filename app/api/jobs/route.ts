@@ -1071,11 +1071,11 @@ export async function POST(request: NextRequest) {
         const recruiterForEmail = await User.findById(targetRecruiterId).select('name email').lean();
         if (recruiterForEmail?.email) {
           const { jobUrl, dashboardUrl } = buildJobPostedConfirmationUrls(job.title, job.country);
-          if (job.createdByAdmin) {
+          if (createdByAdmin) {
             const companyDoc = await Company.findById(companyId).select('name').lean();
             const companyName =
               companyDoc?.name?.trim() || (typeof company === 'string' ? company.trim() : '') || 'your company';
-            await sendAdminPostedJobEmail({
+            const result = await sendAdminPostedJobEmail({
               recruiterName: recruiterForEmail.name ?? undefined,
               recruiterEmail: recruiterForEmail.email,
               companyName,
@@ -1084,9 +1084,16 @@ export async function POST(request: NextRequest) {
               dashboardUrl,
               recruiterUserId: targetRecruiterId.toString(),
             });
-            console.log(`[Email] Admin-created job outreach sent to ${recruiterForEmail.email}`);
+            if (result.success) {
+              console.log(`[Email] Admin-created job outreach sent to ${recruiterForEmail.email}`);
+            } else {
+              console.error(
+                `[Email] Admin-created job outreach failed for ${recruiterForEmail.email}:`,
+                result.error ?? 'unknown error'
+              );
+            }
           } else {
-            await sendJobPostedConfirmation({
+            const result = await sendJobPostedConfirmation({
               recruiterEmail: recruiterForEmail.email,
               recruiterName: recruiterForEmail.name ?? undefined,
               recruiterUserId: targetRecruiterId.toString(),
@@ -1094,8 +1101,17 @@ export async function POST(request: NextRequest) {
               jobUrl,
               dashboardUrl,
             });
-            console.log(`[Email] Job confirmation sent for job ${job._id}`);
+            if (result.success) {
+              console.log(`[Email] Job confirmation sent for job ${job._id}`);
+            } else {
+              console.error(
+                `[Email] Job confirmation failed for job ${job._id}:`,
+                result.error ?? 'unknown error'
+              );
+            }
           }
+        } else {
+          console.warn(`[Email] Skipped job posted email for job ${job._id}: recruiter has no email`);
         }
       } catch (error) {
         console.error('Failed to send job confirmation email', error);

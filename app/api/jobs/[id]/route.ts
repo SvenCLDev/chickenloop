@@ -404,7 +404,7 @@ export async function PUT(
         const recruiterForEmail = await User.findById(job.recruiter).select('name email').lean();
         if (recruiterForEmail?.email) {
           const { jobUrl, dashboardUrl } = buildJobPostedConfirmationUrls(job.title, job.country);
-          await sendJobPostedConfirmation({
+          const result = await sendJobPostedConfirmation({
             recruiterEmail: recruiterForEmail.email,
             recruiterName: recruiterForEmail.name ?? undefined,
             recruiterUserId: job.recruiter.toString(),
@@ -412,7 +412,16 @@ export async function PUT(
             jobUrl,
             dashboardUrl,
           });
-          console.log(`[Email] Job confirmation sent for job ${job._id}`);
+          if (result.success) {
+            console.log(`[Email] Job confirmation sent for job ${job._id}`);
+          } else {
+            console.error(
+              `[Email] Job confirmation failed for job ${job._id}:`,
+              result.error ?? 'unknown error'
+            );
+          }
+        } else {
+          console.warn(`[Email] Skipped job posted email for job ${job._id}: recruiter has no email`);
         }
       } catch (error) {
         console.error('Failed to send job confirmation email', error);

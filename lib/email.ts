@@ -415,28 +415,46 @@ export async function sendEmailAsync(options: SendEmailOptions): Promise<void> {
       || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
     const internalEndpoint = `${baseUrl}/api/internal/send-email`;
 
-    // Fire-and-forget: don't await the response
-    fetch(internalEndpoint, {
+    const response = await fetch(internalEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(options),
-    }).catch((error) => {
-      // Log errors but don't throw - email failures shouldn't affect API responses
-      console.error('[Send Email Async] Failed to call internal endpoint:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    const recipients = Array.isArray(options.to) ? options.to.join(', ') : options.to;
+
+    if (!response.ok) {
+      console.error('[Send Email Async] Internal endpoint HTTP error:', {
+        status: response.status,
         endpoint: internalEndpoint,
         category: options.category,
         eventType: options.eventType,
-        to: options.to,
+        to: recipients,
       });
-    });
+      return;
+    }
 
-    // Log that email was queued (not necessarily sent yet)
-    const recipients = Array.isArray(options.to) ? options.to.join(', ') : options.to;
+    let result: { success?: boolean; error?: string } = {};
+    try {
+      result = await response.json();
+    } catch {
+      /* response may be empty */
+    }
+
+    if (result.success === false) {
+      console.error('[Send Email Async] Internal endpoint reported failure:', {
+        error: result.error ?? 'unknown error',
+        category: options.category,
+        eventType: options.eventType,
+        to: recipients,
+      });
+      return;
+    }
+
     console.log(
-      `[Email Queued] category=${options.category}, ` +
+      `[Email Sent] category=${options.category}, ` +
       `eventType=${options.eventType}, ` +
       `userId=${options.userId || 'anonymous'}, ` +
       `to=${recipients}`
