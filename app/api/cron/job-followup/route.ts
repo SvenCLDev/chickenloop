@@ -3,10 +3,17 @@ import mongoose from 'mongoose';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import User from '@/models/User';
-import { buildJobFollowUpUrls, sendJobFollowUp } from '@/lib/email/sendJobFollowUp';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+type SkipReason =
+  | 'No active jobs'
+  | 'Job too new'
+  | 'Job too old'
+  | 'Follow-up already sent'
+  | 'Missing email'
+  | 'Missing recruiter account';
 
 interface RecruiterJobSummary {
   _id: mongoose.Types.ObjectId;
@@ -15,8 +22,10 @@ interface RecruiterJobSummary {
 }
 
 /**
- * Vercel Cron: send recruiter follow-up emails (one per recruiter).
+ * Vercel Cron: recruiter follow-up emails (one per recruiter).
  * Schedule: daily at 08:00 UTC (vercel.json).
+ *
+ * DEBUG MODE: emails are not sent; response returns eligibility statistics.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -30,7 +39,9 @@ export async function GET(request: NextRequest) {
     const sevenDaysAgo = new Date(now.getTime() - SEVEN_DAYS_MS);
     const thirtyDaysAgo = new Date(now.getTime() - THIRTY_DAYS_MS);
 
-    console.log('[Cron Job Follow-up] Starting processing...');
+    console.log('[Cron Job Follow-up] Starting processing (debug mode — no emails sent)...');
+
+    const activeJobsCount = await Job.countDocuments({ status: 'published' });
 
     const recruiterSummaries = (await Job.aggregate([
       { $match: { status: 'published' } },
@@ -41,110 +52,48 @@ export async function GET(request: NextRequest) {
           latestJobCreatedAt: { $max: '$createdAt' },
         },
       },
-      {
-        $match: {
-          latestJobCreatedAt: { $lte: sevenDaysAgo, $gte: thirtyDaysAgo },
-        },
-      },
     ])) as RecruiterJobSummary[];
 
-    console.log(
-      `[Cron Job Follow-up] Found ${recruiterSummaries.length} recruiters in rollout window (7–30 days since latest post)`
-    );
-
-    let emailsSent = 0;
-    let skipped = 0;
-    let errors = 0;
+    const recruitersFoundCount = recruiterSummaries.length;
+    let eligibleRecruitersCount = 0;
+    const emailsSentCount = 0;
 
     for (const summary of recruiterSummaries) {
       const recruiterId = summary._id;
+      const recruiterUser = await User.findById(recruiterId)
+        .select('email role lastRecruiterFollowUpEmailAt')
+        .lean();
 
-      try {
-        const recruiter = await User.findOne({
-          _id: recruiterId,
-          role: 'recruiter',
-          email: { $exists: true, $ne: '' },
-          $or: [
-            { lastRecruiterFollowUpEmailAt: null },
-            { lastRecruiterFollowUpEmailAt: { $lt: thirtyDaysAgo } },
-          ],
-        })
-          .select('name email companyId lastRecruiterFollowUpEmailAt')
-          .lean();
+      const email = recruiterUser?.email?.trim() || null;
+      const reasonSkipped = getSkipReason({
+        summary,
+        recruiterUser,
+        sevenDaysAgo,
+        thirtyDaysAgo,
+      });
 
-        if (!recruiter?.email) {
-          skipped++;
-          continue;
-        }
-
-        const companyId = recruiter.companyId ? String(recruiter.companyId) : '';
-        const { dashboardUrl, companyProfileUrl } = buildJobFollowUpUrls(companyId);
-
-        const result = await sendJobFollowUp({
-          recruiterEmail: recruiter.email,
-          recruiterName: recruiter.name ?? undefined,
-          recruiterUserId: String(recruiterId),
-          activeJobsCount: summary.activeJobsCount,
-          dashboardUrl,
-          companyProfileUrl,
-        });
-
-        if (!result.success) {
-          console.error(
-            `[Cron Job Follow-up] Failed to send for recruiter ${recruiterId}:`,
-            result.error ?? 'unknown error'
-          );
-          errors++;
-          continue;
-        }
-
-        const updateResult = await User.updateOne(
-          {
-            _id: recruiterId,
-            $or: [
-              { lastRecruiterFollowUpEmailAt: null },
-              { lastRecruiterFollowUpEmailAt: { $lt: thirtyDaysAgo } },
-            ],
-          },
-          {
-            $set: {
-              recruiterFollowUpEmailSent: true,
-              lastRecruiterFollowUpEmailAt: now,
-            },
-          }
-        );
-
-        if (updateResult.modifiedCount === 0) {
-          console.warn(
-            `[Cron Job Follow-up] Recruiter ${recruiterId} already received follow-up within 30 days`
-          );
-          skipped++;
-          continue;
-        }
-
-        emailsSent++;
-        console.log('Recruiter follow-up sent to:');
-        console.log(recruiter.email);
-        console.log(summary.activeJobsCount);
-      } catch (recruiterError: unknown) {
-        errors++;
-        const message = recruiterError instanceof Error ? recruiterError.message : 'Unknown error';
-        console.error(`[Cron Job Follow-up] Error processing recruiter ${recruiterId}:`, message);
+      if (reasonSkipped) {
+        console.log('email:', email ?? recruiterId.toString());
+        console.log('reasonSkipped:', reasonSkipped);
+        continue;
       }
+
+      eligibleRecruitersCount++;
     }
 
-    const summary = {
-      message: 'Recruiter follow-up emails processed',
-      eligibleRecruiters: recruiterSummaries.length,
-      emailsSent,
-      skipped,
-      errors,
-      timestamp: now.toISOString(),
-    };
+    console.log('Active jobs:', activeJobsCount);
+    console.log('Recruiters found:', recruitersFoundCount);
+    console.log('Eligible recruiters:', eligibleRecruitersCount);
 
-    console.log('[Cron Job Follow-up] Processing complete:', summary);
-
-    return NextResponse.json(summary, { status: 200 });
+    return NextResponse.json(
+      {
+        activeJobsCount,
+        recruitersFoundCount,
+        eligibleRecruitersCount,
+        emailsSentCount,
+      },
+      { status: 200 }
+    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Cron Job Follow-up] Fatal error:', errorMessage);
@@ -153,4 +102,50 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function getSkipReason({
+  summary,
+  recruiterUser,
+  sevenDaysAgo,
+  thirtyDaysAgo,
+}: {
+  summary: RecruiterJobSummary;
+  recruiterUser: {
+    email?: string;
+    role?: string | null;
+    lastRecruiterFollowUpEmailAt?: Date | null;
+  } | null;
+  sevenDaysAgo: Date;
+  thirtyDaysAgo: Date;
+}): SkipReason | null {
+  if (summary.activeJobsCount <= 0) {
+    return 'No active jobs';
+  }
+
+  const latestCreated = new Date(summary.latestJobCreatedAt);
+  if (latestCreated > sevenDaysAgo) {
+    return 'Job too new';
+  }
+
+  if (latestCreated < thirtyDaysAgo) {
+    return 'Job too old';
+  }
+
+  if (!recruiterUser || recruiterUser.role !== 'recruiter') {
+    return 'Missing recruiter account';
+  }
+
+  if (!recruiterUser.email?.trim()) {
+    return 'Missing email';
+  }
+
+  if (
+    recruiterUser.lastRecruiterFollowUpEmailAt &&
+    recruiterUser.lastRecruiterFollowUpEmailAt >= thirtyDaysAgo
+  ) {
+    return 'Follow-up already sent';
+  }
+
+  return null;
 }
