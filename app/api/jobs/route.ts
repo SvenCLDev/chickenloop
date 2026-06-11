@@ -16,6 +16,7 @@ import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import { geocodeJobLocation } from '@/lib/geocodeJobLocation';
 import { postJobToFacebook } from '@/lib/social/facebook';
 import { getJobs as getPaginatedJobs } from '@/lib/jobs';
+import { sendAdminPostedJobEmail } from '@/lib/email/sendAdminPostedJobEmail';
 import {
   buildJobPostedConfirmationUrls,
   sendJobPostedConfirmation,
@@ -958,6 +959,7 @@ export async function POST(request: NextRequest) {
       resolvedStatus = 'published';
     }
     const isPublished = resolvedStatus === 'published';
+    const createdByAdmin = user.role === 'admin';
 
     const now = new Date();
     const validThroughDate = new Date(now);
@@ -993,6 +995,7 @@ export async function POST(request: NextRequest) {
       datePosted: isPublished ? now : undefined,
       validThrough: isPublished ? validThroughDate : undefined,
       lastRecruiterEditAt: now,
+      createdByAdmin,
     });
 
     // Geocode location for map pin (city + country → coordinates; fallback to country centroid on map if null)
@@ -1068,15 +1071,31 @@ export async function POST(request: NextRequest) {
         const recruiterForEmail = await User.findById(targetRecruiterId).select('name email').lean();
         if (recruiterForEmail?.email) {
           const { jobUrl, dashboardUrl } = buildJobPostedConfirmationUrls(job.title, job.country);
-          await sendJobPostedConfirmation({
-            recruiterEmail: recruiterForEmail.email,
-            recruiterName: recruiterForEmail.name ?? undefined,
-            recruiterUserId: targetRecruiterId.toString(),
-            jobTitle: job.title,
-            jobUrl,
-            dashboardUrl,
-          });
-          console.log(`[Email] Job confirmation sent for job ${job._id}`);
+          if (job.createdByAdmin) {
+            const companyDoc = await Company.findById(companyId).select('name').lean();
+            const companyName =
+              companyDoc?.name?.trim() || (typeof company === 'string' ? company.trim() : '') || 'your company';
+            await sendAdminPostedJobEmail({
+              recruiterName: recruiterForEmail.name ?? undefined,
+              recruiterEmail: recruiterForEmail.email,
+              companyName,
+              jobTitle: job.title,
+              jobUrl,
+              dashboardUrl,
+              recruiterUserId: targetRecruiterId.toString(),
+            });
+            console.log(`[Email] Admin-created job outreach sent to ${recruiterForEmail.email}`);
+          } else {
+            await sendJobPostedConfirmation({
+              recruiterEmail: recruiterForEmail.email,
+              recruiterName: recruiterForEmail.name ?? undefined,
+              recruiterUserId: targetRecruiterId.toString(),
+              jobTitle: job.title,
+              jobUrl,
+              dashboardUrl,
+            });
+            console.log(`[Email] Job confirmation sent for job ${job._id}`);
+          }
         }
       } catch (error) {
         console.error('Failed to send job confirmation email', error);

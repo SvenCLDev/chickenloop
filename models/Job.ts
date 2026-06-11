@@ -108,6 +108,9 @@ export interface IJob extends Document {
    */
   lastRecruiterEditAt?: Date | null;
 
+  /** True when an admin created the job on behalf of the recruiter */
+  createdByAdmin?: boolean;
+
   // 🔹 Legacy / migration metadata
   legacy?: {
     source: 'drupal7' | 'drupal';
@@ -270,6 +273,11 @@ const JobSchema: Schema = new Schema(
     lastRecruiterEditAt: {
       type: Date,
       default: null,
+    },
+
+    createdByAdmin: {
+      type: Boolean,
+      default: false,
     },
 
     // 🔹 Legacy / migration

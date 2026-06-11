@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Job, { IJob, EXPERIENCE_LEVELS } from '@/models/Job';
 import JobImage from '@/models/JobImage';
+import User from '@/models/User';
+import {
+  buildJobPostedConfirmationUrls,
+  sendJobPostedConfirmation,
+} from '@/lib/email/sendJobPostedConfirmation';
 import { requireAuth, requireRole, verifyAuthIncludingNextAuth } from '@/lib/auth';
 import { JOB_CATEGORY_VALUES } from '@/lib/jobCategories';
 import { normalizeUrl } from '@/lib/normalizeUrl';
@@ -290,6 +295,7 @@ export async function PUT(
     // Update published flag (recruiters can publish/unpublish their own jobs)
     // System-managed date fields: datePosted and validThrough
     const wasPublished = job.published === true;
+    const hadDatePosted = !!job.datePosted;
     if (published !== undefined) {
       job.published = published === true;
       
@@ -392,6 +398,26 @@ export async function PUT(
     (job as IJob).coordinates = coords ?? null;
 
     await job.save();
+
+    if (published === true && !wasPublished && !hadDatePosted) {
+      try {
+        const recruiterForEmail = await User.findById(job.recruiter).select('name email').lean();
+        if (recruiterForEmail?.email) {
+          const { jobUrl, dashboardUrl } = buildJobPostedConfirmationUrls(job.title, job.country);
+          await sendJobPostedConfirmation({
+            recruiterEmail: recruiterForEmail.email,
+            recruiterName: recruiterForEmail.name ?? undefined,
+            recruiterUserId: job.recruiter.toString(),
+            jobTitle: job.title,
+            jobUrl,
+            dashboardUrl,
+          });
+          console.log(`[Email] Job confirmation sent for job ${job._id}`);
+        }
+      } catch (error) {
+        console.error('Failed to send job confirmation email', error);
+      }
+    }
 
     // Update JobImage collection with isHero flag
     if (pictures !== undefined && Array.isArray(pictures)) {
