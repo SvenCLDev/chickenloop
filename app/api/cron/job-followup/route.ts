@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import User from '@/models/User';
+import { buildJobFollowUpUrls, sendJobFollowUp } from '@/lib/email/sendJobFollowUp';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -21,14 +22,22 @@ interface RecruiterJobSummary {
   latestJobCreatedAt: Date;
 }
 
+interface EligibleRecruiter {
+  recruiterId: string;
+  email: string;
+  name?: string;
+  companyId?: string;
+  activeJobsCount: number;
+}
+
 /**
  * Vercel Cron: recruiter follow-up emails (one per recruiter).
  * Schedule: daily at 08:00 UTC (vercel.json).
  *
- * DEBUG MODE: emails are not sent; response returns eligibility statistics.
+ * TEST MODE: sends to the first eligible recruiter only (slice(0, 1)).
  */
 export async function GET(request: NextRequest) {
-  console.log('FOLLOWUP CRON VERSION 2');
+  console.log('FOLLOWUP CRON VERSION 3');
 
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -41,7 +50,7 @@ export async function GET(request: NextRequest) {
     const sevenDaysAgo = new Date(now.getTime() - SEVEN_DAYS_MS);
     const thirtyDaysAgo = new Date(now.getTime() - THIRTY_DAYS_MS);
 
-    console.log('[Cron Job Follow-up] Starting processing (debug mode — no emails sent)...');
+    console.log('[Cron Job Follow-up] Starting processing (test mode — first eligible recruiter only)...');
 
     const activeJobsCount = await Job.countDocuments({ status: 'published' });
 
@@ -57,13 +66,12 @@ export async function GET(request: NextRequest) {
     ])) as RecruiterJobSummary[];
 
     const recruitersFoundCount = recruiterSummaries.length;
-    let eligibleRecruitersCount = 0;
-    const emailsSentCount = 0;
+    const eligibleRecruiters: EligibleRecruiter[] = [];
 
     for (const summary of recruiterSummaries) {
       const recruiterId = summary._id;
       const recruiterUser = await User.findById(recruiterId)
-        .select('email role lastRecruiterFollowUpEmailAt')
+        .select('email name role companyId lastRecruiterFollowUpEmailAt')
         .lean();
 
       const email = recruiterUser?.email?.trim() || null;
@@ -80,7 +88,67 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      eligibleRecruitersCount++;
+      eligibleRecruiters.push({
+        recruiterId: recruiterId.toString(),
+        email: email!,
+        name: recruiterUser?.name ?? undefined,
+        companyId: recruiterUser?.companyId ? String(recruiterUser.companyId) : undefined,
+        activeJobsCount: summary.activeJobsCount,
+      });
+    }
+
+    const eligibleRecruitersCount = eligibleRecruiters.length;
+    const testRecruiters = eligibleRecruiters.slice(0, 1);
+    let emailsSentCount = 0;
+
+    for (const recruiter of testRecruiters) {
+      const { dashboardUrl, companyProfileUrl } = buildJobFollowUpUrls(recruiter.companyId);
+
+      console.log(`[FollowUp] Sending test email to ${recruiter.email}`);
+
+      const result = await sendJobFollowUp({
+        recruiterEmail: recruiter.email,
+        recruiterName: recruiter.name,
+        recruiterUserId: recruiter.recruiterId,
+        activeJobsCount: recruiter.activeJobsCount,
+        dashboardUrl,
+        companyProfileUrl,
+      });
+
+      if (!result.success) {
+        console.error(
+          `[Cron Job Follow-up] Failed to send test email to ${recruiter.email}:`,
+          result.error ?? 'unknown error'
+        );
+        continue;
+      }
+
+      const updateResult = await User.updateOne(
+        {
+          _id: recruiter.recruiterId,
+          $or: [
+            { lastRecruiterFollowUpEmailAt: null },
+            { lastRecruiterFollowUpEmailAt: { $lt: thirtyDaysAgo } },
+          ],
+        },
+        {
+          $set: {
+            recruiterFollowUpEmailSent: true,
+            lastRecruiterFollowUpEmailAt: now,
+          },
+        }
+      );
+
+      if (updateResult.modifiedCount === 0) {
+        console.warn(
+          `[Cron Job Follow-up] Test email sent but user record not updated for ${recruiter.email}`
+        );
+      }
+
+      emailsSentCount++;
+      console.log('Recruiter follow-up sent to:');
+      console.log(recruiter.email);
+      console.log(recruiter.activeJobsCount);
     }
 
     console.log('Active jobs:', activeJobsCount);
@@ -89,7 +157,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       {
-        version: 2,
+        version: 3,
         activeJobsCount,
         recruitersFoundCount,
         eligibleRecruitersCount,
