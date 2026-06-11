@@ -28,6 +28,8 @@ interface RecruiterJobSummary {
  * DEBUG MODE: emails are not sent; response returns eligibility statistics.
  */
 export async function GET(request: NextRequest) {
+  console.log('FOLLOWUP CRON VERSION 2');
+
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -87,6 +89,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       {
+        version: 2,
         activeJobsCount,
         recruitersFoundCount,
         eligibleRecruitersCount,
