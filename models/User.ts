@@ -23,6 +23,10 @@ export interface IUser extends Document {
   mustResetPassword?: boolean;
   passwordMigrated?: boolean;
 
+  /** Recruiter 7-day follow-up email tracking */
+  recruiterFollowUpEmailSent?: boolean;
+  lastRecruiterFollowUpEmailAt?: Date | null;
+
   // 🔹 Migration metadata
   legacy?: {
     source: 'drupal7' | 'drupal';
@@ -101,6 +105,14 @@ const UserSchema: Schema = new Schema(
     passwordMigrated: {
       type: Boolean,
       default: false,
+    },
+    recruiterFollowUpEmailSent: {
+      type: Boolean,
+      default: false,
+    },
+    lastRecruiterFollowUpEmailAt: {
+      type: Date,
+      default: null,
     },
 
     // 🔹 Legacy / migration
