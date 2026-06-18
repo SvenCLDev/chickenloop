@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     // For database fields (name, email), we can sort at DB level
     // For lastActive, it's computed from lastOnline/updatedAt/createdAt, so we sort after fetching
     const computedSortFields = ['companyName', 'jobCount', 'lastActive', 'jobAlerts'];
-    const dbSortFields = ['name', 'email'];
+    const dbSortFields = ['name', 'email', 'loginCount'];
     const isComputedSort = computedSortFields.includes(sortBy);
     const isDbSortable = dbSortFields.includes(sortBy);
     
@@ -115,6 +115,7 @@ export async function GET(request: NextRequest) {
           role: 1,
           companyId: 1,
           lastOnline: 1,
+          loginCount: 1,
           updatedAt: 1,
           createdAt: 1,
           // Pure inclusion: only these fields will be returned
@@ -255,6 +256,7 @@ export async function GET(request: NextRequest) {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
         lastOnline: user.lastOnline,
+        loginCount: user.loginCount ?? 0,
         jobs: user.jobs || [],
         cv: user.cv || null,
         // Add hasCv field for job seekers (optimized)
@@ -296,9 +298,9 @@ export async function GET(request: NextRequest) {
 
     // Sorting logic
     // Allowed sort fields for job-seekers
-    const allowedJobSeekerSortFields = ['name', 'email', 'lastActive', 'hasCV', 'availability', 'jobAlerts'];
+    const allowedJobSeekerSortFields = ['name', 'email', 'lastActive', 'hasCV', 'availability', 'jobAlerts', 'loginCount'];
     // Allowed sort fields for recruiters
-    const allowedRecruiterSortFields = ['name', 'email', 'companyName', 'lastActive', 'jobCount'];
+    const allowedRecruiterSortFields = ['name', 'email', 'companyName', 'lastActive', 'jobCount', 'loginCount'];
     
     // Determine which allowlist to use based on role filter or default to recruiter fields
     // If no role filter, we'll validate against both and use the appropriate one per user
@@ -365,6 +367,10 @@ export async function GET(request: NextRequest) {
         case 'jobAlerts':
           aValue = a.jobAlertCount ?? 0;
           bValue = b.jobAlertCount ?? 0;
+          break;
+        case 'loginCount':
+          aValue = a.loginCount ?? 0;
+          bValue = b.loginCount ?? 0;
           break;
         default:
           // Default: lastActive DESC

@@ -18,6 +18,10 @@ export interface IUser extends Document {
   companyId?: mongoose.Types.ObjectId;
 
   lastOnline?: Date;
+
+  /** Total successful logins (recruiters and job seekers only) */
+  loginCount?: number;
+
   notesEnabled?: boolean;
 
   mustResetPassword?: boolean;
@@ -93,6 +97,11 @@ const UserSchema: Schema = new Schema(
       index: true,
     },
     lastOnline: Date,
+    loginCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     notesEnabled: {
       type: Boolean,
       default: true,

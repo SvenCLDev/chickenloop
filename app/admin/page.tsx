@@ -120,6 +120,7 @@ interface User {
   createdAt: string;
   updatedAt?: string;
   lastOnline?: string;
+  loginCount?: number;
   jobs?: any[];
   cv?: any;
   companyId?: string | null;
@@ -352,6 +353,7 @@ function AdminDashboard() {
             'name': 'name',
             'email': 'email',
             'lastActive': 'lastActive',
+            'loginCount': 'loginCount',
             'hasCV': 'hasCV',
             'availability': 'availability',
             'jobAlerts': 'jobAlerts',
@@ -374,6 +376,7 @@ function AdminDashboard() {
             'email': 'email',
             'companyName': 'companyName',
             'lastActive': 'lastActive',
+            'loginCount': 'loginCount',
             'jobCount': 'jobCount',
           };
           const recruiterApiSortBy = recruiterSortByMap[sortColumn] || 'lastActive';
@@ -1377,6 +1380,17 @@ function AdminDashboard() {
                             </th>
                             <th 
                               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('loginCount')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Logins
+                                {getSortIndicator('loginCount') && (
+                                  <span className="text-gray-400">{getSortIndicator('loginCount')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                               onClick={() => handleSort('hasCV')}
                             >
                               <div className="flex items-center gap-1">
@@ -1453,6 +1467,17 @@ function AdminDashboard() {
                                 Last active
                                 {getSortIndicator('lastActive') && (
                                   <span className="text-gray-400">{getSortIndicator('lastActive')}</span>
+                                )}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort('loginCount')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Logins
+                                {getSortIndicator('loginCount') && (
+                                  <span className="text-gray-400">{getSortIndicator('loginCount')}</span>
                                 )}
                               </div>
                             </th>
@@ -1776,6 +1801,9 @@ function AdminDashboard() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {getTimeAgo(entry.lastOnline || entry.updatedAt)}
                               </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.loginCount ?? 0}
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 {entry.cv ? (
                                   <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
@@ -1851,6 +1879,9 @@ function AdminDashboard() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {getTimeAgo(entry.lastActive)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.loginCount ?? 0}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.jobCount ?? 0}

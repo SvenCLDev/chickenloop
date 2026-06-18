@@ -6,6 +6,7 @@ import clientPromise from '@/lib/mongodb';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
 import { isEmailBlocked } from '@/lib/blockedEmail';
+import { recordUserLogin } from '@/lib/recordUserLogin';
 
 /** Only trust strings that are real MongoDB ObjectIds (never providerAccountId). */
 function isValidUserObjectId(id: string | undefined): boolean {
@@ -294,6 +295,14 @@ export const authOptions: NextAuthOptions = {
         return u.toString();
       } catch {
         return `${baseUrl}/auth/post-login`;
+      }
+    },
+  },
+  events: {
+    async signIn({ user }) {
+      const userId = (user as { id?: string }).id;
+      if (userId && isValidUserObjectId(userId)) {
+        await recordUserLogin(userId);
       }
     },
   },

@@ -4,6 +4,7 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import { generateToken } from '@/lib/jwt';
 import { isEmailBlocked } from '@/lib/blockedEmail';
+import { recordUserLogin } from '@/lib/recordUserLogin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -73,9 +74,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update lastOnline timestamp
-    user.lastOnline = new Date();
-    await user.save();
+    // Record login activity for recruiters and job seekers
+    await recordUserLogin(user._id.toString());
 
     const token = generateToken(user);
 
