@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Record login activity for recruiters and job seekers
-    await recordUserLogin(user._id.toString());
+    await recordUserLogin(String(user._id));
 
     const token = generateToken(user);
 
