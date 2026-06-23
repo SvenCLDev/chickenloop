@@ -24,15 +24,23 @@ const HERO_IMAGES = [
   '/Diving.jpg',
 ];
 
-export default function HomePageContent() {
+/**
+ * @param {Object} props
+ * @param {import('@/lib/homepageJobs').HomepageJobCard[]} [props.initialLatestJobs]
+ * @param {string[]} [props.initialCategoryValues]
+ */
+export default function HomePageContent({
+  initialLatestJobs = [],
+  initialCategoryValues = [],
+}) {
   const { user } = useAuth();
   const [keyword, setKeyword] = useState('');
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState('');
-  const [allJobs, setAllJobs] = useState([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [latestJobs, setLatestJobs] = useState([]);
-  const [latestJobsLoading, setLatestJobsLoading] = useState(true);
+  const [categoryValues, setCategoryValues] = useState(initialCategoryValues);
+  const [categoriesLoading, setCategoriesLoading] = useState(initialCategoryValues.length === 0);
+  const [latestJobs, setLatestJobs] = useState(initialLatestJobs);
+  const [latestJobsLoading, setLatestJobsLoading] = useState(initialLatestJobs.length === 0);
   const [featuredJobs, setFeaturedJobs] = useState([]);
   const [featuredJobsLoading, setFeaturedJobsLoading] = useState(true);
   const [featuredCompanies, setFeaturedCompanies] = useState([]);
@@ -58,10 +66,9 @@ export default function HomePageContent() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   useEffect(() => {
-    // Load jobs to extract unique categories
-    loadJobs();
-    // Load latest jobs for display
-    loadLatestJobs();
+    if (categoryValues.length === 0) {
+      loadCategories();
+    }
     // Load featured jobs for display
     loadFeaturedJobs();
     // Load featured companies
@@ -114,30 +121,18 @@ export default function HomePageContent() {
     return () => clearInterval(interval);
   }, []);
 
-  const loadJobs = async () => {
+  const loadCategories = async () => {
     try {
-      const data = await jobsApi.getAll();
-      const jobsList = data.jobs || [];
-      setAllJobs(jobsList);
+      const response = await fetch('/api/job-categories');
+      if (!response.ok) {
+        throw new Error('Failed to fetch job categories');
+      }
+      const data = await response.json();
+      setCategoryValues(data.categories || []);
     } catch (err) {
-      // Silently fail - categories will just be empty
-      console.error('Failed to load jobs for categories:', err);
+      console.error('Failed to load job categories:', err);
     } finally {
       setCategoriesLoading(false);
-    }
-  };
-
-  const loadLatestJobs = async () => {
-    try {
-      const response = await fetch('/api/jobs-list');
-      const data = await response.json();
-      const jobsList = data.jobs || [];
-      // Fetch enough so that after excluding featured we can show 6 (e.g. up to 6 featured + 6 latest = 12)
-      setLatestJobs(jobsList.slice(0, 12));
-    } catch (err) {
-      console.error('Failed to load latest jobs:', err);
-    } finally {
-      setLatestJobsLoading(false);
     }
   };
 
@@ -289,18 +284,9 @@ export default function HomePageContent() {
   };
 
 
-  // Get job categories from jobs - values only. UI maps value→label for display.
+  // Map distinct category values to SearchBar options (value→label)
   const getAvailableCategories = () => {
-    const availableValues = new Set();
-    allJobs.forEach((job) => {
-      if (job.occupationalAreas && job.occupationalAreas.length > 0) {
-        job.occupationalAreas.forEach((value) => {
-          if (JOB_CATEGORIES.some((c) => c.value === value)) {
-            availableValues.add(value);
-          }
-        });
-      }
-    });
+    const availableValues = new Set(categoryValues);
     return JOB_CATEGORIES.filter((cat) => availableValues.has(cat.value));
   };
 

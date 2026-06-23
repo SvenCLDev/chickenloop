@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import HomePageContent from './components/HomePageContent';
+import { getHomepageLatestJobs } from '@/lib/homepageJobs';
+import { getDistinctJobCategories } from '@/lib/jobCategoriesQuery';
 
 export const metadata: Metadata = {
   title: 'Chickenloop | Free Watersports Job Board',
@@ -18,6 +20,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HomePage() {
-  return <HomePageContent />;
+export default async function HomePage() {
+  const [initialLatestJobs, initialCategoryValues] = await Promise.all([
+    getHomepageLatestJobs(6),
+    getDistinctJobCategories(),
+  ]);
+
+  return (
+    <HomePageContent
+      initialLatestJobs={initialLatestJobs}
+      initialCategoryValues={initialCategoryValues}
+    />
+  );
 }

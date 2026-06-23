@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import Job from '@/models/Job';
 import Company from '@/models/Company';
 import mongoose from 'mongoose';
 import { CachePresets } from '@/lib/cache';
+import { getHomepageLatestJobs } from '@/lib/homepageJobs';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 // This endpoint is kept for backward compatibility - it uses the same logic as /api/jobs
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const limitParam = searchParams.get('limit');
+
+    // Lightweight homepage slice: newest jobs only, minimal JobCard fields
+    if (limitParam !== null) {
+      const limit = Math.min(Math.max(1, Number(limitParam) || 6), 20);
+      const jobs = await getHomepageLatestJobs(limit);
+      const cacheHeaders = CachePresets.short();
+      return NextResponse.json({ jobs }, { status: 200, headers: cacheHeaders });
+    }
+
     console.log('[API /jobs-list] Starting request (forwarding to /api/jobs logic)');
 
     // Add timeout for database connection
@@ -33,7 +44,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Get query parameters
-    const { searchParams } = new URL(request.url);
     const featured = searchParams.get('featured');
     const now = new Date();
 
