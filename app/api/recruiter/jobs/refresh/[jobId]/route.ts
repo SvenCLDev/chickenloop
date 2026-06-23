@@ -3,6 +3,11 @@ import mongoose from 'mongoose';
 import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import { requireRole } from '@/lib/auth';
+import {
+  canRefreshJob,
+  getJobRefreshCooldownMessage,
+  getJobRefreshDaysRemaining,
+} from '@/lib/jobRefresh';
 
 export async function POST(
   request: NextRequest,
@@ -17,20 +22,41 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid job id' }, { status: 400 });
     }
 
+    const job = await Job.findOne({
+      _id: new mongoose.Types.ObjectId(jobId),
+      recruiter: new mongoose.Types.ObjectId(user.userId),
+    }).select('_id lastRefreshedAt');
+
+    if (!job) {
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+
+    if (!canRefreshJob(job.lastRefreshedAt)) {
+      const daysRemaining = getJobRefreshDaysRemaining(job.lastRefreshedAt);
+      return NextResponse.json(
+        {
+          error: getJobRefreshCooldownMessage(daysRemaining),
+          daysRemaining,
+        },
+        { status: 429 }
+      );
+    }
+
     const now = new Date();
     const refreshed = await Job.findOneAndUpdate(
       {
-        _id: new mongoose.Types.ObjectId(jobId),
+        _id: job._id,
         recruiter: new mongoose.Types.ObjectId(user.userId),
       },
       {
         $set: {
           updatedAt: now,
           lastRecruiterEditAt: now,
+          lastRefreshedAt: now,
         },
       },
       { new: true }
-    ).select('_id updatedAt lastRecruiterEditAt');
+    ).select('_id updatedAt lastRecruiterEditAt lastRefreshedAt');
 
     if (!refreshed) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
@@ -41,6 +67,7 @@ export async function POST(
         success: true,
         updatedAt: refreshed.updatedAt,
         lastRecruiterEditAt: refreshed.lastRecruiterEditAt,
+        lastRefreshedAt: refreshed.lastRefreshedAt,
       },
       { status: 200 }
     );

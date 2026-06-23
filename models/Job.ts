@@ -108,6 +108,12 @@ export interface IJob extends Document {
    */
   lastRecruiterEditAt?: Date | null;
 
+  /**
+   * Last time the recruiter used Refresh Job to bump listing order.
+   * Separate from lastRecruiterEditAt (content edits); used for weekly refresh limit.
+   */
+  lastRefreshedAt?: Date | null;
+
   /** True when an admin created the job on behalf of the recruiter */
   createdByAdmin?: boolean;
 
@@ -271,6 +277,11 @@ const JobSchema: Schema = new Schema(
     },
 
     lastRecruiterEditAt: {
+      type: Date,
+      default: null,
+    },
+
+    lastRefreshedAt: {
       type: Date,
       default: null,
     },

@@ -9,6 +9,11 @@ import { jobsApi, companyApi, candidatesApi } from '@/lib/api';
 import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
 import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
+import {
+  canRefreshJob,
+  getJobRefreshCooldownMessage,
+  getJobRefreshDaysRemaining,
+} from '@/lib/jobRefresh';
 
 interface Job {
   _id: string;
@@ -24,6 +29,7 @@ interface Job {
   featuredUntil?: string | null;
   visitCount?: number;
   lastRecruiterEditAt?: string | null;
+  lastRefreshedAt?: string | null;
   createdAt: string;
 }
 
@@ -83,6 +89,7 @@ function RecruiterDashboardClient() {
   const [loadingApplications, setLoadingApplications] = useState(false);
   const [removingApplication, setRemovingApplication] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastVariant, setToastVariant] = useState<'success' | 'error'>('success');
   const [unsubscribedCategory, setUnsubscribedCategory] = useState<string | null>(null);
   const [showUnsubscribedNotification, setShowUnsubscribedNotification] = useState(false);
   const [featureModalJobId, setFeatureModalJobId] = useState<string | null>(null);
@@ -282,7 +289,20 @@ function RecruiterDashboardClient() {
     }
   };
 
+  const showToast = (message: string, variant: 'success' | 'error' = 'success') => {
+    setToastVariant(variant);
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), variant === 'error' ? 9000 : 3000);
+  };
+
   const handleRefreshJob = async (id: string) => {
+    const job = jobs.find((j) => j._id === id);
+    if (job && !canRefreshJob(job.lastRefreshedAt)) {
+      const daysRemaining = getJobRefreshDaysRemaining(job.lastRefreshedAt);
+      showToast(getJobRefreshCooldownMessage(daysRemaining), 'error');
+      return;
+    }
+
     try {
       const response = await fetch(`/api/recruiter/jobs/refresh/${id}`, {
         method: 'POST',
@@ -293,11 +313,9 @@ function RecruiterDashboardClient() {
         throw new Error(data.error || 'Failed to refresh job');
       }
       await loadJobs();
-      setToastMessage('Job refreshed');
-      setTimeout(() => setToastMessage(null), 3000);
+      showToast('Job refreshed');
     } catch (err: any) {
-      setToastMessage(err?.message || 'Failed to refresh job');
-      setTimeout(() => setToastMessage(null), 5000);
+      showToast(err?.message || 'Failed to refresh job', 'error');
     }
   };
 
@@ -415,11 +433,21 @@ function RecruiterDashboardClient() {
       <Navbar />
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-20 right-4 z-50 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 transition-all duration-300">
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-          <span className="font-medium">{toastMessage}</span>
+        <div
+          className={`fixed top-20 right-4 z-50 max-w-md px-6 py-3 rounded-lg shadow-lg flex items-start gap-2 transition-all duration-300 ${
+            toastVariant === 'error' ? 'bg-amber-600 text-white' : 'bg-green-600 text-white'
+          }`}
+        >
+          {toastVariant === 'error' ? (
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+          <span className="font-medium leading-snug">{toastMessage}</span>
         </div>
       )}
       {featureModalJobId && (() => {
@@ -551,7 +579,11 @@ function RecruiterDashboardClient() {
                             <button
                               type="button"
                               onClick={() => handleRefreshJob(job._id)}
-                              title="Move this job back to the top of search results."
+                              title={
+                                canRefreshJob(job.lastRefreshedAt)
+                                  ? 'Move this job back to the top of search results.'
+                                  : `You can refresh this job again in ${getJobRefreshDaysRemaining(job.lastRefreshedAt)} day(s).`
+                              }
                               className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 font-medium text-sm text-gray-700 hover:bg-gray-100"
                             >
                               🔄 Refresh Job
