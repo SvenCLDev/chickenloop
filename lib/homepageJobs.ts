@@ -1,6 +1,6 @@
-import connectDB from '@/lib/db';
 import mongoose from 'mongoose';
 import Company from '@/models/Company';
+import { getLatestListedJobDocs } from '@/lib/jobs';
 
 /** Minimal job shape for homepage JobCard rendering */
 export interface HomepageJobCard {
@@ -15,40 +15,29 @@ export interface HomepageJobCard {
   createdAt?: Date | string;
 }
 
-const HOMEPAGE_JOB_PROJECTION = {
-  _id: 1,
-  title: 1,
-  company: 1,
-  city: 1,
-  country: 1,
-  companyId: 1,
-  pictures: 1,
-  featuredUntil: 1,
-  lastRecruiterEditAt: 1,
-  createdAt: 1,
-} as const;
+const HOMEPAGE_JOB_SORT_FIELD = 'lastRecruiterEditAt';
 
 /**
  * Latest published jobs for the homepage (minimal fields, capped limit).
+ * Uses the same query, filters, and sort as /jobs — standard (non-featured) jobs only.
  * Used by SSR in app/page.tsx and GET /api/jobs-list?limit=N.
  */
 export async function getHomepageLatestJobs(limit = 6): Promise<HomepageJobCard[]> {
   const safeLimit = Math.min(Math.max(1, Math.floor(limit)), 20);
-  await connectDB();
+  const rawJobs = await getLatestListedJobDocs(safeLimit, { excludeFeatured: true });
 
-  const db = mongoose.connection.db;
-  if (!db) {
-    throw new Error('Database connection not available');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[homepage latest jobs] sort field:', HOMEPAGE_JOB_SORT_FIELD);
+    rawJobs.slice(0, 10).forEach((job, index) => {
+      console.log(`[homepage latest jobs #${index + 1}]`, {
+        title: job.title,
+        updatedAt: job.updatedAt,
+        createdAt: job.createdAt,
+        lastRecruiterEditAt: job.lastRecruiterEditAt,
+        sortField: HOMEPAGE_JOB_SORT_FIELD,
+      });
+    });
   }
-
-  const rawJobs = await db
-    .collection('jobs')
-    .find({ published: { $ne: false } })
-    .project(HOMEPAGE_JOB_PROJECTION)
-    .sort({ lastRecruiterEditAt: -1, createdAt: -1 })
-    .limit(safeLimit)
-    .maxTimeMS(10000)
-    .toArray();
 
   const companyIds = [
     ...new Set(
@@ -65,21 +54,24 @@ export async function getHomepageLatestJobs(limit = 6): Promise<HomepageJobCard[
   >();
 
   if (companyIds.length > 0) {
-    const companies = await db
-      .collection(Company.collection.name)
-      .find({
-        _id: { $in: companyIds.map((id) => new mongoose.Types.ObjectId(id)) },
-      })
-      .project({ name: 1, pictures: 1, logo: 1 })
-      .maxTimeMS(3000)
-      .toArray();
+    const db = mongoose.connection.db;
+    if (db) {
+      const companies = await db
+        .collection(Company.collection.name)
+        .find({
+          _id: { $in: companyIds.map((id) => new mongoose.Types.ObjectId(id)) },
+        })
+        .project({ name: 1, pictures: 1, logo: 1 })
+        .maxTimeMS(3000)
+        .toArray();
 
-    for (const company of companies) {
-      companyMap.set(String(company._id), {
-        name: company.name || '',
-        pictures: Array.isArray(company.pictures) ? company.pictures : [],
-        logo: company.logo || null,
-      });
+      for (const company of companies) {
+        companyMap.set(String(company._id), {
+          name: company.name || '',
+          pictures: Array.isArray(company.pictures) ? company.pictures : [],
+          logo: company.logo || null,
+        });
+      }
     }
   }
 

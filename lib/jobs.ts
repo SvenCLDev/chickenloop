@@ -48,10 +48,36 @@ export interface PaginatedJobsResult {
   availableLanguages: string[];
 }
 
+/** Sort order shared by /jobs listing and homepage latest jobs. */
+export const JOB_LIST_SORT = {
+  lastRecruiterEditAt: -1,
+  createdAt: -1,
+  _id: -1,
+} as const;
+
+export const JOB_LIST_PROJECTION = {
+  _id: 1,
+  title: 1,
+  company: 1,
+  companyId: 1,
+  city: 1,
+  country: 1,
+  pictures: 1,
+  sports: 1,
+  languages: 1,
+  occupationalAreas: 1,
+  type: 1,
+  featuredUntil: 1,
+  lastRecruiterEditAt: 1,
+  createdAt: 1,
+  updatedAt: 1,
+} as const;
+
 interface RawJobDoc {
   _id: { toString(): string };
   title: string;
   company?: string;
+  companyId?: { toString(): string } | string | null;
   city: string;
   country?: string | null;
   pictures?: string[];
@@ -62,6 +88,124 @@ interface RawJobDoc {
   featuredUntil?: Date | string | null;
   lastRecruiterEditAt?: Date | string;
   createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
+function buildFeaturedQuery(
+  baseQuery: Record<string, unknown>,
+  now: Date
+): Record<string, unknown> {
+  return {
+    ...baseQuery,
+    featuredUntil: { $gte: now },
+  };
+}
+
+function buildStandardQuery(
+  baseQuery: Record<string, unknown>,
+  now: Date
+): Record<string, unknown> {
+  return {
+    ...baseQuery,
+    $and: [
+      ...(Array.isArray(baseQuery.$and) ? (baseQuery.$and as Record<string, unknown>[]) : []),
+      {
+        $or: [
+          { featuredUntil: { $exists: false } },
+          { featuredUntil: null },
+          { featuredUntil: { $lt: now } },
+        ],
+      },
+    ],
+  };
+}
+
+function mapRawJobToListItem(job: RawJobDoc, nowMs: number, featuredOverride?: boolean): JobListItem {
+  const isFeatured =
+    featuredOverride ??
+    Boolean(job.featuredUntil && new Date(job.featuredUntil).getTime() >= nowMs);
+
+  return {
+    _id: job._id.toString(),
+    title: job.title,
+    company: job.company,
+    city: job.city,
+    country: job.country ?? null,
+    pictures: Array.isArray(job.pictures) ? job.pictures.slice(0, 1) : [],
+    sports: Array.isArray(job.sports) ? job.sports : [],
+    languages: Array.isArray(job.languages) ? job.languages : [],
+    occupationalAreas: Array.isArray(job.occupationalAreas) ? job.occupationalAreas : [],
+    type: job.type,
+    featured: isFeatured,
+    lastRecruiterEditAt: job.lastRecruiterEditAt,
+    createdAt: job.createdAt,
+  };
+}
+
+/**
+ * Fetch the newest jobs using the same query and sort as /jobs.
+ * When excludeFeatured is true, returns only non-featured jobs (homepage Latest Jobs).
+ */
+export async function getLatestListedJobDocs(
+  limit: number,
+  options?: { excludeFeatured?: boolean; filters?: JobListFilters }
+): Promise<RawJobDoc[]> {
+  await connectDB();
+
+  const db = mongoose.connection.db;
+  if (!db) {
+    throw new Error('Database connection not available');
+  }
+
+  const jobsCollection = db.collection<RawJobDoc>('jobs');
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 50) : 6;
+  const filters = options?.filters;
+  const excludeFeatured = options?.excludeFeatured ?? false;
+  const baseQuery = buildBaseQuery(filters);
+  const now = new Date();
+  const featuredQuery = buildFeaturedQuery(baseQuery, now);
+  const standardQuery = buildStandardQuery(baseQuery, now);
+
+  if (excludeFeatured) {
+    return jobsCollection
+      .find(standardQuery)
+      .project(JOB_LIST_PROJECTION)
+      .sort(JOB_LIST_SORT)
+      .limit(safeLimit)
+      .maxTimeMS(10000)
+      .toArray() as Promise<RawJobDoc[]>;
+  }
+
+  const featuredResults = (await jobsCollection
+    .find(featuredQuery)
+    .project(JOB_LIST_PROJECTION)
+    .sort(JOB_LIST_SORT)
+    .maxTimeMS(10000)
+    .toArray()) as RawJobDoc[];
+
+  const remaining = Math.max(0, safeLimit - featuredResults.length);
+  if (remaining === 0) {
+    return featuredResults.slice(0, safeLimit);
+  }
+
+  const standardResults = (await jobsCollection
+    .find(standardQuery)
+    .project(JOB_LIST_PROJECTION)
+    .sort(JOB_LIST_SORT)
+    .limit(remaining)
+    .maxTimeMS(10000)
+    .toArray()) as RawJobDoc[];
+
+  return [...featuredResults, ...standardResults];
+}
+
+export async function getLatestListedJobs(
+  limit: number,
+  options?: { excludeFeatured?: boolean; filters?: JobListFilters }
+): Promise<JobListItem[]> {
+  const docs = await getLatestListedJobDocs(limit, options);
+  const nowMs = Date.now();
+  return docs.map((job) => mapRawJobToListItem(job, nowMs));
 }
 
 function escapeRegex(input: string): string {
@@ -192,45 +336,14 @@ export async function getJobs({
   const languageFacetQuery = buildFacetQuery(filters, 'language');
   const now = new Date();
 
-  const featuredQuery: Record<string, unknown> = {
-    ...baseQuery,
-    featuredUntil: { $gte: now },
-  };
-  const standardQuery: Record<string, unknown> = {
-    ...baseQuery,
-    $and: [
-      ...(Array.isArray(baseQuery.$and) ? (baseQuery.$and as Record<string, unknown>[]) : []),
-      {
-        $or: [
-          { featuredUntil: { $exists: false } },
-          { featuredUntil: null },
-          { featuredUntil: { $lt: now } },
-        ],
-      },
-    ],
-  };
-
-  const projection = {
-    _id: 1,
-    title: 1,
-    company: 1,
-    city: 1,
-    country: 1,
-    pictures: 1,
-    sports: 1,
-    languages: 1,
-    occupationalAreas: 1,
-    type: 1,
-    featuredUntil: 1,
-    lastRecruiterEditAt: 1,
-    createdAt: 1,
-  };
+  const featuredQuery = buildFeaturedQuery(baseQuery, now);
+  const standardQuery = buildStandardQuery(baseQuery, now);
 
   if (featuredOnly) {
     const featuredResults = await jobsCollection
       .find(featuredQuery)
-      .project(projection)
-      .sort({ lastRecruiterEditAt: -1, createdAt: -1, _id: -1 })
+      .project(JOB_LIST_PROJECTION)
+      .sort(JOB_LIST_SORT)
       .skip(skip)
       .limit(safeLimit + 1)
       .toArray();
@@ -248,21 +361,7 @@ export async function getJobs({
     ]);
 
     return {
-      jobs: jobs.map((job) => ({
-        _id: job._id.toString(),
-        title: job.title,
-        company: job.company,
-        city: job.city,
-        country: job.country ?? null,
-        pictures: Array.isArray(job.pictures) ? job.pictures.slice(0, 1) : [],
-        sports: Array.isArray(job.sports) ? job.sports : [],
-        languages: Array.isArray(job.languages) ? job.languages : [],
-        occupationalAreas: Array.isArray(job.occupationalAreas) ? job.occupationalAreas : [],
-        type: job.type,
-        featured: true,
-        lastRecruiterEditAt: job.lastRecruiterEditAt,
-        createdAt: job.createdAt,
-      })),
+      jobs: jobs.map((job) => mapRawJobToListItem(job, now.getTime(), true)),
       hasMore,
       totalCount,
       availableCountries: normalizeCountryCodes(availableCountries),
@@ -276,14 +375,14 @@ export async function getJobs({
 
   const featuredResults = await jobsCollection
     .find(featuredQuery)
-    .project(projection)
-    .sort({ lastRecruiterEditAt: -1, createdAt: -1, _id: -1 })
+    .project(JOB_LIST_PROJECTION)
+    .sort(JOB_LIST_SORT)
     .toArray();
 
   const standardResults = await jobsCollection
     .find(standardQuery)
-    .project(projection)
-    .sort({ lastRecruiterEditAt: -1, createdAt: -1, _id: -1 })
+    .project(JOB_LIST_PROJECTION)
+    .sort(JOB_LIST_SORT)
     .skip(skip)
     .limit(safeLimit + 1)
     .toArray();
@@ -304,21 +403,7 @@ export async function getJobs({
   ]);
 
   return {
-    jobs: jobs.map((job) => ({
-      _id: job._id.toString(),
-      title: job.title,
-      company: job.company,
-      city: job.city,
-      country: job.country ?? null,
-      pictures: Array.isArray(job.pictures) ? job.pictures.slice(0, 1) : [],
-      sports: Array.isArray(job.sports) ? job.sports : [],
-      languages: Array.isArray(job.languages) ? job.languages : [],
-      occupationalAreas: Array.isArray(job.occupationalAreas) ? job.occupationalAreas : [],
-      type: job.type,
-      featured: Boolean(job.featuredUntil && new Date(job.featuredUntil).getTime() >= nowMs),
-      lastRecruiterEditAt: job.lastRecruiterEditAt,
-      createdAt: job.createdAt,
-    })),
+    jobs: jobs.map((job) => mapRawJobToListItem(job, nowMs)),
     hasMore,
     totalCount: featuredCount + standardCount,
     availableCountries: normalizeCountryCodes(availableCountries),
