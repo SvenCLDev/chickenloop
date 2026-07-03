@@ -12,6 +12,7 @@ import connectDB from '@/lib/db';
 import StripeEvent from '@/models/StripeEvent';
 import Job from '@/models/Job';
 import CV from '@/models/CV';
+import { revalidateJobPages } from '@/lib/revalidateJobs';
 
 /** Convert boostDurationDays from session metadata (string) to number. Returns null if invalid. */
 function parseBoostDurationDays(value: string | null | undefined): number | null {
@@ -147,6 +148,8 @@ export async function POST(request: NextRequest) {
       newFeaturedUntil: newFeaturedUntil.toISOString(),
       boostDurationDays,
     });
+
+    revalidateJobPages({ title: job.title, country: job.country ?? null });
 
     await acknowledgeEvent(event.id);
     return NextResponse.json({ received: true }, { status: 200 });

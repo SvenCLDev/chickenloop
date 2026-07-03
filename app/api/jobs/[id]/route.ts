@@ -13,6 +13,7 @@ import { normalizeUrl } from '@/lib/normalizeUrl';
 import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import { geocodeJobLocation } from '@/lib/geocodeJobLocation';
+import { revalidateJobPages } from '@/lib/revalidateJobs';
 import mongoose from 'mongoose';
 
 // Safeguard: Reject if request looks like a Stripe redirect (must not mutate jobs)
@@ -136,6 +137,11 @@ export async function PUT(
         { status: 403 }
       );
     }
+
+    const previousJobForRevalidate = {
+      title: job.title,
+      country: job.country ?? null,
+    };
 
     type PublicJobDoc = IJob & { sports?: string[]; validThrough?: Date };
     const jobDoc = job as PublicJobDoc;
@@ -498,6 +504,11 @@ export async function PUT(
         : undefined,
     } : updatedJob;
 
+    revalidateJobPages(
+      { title: job.title, country: job.country ?? null },
+      previousJobForRevalidate
+    );
+
     return NextResponse.json(
       { message: 'Job updated successfully', job: jobResponse },
       { status: 200 }
@@ -550,6 +561,8 @@ export async function DELETE(
     }
 
     await Job.findByIdAndDelete(id);
+
+    revalidateJobPages();
 
     return NextResponse.json(
       { message: 'Job deleted successfully' },

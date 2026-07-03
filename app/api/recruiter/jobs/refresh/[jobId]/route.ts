@@ -8,6 +8,7 @@ import {
   getJobRefreshCooldownMessage,
   getJobRefreshDaysRemaining,
 } from '@/lib/jobRefresh';
+import { revalidateJobPages } from '@/lib/revalidateJobs';
 
 export async function POST(
   request: NextRequest,
@@ -25,7 +26,7 @@ export async function POST(
     const job = await Job.findOne({
       _id: new mongoose.Types.ObjectId(jobId),
       recruiter: new mongoose.Types.ObjectId(user.userId),
-    }).select('_id lastRefreshedAt');
+    }).select('_id title country lastRefreshedAt');
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
@@ -56,11 +57,13 @@ export async function POST(
         },
       },
       { new: true }
-    ).select('_id updatedAt lastRecruiterEditAt lastRefreshedAt');
+    ).select('_id title country updatedAt lastRecruiterEditAt lastRefreshedAt');
 
     if (!refreshed) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
+
+    revalidateJobPages({ title: refreshed.title, country: refreshed.country ?? null });
 
     return NextResponse.json(
       {

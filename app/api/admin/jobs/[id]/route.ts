@@ -10,6 +10,7 @@ import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { geocodeJobLocation } from '@/lib/geocodeJobLocation';
+import { revalidateJobPages } from '@/lib/revalidateJobs';
 
 /** Job document shape for admin updates; may include fields not on current IJob (e.g. legacy). */
 type AdminJobDoc = IJob & {
@@ -75,6 +76,11 @@ export async function PUT(
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
+
+    const previousJobForRevalidate = {
+      title: job.title,
+      country: job.country ?? null,
+    };
 
     const jobDoc = job as AdminJobDoc;
 
@@ -317,6 +323,11 @@ export async function PUT(
       .populate('recruiter', 'name email')
       .populate('companyId', 'name email website');
 
+    revalidateJobPages(
+      { title: job.title, country: job.country ?? null },
+      previousJobForRevalidate
+    );
+
     return NextResponse.json(
       { message: 'Job updated successfully', job: updatedJob },
       { status: 200 }
@@ -370,6 +381,8 @@ export async function DELETE(
     };
 
     await Job.findByIdAndDelete(id);
+
+    revalidateJobPages();
 
     // Create audit log
     await createDeleteAuditLog(request, {

@@ -21,6 +21,7 @@ import {
   buildJobPostedConfirmationUrls,
   sendJobPostedConfirmation,
 } from '@/lib/email/sendJobPostedConfirmation';
+import { revalidateJobPages } from '@/lib/revalidateJobs';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 export async function GET(request: NextRequest) {
@@ -1117,6 +1118,8 @@ export async function POST(request: NextRequest) {
         console.error('Failed to send job confirmation email', error);
       }
     }
+
+    revalidateJobPages({ title: job.title, country: job.country });
 
     return NextResponse.json(
       { message: 'Job created successfully', job: populatedJob },
