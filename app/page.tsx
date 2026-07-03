@@ -3,6 +3,9 @@ import HomePageContent from './components/HomePageContent';
 import { getHomepageLatestJobs } from '@/lib/homepageJobs';
 import { getDistinctJobCategories } from '@/lib/jobCategoriesQuery';
 
+/** Regenerate homepage job data at most every 60s (ISR). /jobs is dynamic via searchParams. */
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: 'Chickenloop | Free Watersports Job Board',
   description: 'Find your next watersports job for free on Chickenloop. The leading global job board for kiteboarding, surf, windsurf, sailing and dive professionals. No fees, just jobs.',
