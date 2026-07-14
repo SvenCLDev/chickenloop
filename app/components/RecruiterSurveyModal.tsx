@@ -29,9 +29,28 @@ export default function RecruiterSurveyModal({
 
   const [primaryAnswer, setPrimaryAnswer] = useState('');
   const [secondaryAnswer, setSecondaryAnswer] = useState('');
+  const [otherText, setOtherText] = useState('');
   const [freeText, setFreeText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [completed, setCompleted] = useState(false);
+
+  const selectedPrimaryOption = useMemo(
+    () => (primaryQuestion?.options || []).find((o) => o.value === primaryAnswer),
+    [primaryQuestion, primaryAnswer]
+  );
+  const showOtherText = !!selectedPrimaryOption?.showOtherText;
+  const showSecondary =
+    !!secondaryQuestion &&
+    (!secondaryQuestion.showWhenPrimaryAnswered || !!primaryAnswer);
+  const showFreeText =
+    !!freeTextQuestion &&
+    (!freeTextQuestion.showWhenPrimaryAnswered || !!primaryAnswer);
+
+  const descriptionParagraphs = (survey.description || '')
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 
   const submitAction = async (
     action: 'complete' | 'remind_later' | 'dismiss',
@@ -55,8 +74,13 @@ export default function RecruiterSurveyModal({
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save response');
       }
-      onSubmitted();
-      onClose();
+      if (action === 'complete') {
+        setCompleted(true);
+        onSubmitted();
+      } else {
+        onSubmitted();
+        onClose();
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save response');
     } finally {
@@ -69,13 +93,22 @@ export default function RecruiterSurveyModal({
       setError('Please answer the first question.');
       return;
     }
+    if (showOtherText && !otherText.trim()) {
+      setError('Please tell us a bit more about “Other”.');
+      return;
+    }
     if (secondaryQuestion?.required && !secondaryAnswer) {
-      setError('Please answer the early access question.');
+      setError('Please answer the second question.');
+      return;
+    }
+    if (freeTextQuestion?.required && !freeText.trim()) {
+      setError('Please answer the third question.');
       return;
     }
     await submitAction('complete', {
       primaryAnswer,
       secondaryAnswer,
+      otherText: showOtherText ? otherText.trim() : '',
       freeText,
     });
   };
@@ -88,131 +121,183 @@ export default function RecruiterSurveyModal({
         aria-modal="true"
         aria-labelledby="recruiter-survey-title"
       >
-        <h2 id="recruiter-survey-title" className="text-2xl font-bold text-gray-900 mb-2">
-          {survey.title}
-        </h2>
-        {survey.description && (
-          <p className="text-gray-600 text-sm mb-6 leading-relaxed">{survey.description}</p>
-        )}
-
-        <div className="space-y-6">
-          {primaryQuestion && (
-            <fieldset>
-              <legend className="block text-sm font-medium text-gray-900 mb-3">
-                {primaryQuestion.label}
-                {primaryQuestion.required ? ' *' : ''}
-              </legend>
-              <div className="space-y-2">
-                {(primaryQuestion.options || []).map((option) => (
-                  <label
-                    key={option.value}
-                    className={`flex items-start gap-3 rounded-md border px-3 py-2.5 cursor-pointer transition-colors ${
-                      primaryAnswer === option.value
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="primaryAnswer"
-                      value={option.value}
-                      checked={primaryAnswer === option.value}
-                      onChange={() => setPrimaryAnswer(option.value)}
-                      className="mt-1"
-                      disabled={submitting}
-                    />
-                    <span className="text-sm text-gray-800">{option.label}</span>
-                  </label>
+        {completed ? (
+          <div className="text-center py-4">
+            <h2 id="recruiter-survey-title" className="text-2xl font-bold text-gray-900 mb-3">
+              {survey.thankYouTitle || 'Thank you!'}
+            </h2>
+            <p className="text-gray-600 leading-relaxed mb-8">
+              {survey.thankYouMessage || 'Your feedback directly influences what we build next.'}
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              Close
+            </button>
+          </div>
+        ) : (
+          <>
+            <h2 id="recruiter-survey-title" className="text-2xl font-bold text-gray-900 mb-2">
+              {survey.title}
+            </h2>
+            {descriptionParagraphs.length > 0 && (
+              <div className="mb-6 space-y-3">
+                {descriptionParagraphs.map((paragraph) => (
+                  <p key={paragraph} className="text-gray-600 text-sm leading-relaxed">
+                    {paragraph}
+                  </p>
                 ))}
               </div>
-            </fieldset>
-          )}
+            )}
 
-          {secondaryQuestion && (
-            <fieldset>
-              <legend className="block text-sm font-medium text-gray-900 mb-3">
-                {secondaryQuestion.label}
-                {secondaryQuestion.required ? ' *' : ''}
-              </legend>
-              <div className="flex flex-col sm:flex-row gap-2">
-                {(secondaryQuestion.options || []).map((option) => (
+            <div className="space-y-6">
+              {primaryQuestion && (
+                <fieldset>
+                  <legend className="block text-sm font-medium text-gray-900 mb-3">
+                    {primaryQuestion.label}
+                    {primaryQuestion.required ? ' *' : ''}
+                  </legend>
+                  <div className="space-y-2">
+                    {(primaryQuestion.options || []).map((option) => (
+                      <label
+                        key={option.value}
+                        className={`flex items-start gap-3 rounded-md border px-3 py-2.5 cursor-pointer transition-colors ${
+                          primaryAnswer === option.value
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="primaryAnswer"
+                          value={option.value}
+                          checked={primaryAnswer === option.value}
+                          onChange={() => {
+                            setPrimaryAnswer(option.value);
+                            if (!option.showOtherText) setOtherText('');
+                          }}
+                          className="mt-1"
+                          disabled={submitting}
+                        />
+                        <span className="text-sm text-gray-800">{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {showOtherText && (
+                    <div className="mt-3">
+                      <label
+                        htmlFor="survey-other-text"
+                        className="block text-sm font-medium text-gray-900 mb-2"
+                      >
+                        Please tell us more *
+                      </label>
+                      <textarea
+                        id="survey-other-text"
+                        value={otherText}
+                        onChange={(e) => setOtherText(e.target.value)}
+                        rows={3}
+                        maxLength={2000}
+                        disabled={submitting}
+                        placeholder="Describe the problem…"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
+                </fieldset>
+              )}
+
+              {showSecondary && secondaryQuestion && (
+                <fieldset>
+                  <legend className="block text-sm font-medium text-gray-900 mb-3">
+                    {secondaryQuestion.label}
+                    {secondaryQuestion.required ? ' *' : ''}
+                  </legend>
+                  <div className="space-y-2">
+                    {(secondaryQuestion.options || []).map((option) => (
+                      <label
+                        key={option.value}
+                        className={`flex items-start gap-3 rounded-md border px-3 py-2.5 cursor-pointer transition-colors ${
+                          secondaryAnswer === option.value
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="secondaryAnswer"
+                          value={option.value}
+                          checked={secondaryAnswer === option.value}
+                          onChange={() => setSecondaryAnswer(option.value)}
+                          className="mt-1"
+                          disabled={submitting}
+                        />
+                        <span className="text-sm text-gray-800">{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+
+              {showFreeText && freeTextQuestion && (
+                <div>
                   <label
-                    key={option.value}
-                    className={`flex-1 flex items-center gap-2 rounded-md border px-3 py-2.5 cursor-pointer transition-colors ${
-                      secondaryAnswer === option.value
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    htmlFor="survey-free-text"
+                    className="block text-sm font-medium text-gray-900 mb-2"
                   >
-                    <input
-                      type="radio"
-                      name="secondaryAnswer"
-                      value={option.value}
-                      checked={secondaryAnswer === option.value}
-                      onChange={() => setSecondaryAnswer(option.value)}
-                      disabled={submitting}
-                    />
-                    <span className="text-sm text-gray-800">{option.label}</span>
+                    {freeTextQuestion.label}
+                    {freeTextQuestion.required ? ' *' : ''}
                   </label>
-                ))}
-              </div>
-            </fieldset>
-          )}
-
-          {freeTextQuestion && (
-            <div>
-              <label
-                htmlFor="survey-free-text"
-                className="block text-sm font-medium text-gray-900 mb-2"
-              >
-                {freeTextQuestion.label}
-              </label>
-              <textarea
-                id="survey-free-text"
-                value={freeText}
-                onChange={(e) => setFreeText(e.target.value)}
-                rows={3}
-                maxLength={2000}
-                disabled={submitting}
-                placeholder={freeTextQuestion.placeholder || ''}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
+                  <textarea
+                    id="survey-free-text"
+                    value={freeText}
+                    onChange={(e) => setFreeText(e.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                    disabled={submitting}
+                    placeholder={freeTextQuestion.placeholder || ''}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {error && (
-          <p className="mt-4 text-sm text-red-600" role="alert">
-            {error}
-          </p>
+            {error && (
+              <p className="mt-4 text-sm text-red-600" role="alert">
+                {error}
+              </p>
+            )}
+
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleComplete}
+                disabled={submitting}
+                className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {submitting ? 'Saving…' : 'Complete Survey'}
+              </button>
+              <button
+                type="button"
+                onClick={() => submitAction('remind_later')}
+                disabled={submitting}
+                className="w-full rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Remind me next week
+              </button>
+              <button
+                type="button"
+                onClick={() => submitAction('dismiss')}
+                disabled={submitting}
+                className="w-full rounded-md px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 disabled:opacity-60"
+              >
+                Don&apos;t ask again
+              </button>
+            </div>
+          </>
         )}
-
-        <div className="mt-6 flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={handleComplete}
-            disabled={submitting}
-            className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-          >
-            {submitting ? 'Saving…' : 'Complete Survey'}
-          </button>
-          <button
-            type="button"
-            onClick={() => submitAction('remind_later')}
-            disabled={submitting}
-            className="w-full rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-          >
-            Remind me next week
-          </button>
-          <button
-            type="button"
-            onClick={() => submitAction('dismiss')}
-            disabled={submitting}
-            className="w-full rounded-md px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 disabled:opacity-60"
-          >
-            Don&apos;t ask again
-          </button>
-        </div>
       </div>
     </div>
   );

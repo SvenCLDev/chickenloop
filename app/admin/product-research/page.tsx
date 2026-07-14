@@ -18,12 +18,25 @@ interface SurveyStats {
   completionRate: number;
   primaryAnswerDistribution: { value: string; label: string; count: number }[];
   secondaryAnswerDistribution: { value: string; label: string; count: number }[];
-  earlyAccessInterest: { yes: number; no: number; unknown: number };
+  earlyAccessInterest: {
+    earlyAccess: number;
+    wouldPay: number;
+    freeOnly: number;
+    notInterested: number;
+  };
   freeTextResponses: {
     id: string;
     freeText: string;
+    otherText: string | null;
     primaryAnswer: string | null;
     secondaryAnswer: string | null;
+    completedAt: string | null;
+    createdAt: string;
+  }[];
+  otherTextResponses: {
+    id: string;
+    otherText: string;
+    primaryAnswer: string | null;
     completedAt: string | null;
     createdAt: string;
   }[];
@@ -32,6 +45,10 @@ interface SurveyStats {
 function formatDate(value: string | null) {
   if (!value) return '—';
   return new Date(value).toLocaleString();
+}
+
+function formatDescription(description: string) {
+  return description.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
 }
 
 export default function AdminProductResearchPage() {
@@ -111,9 +128,11 @@ export default function AdminProductResearchPage() {
                 <div className="mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">{survey.title}</h2>
                   <p className="text-sm text-gray-500 mt-1 font-mono">{survey.surveyId}</p>
-                  {survey.description && (
-                    <p className="text-gray-600 mt-2 text-sm">{survey.description}</p>
-                  )}
+                  {formatDescription(survey.description).map((paragraph) => (
+                    <p key={paragraph} className="text-gray-600 mt-2 text-sm">
+                      {paragraph}
+                    </p>
+                  ))}
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -139,7 +158,9 @@ export default function AdminProductResearchPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Answer distribution</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                      Biggest problem (answer distribution)
+                    </h3>
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-sm">
                         <thead>
@@ -168,7 +189,49 @@ export default function AdminProductResearchPage() {
                   </div>
 
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Early access interest</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                      Willingness / early access interest
+                    </h3>
+                    <div className="overflow-x-auto mb-4">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200 text-left text-gray-500">
+                            <th className="py-2 pr-4 font-medium">Summary</th>
+                            <th className="py-2 font-medium">Count</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b border-gray-100">
+                            <td className="py-2 pr-4 text-gray-800">Would pay (definitely/probably)</td>
+                            <td className="py-2 text-gray-900 font-medium">
+                              {survey.earlyAccessInterest.wouldPay}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-gray-100">
+                            <td className="py-2 pr-4 text-gray-800">Early access</td>
+                            <td className="py-2 text-gray-900 font-medium">
+                              {survey.earlyAccessInterest.earlyAccess}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-gray-100">
+                            <td className="py-2 pr-4 text-gray-800">Free version only</td>
+                            <td className="py-2 text-gray-900 font-medium">
+                              {survey.earlyAccessInterest.freeOnly}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-gray-100">
+                            <td className="py-2 pr-4 text-gray-800">Not interested</td>
+                            <td className="py-2 text-gray-900 font-medium">
+                              {survey.earlyAccessInterest.notInterested}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                      Full distribution
+                    </h4>
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-sm">
                         <thead>
@@ -178,48 +241,56 @@ export default function AdminProductResearchPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          <tr className="border-b border-gray-100">
-                            <td className="py-2 pr-4 text-gray-800">Yes</td>
-                            <td className="py-2 text-gray-900 font-medium">
-                              {survey.earlyAccessInterest.yes}
-                            </td>
-                          </tr>
-                          <tr className="border-b border-gray-100">
-                            <td className="py-2 pr-4 text-gray-800">No</td>
-                            <td className="py-2 text-gray-900 font-medium">
-                              {survey.earlyAccessInterest.no}
-                            </td>
-                          </tr>
-                          <tr className="border-b border-gray-100">
-                            <td className="py-2 pr-4 text-gray-800">Unknown</td>
-                            <td className="py-2 text-gray-900 font-medium">
-                              {survey.earlyAccessInterest.unknown}
-                            </td>
-                          </tr>
+                          {survey.secondaryAnswerDistribution.map((row) => (
+                            <tr key={row.value} className="border-b border-gray-100">
+                              <td className="py-2 pr-4 text-gray-800">{row.label}</td>
+                              <td className="py-2 text-gray-900 font-medium">{row.count}</td>
+                            </tr>
+                          ))}
+                          {survey.secondaryAnswerDistribution.length === 0 && (
+                            <tr>
+                              <td colSpan={2} className="py-3 text-gray-500">
+                                No completed answers yet.
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
-
-                    {survey.secondaryAnswerDistribution.length > 0 && (
-                      <div className="mt-6">
-                        <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                          Secondary answer detail
-                        </h4>
-                        <ul className="text-sm text-gray-700 space-y-1">
-                          {survey.secondaryAnswerDistribution.map((row) => (
-                            <li key={row.value}>
-                              {row.label}: <span className="font-medium">{row.count}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                   </div>
                 </div>
 
+                {(survey.otherTextResponses?.length || 0) > 0 && (
+                  <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                      “Other” problem descriptions ({survey.otherTextResponses.length})
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200 text-left text-gray-500">
+                            <th className="py-2 pr-4 font-medium">Date</th>
+                            <th className="py-2 font-medium">Description</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {survey.otherTextResponses.map((row) => (
+                            <tr key={row.id} className="border-b border-gray-100 align-top">
+                              <td className="py-2 pr-4 text-gray-600 whitespace-nowrap">
+                                {formatDate(row.completedAt || row.createdAt)}
+                              </td>
+                              <td className="py-2 text-gray-900 max-w-xl">{row.otherText}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    Free-text responses ({survey.freeTextResponses.length})
+                    How they solve it today ({survey.freeTextResponses.length})
                   </h3>
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
@@ -227,8 +298,8 @@ export default function AdminProductResearchPage() {
                         <tr className="border-b border-gray-200 text-left text-gray-500">
                           <th className="py-2 pr-4 font-medium">Date</th>
                           <th className="py-2 pr-4 font-medium">Primary</th>
-                          <th className="py-2 pr-4 font-medium">Early access</th>
-                          <th className="py-2 font-medium">Comment</th>
+                          <th className="py-2 pr-4 font-medium">Willingness</th>
+                          <th className="py-2 font-medium">Current solution</th>
                         </tr>
                       </thead>
                       <tbody>

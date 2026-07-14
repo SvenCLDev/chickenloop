@@ -9,7 +9,7 @@ type SurveyAction = 'complete' | 'remind_later' | 'dismiss';
 
 /**
  * POST — record a survey response action for the authenticated recruiter.
- * Body: { surveyId, action, primaryAnswer?, secondaryAnswer?, freeText? }
+ * Body: { surveyId, action, primaryAnswer?, secondaryAnswer?, otherText?, freeText? }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
         completedAt: null,
         primaryAnswer: null,
         secondaryAnswer: null,
+        otherText: null,
         freeText: null,
       };
     } else if (action === 'remind_later') {
@@ -56,17 +57,28 @@ export async function POST(request: NextRequest) {
         typeof body.primaryAnswer === 'string' ? body.primaryAnswer.trim() : '';
       const secondaryAnswer =
         typeof body.secondaryAnswer === 'string' ? body.secondaryAnswer.trim() : '';
+      const otherText =
+        typeof body.otherText === 'string' ? body.otherText.trim().slice(0, 2000) : '';
       const freeText =
         typeof body.freeText === 'string' ? body.freeText.trim().slice(0, 2000) : '';
 
       const primaryQuestion = survey.questions.find((q) => q.mapsTo === 'primaryAnswer');
       const secondaryQuestion = survey.questions.find((q) => q.mapsTo === 'secondaryAnswer');
+      const freeTextQuestion = survey.questions.find((q) => q.mapsTo === 'freeText');
 
       if (primaryQuestion?.required) {
         const allowed = new Set((primaryQuestion.options || []).map((o) => o.value));
         if (!primaryAnswer || !allowed.has(primaryAnswer)) {
           return NextResponse.json({ error: 'Please answer the first question' }, { status: 400 });
         }
+      }
+
+      const selectedPrimary = (primaryQuestion?.options || []).find((o) => o.value === primaryAnswer);
+      if (selectedPrimary?.showOtherText && !otherText) {
+        return NextResponse.json(
+          { error: 'Please tell us more about “Other”' },
+          { status: 400 }
+        );
       }
 
       if (secondaryQuestion?.required) {
@@ -76,12 +88,17 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      if (freeTextQuestion?.required && !freeText) {
+        return NextResponse.json({ error: 'Please answer the third question' }, { status: 400 });
+      }
+
       update = {
         dismissed: false,
         remindLaterUntil: null,
         completedAt: now,
         primaryAnswer: primaryAnswer || null,
         secondaryAnswer: secondaryAnswer || null,
+        otherText: selectedPrimary?.showOtherText ? otherText || null : null,
         freeText: freeText || null,
       };
     }

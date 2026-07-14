@@ -5,6 +5,8 @@ export interface ISurveyResponse extends Document {
   surveyId: string;
   primaryAnswer?: string | null;
   secondaryAnswer?: string | null;
+  /** Free text when primary answer is "Other" */
+  otherText?: string | null;
   freeText?: string | null;
   dismissed: boolean;
   remindLaterUntil?: Date | null;
@@ -36,6 +38,12 @@ const SurveyResponseSchema: Schema = new Schema(
       type: String,
       default: null,
       trim: true,
+    },
+    otherText: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 2000,
     },
     freeText: {
       type: String,

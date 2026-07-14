@@ -21,12 +21,25 @@ export interface SurveyStats {
   completionRate: number;
   primaryAnswerDistribution: { value: string; label: string; count: number }[];
   secondaryAnswerDistribution: { value: string; label: string; count: number }[];
-  earlyAccessInterest: { yes: number; no: number; unknown: number };
+  earlyAccessInterest: {
+    earlyAccess: number;
+    wouldPay: number;
+    freeOnly: number;
+    notInterested: number;
+  };
   freeTextResponses: {
     id: string;
     freeText: string;
+    otherText: string | null;
     primaryAnswer: string | null;
     secondaryAnswer: string | null;
+    completedAt: string | null;
+    createdAt: string;
+  }[];
+  otherTextResponses: {
+    id: string;
+    otherText: string;
+    primaryAnswer: string | null;
     completedAt: string | null;
     createdAt: string;
   }[];
@@ -40,6 +53,7 @@ export function aggregateSurveyResponses(
       | '_id'
       | 'primaryAnswer'
       | 'secondaryAnswer'
+      | 'otherText'
       | 'freeText'
       | 'dismissed'
       | 'remindLaterUntil'
@@ -71,7 +85,6 @@ export function aggregateSurveyResponses(
     count: primaryCounts[opt.value] || 0,
   }));
 
-  // Include unexpected values not in definition
   for (const [value, count] of Object.entries(primaryCounts)) {
     if (!primaryAnswerDistribution.some((row) => row.value === value)) {
       primaryAnswerDistribution.push({ value, label: value, count });
@@ -91,9 +104,10 @@ export function aggregateSurveyResponses(
   }
 
   const earlyAccessInterest = {
-    yes: secondaryCounts.yes || 0,
-    no: secondaryCounts.no || 0,
-    unknown: completed.filter((r) => !r.secondaryAnswer).length,
+    earlyAccess: secondaryCounts.early_access || 0,
+    wouldPay: (secondaryCounts.definitely_pay || 0) + (secondaryCounts.probably_pay || 0),
+    freeOnly: secondaryCounts.free_version || 0,
+    notInterested: secondaryCounts.not_interested || 0,
   };
 
   const freeTextResponses = completed
@@ -101,8 +115,20 @@ export function aggregateSurveyResponses(
     .map((r) => ({
       id: String(r._id),
       freeText: String(r.freeText).trim(),
+      otherText: r.otherText ? String(r.otherText).trim() : null,
       primaryAnswer: r.primaryAnswer ?? null,
       secondaryAnswer: r.secondaryAnswer ?? null,
+      completedAt: r.completedAt ? new Date(r.completedAt).toISOString() : null,
+      createdAt: new Date(r.createdAt).toISOString(),
+    }))
+    .sort((a, b) => (b.completedAt || b.createdAt).localeCompare(a.completedAt || a.createdAt));
+
+  const otherTextResponses = completed
+    .filter((r) => r.otherText && String(r.otherText).trim())
+    .map((r) => ({
+      id: String(r._id),
+      otherText: String(r.otherText).trim(),
+      primaryAnswer: r.primaryAnswer ?? null,
       completedAt: r.completedAt ? new Date(r.completedAt).toISOString() : null,
       createdAt: new Date(r.createdAt).toISOString(),
     }))
@@ -126,5 +152,6 @@ export function aggregateSurveyResponses(
     secondaryAnswerDistribution,
     earlyAccessInterest,
     freeTextResponses,
+    otherTextResponses,
   };
 }

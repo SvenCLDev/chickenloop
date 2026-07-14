@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       surveyId: { $in: surveyIds },
     })
       .select(
-        'surveyId primaryAnswer secondaryAnswer freeText dismissed remindLaterUntil completedAt createdAt'
+        'surveyId primaryAnswer secondaryAnswer otherText freeText dismissed remindLaterUntil completedAt createdAt'
       )
       .lean();
 
