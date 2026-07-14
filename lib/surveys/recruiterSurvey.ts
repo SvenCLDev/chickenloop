@@ -13,6 +13,8 @@ export const RECRUITER_SAAS_INTEREST_SURVEY: SurveyDefinition = {
   active: true,
   thankYouTitle: 'Thank you!',
   thankYouMessage: 'Your feedback directly influences what we build next.',
+  thankYouEarlyAccessMessage:
+    "If you requested early access, we'll contact you before anyone else when we have something ready.",
   questions: [
     {
       id: 'biggest-problem',
@@ -84,5 +86,37 @@ export const RECRUITER_SAAS_INTEREST_SURVEY: SurveyDefinition = {
       mapsTo: 'freeText',
       placeholder: 'Excel, WhatsApp, Google Sheets, other software, paper, no real system…',
     },
+    {
+      id: 'magic-wish',
+      type: 'free_text',
+      label: 'If Chickenloop could magically remove ONE headache from hiring or running your watersports business, what would it be?',
+      required: false,
+      showWhenSecondaryAnswered: true,
+      headline: 'One last question...',
+      mapsTo: 'magicWish',
+      maxLength: 1000,
+      placeholder: 'Tell us anything that wastes your time, costs money, or causes frustration.',
+    },
   ],
+  pricingStep: {
+    id: 'price-validation-29',
+    headline: "Great! We'd love your help building it.",
+    body: "We're considering building this as a premium tool for watersports schools.\n\nExpected price:\n\n€29/month",
+    priceEur: 29,
+    question: 'If this solved your problem really well, would you seriously consider subscribing?',
+    showWhenPaymentInterest: ['definitely_pay', 'probably_pay'],
+    options: [
+      { value: 'likely', label: "Yes, I'd likely subscribe" },
+      { value: 'maybe', label: "Maybe, I'd like to see a demo first" },
+      { value: 'rejected', label: 'Probably not at that price' },
+    ],
+    earlyAccess: {
+      question: 'Would you like early access?',
+      showWhenPriceResponse: ['likely', 'maybe'],
+      options: [
+        { value: 'yes', label: 'Yes' },
+        { value: 'no', label: 'No' },
+      ],
+    },
+  },
 };

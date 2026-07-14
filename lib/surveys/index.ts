@@ -16,4 +16,11 @@ export function getActiveSurveysForAudience(audience: SurveyAudience): SurveyDef
   return SURVEYS.filter((survey) => survey.active && survey.audience === audience);
 }
 
-export type { SurveyAudience, SurveyDefinition, SurveyQuestion, SurveyOption } from './types';
+export type {
+  SurveyAudience,
+  SurveyDefinition,
+  SurveyQuestion,
+  SurveyOption,
+  SurveyPricingStep,
+} from './types';
+export { PAYMENT_INTEREST_BY_SECONDARY } from './types';

@@ -26,14 +26,23 @@ export default function RecruiterSurveyModal({
     () => survey.questions.find((q) => q.mapsTo === 'freeText'),
     [survey]
   );
+  const magicWishQuestion = useMemo(
+    () => survey.questions.find((q) => q.mapsTo === 'magicWish'),
+    [survey]
+  );
+  const pricingStep = survey.pricingStep;
 
   const [primaryAnswer, setPrimaryAnswer] = useState('');
   const [secondaryAnswer, setSecondaryAnswer] = useState('');
   const [otherText, setOtherText] = useState('');
   const [freeText, setFreeText] = useState('');
+  const [priceResponse, setPriceResponse] = useState('');
+  const [earlyAccessAnswer, setEarlyAccessAnswer] = useState('');
+  const [magicWish, setMagicWish] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [completed, setCompleted] = useState(false);
+  const [requestedEarlyAccess, setRequestedEarlyAccess] = useState(false);
 
   const selectedPrimaryOption = useMemo(
     () => (primaryQuestion?.options || []).find((o) => o.value === primaryAnswer),
@@ -47,14 +56,34 @@ export default function RecruiterSurveyModal({
     !!freeTextQuestion &&
     (!freeTextQuestion.showWhenPrimaryAnswered || !!primaryAnswer);
 
+  const showPricing =
+    !!pricingStep &&
+    !!secondaryAnswer &&
+    pricingStep.showWhenPaymentInterest.includes(secondaryAnswer);
+
+  const showEarlyAccess =
+    showPricing &&
+    !!priceResponse &&
+    !!pricingStep?.earlyAccess.showWhenPriceResponse.includes(priceResponse);
+
+  const showMagicWish =
+    !!magicWishQuestion &&
+    (!magicWishQuestion.showWhenSecondaryAnswered || !!secondaryAnswer) &&
+    (!magicWishQuestion.showWhenPrimaryAnswered || !!primaryAnswer);
+
   const descriptionParagraphs = (survey.description || '')
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const pricingBodyParagraphs = (pricingStep?.body || '')
     .split(/\n\n+/)
     .map((p) => p.trim())
     .filter(Boolean);
 
   const submitAction = async (
     action: 'complete' | 'remind_later' | 'dismiss',
-    payload: Record<string, string> = {}
+    payload: Record<string, unknown> = {}
   ) => {
     if (submitting) return;
     setSubmitting(true);
@@ -75,6 +104,7 @@ export default function RecruiterSurveyModal({
         throw new Error(data.error || 'Failed to save response');
       }
       if (action === 'complete') {
+        setRequestedEarlyAccess(Boolean(payload.earlyAccessInterested));
         setCompleted(true);
         onSubmitted();
       } else {
@@ -101,15 +131,29 @@ export default function RecruiterSurveyModal({
       setError('Please answer the second question.');
       return;
     }
-    if (freeTextQuestion?.required && !freeText.trim()) {
-      setError('Please answer the third question.');
+    if (showPricing && !priceResponse) {
+      setError('Please answer the pricing question.');
       return;
     }
+    if (showEarlyAccess && !earlyAccessAnswer) {
+      setError('Please answer the early access question.');
+      return;
+    }
+    if (magicWishQuestion?.required && !magicWish.trim()) {
+      setError('Please answer the final question.');
+      return;
+    }
+
+    const earlyAccessInterested = showEarlyAccess ? earlyAccessAnswer === 'yes' : null;
+
     await submitAction('complete', {
       primaryAnswer,
       secondaryAnswer,
       otherText: showOtherText ? otherText.trim() : '',
       freeText,
+      priceResponse: showPricing ? priceResponse : '',
+      earlyAccessInterested,
+      magicWish: magicWish.trim(),
     });
   };
 
@@ -126,9 +170,15 @@ export default function RecruiterSurveyModal({
             <h2 id="recruiter-survey-title" className="text-2xl font-bold text-gray-900 mb-3">
               {survey.thankYouTitle || 'Thank you!'}
             </h2>
-            <p className="text-gray-600 leading-relaxed mb-8">
+            <p className="text-gray-600 leading-relaxed mb-3">
               {survey.thankYouMessage || 'Your feedback directly influences what we build next.'}
             </p>
+            {requestedEarlyAccess && survey.thankYouEarlyAccessMessage && (
+              <p className="text-gray-600 leading-relaxed mb-8">
+                {survey.thankYouEarlyAccessMessage}
+              </p>
+            )}
+            {!requestedEarlyAccess && <div className="mb-8" />}
             <button
               type="button"
               onClick={onClose}
@@ -230,7 +280,11 @@ export default function RecruiterSurveyModal({
                           name="secondaryAnswer"
                           value={option.value}
                           checked={secondaryAnswer === option.value}
-                          onChange={() => setSecondaryAnswer(option.value)}
+                          onChange={() => {
+                            setSecondaryAnswer(option.value);
+                            setPriceResponse('');
+                            setEarlyAccessAnswer('');
+                          }}
                           className="mt-1"
                           disabled={submitting}
                         />
@@ -260,6 +314,120 @@ export default function RecruiterSurveyModal({
                     placeholder={freeTextQuestion.placeholder || ''}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
+                </div>
+              )}
+
+              {showPricing && pricingStep && (
+                <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 space-y-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{pricingStep.headline}</h3>
+                    <div className="mt-2 space-y-2">
+                      {pricingBodyParagraphs.map((paragraph) => (
+                        <p
+                          key={paragraph}
+                          className={`text-sm leading-relaxed ${
+                            paragraph.startsWith('€')
+                              ? 'text-xl font-bold text-gray-900'
+                              : 'text-gray-700'
+                          }`}
+                        >
+                          {paragraph}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+
+                  <fieldset>
+                    <legend className="block text-sm font-medium text-gray-900 mb-3">
+                      {pricingStep.question} *
+                    </legend>
+                    <div className="space-y-2">
+                      {pricingStep.options.map((option) => (
+                        <label
+                          key={option.value}
+                          className={`flex items-start gap-3 rounded-md border bg-white px-3 py-2.5 cursor-pointer transition-colors ${
+                            priceResponse === option.value
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="priceResponse"
+                            value={option.value}
+                            checked={priceResponse === option.value}
+                            onChange={() => {
+                              setPriceResponse(option.value);
+                              setEarlyAccessAnswer('');
+                            }}
+                            className="mt-1"
+                            disabled={submitting}
+                          />
+                          <span className="text-sm text-gray-800">{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  {showEarlyAccess && (
+                    <fieldset>
+                      <legend className="block text-sm font-medium text-gray-900 mb-3">
+                        {pricingStep.earlyAccess.question} *
+                      </legend>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        {pricingStep.earlyAccess.options.map((option) => (
+                          <label
+                            key={option.value}
+                            className={`flex-1 flex items-center gap-2 rounded-md border bg-white px-3 py-2.5 cursor-pointer transition-colors ${
+                              earlyAccessAnswer === option.value
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="earlyAccessAnswer"
+                              value={option.value}
+                              checked={earlyAccessAnswer === option.value}
+                              onChange={() => setEarlyAccessAnswer(option.value)}
+                              disabled={submitting}
+                            />
+                            <span className="text-sm text-gray-800">{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  )}
+                </div>
+              )}
+
+              {showMagicWish && magicWishQuestion && (
+                <div>
+                  {magicWishQuestion.headline && (
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      {magicWishQuestion.headline}
+                    </h3>
+                  )}
+                  <label
+                    htmlFor="survey-magic-wish"
+                    className="block text-sm font-medium text-gray-900 mb-2"
+                  >
+                    {magicWishQuestion.label}
+                    {magicWishQuestion.required ? ' *' : ''}
+                  </label>
+                  <textarea
+                    id="survey-magic-wish"
+                    value={magicWish}
+                    onChange={(e) => setMagicWish(e.target.value.slice(0, magicWishQuestion.maxLength || 1000))}
+                    rows={5}
+                    maxLength={magicWishQuestion.maxLength || 1000}
+                    disabled={submitting}
+                    placeholder={magicWishQuestion.placeholder || ''}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    {magicWish.length}/{magicWishQuestion.maxLength || 1000}
+                  </p>
                 </div>
               )}
             </div>

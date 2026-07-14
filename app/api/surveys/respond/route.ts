@@ -4,12 +4,12 @@ import { requireRole } from '@/lib/auth';
 import SurveyResponse from '@/models/SurveyResponse';
 import { getSurveyById } from '@/lib/surveys';
 import { getRemindLaterUntil } from '@/lib/surveys/eligibility';
+import { PAYMENT_INTEREST_BY_SECONDARY } from '@/lib/surveys/types';
 
 type SurveyAction = 'complete' | 'remind_later' | 'dismiss';
 
 /**
  * POST — record a survey response action for the authenticated recruiter.
- * Body: { surveyId, action, primaryAnswer?, secondaryAnswer?, otherText?, freeText? }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -45,6 +45,13 @@ export async function POST(request: NextRequest) {
         secondaryAnswer: null,
         otherText: null,
         freeText: null,
+        problemCategory: null,
+        paymentInterest: null,
+        pricePointShown: null,
+        priceResponse: null,
+        priceAccepted: null,
+        earlyAccessInterested: null,
+        magicWish: null,
       };
     } else if (action === 'remind_later') {
       update = {
@@ -61,10 +68,14 @@ export async function POST(request: NextRequest) {
         typeof body.otherText === 'string' ? body.otherText.trim().slice(0, 2000) : '';
       const freeText =
         typeof body.freeText === 'string' ? body.freeText.trim().slice(0, 2000) : '';
+      const magicWish =
+        typeof body.magicWish === 'string' ? body.magicWish.trim().slice(0, 1000) : '';
+      const priceResponseRaw =
+        typeof body.priceResponse === 'string' ? body.priceResponse.trim() : '';
 
       const primaryQuestion = survey.questions.find((q) => q.mapsTo === 'primaryAnswer');
       const secondaryQuestion = survey.questions.find((q) => q.mapsTo === 'secondaryAnswer');
-      const freeTextQuestion = survey.questions.find((q) => q.mapsTo === 'freeText');
+      const pricingStep = survey.pricingStep;
 
       if (primaryQuestion?.required) {
         const allowed = new Set((primaryQuestion.options || []).map((o) => o.value));
@@ -88,8 +99,36 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      if (freeTextQuestion?.required && !freeText) {
-        return NextResponse.json({ error: 'Please answer the third question' }, { status: 400 });
+      const paymentInterest = PAYMENT_INTEREST_BY_SECONDARY[secondaryAnswer] || null;
+      const showPricing =
+        !!pricingStep && pricingStep.showWhenPaymentInterest.includes(secondaryAnswer);
+
+      let priceResponse: 'likely' | 'maybe' | 'rejected' | null = null;
+      let pricePointShown: number | null = null;
+      let priceAccepted: boolean | null = null;
+      let earlyAccessInterested: boolean | null = null;
+
+      if (showPricing && pricingStep) {
+        const allowedPrice = new Set(pricingStep.options.map((o) => o.value));
+        if (!priceResponseRaw || !allowedPrice.has(priceResponseRaw)) {
+          return NextResponse.json({ error: 'Please answer the pricing question' }, { status: 400 });
+        }
+        priceResponse = priceResponseRaw as 'likely' | 'maybe' | 'rejected';
+        pricePointShown = pricingStep.priceEur;
+        priceAccepted = priceResponse === 'likely' || priceResponse === 'maybe';
+
+        const showEarlyAccess = pricingStep.earlyAccess.showWhenPriceResponse.includes(priceResponse);
+        if (showEarlyAccess) {
+          if (body.earlyAccessInterested !== true && body.earlyAccessInterested !== false) {
+            return NextResponse.json(
+              { error: 'Please answer the early access question' },
+              { status: 400 }
+            );
+          }
+          earlyAccessInterested = body.earlyAccessInterested === true;
+        } else {
+          earlyAccessInterested = false;
+        }
       }
 
       update = {
@@ -100,6 +139,13 @@ export async function POST(request: NextRequest) {
         secondaryAnswer: secondaryAnswer || null,
         otherText: selectedPrimary?.showOtherText ? otherText || null : null,
         freeText: freeText || null,
+        problemCategory: primaryAnswer || null,
+        paymentInterest,
+        pricePointShown,
+        priceResponse,
+        priceAccepted,
+        earlyAccessInterested,
+        magicWish: magicWish || null,
       };
     }
 
@@ -122,6 +168,7 @@ export async function POST(request: NextRequest) {
           dismissed: response.dismissed,
           remindLaterUntil: response.remindLaterUntil,
           completedAt: response.completedAt,
+          earlyAccessInterested: response.earlyAccessInterested,
         },
       },
       { status: 200 }

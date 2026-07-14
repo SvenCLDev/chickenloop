@@ -1,19 +1,73 @@
 import type { SurveyDefinition } from './types';
-import type { ISurveyResponse } from '@/models/SurveyResponse';
+import type {
+  ISurveyResponse,
+  SurveyPaymentInterest,
+  SurveyPriceResponse,
+} from '@/models/SurveyResponse';
 
-function countByValue(values: Array<string | null | undefined>): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const value of values) {
-    if (!value) continue;
-    counts[value] = (counts[value] || 0) + 1;
-  }
-  return counts;
+export interface ProblemRankingRow {
+  problemValue: string;
+  problemLabel: string;
+  responses: number;
+  definitelyPay: number;
+  probablyPay: number;
+  earlyAccess: number;
+  acceptanceRate: number;
+}
+
+export interface PricingValidationStats {
+  pricePoint: number;
+  numberShown: number;
+  likelyToSubscribe: number;
+  maybe: number;
+  rejectedPrice: number;
+  conversionPercent: number;
+}
+
+export interface EarlyAccessLead {
+  id: string;
+  company: string;
+  recruiter: string;
+  email: string;
+  problem: string;
+  problemLabel: string;
+  likelyToSubscribe: boolean;
+  earlyAccess: boolean;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export interface MagicWishRow {
+  id: string;
+  magicWish: string;
+  problemCategory: string | null;
+  problemLabel: string;
+  company: string;
+  recruiter: string;
+  email: string;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export interface SurveySummaryCards {
+  recruitersSurveyed: number;
+  completionRate: number;
+  definitelyPayPercent: number;
+  probablyPayPercent: number;
+  priceAcceptancePercent: number;
+  earlyAccessSignups: number;
 }
 
 export interface SurveyStats {
   surveyId: string;
   title: string;
   description: string;
+  summary: SurveySummaryCards;
+  problemRanking: ProblemRankingRow[];
+  pricingValidation: PricingValidationStats;
+  earlyAccessList: EarlyAccessLead[];
+  magicWishResponses: MagicWishRow[];
+  // retained for lighter displays
   totalResponses: number;
   completedCount: number;
   dismissedCount: number;
@@ -21,46 +75,56 @@ export interface SurveyStats {
   completionRate: number;
   primaryAnswerDistribution: { value: string; label: string; count: number }[];
   secondaryAnswerDistribution: { value: string; label: string; count: number }[];
-  earlyAccessInterest: {
-    earlyAccess: number;
-    wouldPay: number;
-    freeOnly: number;
-    notInterested: number;
-  };
-  freeTextResponses: {
-    id: string;
-    freeText: string;
-    otherText: string | null;
-    primaryAnswer: string | null;
-    secondaryAnswer: string | null;
-    completedAt: string | null;
-    createdAt: string;
-  }[];
-  otherTextResponses: {
-    id: string;
-    otherText: string;
-    primaryAnswer: string | null;
-    completedAt: string | null;
-    createdAt: string;
-  }[];
+}
+
+type LeanResponse = {
+  _id: { toString(): string };
+  userId?: { toString(): string } | string;
+  primaryAnswer?: string | null;
+  secondaryAnswer?: string | null;
+  otherText?: string | null;
+  freeText?: string | null;
+  problemCategory?: string | null;
+  paymentInterest?: SurveyPaymentInterest | null;
+  pricePointShown?: number | null;
+  priceResponse?: SurveyPriceResponse | null;
+  priceAccepted?: boolean | null;
+  earlyAccessInterested?: boolean | null;
+  magicWish?: string | null;
+  dismissed?: boolean;
+  remindLaterUntil?: Date | string | null;
+  completedAt?: Date | string | null;
+  createdAt: Date | string;
+  recruiterName?: string;
+  recruiterEmail?: string;
+  companyName?: string;
+};
+
+function percent(numerator: number, denominator: number): number {
+  if (denominator <= 0) return 0;
+  return Math.round((numerator / denominator) * 1000) / 10;
+}
+
+function normalizePaymentInterest(
+  response: LeanResponse
+): SurveyPaymentInterest | null {
+  if (response.paymentInterest) return response.paymentInterest;
+  const secondary = response.secondaryAnswer;
+  if (secondary === 'definitely_pay') return 'definitely';
+  if (secondary === 'probably_pay') return 'probably';
+  if (secondary === 'free_version') return 'free';
+  if (secondary === 'early_access') return 'early_access';
+  if (secondary === 'not_interested') return 'not_interested';
+  return null;
+}
+
+function normalizeProblem(response: LeanResponse): string | null {
+  return response.problemCategory || response.primaryAnswer || null;
 }
 
 export function aggregateSurveyResponses(
   survey: SurveyDefinition,
-  responses: Array<
-    Pick<
-      ISurveyResponse,
-      | '_id'
-      | 'primaryAnswer'
-      | 'secondaryAnswer'
-      | 'otherText'
-      | 'freeText'
-      | 'dismissed'
-      | 'remindLaterUntil'
-      | 'completedAt'
-      | 'createdAt'
-    >
-  >,
+  responses: LeanResponse[],
   now: Date = new Date()
 ): SurveyStats {
   const completed = responses.filter((r) => !!r.completedAt);
@@ -75,83 +139,131 @@ export function aggregateSurveyResponses(
 
   const primaryQuestion = survey.questions.find((q) => q.mapsTo === 'primaryAnswer');
   const secondaryQuestion = survey.questions.find((q) => q.mapsTo === 'secondaryAnswer');
+  const pricePoint = survey.pricingStep?.priceEur ?? 29;
 
-  const primaryCounts = countByValue(completed.map((r) => r.primaryAnswer));
-  const secondaryCounts = countByValue(completed.map((r) => r.secondaryAnswer));
+  const labelByProblem = new Map(
+    (primaryQuestion?.options || []).map((o) => [o.value, o.label])
+  );
 
-  const primaryAnswerDistribution = (primaryQuestion?.options || []).map((opt) => ({
-    value: opt.value,
-    label: opt.label,
-    count: primaryCounts[opt.value] || 0,
-  }));
+  const problemRanking: ProblemRankingRow[] = (primaryQuestion?.options || []).map((opt) => {
+    const rows = completed.filter((r) => normalizeProblem(r) === opt.value);
+    const definitelyPay = rows.filter((r) => normalizePaymentInterest(r) === 'definitely').length;
+    const probablyPay = rows.filter((r) => normalizePaymentInterest(r) === 'probably').length;
+    const earlyAccess = rows.filter(
+      (r) =>
+        r.earlyAccessInterested === true || normalizePaymentInterest(r) === 'early_access'
+    ).length;
+    return {
+      problemValue: opt.value,
+      problemLabel: opt.label,
+      responses: rows.length,
+      definitelyPay,
+      probablyPay,
+      earlyAccess,
+      acceptanceRate: percent(definitelyPay + probablyPay, rows.length),
+    };
+  }).sort((a, b) => b.responses - a.responses);
 
-  for (const [value, count] of Object.entries(primaryCounts)) {
-    if (!primaryAnswerDistribution.some((row) => row.value === value)) {
-      primaryAnswerDistribution.push({ value, label: value, count });
-    }
-  }
-
-  const secondaryAnswerDistribution = (secondaryQuestion?.options || []).map((opt) => ({
-    value: opt.value,
-    label: opt.label,
-    count: secondaryCounts[opt.value] || 0,
-  }));
-
-  for (const [value, count] of Object.entries(secondaryCounts)) {
-    if (!secondaryAnswerDistribution.some((row) => row.value === value)) {
-      secondaryAnswerDistribution.push({ value, label: value, count });
-    }
-  }
-
-  const earlyAccessInterest = {
-    earlyAccess: secondaryCounts.early_access || 0,
-    wouldPay: (secondaryCounts.definitely_pay || 0) + (secondaryCounts.probably_pay || 0),
-    freeOnly: secondaryCounts.free_version || 0,
-    notInterested: secondaryCounts.not_interested || 0,
+  const shownPrice = completed.filter((r) => r.pricePointShown === pricePoint || r.priceResponse);
+  const likelyToSubscribe = shownPrice.filter((r) => r.priceResponse === 'likely').length;
+  const maybe = shownPrice.filter((r) => r.priceResponse === 'maybe').length;
+  const rejectedPrice = shownPrice.filter((r) => r.priceResponse === 'rejected').length;
+  const pricingValidation: PricingValidationStats = {
+    pricePoint,
+    numberShown: shownPrice.length,
+    likelyToSubscribe,
+    maybe,
+    rejectedPrice,
+    conversionPercent: percent(likelyToSubscribe + maybe, shownPrice.length),
   };
 
-  const freeTextResponses = completed
-    .filter((r) => r.freeText && String(r.freeText).trim())
-    .map((r) => ({
-      id: String(r._id),
-      freeText: String(r.freeText).trim(),
-      otherText: r.otherText ? String(r.otherText).trim() : null,
-      primaryAnswer: r.primaryAnswer ?? null,
-      secondaryAnswer: r.secondaryAnswer ?? null,
-      completedAt: r.completedAt ? new Date(r.completedAt).toISOString() : null,
-      createdAt: new Date(r.createdAt).toISOString(),
-    }))
+  const earlyAccessList: EarlyAccessLead[] = completed
+    .filter((r) => r.earlyAccessInterested === true)
+    .map((r) => {
+      const problem = normalizeProblem(r);
+      return {
+        id: String(r._id),
+        company: r.companyName || '—',
+        recruiter: r.recruiterName || '—',
+        email: r.recruiterEmail || '—',
+        problem: problem || '—',
+        problemLabel: (problem && labelByProblem.get(problem)) || problem || '—',
+        likelyToSubscribe: r.priceResponse === 'likely',
+        earlyAccess: true,
+        completedAt: r.completedAt ? new Date(r.completedAt).toISOString() : null,
+        createdAt: new Date(r.createdAt).toISOString(),
+      };
+    })
     .sort((a, b) => (b.completedAt || b.createdAt).localeCompare(a.completedAt || a.createdAt));
 
-  const otherTextResponses = completed
-    .filter((r) => r.otherText && String(r.otherText).trim())
-    .map((r) => ({
-      id: String(r._id),
-      otherText: String(r.otherText).trim(),
-      primaryAnswer: r.primaryAnswer ?? null,
-      completedAt: r.completedAt ? new Date(r.completedAt).toISOString() : null,
-      createdAt: new Date(r.createdAt).toISOString(),
-    }))
+  const magicWishResponses: MagicWishRow[] = completed
+    .filter((r) => r.magicWish && String(r.magicWish).trim())
+    .map((r) => {
+      const problem = normalizeProblem(r);
+      return {
+        id: String(r._id),
+        magicWish: String(r.magicWish).trim(),
+        problemCategory: problem,
+        problemLabel: (problem && labelByProblem.get(problem)) || problem || '—',
+        company: r.companyName || '—',
+        recruiter: r.recruiterName || '—',
+        email: r.recruiterEmail || '—',
+        completedAt: r.completedAt ? new Date(r.completedAt).toISOString() : null,
+        createdAt: new Date(r.createdAt).toISOString(),
+      };
+    })
     .sort((a, b) => (b.completedAt || b.createdAt).localeCompare(a.completedAt || a.createdAt));
 
-  const totalResponses = responses.length;
   const completedCount = completed.length;
-  const completionRate =
-    totalResponses === 0 ? 0 : Math.round((completedCount / totalResponses) * 1000) / 10;
+  const totalResponses = responses.length;
+  const definitelyCount = completed.filter((r) => normalizePaymentInterest(r) === 'definitely').length;
+  const probablyCount = completed.filter((r) => normalizePaymentInterest(r) === 'probably').length;
+  const earlyAccessSignups = completed.filter((r) => r.earlyAccessInterested === true).length;
+
+  const summary: SurveySummaryCards = {
+    recruitersSurveyed: totalResponses,
+    completionRate: percent(completedCount, totalResponses),
+    definitelyPayPercent: percent(definitelyCount, completedCount),
+    probablyPayPercent: percent(probablyCount, completedCount),
+    priceAcceptancePercent: pricingValidation.conversionPercent,
+    earlyAccessSignups,
+  };
+
+  const primaryCounts = new Map<string, number>();
+  const secondaryCounts = new Map<string, number>();
+  for (const r of completed) {
+    const p = normalizeProblem(r);
+    if (p) primaryCounts.set(p, (primaryCounts.get(p) || 0) + 1);
+    if (r.secondaryAnswer) {
+      secondaryCounts.set(r.secondaryAnswer, (secondaryCounts.get(r.secondaryAnswer) || 0) + 1);
+    }
+  }
 
   return {
     surveyId: survey.id,
     title: survey.title,
     description: survey.description,
+    summary,
+    problemRanking,
+    pricingValidation,
+    earlyAccessList,
+    magicWishResponses,
     totalResponses,
     completedCount,
     dismissedCount: dismissed.length,
     remindLaterCount: remindLater.length,
-    completionRate,
-    primaryAnswerDistribution,
-    secondaryAnswerDistribution,
-    earlyAccessInterest,
-    freeTextResponses,
-    otherTextResponses,
+    completionRate: summary.completionRate,
+    primaryAnswerDistribution: (primaryQuestion?.options || []).map((opt) => ({
+      value: opt.value,
+      label: opt.label,
+      count: primaryCounts.get(opt.value) || 0,
+    })),
+    secondaryAnswerDistribution: (secondaryQuestion?.options || []).map((opt) => ({
+      value: opt.value,
+      label: opt.label,
+      count: secondaryCounts.get(opt.value) || 0,
+    })),
   };
 }
+
+export type { LeanResponse as AggregatableSurveyResponse };

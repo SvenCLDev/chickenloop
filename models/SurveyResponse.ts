@@ -1,13 +1,36 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+export type SurveyPaymentInterest =
+  | 'definitely'
+  | 'probably'
+  | 'free'
+  | 'early_access'
+  | 'not_interested';
+
+export type SurveyPriceResponse = 'likely' | 'maybe' | 'rejected';
+
 export interface ISurveyResponse extends Document {
   userId: mongoose.Types.ObjectId;
   surveyId: string;
+  /** @deprecated prefer problemCategory — kept for backwards compatibility */
   primaryAnswer?: string | null;
+  /** @deprecated prefer paymentInterest — kept for backwards compatibility */
   secondaryAnswer?: string | null;
   /** Free text when primary answer is "Other" */
   otherText?: string | null;
+  /** How they solve the problem today */
   freeText?: string | null;
+
+  problemCategory?: string | null;
+  paymentInterest?: SurveyPaymentInterest | null;
+  pricePointShown?: number | null;
+  /** likely | maybe | rejected — answer to €29 subscribe question */
+  priceResponse?: SurveyPriceResponse | null;
+  /** true when priceResponse is likely or maybe */
+  priceAccepted?: boolean | null;
+  earlyAccessInterested?: boolean | null;
+  magicWish?: string | null;
+
   dismissed: boolean;
   remindLaterUntil?: Date | null;
   completedAt?: Date | null;
@@ -50,6 +73,42 @@ const SurveyResponseSchema: Schema = new Schema(
       default: null,
       trim: true,
       maxlength: 2000,
+    },
+    problemCategory: {
+      type: String,
+      default: null,
+      trim: true,
+      index: true,
+    },
+    paymentInterest: {
+      type: String,
+      enum: ['definitely', 'probably', 'free', 'early_access', 'not_interested'],
+      default: null,
+      index: true,
+    },
+    pricePointShown: {
+      type: Number,
+      default: null,
+    },
+    priceResponse: {
+      type: String,
+      enum: ['likely', 'maybe', 'rejected'],
+      default: null,
+    },
+    priceAccepted: {
+      type: Boolean,
+      default: null,
+    },
+    earlyAccessInterested: {
+      type: Boolean,
+      default: null,
+      index: true,
+    },
+    magicWish: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 1000,
     },
     dismissed: {
       type: Boolean,
