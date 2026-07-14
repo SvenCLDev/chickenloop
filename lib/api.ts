@@ -495,6 +495,7 @@ export const adminApi = {
     const queryString = queryParams.toString();
     return apiRequest(`/admin/equipment-waitlist${queryString ? `?${queryString}` : ''}`);
   },
+  getSurveyStats: () => apiRequest('/admin/surveys'),
 };
 
 export const careerAdviceApi = {

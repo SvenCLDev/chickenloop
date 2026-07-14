@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import FeatureJobModal from '../components/FeatureJobModal';
+import RecruiterSurveyModal from '../components/RecruiterSurveyModal';
 import { jobsApi, companyApi, candidatesApi } from '@/lib/api';
 import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
@@ -14,6 +15,7 @@ import {
   getJobRefreshCooldownMessage,
   getJobRefreshDaysRemaining,
 } from '@/lib/jobRefresh';
+import type { SurveyDefinition } from '@/lib/surveys';
 
 interface Job {
   _id: string;
@@ -93,6 +95,7 @@ function RecruiterDashboardClient() {
   const [unsubscribedCategory, setUnsubscribedCategory] = useState<string | null>(null);
   const [showUnsubscribedNotification, setShowUnsubscribedNotification] = useState(false);
   const [featureModalJobId, setFeatureModalJobId] = useState<string | null>(null);
+  const [activeSurvey, setActiveSurvey] = useState<SurveyDefinition | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -108,8 +111,31 @@ function RecruiterDashboardClient() {
       loadJobs();
       loadFavouriteCandidates();
       loadApplications();
+      loadActiveSurvey();
     }
   }, [user]);
+
+  const loadActiveSurvey = async () => {
+    try {
+      const response = await fetch('/api/surveys/active', { credentials: 'include' });
+      if (!response.ok) return;
+      const data = await response.json();
+      const survey = data.survey as SurveyDefinition | null;
+      if (!survey?.id) return;
+
+      // Once per login session until completed / dismissed / remind-later is stored
+      const sessionKey = `survey_prompted_${survey.id}`;
+      if (typeof window !== 'undefined' && sessionStorage.getItem(sessionKey) === '1') {
+        return;
+      }
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(sessionKey, '1');
+      }
+      setActiveSurvey(survey);
+    } catch {
+      // Non-blocking: survey failure must not break the dashboard
+    }
+  };
 
   // Handle unsubscribe notification
   useEffect(() => {
@@ -460,6 +486,13 @@ function RecruiterDashboardClient() {
           />
         );
       })()}
+      {activeSurvey && (
+        <RecruiterSurveyModal
+          survey={activeSurvey}
+          onClose={() => setActiveSurvey(null)}
+          onSubmitted={() => setActiveSurvey(null)}
+        />
+      )}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
           {companyName ? `${companyName} Recruiter Dashboard` : 'Recruiter Dashboard'}
