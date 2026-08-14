@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
-import { jobsApi, cvApi, savedSearchesApi, applicationsApi } from '@/lib/api';
+import { jobsApi, cvApi, savedSearchesApi, applicationsApi, talentNetworkApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { ApplicationStatus, TERMINAL_STATES, getAllowedTransitions } from '@/lib/applicationStatusTransitions';
 import { isApplicationStatus } from '@/lib/domainTypes';
@@ -71,6 +71,7 @@ function JobSeekerDashboardClient() {
   const [unsubscribedCategory, setUnsubscribedCategory] = useState<string | null>(null);
   const [showUnsubscribedNotification, setShowUnsubscribedNotification] = useState(false);
   const [showBoostModal, setShowBoostModal] = useState(false);
+  const [talentNetworkCanEdit, setTalentNetworkCanEdit] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -105,12 +106,14 @@ function JobSeekerDashboardClient() {
 
   const loadData = async () => {
     try {
-      const [favouritesData, cvData] = await Promise.all([
+      const [favouritesData, cvData, accessData] = await Promise.all([
         jobsApi.getFavourites().catch(() => ({ jobs: [] })),
         cvApi.get().catch(() => null),
+        talentNetworkApi.getAccess().catch(() => ({ enabled: false, canEdit: false })),
       ]);
       setFavouriteJobs(favouritesData.jobs || []);
       setCv(cvData?.cv || null);
+      setTalentNetworkCanEdit(accessData.canEdit === true);
     } catch (err: any) {
       setError(err.message || 'Failed to load data');
     } finally {
@@ -451,7 +454,7 @@ function JobSeekerDashboardClient() {
                     View CV
                   </Link>
                   <Link
-                    href="/job-seeker/cv/edit"
+                    href={talentNetworkCanEdit ? '/job-seeker/cv/talent-network/edit' : '/job-seeker/cv/edit'}
                     className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                   >
                     Edit CV
@@ -500,7 +503,7 @@ function JobSeekerDashboardClient() {
               <div>
                 <p className="text-gray-600 mb-4">You don't have a CV yet.</p>
                 <Link
-                  href="/job-seeker/cv/new"
+                  href={talentNetworkCanEdit ? '/job-seeker/cv/talent-network/new' : '/job-seeker/cv/new'}
                   className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold inline-block"
                 >
                   Create CV

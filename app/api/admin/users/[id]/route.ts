@@ -40,6 +40,7 @@ export async function GET(
         email: user.email,
         name: user.name,
         role: user.role,
+        talentNetworkBeta: user.talentNetworkBeta === true,
         companyId: user.companyId,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
@@ -86,7 +87,7 @@ export async function PUT(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const { email, name, role, password } = await request.json();
+    const { email, name, role, password, talentNetworkBeta } = await request.json();
 
     if (email) user.email = email;
     if (name) user.name = name;
@@ -95,6 +96,15 @@ export async function PUT(
     }
     if (password) {
       user.password = await bcrypt.hash(password, 10);
+    }
+    if (talentNetworkBeta !== undefined) {
+      if (user.role !== 'job-seeker' && talentNetworkBeta === true) {
+        return NextResponse.json(
+          { error: 'Talent Network beta is only available for job-seeker accounts' },
+          { status: 400 }
+        );
+      }
+      user.talentNetworkBeta = talentNetworkBeta === true;
     }
 
     await user.save();

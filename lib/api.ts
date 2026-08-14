@@ -189,6 +189,25 @@ export const cvApi = {
     apiRequest('/cv/toggle-publish', {
       method: 'POST',
     }),
+  uploadCertificateDocument: async (file: File) => {
+    const formData = new FormData();
+    formData.append('document', file);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const headers: HeadersInit = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch('/api/cv/certificates/upload', {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Upload failed');
+    return data as { url: string };
+  },
+};
+
+export const talentNetworkApi = {
+  getAccess: () => apiRequest('/talent-network/enabled'),
 };
 
 export const savedSearchesApi = {
@@ -424,6 +443,18 @@ export const adminApi = {
   updateCV: (id: string, data: any) =>
     apiRequest(`/admin/cvs/${id}`, {
       method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  getVerificationQueue: (status = 'pending_review') =>
+    apiRequest(`/admin/verification/certificates?status=${encodeURIComponent(status)}`),
+  getVerificationStats: () => apiRequest('/admin/verification/stats'),
+  updateCertificateVerification: (
+    cvId: string,
+    certId: string,
+    data: { action: 'verify' | 'reject'; adminNote?: string }
+  ) =>
+    apiRequest(`/admin/verification/certificates/${cvId}/${certId}`, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     }),
   getApplications: (filters?: {

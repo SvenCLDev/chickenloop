@@ -9,6 +9,7 @@ interface CandidateCardProps {
     experienceAndSkill?: string[];
     skills?: string[];
     pictures?: string[];
+    verifiedCertCount?: number;
   };
 }
 
@@ -47,6 +48,11 @@ export default function CandidateCard({ candidate }: CandidateCardProps) {
         <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
           {candidate.fullName}
         </h3>
+        {(candidate.verifiedCertCount ?? 0) > 0 && (
+          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 mb-2">
+            {candidate.verifiedCertCount} verified cert{(candidate.verifiedCertCount ?? 0) === 1 ? '' : 's'}
+          </span>
+        )}
         <p className="text-sm sm:text-base text-blue-600 font-medium mb-2">
           {mainSkill}
         </p>

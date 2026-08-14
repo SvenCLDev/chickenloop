@@ -68,6 +68,9 @@ export interface CandidateSearchParams {
   
   /** Sort order (default: 'newest' - by createdAt descending) */
   sort?: string;
+
+  /** When true, only CVs with at least one Chickenloop-verified certificate */
+  verifiedOnly?: boolean;
 }
 
 /**
@@ -126,6 +129,10 @@ export function parseCandidateSearchParams(searchParams: URLSearchParams | Reado
   
   const sort = searchParams.get('sort');
   if (sort) params.sort = decodeURIComponent(sort);
+
+  if (searchParams.get('verified_only') === 'true') {
+    params.verifiedOnly = true;
+  }
   
   return params;
 }
@@ -179,6 +186,10 @@ export function buildCandidateSearchQuery(params: CandidateSearchParams): string
   if (params.sort && params.sort !== 'newest') {
     queryParts.push(`sort=${encodeURIComponent(params.sort)}`);
   }
+
+  if (params.verifiedOnly) {
+    queryParts.push('verified_only=true');
+  }
   
   return queryParts.join('&');
 }
@@ -210,7 +221,8 @@ export function hasActiveFilters(params: CandidateSearchParams): boolean {
     (params.sport && params.sport.length > 0) ||
     (params.certification && params.certification.length > 0) ||
     (params.experienceLevel && params.experienceLevel.length > 0) ||
-    (params.availability && params.availability.length > 0)
+    (params.availability && params.availability.length > 0) ||
+    params.verifiedOnly
   );
 }
 

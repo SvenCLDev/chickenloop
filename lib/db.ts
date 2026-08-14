@@ -9,6 +9,7 @@ import '@/models/CV';
 import '@/models/AuditLog';
 import '@/models/CareerAdvice';
 import '@/models/Application';
+import '@/models/ReferenceVerificationToken';
 import '@/models/SavedSearch';
 import '@/models/StripeEvent';
 

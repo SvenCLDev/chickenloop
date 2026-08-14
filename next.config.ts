@@ -2,8 +2,27 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   async redirects() {
+    const cutover = process.env.TALENT_NETWORK_CUTOVER === 'true';
+    const createDestination = cutover
+      ? '/job-seeker/cv/talent-network/new'
+      : '/job-seeker/cv/new';
+
     return [
-      { source: '/create-cv', destination: '/job-seeker/cv/new', permanent: false },
+      { source: '/create-cv', destination: createDestination, permanent: false },
+      ...(cutover
+        ? [
+            {
+              source: '/job-seeker/cv/edit',
+              destination: '/job-seeker/cv/talent-network/edit',
+              permanent: false,
+            },
+            {
+              source: '/job-seeker/cv/new',
+              destination: '/job-seeker/cv/talent-network/new',
+              permanent: false,
+            },
+          ]
+        : []),
     ];
   },
   // Performance optimizations for dev server

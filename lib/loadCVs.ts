@@ -96,16 +96,39 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
     matchConditions.lookingForWorkInAreas = { $in: filters.workArea };
   }
   if (filters.language && filters.language.length > 0) {
-    matchConditions.languages = { $in: filters.language };
-  }
-  if (filters.sport && filters.sport.length > 0) {
-    matchConditions.experienceAndSkill = { $in: filters.sport };
+    const languageMatch = {
+      $or: [
+        { languages: { $in: filters.language } },
+        { 'languageSkills.language': { $in: filters.language } },
+      ],
+    };
+    if (matchConditions.$and) {
+      matchConditions.$and.push(languageMatch);
+    } else {
+      matchConditions.$and = [languageMatch];
+    }
   }
   if (filters.certification && filters.certification.length > 0) {
-    matchConditions.professionalCertifications = { $in: filters.certification };
+    const certMatch = {
+      $or: [
+        { professionalCertifications: { $in: filters.certification } },
+        { 'verifiedCertificates.issuingBody': { $in: filters.certification } },
+      ],
+    };
+    if (matchConditions.$and) {
+      matchConditions.$and.push(certMatch);
+    } else {
+      matchConditions.$and = [certMatch];
+    }
+  }
+  if (filters.verifiedOnly) {
+    matchConditions['verifiedCertificates.verificationStatus'] = 'verified';
   }
   if (filters.experienceLevel && filters.experienceLevel.length > 0) {
     matchConditions.experienceLevel = { $in: filters.experienceLevel };
+  }
+  if (filters.sport && filters.sport.length > 0) {
+    matchConditions.experienceAndSkill = { $in: filters.sport };
   }
   if (filters.availability && filters.availability.length > 0) {
     matchConditions.availability = { $in: filters.availability };
@@ -159,12 +182,23 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         updatedAt: 1,
         createdAt: 1,
         pictures: { $slice: ['$pictures', 1] },
-        jobSeeker: 1
+        jobSeeker: 1,
+        profileSchemaVersion: 1,
+        verifiedCertificates: 1,
       }
     },
     {
       $addFields: {
         hasPictures: { $cond: [{ $gt: [{ $size: { $ifNull: ['$pictures', []] } }, 0] }, 1, 0] },
+        verifiedCertCount: {
+          $size: {
+            $filter: {
+              input: { $ifNull: ['$verifiedCertificates', []] },
+              as: 'cert',
+              cond: { $eq: ['$$cert.verificationStatus', 'verified'] },
+            },
+          },
+        },
         // Featured for display/sort: stored featured OR featuredUntil in the future (CV boost)
         isFeatured: {
           $cond: [

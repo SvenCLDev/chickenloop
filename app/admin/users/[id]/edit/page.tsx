@@ -17,6 +17,7 @@ export default function AdminEditUserPage() {
     email: '',
     role: 'recruiter' as 'recruiter' | 'job-seeker' | 'admin',
     password: '',
+    talentNetworkBeta: false,
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -46,7 +47,8 @@ export default function AdminEditUserPage() {
         name: userData.name || '',
         email: userData.email || '',
         role: userData.role || 'recruiter',
-        password: '', // Don't pre-fill password
+        password: '',
+        talentNetworkBeta: userData.talentNetworkBeta === true,
       });
     } catch (err: any) {
       setError(err.message || 'Failed to load user');
@@ -65,6 +67,7 @@ export default function AdminEditUserPage() {
         name: formData.name,
         email: formData.email,
         role: formData.role,
+        talentNetworkBeta: formData.role === 'job-seeker' ? formData.talentNetworkBeta : false,
       };
 
       // Only include password if it's been entered
@@ -171,6 +174,29 @@ export default function AdminEditUserPage() {
                 <option value="admin">Admin</option>
               </select>
             </div>
+
+            {formData.role === 'job-seeker' && (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.talentNetworkBeta}
+                    onChange={(e) =>
+                      setFormData({ ...formData, talentNetworkBeta: e.target.checked })
+                    }
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-gray-900">
+                      Talent Network beta
+                    </span>
+                    <span className="block text-sm text-gray-600 mt-1">
+                      Enable the new Verified Talent Network profile editor for this test account.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            )}
 
             {/* Password (optional) */}
             <div>

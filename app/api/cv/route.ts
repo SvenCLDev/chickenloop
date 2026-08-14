@@ -4,6 +4,9 @@ import CV from '@/models/CV';
 import { requireRole } from '@/lib/auth';
 import { JOB_CATEGORIES, type JobCategory } from '@/src/constants/jobCategories';
 import { isExperienceLevel, isAvailability, isWorkArea } from '@/lib/domainTypes';
+import { applyTalentNetworkFieldsToCv } from '@/lib/talentNetwork/applyToCv';
+import { canUserWriteTalentNetworkFields } from '@/lib/talentNetwork/userContext';
+import { processReferenceVerificationRequests } from '@/lib/talentNetwork/processReferenceRequests';
 
 // GET - Get current user's CV (job seekers only)
 export async function GET(request: NextRequest) {
@@ -57,6 +60,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const body = await request.json();
     const {
       fullName,
       email,
@@ -74,7 +78,11 @@ export async function POST(request: NextRequest) {
       pictures,
       experienceLevel,
       availability,
-    } = await request.json();
+      profileSchemaVersion,
+      verifiedCertificates,
+      seasonalExperience,
+      languageSkills,
+    } = body;
 
     if (!fullName || !email) {
       return NextResponse.json(
@@ -133,6 +141,27 @@ export async function POST(request: NextRequest) {
       jobSeeker: user.userId,
     });
 
+    const canWriteTalentNetwork = await canUserWriteTalentNetworkFields(user.userId);
+    if (
+      canWriteTalentNetwork &&
+      (profileSchemaVersion !== undefined ||
+        verifiedCertificates !== undefined ||
+        seasonalExperience !== undefined ||
+        languageSkills !== undefined)
+    ) {
+      const applied = applyTalentNetworkFieldsToCv(cv, body, {
+        forceSchemaVersion: profileSchemaVersion === 2 ? 2 : undefined,
+      });
+      if (!applied.ok) {
+        return NextResponse.json({ error: applied.error }, { status: 400 });
+      }
+      await cv.save();
+    }
+
+    if (cv.profileSchemaVersion === 2) {
+      await processReferenceVerificationRequests(cv);
+    }
+
     return NextResponse.json(
       { message: 'CV created successfully', cv },
       { status: 201 }
@@ -173,6 +202,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'CV not found' }, { status: 404 });
     }
 
+    const body = await request.json();
     const {
       fullName,
       email,
@@ -190,7 +220,11 @@ export async function PUT(request: NextRequest) {
       pictures,
       experienceLevel,
       availability,
-    } = await request.json();
+      profileSchemaVersion,
+      verifiedCertificates,
+      seasonalExperience,
+      languageSkills,
+    } = body;
 
     if (fullName) cv.fullName = fullName;
     if (email) cv.email = email;
@@ -254,7 +288,27 @@ export async function PUT(request: NextRequest) {
       cv.availability = availability || undefined;
     }
 
+    const canWriteTalentNetwork = await canUserWriteTalentNetworkFields(user.userId);
+    if (
+      canWriteTalentNetwork &&
+      (profileSchemaVersion !== undefined ||
+        verifiedCertificates !== undefined ||
+        seasonalExperience !== undefined ||
+        languageSkills !== undefined)
+    ) {
+      const applied = applyTalentNetworkFieldsToCv(cv, body, {
+        forceSchemaVersion: profileSchemaVersion === 2 ? 2 : undefined,
+      });
+      if (!applied.ok) {
+        return NextResponse.json({ error: applied.error }, { status: 400 });
+      }
+    }
+
     await cv.save();
+
+    if (cv.profileSchemaVersion === 2) {
+      await processReferenceVerificationRequests(cv);
+    }
 
     return NextResponse.json(
       { message: 'CV updated successfully', cv },

@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { candidatesApi } from '@/lib/api';
 import Link from 'next/link';
 import JobSelectionModal from '../../components/JobSelectionModal';
+import TalentNetworkProfileView from '@/app/components/talentNetwork/TalentNetworkProfileView';
 
 interface CV {
   _id: string;
@@ -43,6 +44,10 @@ interface CV {
   };
   createdAt: string;
   updatedAt?: string;
+  profileSchemaVersion?: number;
+  verifiedCertificates?: any[];
+  seasonalExperience?: any[];
+  languageSkills?: any[];
 }
 
 function CVDetailContent() {
@@ -350,6 +355,10 @@ function CVDetailContent() {
             </div>
           )}
 
+          {cv.profileSchemaVersion === 2 ? (
+            <TalentNetworkProfileView cv={cv} />
+          ) : (
+            <>
           {/* Experience */}
           {cv.experience && cv.experience.length > 0 && (
             <div className="mb-6 pb-6 border-b border-gray-200">
@@ -490,6 +499,8 @@ function CVDetailContent() {
                 </div>
               </div>
             )}
+            </>
+          )}
 
           {/* Pictures */}
           {cv.pictures && cv.pictures.length > 0 && (

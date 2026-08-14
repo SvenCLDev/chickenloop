@@ -24,6 +24,9 @@ export interface IUser extends Document {
 
   notesEnabled?: boolean;
 
+  /** Beta access to Verified Talent Network profile editor */
+  talentNetworkBeta?: boolean;
+
   mustResetPassword?: boolean;
   passwordMigrated?: boolean;
 
@@ -105,6 +108,10 @@ const UserSchema: Schema = new Schema(
     notesEnabled: {
       type: Boolean,
       default: true,
+    },
+    talentNetworkBeta: {
+      type: Boolean,
+      default: false,
     },
     mustResetPassword: {
       type: Boolean,

@@ -1,6 +1,17 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { ExperienceLevel, Availability, WorkArea } from '@/lib/domainTypes';
+import {
+  CERTIFICATE_VERIFICATION_STATUSES,
+  EXPERIENCE_VERIFICATION_STATUSES,
+  ISSUING_BODIES,
+  LANGUAGE_PROFICIENCIES,
+  LANGUAGE_VERIFICATION_STATUSES,
+  type LanguageSkill,
+  type ProfileSchemaVersion,
+  type SeasonalExperience,
+  type VerifiedCertificate,
+} from '@/lib/talentNetwork/types';
 
 export interface ICV extends Document {
   fullName: string;
@@ -34,6 +45,10 @@ export interface ICV extends Document {
   featuredUntil?: Date | null;
   experienceLevel?: ExperienceLevel;
   availability?: Availability;
+  profileSchemaVersion?: ProfileSchemaVersion;
+  verifiedCertificates?: VerifiedCertificate[];
+  seasonalExperience?: SeasonalExperience[];
+  languageSkills?: LanguageSkill[];
   jobSeeker: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -112,6 +127,70 @@ const CVSchema: Schema = new Schema(
       type: String,
       enum: ['available_now', 'available_soon', 'seasonal', 'not_available'],
     },
+    profileSchemaVersion: {
+      type: Number,
+      enum: [1, 2],
+      default: 1,
+    },
+    verifiedCertificates: [
+      {
+        issuingBody: {
+          type: String,
+          enum: [...ISSUING_BODIES],
+        },
+        certificateLevel: String,
+        disciplines: [String],
+        licenseMemberId: String,
+        issueDate: Date,
+        expiryDate: Date,
+        documentUrl: String,
+        verificationStatus: {
+          type: String,
+          enum: [...CERTIFICATE_VERIFICATION_STATUSES],
+          default: 'unverified',
+        },
+        verifiedAt: Date,
+        verifiedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+        adminNote: String,
+        legacySource: String,
+      },
+    ],
+    seasonalExperience: [
+      {
+        schoolName: String,
+        role: String,
+        startMonth: Number,
+        startYear: Number,
+        endMonth: { type: Number, default: null },
+        endYear: { type: Number, default: null },
+        seasonTag: String,
+        referenceName: String,
+        referenceEmail: String,
+        referencePhone: String,
+        verificationStatus: {
+          type: String,
+          enum: [...EXPERIENCE_VERIFICATION_STATUSES],
+          default: 'self_reported',
+        },
+        referenceTokenId: { type: Schema.Types.ObjectId, ref: 'ReferenceVerificationToken' },
+        rehireAnswer: Boolean,
+        lastReferenceEmailSentAt: Date,
+      },
+    ],
+    languageSkills: [
+      {
+        language: String,
+        proficiency: {
+          type: String,
+          enum: [...LANGUAGE_PROFICIENCIES],
+        },
+        verificationStatus: {
+          type: String,
+          enum: [...LANGUAGE_VERIFICATION_STATUSES],
+          default: 'self_assessed',
+        },
+      },
+    ],
     jobSeeker: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -160,6 +239,10 @@ CVSchema.index({ jobSeeker: 1 }, { name: 'idx_cvs_jobSeeker' });
 // Indexes for search/filtering on new fields
 CVSchema.index({ experienceLevel: 1 });
 CVSchema.index({ availability: 1 });
+CVSchema.index({ profileSchemaVersion: 1 });
+CVSchema.index({ 'verifiedCertificates.verificationStatus': 1 });
+CVSchema.index({ 'verifiedCertificates.issuingBody': 1 });
+CVSchema.index({ 'languageSkills.language': 1 });
 
 export default CV;
 

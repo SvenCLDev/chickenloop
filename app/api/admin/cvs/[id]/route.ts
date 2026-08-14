@@ -3,6 +3,8 @@ import connectDB from '@/lib/db';
 import CV from '@/models/CV';
 import { requireRole } from '@/lib/auth';
 import { isExperienceLevel, isAvailability, isWorkArea } from '@/lib/domainTypes';
+import { applyTalentNetworkFieldsToCv } from '@/lib/talentNetwork/applyToCv';
+import { processReferenceVerificationRequests } from '@/lib/talentNetwork/processReferenceRequests';
 
 // GET - Get a single CV by ID (admin only)
 export async function GET(
@@ -146,7 +148,18 @@ export async function PUT(
       cv.featured = featured === true;
     }
 
+    const applied = applyTalentNetworkFieldsToCv(cv, body, {
+      forceSchemaVersion: body.profileSchemaVersion === 2 ? 2 : undefined,
+    });
+    if (!applied.ok) {
+      return NextResponse.json({ error: applied.error }, { status: 400 });
+    }
+
     await cv.save();
+
+    if (cv.profileSchemaVersion === 2) {
+      await processReferenceVerificationRequests(cv);
+    }
 
     return NextResponse.json(
       { message: 'CV updated successfully', cv },
