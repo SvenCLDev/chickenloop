@@ -20,6 +20,8 @@ Use this checklist on **staging/preview** with `TALENT_NETWORK_ENABLED=true` bef
 - [ ] v2 editor hides education, free-text skills, legacy certification checkboxes
 - [ ] Certificate upload → status `pending_review`
 - [ ] Work experience with manager email triggers reference email (check Resend logs)
+- [ ] Reference email buttons open `/reference/confirm/[token]` on the **same deployment** (Preview links must not use `www.chickenloop.com` unless that DB holds the token)
+- [ ] Manager can confirm via email buttons or the public confirm page
 - [ ] Language proficiency saves correctly
 
 ## Admin verification

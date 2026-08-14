@@ -52,6 +52,8 @@ function parseIssuingBody(label: string): IssuingBody {
   if (upper.includes('RYA')) return 'RYA';
   if (upper.includes('SSI')) return 'SSI';
   if (upper.includes('PADI')) return 'PADI';
+  if (upper.includes('PASA')) return 'PASA';
+  if (upper.includes('BKSA')) return 'BKSA';
   return 'OTHER';
 }
 

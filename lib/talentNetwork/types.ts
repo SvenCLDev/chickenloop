@@ -9,6 +9,8 @@ export const ISSUING_BODIES = [
   'VDWS_WWS',
   'SSI',
   'PADI',
+  'PASA',
+  'BKSA',
   'OTHER',
 ] as const;
 export type IssuingBody = (typeof ISSUING_BODIES)[number];

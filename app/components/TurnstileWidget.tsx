@@ -84,7 +84,9 @@ export default function TurnstileWidget({
         size,
         callback: (token) => onVerifyRef.current(token),
         'expired-callback': () => onVerifyRef.current(null),
-        'error-callback': () => onVerifyRef.current(null),
+        'error-callback': () => {
+          onVerifyRef.current(null);
+        },
       });
       widgetIdRef.current = id;
     };

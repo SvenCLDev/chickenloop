@@ -1,5 +1,6 @@
 import connectDB from '@/lib/db';
 import mongoose from 'mongoose';
+import Company from '@/models/Company';
 import { getCountryCodeFromName } from '@/lib/countryUtils';
 
 export interface JobListItem {
@@ -120,15 +121,61 @@ function buildStandardQuery(
   };
 }
 
-function mapRawJobToListItem(job: RawJobDoc, nowMs: number, featuredOverride?: boolean): JobListItem {
+/**
+ * Resolve company display names from Company collection when job.company is missing.
+ * Same fallback used by homepage Latest Jobs cards.
+ */
+async function getCompanyNameById(jobs: RawJobDoc[]): Promise<Map<string, string>> {
+  const companyIds = [
+    ...new Set(
+      jobs
+        .map((job) => job.companyId)
+        .filter(Boolean)
+        .map((id) => String(id))
+    ),
+  ];
+
+  const companyNameById = new Map<string, string>();
+  if (companyIds.length === 0) return companyNameById;
+
+  const db = mongoose.connection.db;
+  if (!db) return companyNameById;
+
+  const companies = await db
+    .collection(Company.collection.name)
+    .find({
+      _id: { $in: companyIds.map((id) => new mongoose.Types.ObjectId(id)) },
+    })
+    .project({ name: 1 })
+    .maxTimeMS(3000)
+    .toArray();
+
+  for (const company of companies) {
+    if (company.name) {
+      companyNameById.set(String(company._id), String(company.name));
+    }
+  }
+
+  return companyNameById;
+}
+
+function mapRawJobToListItem(
+  job: RawJobDoc,
+  nowMs: number,
+  featuredOverride?: boolean,
+  companyNameById?: Map<string, string>
+): JobListItem {
   const isFeatured =
     featuredOverride ??
     Boolean(job.featuredUntil && new Date(job.featuredUntil).getTime() >= nowMs);
 
+  const companyId = job.companyId ? String(job.companyId) : null;
+  const companyFromDoc = companyId ? companyNameById?.get(companyId) : undefined;
+
   return {
     _id: job._id.toString(),
     title: job.title,
-    company: job.company,
+    company: job.company || companyFromDoc || '',
     city: job.city,
     country: job.country ?? null,
     pictures: Array.isArray(job.pictures) ? job.pictures.slice(0, 1) : [],
@@ -205,7 +252,8 @@ export async function getLatestListedJobs(
 ): Promise<JobListItem[]> {
   const docs = await getLatestListedJobDocs(limit, options);
   const nowMs = Date.now();
-  return docs.map((job) => mapRawJobToListItem(job, nowMs));
+  const companyNameById = await getCompanyNameById(docs);
+  return docs.map((job) => mapRawJobToListItem(job, nowMs, undefined, companyNameById));
 }
 
 function escapeRegex(input: string): string {
@@ -350,7 +398,7 @@ export async function getJobs({
 
     const hasMore = featuredResults.length > safeLimit;
     const jobs = featuredResults.slice(0, safeLimit) as RawJobDoc[];
-    const [totalCount, availableCountries, availableCities, availableCategories, availableEmploymentTypes, availableActivities, availableLanguages] = await Promise.all([
+    const [totalCount, availableCountries, availableCities, availableCategories, availableEmploymentTypes, availableActivities, availableLanguages, companyNameById] = await Promise.all([
       jobsCollection.countDocuments(featuredQuery),
       jobsCollection.distinct('country', countryFacetQuery),
       jobsCollection.distinct('city', cityFacetQuery),
@@ -358,10 +406,11 @@ export async function getJobs({
       jobsCollection.distinct('type', employmentTypeFacetQuery),
       jobsCollection.distinct('sports', activityFacetQuery),
       jobsCollection.distinct('languages', languageFacetQuery),
+      getCompanyNameById(jobs),
     ]);
 
     return {
-      jobs: jobs.map((job) => mapRawJobToListItem(job, now.getTime(), true)),
+      jobs: jobs.map((job) => mapRawJobToListItem(job, now.getTime(), true, companyNameById)),
       hasMore,
       totalCount,
       availableCountries: normalizeCountryCodes(availableCountries),
@@ -391,7 +440,7 @@ export async function getJobs({
   const standardPage = standardResults.slice(0, safeLimit);
   const jobs = [...featuredResults, ...standardPage] as RawJobDoc[];
   const nowMs = now.getTime();
-  const [featuredCount, standardCount, availableCountries, availableCities, availableCategories, availableEmploymentTypes, availableActivities, availableLanguages] = await Promise.all([
+  const [featuredCount, standardCount, availableCountries, availableCities, availableCategories, availableEmploymentTypes, availableActivities, availableLanguages, companyNameById] = await Promise.all([
     jobsCollection.countDocuments(featuredQuery),
     jobsCollection.countDocuments(standardQuery),
     jobsCollection.distinct('country', countryFacetQuery),
@@ -400,10 +449,11 @@ export async function getJobs({
     jobsCollection.distinct('type', employmentTypeFacetQuery),
     jobsCollection.distinct('sports', activityFacetQuery),
     jobsCollection.distinct('languages', languageFacetQuery),
+    getCompanyNameById(jobs),
   ]);
 
   return {
-    jobs: jobs.map((job) => mapRawJobToListItem(job, nowMs)),
+    jobs: jobs.map((job) => mapRawJobToListItem(job, nowMs, undefined, companyNameById)),
     hasMore,
     totalCount: featuredCount + standardCount,
     availableCountries: normalizeCountryCodes(availableCountries),

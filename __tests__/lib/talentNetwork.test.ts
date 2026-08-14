@@ -66,6 +66,26 @@ describe('talent network validators', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('accepts PASA as issuing body', () => {
+    const result = validateVerifiedCertificate({
+      issuingBody: 'PASA',
+      certificateLevel: 'Level 1 Instructor',
+      disciplines: ['Kitesurfing'],
+      verificationStatus: 'unverified',
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts BKSA as issuing body', () => {
+    const result = validateVerifiedCertificate({
+      issuingBody: 'BKSA',
+      certificateLevel: 'Level 1 Instructor',
+      disciplines: ['Kitesurfing'],
+      verificationStatus: 'unverified',
+    });
+    expect(result.ok).toBe(true);
+  });
+
   it('rejects invalid certificate issuing body', () => {
     const result = validateVerifiedCertificate({
       issuingBody: 'INVALID',

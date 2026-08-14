@@ -11,6 +11,8 @@ export const ISSUING_BODY_LABELS: Record<(typeof ISSUING_BODIES)[number], string
   VDWS_WWS: 'VDWS/WWS',
   SSI: 'SSI',
   PADI: 'PADI',
+  PASA: 'PASA',
+  BKSA: 'BKSA',
   OTHER: 'Other',
 };
 
