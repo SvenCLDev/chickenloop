@@ -1,4 +1,5 @@
 import type { TalentNetworkFormState } from '@/app/components/talentNetwork/formTypes';
+import { isMongoObjectId } from '@/lib/talentNetwork/mergeSeasonalExperience';
 
 export function serializeTalentNetworkForm(
   form: TalentNetworkFormState,
@@ -32,6 +33,7 @@ export function serializeTalentNetworkForm(
     seasonalExperience: form.seasonalExperience
       .filter((e) => e.schoolName && e.role && e.startMonth && e.startYear)
       .map((e) => ({
+        ...(isMongoObjectId(e.clientId) ? { _id: e.clientId } : {}),
         schoolName: e.schoolName,
         role: e.role,
         startMonth: e.startMonth,

@@ -14,6 +14,7 @@ export default function TalentNetworkEditPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [canEdit, setCanEdit] = useState<boolean | null>(null);
+  const [accessEnabled, setAccessEnabled] = useState<boolean | null>(null);
   const [initialForm, setInitialForm] = useState(emptyTalentNetworkForm());
   const [pictures, setPictures] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +36,7 @@ export default function TalentNetworkEditPage() {
   const loadPage = async () => {
     try {
       const access = await talentNetworkApi.getAccess();
+      setAccessEnabled(access.enabled === true);
       if (!access.canEdit) {
         setCanEdit(false);
         return;
@@ -66,7 +68,9 @@ export default function TalentNetworkEditPage() {
         <main className="max-w-2xl mx-auto px-4 py-16 text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Talent Network beta</h1>
           <p className="text-gray-600 mb-6">
-            The new profile editor is not enabled for your account yet.
+            {accessEnabled === false
+              ? 'The Talent Network feature is not enabled in this environment yet. An administrator must set TALENT_NETWORK_ENABLED=true in the server environment and restart the app.'
+              : 'The new profile editor is not enabled for your account yet. Ask an admin to enable Talent Network beta on your user account.'}
           </p>
           <Link href="/job-seeker/cv/edit" className="text-blue-600 hover:underline">
             Continue with classic CV editor
@@ -85,7 +89,8 @@ export default function TalentNetworkEditPage() {
         </Link>
         <h1 className="text-3xl font-bold text-gray-900 mt-4 mb-2">Verified Talent Network Profile</h1>
         <p className="text-gray-600 mb-8">
-          Build a watersports-focused profile with verifiable certificates, seasonal experience, and language skills.
+          Build a watersports-focused profile recruiters trust — verified certificates,
+          manager-confirmed work experience, and language skills.
         </p>
 
         {success && (

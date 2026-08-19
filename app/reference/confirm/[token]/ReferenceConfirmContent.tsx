@@ -1,13 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Navbar from '@/app/components/Navbar';
+
+type EmailIntent = 'yes' | 'no' | null;
 
 export default function ReferenceConfirmContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const token = (params?.token as string) || '';
+  const emailIntent = useMemo((): EmailIntent => {
+    const param = searchParams.get('rehire');
+    if (param === 'yes') return 'yes';
+    if (param === 'no') return 'no';
+    return null;
+  }, [searchParams]);
+
   const [info, setInfo] = useState<{
     candidateName: string;
     schoolName: string;
@@ -18,6 +27,7 @@ export default function ReferenceConfirmContent() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [recordedRehire, setRecordedRehire] = useState<boolean | undefined>();
 
   const submitResponse = useCallback(
     async (rehire: boolean) => {
@@ -33,6 +43,7 @@ export default function ReferenceConfirmContent() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to submit response');
         setDone(true);
+        setRecordedRehire(rehire);
         setInfo((prev) => (prev ? { ...prev, responded: true, rehire } : prev));
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Failed to submit response');
@@ -57,12 +68,12 @@ export default function ReferenceConfirmContent() {
         setInfo(data);
         if (data.responded) {
           setDone(true);
+          setRecordedRehire(data.rehire);
           return;
         }
 
-        const rehireParam = searchParams.get('rehire');
-        if (rehireParam === 'yes' || rehireParam === 'no') {
-          await submitResponse(rehireParam === 'yes');
+        if (emailIntent === 'yes' || emailIntent === 'no') {
+          await submitResponse(emailIntent === 'yes');
         }
       })
       .catch((err: unknown) => {
@@ -74,7 +85,11 @@ export default function ReferenceConfirmContent() {
     return () => {
       cancelled = true;
     };
-  }, [token, searchParams, submitResponse]);
+  }, [token, emailIntent, submitResponse]);
+
+  const showManualPrompt = !done && !submitting && (emailIntent === null || !!error);
+  const showEmailProcessing = !done && emailIntent !== null && submitting && !error;
+  const rehireAnswer = recordedRehire ?? info?.rehire;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
@@ -92,41 +107,49 @@ export default function ReferenceConfirmContent() {
           {info && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Reference confirmation</h1>
-              <p className="text-gray-600 mb-6">
-                Did <strong>{info.candidateName}</strong> work at{' '}
-                <strong>{info.schoolName}</strong>
-                {info.seasonLabel ? ` (${info.seasonLabel})` : ''}? Would you rehire them?
-              </p>
 
               {done ? (
                 <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-800">
-                  Thank you — your response has been recorded.
-                  {info.rehire !== undefined && (
-                    <span className="block mt-1 text-sm">
-                      Response: {info.rehire ? 'Would rehire' : 'Would not rehire'}
-                    </span>
-                  )}
+                  <p className="font-medium">Thank you — your response has been recorded.</p>
+                  <p className="mt-2 text-sm">
+                    {rehireAnswer
+                      ? `You confirmed that ${info.candidateName} worked at ${info.schoolName}${
+                          info.seasonLabel ? ` (${info.seasonLabel})` : ''
+                        } and that you would rehire them.`
+                      : `You confirmed your response regarding ${info.candidateName}'s work at ${
+                          info.schoolName
+                        }${info.seasonLabel ? ` (${info.seasonLabel})` : ''}.`}
+                  </p>
                 </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => submitResponse(true)}
-                    className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50"
-                  >
-                    Yes, I would rehire them
-                  </button>
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => submitResponse(false)}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    No
-                  </button>
-                </div>
-              )}
+              ) : showEmailProcessing ? (
+                <p className="text-gray-600">Recording your response...</p>
+              ) : showManualPrompt ? (
+                <>
+                  <p className="text-gray-600 mb-6">
+                    Did <strong>{info.candidateName}</strong> work at{' '}
+                    <strong>{info.schoolName}</strong>
+                    {info.seasonLabel ? ` (${info.seasonLabel})` : ''}? Would you rehire them?
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => submitResponse(true)}
+                      className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      Yes, I would rehire them
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => submitResponse(false)}
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      No
+                    </button>
+                  </div>
+                </>
+              ) : null}
             </>
           )}
         </div>

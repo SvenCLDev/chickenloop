@@ -17,6 +17,7 @@ Use this checklist on **staging/preview** with `TALENT_NETWORK_ENABLED=true` bef
 ## Beta job seekers
 
 - [ ] Dashboard links to `/job-seeker/cv/talent-network/edit` or `/new`
+- [ ] `/job-seeker/cv/view` shows verification summary (pending vs verified) for v2 profiles
 - [ ] v2 editor hides education, free-text skills, legacy certification checkboxes
 - [ ] Certificate upload → status `pending_review`
 - [ ] Work experience with manager email triggers reference email (check Resend logs)

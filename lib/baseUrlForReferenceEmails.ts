@@ -6,6 +6,24 @@
 
 const PRODUCTION_APP_URL = 'https://www.chickenloop.com';
 
+/**
+ * Public site URL for marketing links in reference emails (post job, browse talent).
+ * Unlike confirm links, these should not point at Vercel preview deployments.
+ */
+export function getMarketingSiteUrl(): string {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '');
+  if (siteUrl) return siteUrl;
+
+  if (process.env.VERCEL_ENV === 'preview' || process.env.VERCEL_URL) {
+    return PRODUCTION_APP_URL;
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim().replace(/\/$/, '');
+  if (baseUrl) return baseUrl;
+
+  return PRODUCTION_APP_URL;
+}
+
 export function getReferenceConfirmBaseUrl(): string {
   const override = process.env.REFERENCE_CONFIRM_BASE_URL?.trim().replace(/\/$/, '');
   if (override) return override;

@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import type { ICV } from '@/models/CV';
 import ReferenceVerificationToken from '@/models/ReferenceVerificationToken';
 import { sendReferenceVerificationEmail } from '@/lib/email/sendReferenceVerificationEmail';
+import { findSeasonalExperienceForToken } from '@/lib/talentNetwork/mergeSeasonalExperience';
 import { generateReferenceToken } from '@/lib/referenceVerificationToken';
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -38,6 +39,7 @@ export async function processReferenceVerificationRequests(
     if (!email) continue;
     if (entry.verificationStatus === 'reference_confirmed') continue;
 
+    if (!entry._id) continue;
     const entryId = String(entry._id);
     const lastSent = entry.lastReferenceEmailSentAt
       ? new Date(entry.lastReferenceEmailSentAt).getTime()
@@ -108,9 +110,13 @@ export async function confirmReferenceToken(
     return { ok: false, error: 'Profile not found' };
   }
 
-  const entry = cv.seasonalExperience?.find(
-    (e) => String(e._id) === tokenDoc.experienceEntryId
-  );
+  const entry = findSeasonalExperienceForToken(cv.seasonalExperience, {
+    _id: tokenDoc._id,
+    experienceEntryId: tokenDoc.experienceEntryId,
+    schoolName: tokenDoc.schoolName,
+    managerEmail: tokenDoc.managerEmail,
+    seasonLabel: tokenDoc.seasonLabel,
+  });
   if (!entry) {
     return { ok: false, error: 'Experience entry not found' };
   }

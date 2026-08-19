@@ -4,8 +4,34 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Navbar from '../../../components/Navbar';
+import TalentNetworkProfileView from '@/app/components/talentNetwork/TalentNetworkProfileView';
+import TalentNetworkVerificationSummary from '@/app/components/talentNetwork/TalentNetworkVerificationSummary';
 import { cvApi } from '@/lib/api';
 import Link from 'next/link';
+
+const EXPERIENCE_LEVEL_LABELS: Record<string, string> = {
+  entry: 'Entry',
+  intermediate: 'Intermediate',
+  experienced: 'Experienced',
+  senior: 'Senior',
+};
+
+const AVAILABILITY_LABELS: Record<string, string> = {
+  available_now: 'Available now',
+  available_soon: 'Available soon',
+  seasonal: 'Seasonal',
+  not_available: 'Not available',
+};
+
+function formatExperienceLevel(value?: string): string {
+  if (!value) return '—';
+  return EXPERIENCE_LEVEL_LABELS[value] ?? value;
+}
+
+function formatAvailability(value?: string): string {
+  if (!value) return '—';
+  return AVAILABILITY_LABELS[value] ?? value;
+}
 
 export default function ViewCVPage() {
   const { user, loading: authLoading } = useAuth();
@@ -73,19 +99,26 @@ export default function ViewCVPage() {
     );
   }
 
+  const isTalentNetworkV2 = cv.profileSchemaVersion === 2;
+  const editHref = isTalentNetworkV2
+    ? '/job-seeker/cv/talent-network/edit'
+    : '/job-seeker/cv/edit';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 py-12">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">My CV</h1>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {isTalentNetworkV2 ? 'My Talent Network Profile' : 'My CV'}
+            </h1>
             <div className="flex gap-3">
               <Link
-                href="/job-seeker/cv/edit"
+                href={editHref}
                 className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
               >
-                Edit CV
+                Edit profile
               </Link>
               <Link
                 href="/job-seeker"
@@ -95,6 +128,10 @@ export default function ViewCVPage() {
               </Link>
             </div>
           </div>
+
+          {isTalentNetworkV2 && (
+            <TalentNetworkVerificationSummary cv={cv} />
+          )}
 
           {/* Personal Information */}
           <div className="mb-6 pb-6 border-b border-gray-200">
@@ -127,23 +164,70 @@ export default function ViewCVPage() {
             </div>
           )}
 
-          {/* Looking for work in these areas */}
-          {cv.lookingForWorkInAreas && cv.lookingForWorkInAreas.length > 0 && (
+          {/* Work preferences */}
+          {(cv.lookingForWorkInAreas?.length > 0 ||
+            cv.experienceAndSkill?.length > 0 ||
+            cv.experienceLevel ||
+            cv.availability) && (
             <div className="mb-6 pb-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Looking for work in these areas:</h2>
-              <div className="flex flex-wrap gap-2">
-                {cv.lookingForWorkInAreas.map((area: string, index: number) => (
-                  <span
-                    key={`area-${index}`}
-                    className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
-                  >
-                    {area}
-                  </span>
-                ))}
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Work Preferences</h2>
+              <div className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">
+                      Looking for work in these areas:
+                    </p>
+                    {cv.lookingForWorkInAreas && cv.lookingForWorkInAreas.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {cv.lookingForWorkInAreas.map((area: string, index: number) => (
+                          <span
+                            key={`area-${index}`}
+                            className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
+                          >
+                            {area}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500">—</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Sports & Activities</p>
+                    {cv.experienceAndSkill && cv.experienceAndSkill.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {cv.experienceAndSkill.map((item: string, index: number) => (
+                          <span
+                            key={`sport-${index}`}
+                            className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500">—</p>
+                    )}
+                  </div>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Experience Level</p>
+                    <p className="text-lg text-gray-900">{formatExperienceLevel(cv.experienceLevel)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Availability</p>
+                    <p className="text-lg text-gray-900">{formatAvailability(cv.availability)}</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
+          {isTalentNetworkV2 ? (
+            <TalentNetworkProfileView cv={cv} showOwnerStatus />
+          ) : (
+            <>
           {/* Experience */}
           {cv.experience && cv.experience.length > 0 && (
             <div className="mb-6 pb-6 border-b border-gray-200">
@@ -201,34 +285,20 @@ export default function ViewCVPage() {
           )}
 
           {/* Skills */}
-          {((cv.skills && cv.skills.length > 0 && cv.skills.some((s: string) => s.trim() !== '')) ||
-            (cv.experienceAndSkill && cv.experienceAndSkill.length > 0)) && (
+          {cv.skills && cv.skills.some((s: string) => s.trim() !== '') && (
             <div className="mb-6 pb-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Skills</h2>
               <div className="flex flex-wrap gap-2">
-                {/* Sports Experiences and Skills */}
-                {cv.experienceAndSkill &&
-                  cv.experienceAndSkill.length > 0 &&
-                  cv.experienceAndSkill.map((item: string, index: number) => (
+                {cv.skills
+                  .filter((skill: string) => skill.trim() !== '')
+                  .map((skill: string, index: number) => (
                     <span
-                      key={`sport-${index}`}
+                      key={`skill-${index}`}
                       className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
                     >
-                      {item}
+                      {skill}
                     </span>
                   ))}
-                {/* Other Skills */}
-                {cv.skills &&
-                  cv.skills
-                    .filter((skill: string) => skill.trim() !== '')
-                    .map((skill: string, index: number) => (
-                      <span
-                        key={`skill-${index}`}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                      >
-                        {skill}
-                      </span>
-                    ))}
               </div>
             </div>
           )}
@@ -284,6 +354,9 @@ export default function ViewCVPage() {
                 </div>
               </div>
             )}
+
+          </>
+          )}
 
           {/* Pictures */}
           {cv.pictures && cv.pictures.length > 0 && (

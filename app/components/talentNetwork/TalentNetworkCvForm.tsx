@@ -6,6 +6,7 @@ import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { cvApi } from '@/lib/api';
 import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import { serializeTalentNetworkForm } from '@/lib/talentNetwork/serializeForm';
+import { countUnverifiedCompleteExperienceEntries } from '@/lib/talentNetwork/experienceVerification';
 import CertificateBlock from './CertificateBlock';
 import SeasonalExperienceBlock from './SeasonalExperienceBlock';
 import LanguageSkillBlock from './LanguageSkillBlock';
@@ -103,6 +104,17 @@ export default function TalentNetworkCvForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const unverifiedCount = countUnverifiedCompleteExperienceEntries(formData.seasonalExperience);
+    if (unverifiedCount > 0) {
+      const proceed = window.confirm(
+        `${unverifiedCount} work experience ${unverifiedCount === 1 ? 'entry is' : 'entries are'} not verified.\n\n` +
+          'Recruiters trust verified references. Add a manager email so we can confirm your experience, or save anyway as self-reported.\n\n' +
+          'Click OK to save anyway, or Cancel to go back and add references.'
+      );
+      if (!proceed) return;
+    }
+
     setLoading(true);
     try {
       const pictures = await uploadPictures();
@@ -144,7 +156,7 @@ export default function TalentNetworkCvForm({
       )}
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-900">Contact & Summary</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Personal Information</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
             type="text"
@@ -177,6 +189,10 @@ export default function TalentNetworkCvForm({
             className="w-full px-3 py-2 border border-gray-300 rounded-md"
           />
         </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold text-gray-900">Summary</h2>
         <textarea
           placeholder="Professional summary"
           value={formData.summary}
@@ -185,6 +201,101 @@ export default function TalentNetworkCvForm({
           className="w-full px-3 py-2 border border-gray-300 rounded-md"
         />
       </section>
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold text-gray-900">Work Preferences</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">Looking for work in these areas:</p>
+            <div className="flex flex-wrap gap-2">
+              {JOB_CATEGORIES.map((area) => (
+                <button
+                  key={area}
+                  type="button"
+                  onClick={() => toggleWorkArea(area)}
+                  className={`px-3 py-1 rounded-full text-sm border ${
+                    formData.lookingForWorkInAreas.includes(area)
+                      ? 'bg-purple-600 text-white border-purple-600'
+                      : 'bg-white text-gray-700 border-gray-300'
+                  }`}
+                >
+                  {area}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">Sports & Activities</p>
+            <div className="flex flex-wrap gap-2">
+              {SPORTS_LIST.map((sport) => (
+                <button
+                  key={sport}
+                  type="button"
+                  onClick={() => toggleSport(sport)}
+                  className={`px-3 py-1 rounded-full text-sm border ${
+                    formData.experienceAndSkill.includes(sport)
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300'
+                  }`}
+                >
+                  {sport}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="experienceLevel" className="block text-sm font-medium text-gray-700 mb-1">
+              Experience Level
+            </label>
+            <select
+              id="experienceLevel"
+              value={formData.experienceLevel}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  experienceLevel: e.target.value as TalentNetworkFormState['experienceLevel'],
+                })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="">Select experience level</option>
+              <option value="entry">Entry</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="experienced">Experienced</option>
+              <option value="senior">Senior</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="availability" className="block text-sm font-medium text-gray-700 mb-1">
+              Availability
+            </label>
+            <select
+              id="availability"
+              value={formData.availability}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  availability: e.target.value as TalentNetworkFormState['availability'],
+                })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="">Select availability</option>
+              <option value="available_now">Available now</option>
+              <option value="available_soon">Available soon</option>
+              <option value="seasonal">Seasonal</option>
+              <option value="not_available">Not available</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <LanguageSkillBlock
+        skills={formData.languageSkills}
+        onChange={(languageSkills) => setFormData({ ...formData, languageSkills })}
+      />
 
       <CertificateBlock
         certificates={formData.verifiedCertificates}
@@ -197,85 +308,6 @@ export default function TalentNetworkCvForm({
         entries={formData.seasonalExperience}
         onChange={(seasonalExperience) => setFormData({ ...formData, seasonalExperience })}
       />
-
-      <LanguageSkillBlock
-        skills={formData.languageSkills}
-        onChange={(languageSkills) => setFormData({ ...formData, languageSkills })}
-      />
-
-      <section className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-900">Sports & Activities</h2>
-        <div className="flex flex-wrap gap-2">
-          {SPORTS_LIST.map((sport) => (
-            <button
-              key={sport}
-              type="button"
-              onClick={() => toggleSport(sport)}
-              className={`px-3 py-1 rounded-full text-sm border ${
-                formData.experienceAndSkill.includes(sport)
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300'
-              }`}
-            >
-              {sport}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-900">Work Preferences</h2>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {JOB_CATEGORIES.map((area) => (
-            <button
-              key={area}
-              type="button"
-              onClick={() => toggleWorkArea(area)}
-              className={`px-3 py-1 rounded-full text-sm border ${
-                formData.lookingForWorkInAreas.includes(area)
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300'
-              }`}
-            >
-              {area}
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <select
-            value={formData.experienceLevel}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                experienceLevel: e.target.value as TalentNetworkFormState['experienceLevel'],
-              })
-            }
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-          >
-            <option value="">Experience level</option>
-            <option value="entry">Entry</option>
-            <option value="intermediate">Intermediate</option>
-            <option value="experienced">Experienced</option>
-            <option value="senior">Senior</option>
-          </select>
-          <select
-            value={formData.availability}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                availability: e.target.value as TalentNetworkFormState['availability'],
-              })
-            }
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-          >
-            <option value="">Availability</option>
-            <option value="available_now">Available now</option>
-            <option value="available_soon">Available soon</option>
-            <option value="seasonal">Seasonal</option>
-            <option value="not_available">Not available</option>
-          </select>
-        </div>
-      </section>
 
       <section className="space-y-4">
         <h2 className="text-xl font-semibold text-gray-900">Profile Photos</h2>

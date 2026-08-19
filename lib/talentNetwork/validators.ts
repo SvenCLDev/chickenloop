@@ -11,6 +11,7 @@ import {
   type VerifiedCertificate,
   WATERSPORT_DISCIPLINES,
 } from './types';
+import { parseMongoObjectId } from './mergeSeasonalExperience';
 
 function isValidMonth(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 12;
@@ -143,9 +144,11 @@ export function validateSeasonalExperience(
   if (!isExperienceVerificationStatus(status)) {
     return { ok: false, error: 'Invalid experience verification status' };
   }
+  const parsedId = parseMongoObjectId(raw._id);
   return {
     ok: true,
     value: {
+      ...(parsedId ? { _id: parsedId } : {}),
       schoolName: raw.schoolName.trim(),
       role: raw.role.trim(),
       startMonth: raw.startMonth,

@@ -5,6 +5,7 @@ import {
   normalizeCertificatesForSave,
   validateTalentNetworkPayload,
 } from './validators';
+import { mergeSeasonalExperienceForSave } from './mergeSeasonalExperience';
 import type { ProfileSchemaVersion } from './types';
 
 export function applyTalentNetworkFieldsToCv(
@@ -31,7 +32,10 @@ export function applyTalentNetworkFieldsToCv(
   }
 
   if (value.seasonalExperience !== undefined) {
-    cv.seasonalExperience = value.seasonalExperience;
+    cv.seasonalExperience = mergeSeasonalExperienceForSave(
+      cv.seasonalExperience,
+      value.seasonalExperience
+    );
     cv.markModified('seasonalExperience');
   }
 
