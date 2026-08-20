@@ -20,6 +20,13 @@ export default function ExperienceVerificationBadge({
       </span>
     );
   }
+  if (status === 'reference_disputed' && showOwnerStatus) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
+        Employment disputed
+      </span>
+    );
+  }
   if (!showOwnerStatus) return null;
   if (status === 'reference_requested') {
     return (

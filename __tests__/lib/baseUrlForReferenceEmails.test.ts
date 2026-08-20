@@ -85,21 +85,26 @@ describe('referenceVerificationEmail', () => {
       candidateName: 'Sven Kelling',
       schoolName: 'Aquasail India',
       seasonLabel: 'summer 2013',
-      confirmYesUrl: 'https://example.com/yes',
-      confirmNoUrl: 'https://example.com/no',
+      confirmWorkedRehireUrl: 'https://example.com/worked-rehire',
+      confirmWorkedNoRehireUrl: 'https://example.com/worked-no-rehire',
+      confirmNotWorkedUrl: 'https://example.com/not-worked',
+      confirmPageUrl: 'https://example.com/form',
     });
 
     expect(subject).toBe('Aquasail India: reference request for Sven Kelling');
     expect(html).toContain('one-click confirm takes 10 seconds');
     expect(html).toContain('Hello from Chickenloop');
     expect(html).toContain('About Chickenloop');
-    expect(html).toContain('Yes, I would rehire them');
+    expect(html).toContain('Yes, they worked here — I would rehire them');
+    expect(html).toContain('Yes, they worked here — I would not rehire them');
+    expect(html).toContain('No, they did not work at our center');
     expect(html).toContain('https://www.chickenloop.com/register');
     expect(html).toContain('https://www.chickenloop.com/candidates');
     expect(html).toContain('https://www.chickenloop.com/jobs');
     expect(text).toContain('About Chickenloop');
     expect(text).toContain('Post a job: https://www.chickenloop.com/register');
     expect(text).toContain('This link expires in 14 days.');
+    expect(text).toContain('Open reference form: https://example.com/form');
   });
 
   it('personalizes greeting when manager name is provided', async () => {
@@ -112,8 +117,9 @@ describe('referenceVerificationEmail', () => {
       candidateName: 'Sven Kelling',
       schoolName: 'Aquasail India',
       managerName: 'Maria',
-      confirmYesUrl: 'https://example.com/yes',
-      confirmNoUrl: 'https://example.com/no',
+      confirmWorkedRehireUrl: 'https://example.com/worked-rehire',
+      confirmWorkedNoRehireUrl: 'https://example.com/worked-no-rehire',
+      confirmNotWorkedUrl: 'https://example.com/not-worked',
     });
 
     expect(html).toContain('Hi Maria,');
@@ -137,15 +143,70 @@ describe('buildReferenceConfirmUrl', () => {
     process.env = originalEnv;
   });
 
-  it('builds confirm URLs with rehire query param', async () => {
+  it('builds confirm URLs with worked and rehire query params', async () => {
     process.env.VERCEL_ENV = 'preview';
     process.env.VERCEL_URL = 'preview.example.vercel.app';
     const { buildReferenceConfirmUrl } = await import('@/lib/referenceVerificationToken');
-    expect(buildReferenceConfirmUrl('abc123', true)).toBe(
-      'https://preview.example.vercel.app/reference/confirm/abc123?rehire=yes'
+    expect(buildReferenceConfirmUrl('abc123', 'worked-rehire')).toBe(
+      'https://preview.example.vercel.app/reference/confirm/abc123?worked=yes&rehire=yes'
     );
-    expect(buildReferenceConfirmUrl('abc123', false)).toBe(
-      'https://preview.example.vercel.app/reference/confirm/abc123?rehire=no'
+    expect(buildReferenceConfirmUrl('abc123', 'worked-no-rehire')).toBe(
+      'https://preview.example.vercel.app/reference/confirm/abc123?worked=yes&rehire=no'
     );
+    expect(buildReferenceConfirmUrl('abc123', 'not-worked')).toBe(
+      'https://preview.example.vercel.app/reference/confirm/abc123?worked=no'
+    );
+  });
+});
+
+describe('parseReferenceConfirmParams', () => {
+  it('parses three-button URL shapes', async () => {
+    const { parseReferenceConfirmParams } = await import('@/lib/referenceVerificationToken');
+    expect(parseReferenceConfirmParams({ worked: 'yes', rehire: 'yes' })).toEqual({
+      worked: true,
+      rehire: true,
+    });
+    expect(parseReferenceConfirmParams({ worked: 'yes', rehire: 'no' })).toEqual({
+      worked: true,
+      rehire: false,
+    });
+    expect(parseReferenceConfirmParams({ worked: 'no', rehire: null })).toEqual({
+      worked: false,
+    });
+  });
+
+  it('maps legacy rehire-only links to worked + rehire', async () => {
+    const { parseReferenceConfirmParams } = await import('@/lib/referenceVerificationToken');
+    expect(parseReferenceConfirmParams({ worked: null, rehire: 'yes' })).toEqual({
+      worked: true,
+      rehire: true,
+    });
+    expect(parseReferenceConfirmParams({ worked: null, rehire: 'no' })).toEqual({
+      worked: true,
+      rehire: false,
+    });
+  });
+});
+
+describe('parseReferenceConfirmBody', () => {
+  it('accepts worked and optional rehire in POST body', async () => {
+    const { parseReferenceConfirmBody } = await import('@/lib/referenceVerificationToken');
+    expect(parseReferenceConfirmBody({ worked: true, rehire: true })).toEqual({
+      worked: true,
+      rehire: true,
+    });
+    expect(parseReferenceConfirmBody({ worked: true, rehire: false })).toEqual({
+      worked: true,
+      rehire: false,
+    });
+    expect(parseReferenceConfirmBody({ worked: false })).toEqual({ worked: false });
+    expect(parseReferenceConfirmBody({ rehire: 'yes' })).toEqual({
+      worked: true,
+      rehire: true,
+    });
+    expect(parseReferenceConfirmBody({ rehire: 'no' })).toEqual({
+      worked: true,
+      rehire: false,
+    });
   });
 });

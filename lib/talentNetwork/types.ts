@@ -39,6 +39,7 @@ export const EXPERIENCE_VERIFICATION_STATUSES = [
   'self_reported',
   'reference_requested',
   'reference_confirmed',
+  'reference_disputed',
 ] as const;
 export type ExperienceVerificationStatus =
   (typeof EXPERIENCE_VERIFICATION_STATUSES)[number];
@@ -88,6 +89,7 @@ export interface SeasonalExperience {
   referencePhone?: string;
   verificationStatus: ExperienceVerificationStatus;
   referenceTokenId?: mongoose.Types.ObjectId | string;
+  workConfirmed?: boolean;
   rehireAnswer?: boolean;
   lastReferenceEmailSentAt?: Date | string;
 }

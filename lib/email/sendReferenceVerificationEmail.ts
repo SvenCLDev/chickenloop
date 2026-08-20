@@ -1,6 +1,9 @@
 import { sendEmail, EmailCategory, formatFromAddress, getFromEmail } from '@/lib/email';
 import { referenceVerificationEmail } from '@/lib/email/templates/referenceVerification';
-import { buildReferenceConfirmUrl } from '@/lib/referenceVerificationToken';
+import {
+  buildReferenceConfirmPageUrl,
+  buildReferenceConfirmUrl,
+} from '@/lib/referenceVerificationToken';
 
 function getReferenceReplyTo(): string {
   return (
@@ -30,8 +33,10 @@ export async function sendReferenceVerificationEmail(input: {
     schoolName: input.schoolName,
     seasonLabel: input.seasonLabel,
     managerName: input.managerName,
-    confirmYesUrl: buildReferenceConfirmUrl(input.token, true),
-    confirmNoUrl: buildReferenceConfirmUrl(input.token, false),
+    confirmWorkedRehireUrl: buildReferenceConfirmUrl(input.token, 'worked-rehire'),
+    confirmWorkedNoRehireUrl: buildReferenceConfirmUrl(input.token, 'worked-no-rehire'),
+    confirmNotWorkedUrl: buildReferenceConfirmUrl(input.token, 'not-worked'),
+    confirmPageUrl: buildReferenceConfirmPageUrl(input.token),
   });
 
   return sendEmail({

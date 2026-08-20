@@ -30,8 +30,16 @@ describe('buildTalentNetworkVerificationSummary', () => {
           role: 'Senior Instructor',
           startMonth: 6,
           startYear: 2023,
-          verificationStatus: 'reference_requested',
+          verificationStatus: 'reference_disputed',
           referenceEmail: 'manager@example.com',
+        },
+        {
+          schoolName: 'Beach Club',
+          role: 'Coach',
+          startMonth: 7,
+          startYear: 2022,
+          verificationStatus: 'reference_requested',
+          referenceEmail: 'coach@example.com',
         },
       ],
       languageSkills: [
@@ -42,9 +50,11 @@ describe('buildTalentNetworkVerificationSummary', () => {
     expect(summary.certificates.verified).toBe(1);
     expect(summary.certificates.pendingReview).toBe(1);
     expect(summary.references.confirmed).toBe(1);
+    expect(summary.references.disputed).toBe(1);
     expect(summary.references.requested).toBe(1);
     expect(summary.verifiedItems.some((item) => item.includes('Chickenloop verified'))).toBe(true);
     expect(summary.pendingItems.some((item) => item.includes('pending admin review'))).toBe(true);
     expect(summary.pendingItems.some((item) => item.includes('awaiting manager response'))).toBe(true);
+    expect(summary.pendingItems.some((item) => item.includes('did not work there'))).toBe(true);
   });
 });

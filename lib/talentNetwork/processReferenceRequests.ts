@@ -4,33 +4,11 @@ import type { ICV } from '@/models/CV';
 import ReferenceVerificationToken from '@/models/ReferenceVerificationToken';
 import { sendReferenceVerificationEmail } from '@/lib/email/sendReferenceVerificationEmail';
 import { findSeasonalExperienceForToken } from '@/lib/talentNetwork/mergeSeasonalExperience';
+import type { ReferenceConfirmInput } from '@/lib/referenceVerificationToken';
 import { generateReferenceToken } from '@/lib/referenceVerificationToken';
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const EXPIRY_DAYS = 14;
-
-function logReferenceDebug(
-  message: string,
-  data: Record<string, unknown>,
-  hypothesisId: string
-): void {
-  console.log('[ReferenceVerification]', message, data);
-  // #region agent log
-  fetch('http://127.0.0.1:7714/ingest/809469dc-4731-4443-a5ec-6d4761840282', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85d025' },
-    body: JSON.stringify({
-      sessionId: '85d025',
-      runId: 'reference-email',
-      hypothesisId,
-      location: 'processReferenceRequests.ts',
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-}
 
 function seasonLabel(entry: {
   seasonTag?: string;
@@ -53,43 +31,26 @@ function seasonLabel(entry: {
 export async function processReferenceVerificationRequests(
   cv: Document & ICV
 ): Promise<void> {
-  if (!cv.seasonalExperience?.length) {
-    logReferenceDebug('no seasonal experience on cv', { cvId: String(cv._id) }, 'C');
-    return;
-  }
+  if (!cv.seasonalExperience?.length) return;
 
   let modified = false;
-  const resendConfigured = Boolean(process.env.RESEND_API_KEY?.trim());
 
   for (const entry of cv.seasonalExperience) {
     const email = entry.referenceEmail?.trim();
     if (!email) continue;
-    if (entry.verificationStatus === 'reference_confirmed') continue;
-
-    if (!entry._id) {
-      logReferenceDebug(
-        'skipped entry without _id',
-        {
-          cvId: String(cv._id),
-          schoolName: entry.schoolName,
-          resendConfigured,
-        },
-        'A'
-      );
+    if (
+      entry.verificationStatus === 'reference_confirmed' ||
+      entry.verificationStatus === 'reference_disputed'
+    ) {
       continue;
     }
+
+    if (!entry._id) continue;
     const entryId = String(entry._id);
     const lastSent = entry.lastReferenceEmailSentAt
       ? new Date(entry.lastReferenceEmailSentAt).getTime()
       : 0;
-    if (lastSent && Date.now() - lastSent < COOLDOWN_MS) {
-      logReferenceDebug(
-        'skipped cooldown',
-        { cvId: String(cv._id), entryId, schoolName: entry.schoolName },
-        'E'
-      );
-      continue;
-    }
+    if (lastSent && Date.now() - lastSent < COOLDOWN_MS) continue;
 
     let tokenDoc = await ReferenceVerificationToken.findOne({
       cvId: cv._id,
@@ -121,19 +82,6 @@ export async function processReferenceVerificationRequests(
       token: tokenDoc.token,
     });
 
-    logReferenceDebug(
-      result.success ? 'reference email sent' : 'reference email failed',
-      {
-        cvId: String(cv._id),
-        entryId,
-        schoolName: entry.schoolName,
-        resendConfigured,
-        success: result.success,
-        error: result.error ?? null,
-      },
-      result.success ? 'OK' : 'B'
-    );
-
     if (result.success) {
       entry.verificationStatus = 'reference_requested';
       entry.referenceTokenId = tokenDoc._id as mongoose.Types.ObjectId;
@@ -150,8 +98,16 @@ export async function processReferenceVerificationRequests(
 
 export async function confirmReferenceToken(
   token: string,
-  rehire: boolean
-): Promise<{ ok: true; candidateName: string } | { ok: false; error: string }> {
+  response: ReferenceConfirmInput
+): Promise<
+  | {
+      ok: true;
+      candidateName: string;
+      worked: boolean;
+      rehire?: boolean;
+    }
+  | { ok: false; error: string }
+> {
   const tokenDoc = await ReferenceVerificationToken.findOne({ token });
   if (!tokenDoc) {
     return { ok: false, error: 'Invalid or expired reference link' };
@@ -160,7 +116,18 @@ export async function confirmReferenceToken(
     return { ok: false, error: 'This reference link has expired' };
   }
   if (tokenDoc.respondedAt) {
-    return { ok: true, candidateName: tokenDoc.candidateName };
+    const worked =
+      tokenDoc.workConfirmed === false
+        ? false
+        : tokenDoc.workConfirmed === true ||
+          tokenDoc.confirmed === true ||
+          tokenDoc.rehire !== undefined;
+    return {
+      ok: true,
+      candidateName: tokenDoc.candidateName,
+      worked,
+      rehire: tokenDoc.rehire,
+    };
   }
 
   const CV = (await import('@/models/CV')).default;
@@ -180,15 +147,32 @@ export async function confirmReferenceToken(
     return { ok: false, error: 'Experience entry not found' };
   }
 
-  entry.verificationStatus = 'reference_confirmed';
-  entry.rehireAnswer = rehire;
+  if (response.worked === false) {
+    entry.verificationStatus = 'reference_disputed';
+    entry.workConfirmed = false;
+    entry.rehireAnswer = undefined;
+    tokenDoc.confirmed = false;
+    tokenDoc.workConfirmed = false;
+    tokenDoc.rehire = undefined;
+  } else {
+    entry.verificationStatus = 'reference_confirmed';
+    entry.workConfirmed = true;
+    entry.rehireAnswer = response.rehire;
+    tokenDoc.confirmed = true;
+    tokenDoc.workConfirmed = true;
+    tokenDoc.rehire = response.rehire;
+  }
+
   cv.markModified('seasonalExperience');
   await cv.save();
 
   tokenDoc.respondedAt = new Date();
-  tokenDoc.confirmed = true;
-  tokenDoc.rehire = rehire;
   await tokenDoc.save();
 
-  return { ok: true, candidateName: tokenDoc.candidateName };
+  return {
+    ok: true,
+    candidateName: tokenDoc.candidateName,
+    worked: response.worked,
+    rehire: response.rehire,
+  };
 }

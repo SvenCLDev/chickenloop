@@ -45,9 +45,16 @@ export default function TalentNetworkVerificationSummary({
           <p className="text-sm font-medium text-gray-700">Work references</p>
           <p className="mt-2 text-2xl font-bold text-emerald-700">{summary.references.confirmed}</p>
           <p className="text-xs text-gray-500">confirmed</p>
-          <p className="mt-2 text-sm text-amber-700">
-            {summary.references.requested} awaiting manager
-          </p>
+          {summary.references.requested > 0 && (
+            <p className="mt-2 text-sm text-amber-700">
+              {summary.references.requested} awaiting manager
+            </p>
+          )}
+          {summary.references.disputed > 0 && (
+            <p className="mt-2 text-sm text-red-700">
+              {summary.references.disputed} employment disputed
+            </p>
+          )}
           {summary.references.selfReported > 0 && (
             <p className="text-sm text-gray-600">{summary.references.selfReported} self-reported</p>
           )}

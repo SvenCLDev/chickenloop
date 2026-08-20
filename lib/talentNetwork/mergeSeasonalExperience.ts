@@ -46,6 +46,7 @@ export function mergeSeasonalExperienceForSave(
       referenceTokenId: fingerprintMatch?.referenceTokenId ?? entry.referenceTokenId,
       lastReferenceEmailSentAt:
         fingerprintMatch?.lastReferenceEmailSentAt ?? entry.lastReferenceEmailSentAt,
+      workConfirmed: entry.workConfirmed ?? fingerprintMatch?.workConfirmed,
       rehireAnswer: entry.rehireAnswer ?? fingerprintMatch?.rehireAnswer,
     };
   });

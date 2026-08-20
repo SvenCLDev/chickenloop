@@ -163,6 +163,8 @@ export function validateSeasonalExperience(
       referencePhone:
         typeof raw.referencePhone === 'string' ? raw.referencePhone.trim() : undefined,
       verificationStatus: status,
+      workConfirmed:
+        typeof raw.workConfirmed === 'boolean' ? raw.workConfirmed : undefined,
       rehireAnswer: typeof raw.rehireAnswer === 'boolean' ? raw.rehireAnswer : undefined,
     },
   };

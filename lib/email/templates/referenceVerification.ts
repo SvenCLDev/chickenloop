@@ -5,8 +5,10 @@ export function referenceVerificationEmail(input: {
   schoolName: string;
   seasonLabel?: string;
   managerName?: string;
-  confirmYesUrl: string;
-  confirmNoUrl: string;
+  confirmWorkedRehireUrl: string;
+  confirmWorkedNoRehireUrl: string;
+  confirmNotWorkedUrl: string;
+  confirmPageUrl?: string;
 }): { subject: string; html: string; text: string } {
   const period = input.seasonLabel ? ` during ${input.seasonLabel}` : '';
   const subject = `${input.schoolName}: reference request for ${input.candidateName}`;
@@ -24,10 +26,13 @@ export function referenceVerificationEmail(input: {
     ``,
     `${input.candidateName} listed you as a reference for their work at ${input.schoolName}${period} on Chickenloop.`,
     ``,
-    `Did they work for your center during this period? Would you rehire them?`,
+    `Question 1: Did ${input.candidateName} work at ${input.schoolName}${period}?`,
+    `Question 2 (if yes): Would you rehire them?`,
     ``,
-    `Yes, I would rehire them: ${input.confirmYesUrl}`,
-    `No: ${input.confirmNoUrl}`,
+    `Yes, they worked here — I would rehire them: ${input.confirmWorkedRehireUrl}`,
+    `Yes, they worked here — I would not rehire them: ${input.confirmWorkedNoRehireUrl}`,
+    `No, they did not work at our center: ${input.confirmNotWorkedUrl}`,
+    ...(input.confirmPageUrl ? [`Open reference form: ${input.confirmPageUrl}`] : []),
     ``,
     `This link expires in 14 days.`,
     ``,
@@ -46,11 +51,18 @@ export function referenceVerificationEmail(input: {
     </div>
     <p>${greeting}</p>
     <p><strong>${input.candidateName}</strong> listed you as a reference for their work at <strong>${input.schoolName}</strong>${period} on Chickenloop.</p>
-    <p>Did they work for your center during this period? Would you rehire them?</p>
+    <p><strong>Question 1:</strong> Did ${input.candidateName} work at ${input.schoolName}${period}?</p>
+    <p><strong>Question 2 (if yes):</strong> Would you rehire them?</p>
     <p>
-      <a href="${input.confirmYesUrl}" style="display:inline-block;padding:10px 16px;background:#059669;color:#fff;text-decoration:none;border-radius:6px;margin-right:8px;">Yes, I would rehire them</a>
-      <a href="${input.confirmNoUrl}" style="display:inline-block;padding:10px 16px;background:#6b7280;color:#fff;text-decoration:none;border-radius:6px;">No</a>
+      <a href="${input.confirmWorkedRehireUrl}" style="display:inline-block;padding:10px 16px;background:#059669;color:#fff;text-decoration:none;border-radius:6px;margin:0 8px 8px 0;">Yes, they worked here — I would rehire them</a>
+      <a href="${input.confirmWorkedNoRehireUrl}" style="display:inline-block;padding:10px 16px;background:#6b7280;color:#fff;text-decoration:none;border-radius:6px;margin:0 8px 8px 0;">Yes, they worked here — I would not rehire them</a>
+      <a href="${input.confirmNotWorkedUrl}" style="display:inline-block;padding:10px 16px;background:#fff;color:#b91c1c;border:1px solid #fca5a5;text-decoration:none;border-radius:6px;margin:0 8px 8px 0;">No, they did not work at our center</a>
     </p>
+    ${
+      input.confirmPageUrl
+        ? `<p style="font-size:13px;color:#6b7280;"><a href="${input.confirmPageUrl}" style="color:#2563eb;">Open reference form</a> if you prefer to respond on the website.</p>`
+        : ''
+    }
     <p style="color:#6b7280;font-size:12px;">This link expires in 14 days.</p>
     <div style="margin-top:24px;padding:16px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;">
       <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#374151;">About Chickenloop</p>

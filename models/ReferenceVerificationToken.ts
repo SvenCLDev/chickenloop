@@ -11,6 +11,7 @@ export interface IReferenceVerificationToken extends Document {
   expiresAt: Date;
   respondedAt?: Date;
   confirmed?: boolean;
+  workConfirmed?: boolean;
   rehire?: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +29,7 @@ const ReferenceVerificationTokenSchema = new Schema(
     expiresAt: { type: Date, required: true, index: true },
     respondedAt: Date,
     confirmed: Boolean,
+    workConfirmed: Boolean,
     rehire: Boolean,
   },
   { timestamps: true }

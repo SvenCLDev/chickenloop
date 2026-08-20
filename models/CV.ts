@@ -173,6 +173,7 @@ const CVSchema: Schema = new Schema(
           default: 'self_reported',
         },
         referenceTokenId: { type: Schema.Types.ObjectId, ref: 'ReferenceVerificationToken' },
+        workConfirmed: Boolean,
         rehireAnswer: Boolean,
         lastReferenceEmailSentAt: Date,
       },

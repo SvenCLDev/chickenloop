@@ -23,6 +23,7 @@ interface TalentNetworkProfileViewProps {
       seasonTag?: string;
       referenceEmail?: string;
       verificationStatus?: string;
+      workConfirmed?: boolean;
       rehireAnswer?: boolean;
     }>;
     languageSkills?: Array<{
@@ -188,9 +189,16 @@ export default function TalentNetworkProfileView({
                         : ''}
                   </div>
                 </div>
-                {entry.rehireAnswer !== undefined && entry.verificationStatus === 'reference_confirmed' && (
+                {entry.verificationStatus === 'reference_confirmed' &&
+                  entry.rehireAnswer !== undefined &&
+                  entry.workConfirmed !== false && (
                   <p className="text-sm text-gray-600 mt-2">
                     Manager rehire response: {entry.rehireAnswer ? 'Yes' : 'No'}
+                  </p>
+                )}
+                {entry.verificationStatus === 'reference_disputed' && showOwnerStatus && (
+                  <p className="text-sm text-red-700 mt-2">
+                    The listed manager says this candidate did not work at this center.
                   </p>
                 )}
               </div>
