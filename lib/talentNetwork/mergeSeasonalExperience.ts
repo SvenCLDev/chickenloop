@@ -29,7 +29,10 @@ export function mergeSeasonalExperienceForSave(
 
     const preservedId = explicitId ?? fingerprintMatch?._id;
     if (!preservedId) {
-      return entry;
+      return {
+        ...entry,
+        _id: new mongoose.Types.ObjectId(),
+      };
     }
 
     return {

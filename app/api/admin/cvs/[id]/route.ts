@@ -4,7 +4,7 @@ import CV from '@/models/CV';
 import { requireRole } from '@/lib/auth';
 import { isExperienceLevel, isAvailability, isWorkArea } from '@/lib/domainTypes';
 import { applyTalentNetworkFieldsToCv } from '@/lib/talentNetwork/applyToCv';
-import { processReferenceVerificationRequests } from '@/lib/talentNetwork/processReferenceRequests';
+import { processReferenceVerificationRequestsForCvId } from '@/lib/talentNetwork/runReferenceVerificationAfterSave';
 
 // GET - Get a single CV by ID (admin only)
 export async function GET(
@@ -158,11 +158,14 @@ export async function PUT(
     await cv.save();
 
     if (cv.profileSchemaVersion === 2) {
-      await processReferenceVerificationRequests(cv);
+      await processReferenceVerificationRequestsForCvId(cv._id);
     }
 
+    const responseCv =
+      cv.profileSchemaVersion === 2 ? await CV.findById(cv._id) : cv;
+
     return NextResponse.json(
-      { message: 'CV updated successfully', cv },
+      { message: 'CV updated successfully', cv: responseCv ?? cv },
       { status: 200 }
     );
   } catch (error: unknown) {

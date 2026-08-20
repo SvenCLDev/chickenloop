@@ -6,7 +6,7 @@ import { JOB_CATEGORIES, type JobCategory } from '@/src/constants/jobCategories'
 import { isExperienceLevel, isAvailability, isWorkArea } from '@/lib/domainTypes';
 import { applyTalentNetworkFieldsToCv } from '@/lib/talentNetwork/applyToCv';
 import { canUserWriteTalentNetworkFields } from '@/lib/talentNetwork/userContext';
-import { processReferenceVerificationRequests } from '@/lib/talentNetwork/processReferenceRequests';
+import { processReferenceVerificationRequestsForCvId } from '@/lib/talentNetwork/runReferenceVerificationAfterSave';
 
 // GET - Get current user's CV (job seekers only)
 export async function GET(request: NextRequest) {
@@ -159,11 +159,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (cv.profileSchemaVersion === 2) {
-      await processReferenceVerificationRequests(cv);
+      await processReferenceVerificationRequestsForCvId(cv._id);
     }
 
+    const responseCv =
+      cv.profileSchemaVersion === 2 ? await CV.findById(cv._id) : cv;
+
     return NextResponse.json(
-      { message: 'CV created successfully', cv },
+      { message: 'CV created successfully', cv: responseCv ?? cv },
       { status: 201 }
     );
   } catch (error: unknown) {
@@ -307,11 +310,14 @@ export async function PUT(request: NextRequest) {
     await cv.save();
 
     if (cv.profileSchemaVersion === 2) {
-      await processReferenceVerificationRequests(cv);
+      await processReferenceVerificationRequestsForCvId(cv._id);
     }
 
+    const responseCv =
+      cv.profileSchemaVersion === 2 ? await CV.findById(cv._id) : cv;
+
     return NextResponse.json(
-      { message: 'CV updated successfully', cv },
+      { message: 'CV updated successfully', cv: responseCv ?? cv },
       { status: 200 }
     );
   } catch (error: unknown) {

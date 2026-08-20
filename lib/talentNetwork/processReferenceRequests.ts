@@ -9,6 +9,29 @@ import { generateReferenceToken } from '@/lib/referenceVerificationToken';
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const EXPIRY_DAYS = 14;
 
+function logReferenceDebug(
+  message: string,
+  data: Record<string, unknown>,
+  hypothesisId: string
+): void {
+  console.log('[ReferenceVerification]', message, data);
+  // #region agent log
+  fetch('http://127.0.0.1:7714/ingest/809469dc-4731-4443-a5ec-6d4761840282', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85d025' },
+    body: JSON.stringify({
+      sessionId: '85d025',
+      runId: 'reference-email',
+      hypothesisId,
+      location: 'processReferenceRequests.ts',
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+}
+
 function seasonLabel(entry: {
   seasonTag?: string;
   startMonth?: number;
@@ -30,21 +53,43 @@ function seasonLabel(entry: {
 export async function processReferenceVerificationRequests(
   cv: Document & ICV
 ): Promise<void> {
-  if (!cv.seasonalExperience?.length) return;
+  if (!cv.seasonalExperience?.length) {
+    logReferenceDebug('no seasonal experience on cv', { cvId: String(cv._id) }, 'C');
+    return;
+  }
 
   let modified = false;
+  const resendConfigured = Boolean(process.env.RESEND_API_KEY?.trim());
 
   for (const entry of cv.seasonalExperience) {
     const email = entry.referenceEmail?.trim();
     if (!email) continue;
     if (entry.verificationStatus === 'reference_confirmed') continue;
 
-    if (!entry._id) continue;
+    if (!entry._id) {
+      logReferenceDebug(
+        'skipped entry without _id',
+        {
+          cvId: String(cv._id),
+          schoolName: entry.schoolName,
+          resendConfigured,
+        },
+        'A'
+      );
+      continue;
+    }
     const entryId = String(entry._id);
     const lastSent = entry.lastReferenceEmailSentAt
       ? new Date(entry.lastReferenceEmailSentAt).getTime()
       : 0;
-    if (lastSent && Date.now() - lastSent < COOLDOWN_MS) continue;
+    if (lastSent && Date.now() - lastSent < COOLDOWN_MS) {
+      logReferenceDebug(
+        'skipped cooldown',
+        { cvId: String(cv._id), entryId, schoolName: entry.schoolName },
+        'E'
+      );
+      continue;
+    }
 
     let tokenDoc = await ReferenceVerificationToken.findOne({
       cvId: cv._id,
@@ -75,6 +120,19 @@ export async function processReferenceVerificationRequests(
       managerName: entry.referenceName,
       token: tokenDoc.token,
     });
+
+    logReferenceDebug(
+      result.success ? 'reference email sent' : 'reference email failed',
+      {
+        cvId: String(cv._id),
+        entryId,
+        schoolName: entry.schoolName,
+        resendConfigured,
+        success: result.success,
+        error: result.error ?? null,
+      },
+      result.success ? 'OK' : 'B'
+    );
 
     if (result.success) {
       entry.verificationStatus = 'reference_requested';

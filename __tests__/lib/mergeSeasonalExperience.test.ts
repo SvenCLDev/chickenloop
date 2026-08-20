@@ -63,6 +63,22 @@ describe('mergeSeasonalExperienceForSave', () => {
     expect(String(merged[0]._id)).toBe(String(existingId));
     expect(merged[0].verificationStatus).toBe('self_reported');
   });
+
+  it('assigns a new ObjectId for brand-new entries without fingerprint match', () => {
+    const merged = mergeSeasonalExperienceForSave(undefined, [
+      {
+        schoolName: 'New School',
+        role: 'Instructor',
+        startMonth: 7,
+        startYear: 2024,
+        referenceEmail: 'manager@example.com',
+        verificationStatus: 'self_reported',
+      },
+    ]);
+
+    expect(merged[0]._id).toBeDefined();
+    expect(isMongoObjectId(String(merged[0]._id))).toBe(true);
+  });
 });
 
 describe('findSeasonalExperienceForToken', () => {
