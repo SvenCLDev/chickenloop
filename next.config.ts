@@ -4,25 +4,51 @@ const nextConfig: NextConfig = {
   async redirects() {
     const cutover = process.env.TALENT_NETWORK_CUTOVER === 'true';
     const createDestination = cutover
-      ? '/job-seeker/cv/talent-network/new'
-      : '/job-seeker/cv/new';
+      ? '/job-seeker/profile/talent-network/new'
+      : '/job-seeker/profile/new';
 
+    const legacyCvPageRedirects = [
+      { source: '/create-cv', destination: '/create-profile', permanent: false },
+      { source: '/create-profile', destination: createDestination, permanent: false },
+      { source: '/job-seeker/cv/new', destination: '/job-seeker/profile/new', permanent: false },
+      { source: '/job-seeker/cv/edit', destination: '/job-seeker/profile/edit', permanent: false },
+      { source: '/job-seeker/cv/view', destination: '/job-seeker/profile/view', permanent: false },
+      {
+        source: '/job-seeker/cv/talent-network/new',
+        destination: '/job-seeker/profile/talent-network/new',
+        permanent: false,
+      },
+      {
+        source: '/job-seeker/cv/talent-network/edit',
+        destination: '/job-seeker/profile/talent-network/edit',
+        permanent: false,
+      },
+      { source: '/admin/cvs/:id/edit', destination: '/admin/profiles/:id/edit', permanent: false },
+    ];
+
+    const cutoverRedirects = cutover
+      ? [
+          {
+            source: '/job-seeker/profile/edit',
+            destination: '/job-seeker/profile/talent-network/edit',
+            permanent: false,
+          },
+          {
+            source: '/job-seeker/profile/new',
+            destination: '/job-seeker/profile/talent-network/new',
+            permanent: false,
+          },
+        ]
+      : [];
+
+    return [...legacyCvPageRedirects, ...cutoverRedirects];
+  },
+  async rewrites() {
     return [
-      { source: '/create-cv', destination: createDestination, permanent: false },
-      ...(cutover
-        ? [
-            {
-              source: '/job-seeker/cv/edit',
-              destination: '/job-seeker/cv/talent-network/edit',
-              permanent: false,
-            },
-            {
-              source: '/job-seeker/cv/new',
-              destination: '/job-seeker/cv/talent-network/new',
-              permanent: false,
-            },
-          ]
-        : []),
+      { source: '/api/cv/:path*', destination: '/api/profile/:path*' },
+      { source: '/api/admin/cvs/:path*', destination: '/api/admin/profiles/:path*' },
+      { source: '/api/stripe/cv-boost/:path*', destination: '/api/stripe/profile-boost/:path*' },
+      { source: '/api/stripe/cv-boost-prices', destination: '/api/stripe/profile-boost-prices' },
     ];
   },
   // Performance optimizations for dev server

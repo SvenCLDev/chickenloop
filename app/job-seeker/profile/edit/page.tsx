@@ -6,12 +6,12 @@ import { useRouter } from 'next/navigation';
 import Navbar from '../../../components/Navbar';
 import { cvApi } from '@/lib/api';
 import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
-import { SPORTS_LIST } from '@/lib/sports';
 import { QUALIFICATIONS } from '@/lib/qualifications';
+import { SPORTS_LIST } from '@/lib/sports';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 
-export default function NewCVPage() {
+export default function EditCVPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -34,6 +34,8 @@ export default function NewCVPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [fetching, setFetching] = useState(true);
+  const [existingPictures, setExistingPictures] = useState<string[]>([]);
   const [selectedPictures, setSelectedPictures] = useState<File[]>([]);
   const [picturePreviews, setPicturePreviews] = useState<string[]>([]);
   const [uploadingPictures, setUploadingPictures] = useState(false);
@@ -46,20 +48,47 @@ export default function NewCVPage() {
     }
   }, [user, authLoading, router]);
 
-  // Prefill email from user account when user is loaded
   useEffect(() => {
-    if (user && user.email && formData.email === '') {
-      setFormData((prev) => ({ ...prev, email: user.email }));
+    if (user && user.role === 'job-seeker') {
+      loadCV();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const loadCV = async () => {
+    try {
+      const data = await cvApi.get();
+      const cv = data.cv;
+      setFormData({
+        fullName: cv.fullName || '',
+        email: cv.email || '',
+        phone: cv.phone || '',
+        address: cv.address || '',
+        summary: cv.summary || '',
+        experience: cv.experience && cv.experience.length > 0 ? cv.experience : [{ company: '', position: '', startDate: '', endDate: '', description: '' }],
+        education: cv.education && cv.education.length > 0 ? cv.education : [{ institution: '', degree: '', field: '', startDate: '', endDate: '' }],
+        skills: cv.skills && cv.skills.length > 0 ? cv.skills : [''],
+        certifications: cv.certifications && cv.certifications.length > 0 ? cv.certifications : [''],
+        professionalCertifications: cv.professionalCertifications || [],
+        experienceAndSkill: cv.experienceAndSkill || [],
+        languages: cv.languages || [],
+        lookingForWorkInAreas: cv.lookingForWorkInAreas || [],
+        experienceLevel: cv.experienceLevel || '',
+        availability: cv.availability || '',
+      });
+      setExistingPictures(cv.pictures || []);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load profile');
+    } finally {
+      setFetching(false);
+    }
+  };
 
   const handlePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const totalPictures = selectedPictures.length + files.length;
+    const totalPictures = existingPictures.length + selectedPictures.length + files.length;
     
     if (totalPictures > 3) {
-      setError('Maximum 3 pictures allowed');
+      setError('Maximum 3 pictures allowed (including existing ones)');
       return;
     }
 
@@ -82,6 +111,11 @@ export default function NewCVPage() {
     setPicturePreviews([...picturePreviews, ...newPreviews]);
   };
 
+  const removeExistingPicture = (index: number) => {
+    const newPictures = existingPictures.filter((_, i) => i !== index);
+    setExistingPictures(newPictures);
+  };
+
   const removeNewPicture = (index: number) => {
     const newPictures = selectedPictures.filter((_, i) => i !== index);
     const newPreviews = picturePreviews.filter((_, i) => i !== index);
@@ -94,7 +128,7 @@ export default function NewCVPage() {
   };
 
   const uploadPictures = async (): Promise<string[]> => {
-    if (selectedPictures.length === 0) return [];
+    if (selectedPictures.length === 0) return existingPictures;
 
     setUploadingPictures(true);
     try {
@@ -103,7 +137,7 @@ export default function NewCVPage() {
         uploadFormData.append('pictures', sanitizeFileForUpload(file));
       });
 
-      const response = await fetch('/api/cv/upload', {
+      const response = await fetch('/api/profile/upload', {
         method: 'POST',
         body: uploadFormData,
         credentials: 'include',
@@ -123,7 +157,8 @@ export default function NewCVPage() {
         throw new Error(data.error || 'Failed to upload pictures');
       }
 
-      return data.paths || [];
+      // Merge existing pictures with newly uploaded ones
+      return [...existingPictures, ...(data.paths || [])];
     } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload pictures';
       setError(errorMessage);
@@ -156,7 +191,7 @@ export default function NewCVPage() {
         availability: formData.availability || undefined,
         pictures: picturePaths,
       };
-      await cvApi.create(data);
+      await cvApi.update(data);
       
       // Show success modal
       setShowSuccessModal(true);
@@ -166,7 +201,7 @@ export default function NewCVPage() {
         router.push('/job-seeker');
       }, 3000);
     } catch (err: any) {
-      const errorMessage = err.message || 'Failed to create CV';
+      const errorMessage = err.message || 'Failed to update profile';
       setError(errorMessage);
       // Scroll to error banner
       setTimeout(() => {
@@ -260,7 +295,7 @@ export default function NewCVPage() {
     setFormData({ ...formData, certifications: updated });
   };
 
-  if (authLoading) {
+  if (authLoading || fetching) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
         <Navbar />
@@ -276,7 +311,7 @@ export default function NewCVPage() {
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 py-12">
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-3xl font-bold mb-6 text-gray-900">Create Your CV</h1>
+          <h1 className="text-3xl font-bold mb-6 text-gray-900">Edit Your Profile</h1>
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
               {error}
@@ -459,7 +494,7 @@ export default function NewCVPage() {
 
             <div>
               <div className="flex justify-between items-center mb-4">
-                <label className="block text-sm font-medium text-gray-700">Experience</label>
+                <label className="block text-sm font-medium text-gray-700">Work Experiences</label>
                 <button
                   type="button"
                   onClick={addExperience}
@@ -591,137 +626,6 @@ export default function NewCVPage() {
             </div>
 
             <div>
-              <div className="flex justify-between items-center mb-4">
-                <label className="block text-sm font-medium text-gray-700">Other Skills (one per field)</label>
-                <button
-                  type="button"
-                  onClick={addSkill}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-semibold"
-                >
-                  + Add Skill
-                </button>
-              </div>
-              <div className="space-y-2">
-                {formData.skills.map((skill, index) => (
-                  <div key={index} className="flex gap-2">
-                    <input
-                      placeholder="Skill"
-                      value={skill}
-                      onChange={(e) => updateSkill(index, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    {formData.skills.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeSkill(index)}
-                        className="text-red-600 hover:text-red-700 px-3"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Languages Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Languages (Important - Recruiters will filter for it)
-              </label>
-              {formData.languages.length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-2">
-                  {formData.languages.map((lang) => (
-                    <span
-                      key={lang}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
-                    >
-                      {lang}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormData({
-                            ...formData,
-                            languages: formData.languages.filter((l) => l !== lang),
-                          });
-                        }}
-                        className="ml-2 text-blue-600 hover:text-blue-800"
-                        aria-label={`Remove ${lang}`}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
-                {OFFICIAL_LANGUAGES.map((lang) => {
-                  const isSelected = formData.languages.includes(lang);
-                  return (
-                    <label
-                      key={lang}
-                      className="flex items-center py-2 px-2 rounded hover:bg-gray-50 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData({
-                              ...formData,
-                              languages: [...formData.languages, lang],
-                            });
-                          } else {
-                            setFormData({
-                              ...formData,
-                              languages: formData.languages.filter((l) => l !== lang),
-                            });
-                          }
-                        }}
-                        className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <span className="text-sm text-gray-900">{lang}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <label className="block text-sm font-medium text-gray-700">Certifications</label>
-                <button
-                  type="button"
-                  onClick={addCertification}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-semibold"
-                >
-                  + Add Certification
-                </button>
-              </div>
-              <div className="space-y-2">
-                {formData.certifications.map((cert, index) => (
-                  <div key={index} className="flex gap-2">
-                    <input
-                      placeholder="Certification"
-                      value={cert}
-                      onChange={(e) => updateCertification(index, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    {formData.certifications.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeCertification(index)}
-                        className="text-red-600 hover:text-red-700 px-3"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Sports Experiences and Skills (Important - Recruiters will filter for it)
               </label>
@@ -785,6 +689,40 @@ export default function NewCVPage() {
               <p className="text-xs text-gray-500 mt-2">
                 Select any sport or activity that applies (multiple selections allowed).
               </p>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <label className="block text-sm font-medium text-gray-700">Other Skills (one per field)</label>
+                <button
+                  type="button"
+                  onClick={addSkill}
+                  className="text-blue-600 hover:text-blue-700 text-sm font-semibold"
+                >
+                  + Add Skill
+                </button>
+              </div>
+              <div className="space-y-2">
+                {formData.skills.map((skill, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      placeholder="Skill"
+                      value={skill}
+                      onChange={(e) => updateSkill(index, e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                    {formData.skills.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeSkill(index)}
+                        className="text-red-600 hover:text-red-700 px-3"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div>
@@ -865,6 +803,103 @@ export default function NewCVPage() {
               </p>
             </div>
 
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <label className="block text-sm font-medium text-gray-700">Other Certifications (one per field)</label>
+                <button
+                  type="button"
+                  onClick={addCertification}
+                  className="text-blue-600 hover:text-blue-700 text-sm font-semibold"
+                >
+                  + Add Certification
+                </button>
+              </div>
+              <div className="space-y-2">
+                {formData.certifications.map((cert, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      placeholder="Certification"
+                      value={cert}
+                      onChange={(e) => updateCertification(index, e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                    {formData.certifications.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeCertification(index)}
+                        className="text-red-600 hover:text-red-700 px-3"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Languages Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Languages (Important - Recruiters will filter for it)
+              </label>
+              {formData.languages.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {formData.languages.map((lang) => (
+                    <span
+                      key={lang}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                    >
+                      {lang}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData({
+                            ...formData,
+                            languages: formData.languages.filter((l) => l !== lang),
+                          });
+                        }}
+                        className="ml-2 text-blue-600 hover:text-blue-800"
+                        aria-label={`Remove ${lang}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
+                {OFFICIAL_LANGUAGES.map((lang) => {
+                  const isSelected = formData.languages.includes(lang);
+                  return (
+                    <label
+                      key={lang}
+                      className="flex items-center py-2 px-2 rounded hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({
+                              ...formData,
+                              languages: [...formData.languages, lang],
+                            });
+                          } else {
+                            setFormData({
+                              ...formData,
+                              languages: formData.languages.filter((l) => l !== lang),
+                            });
+                          }
+                        }}
+                        className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="text-sm text-gray-900">{lang}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Pictures Section */}
             <div>
               <label htmlFor="pictures" className="block text-sm font-medium text-gray-700 mb-1">
@@ -877,10 +912,10 @@ export default function NewCVPage() {
                   accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
                   multiple
                   onChange={handlePictureChange}
-                  disabled={selectedPictures.length >= 3 || uploadingPictures}
+                  disabled={selectedPictures.length + existingPictures.length >= 3 || uploadingPictures}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
                 />
-                {selectedPictures.length >= 3 ? (
+                {selectedPictures.length + existingPictures.length >= 3 ? (
                   <div className="block w-full px-3 py-2 border border-gray-200 rounded-md text-sm text-center bg-gray-100 text-gray-400">
                     Image limit reached (3 of 3)
                   </div>
@@ -889,19 +924,36 @@ export default function NewCVPage() {
                     htmlFor="pictures"
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-center cursor-pointer transition-colors bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
                   >
-                    {selectedPictures.length === 0
+                    {selectedPictures.length + existingPictures.length === 0
                       ? 'Choose images (up to 3)'
-                      : `Choose another image (${selectedPictures.length} of 3)`}
+                      : `Choose another image (${selectedPictures.length + existingPictures.length} of 3)`}
                   </label>
                 )}
               </div>
               <p className="text-sm text-gray-500 mt-1">
                 Maximum 3 pictures. Supported formats: JPEG, PNG, WEBP, GIF. Large images are automatically optimized.
               </p>
-              {selectedPictures.length > 0 && (
+              {(selectedPictures.length > 0 || existingPictures.length > 0) && (
                 <div className="mt-4 grid grid-cols-3 gap-4">
+                  {existingPictures.map((picture, index) => (
+                    <div key={`existing-${index}`} className="relative group">
+                      <img
+                        src={picture}
+                        alt={`Existing ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg border border-gray-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeExistingPicture(index)}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-sm font-bold"
+                        aria-label="Remove picture"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                   {picturePreviews.map((preview, index) => (
-                    <div key={index} className="relative group">
+                    <div key={`new-${index}`} className="relative group">
                       <img
                         src={preview}
                         alt={`Preview ${index + 1}`}
@@ -943,7 +995,7 @@ export default function NewCVPage() {
                 disabled={loading || uploadingPictures}
                 className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
               >
-                {loading || uploadingPictures ? 'Creating...' : 'Create CV'}
+                {loading || uploadingPictures ? 'Updating...' : 'Update Profile'}
               </button>
               <button
                 type="button"
@@ -975,7 +1027,7 @@ export default function NewCVPage() {
               />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Your CV has been created successfully
+              Your profile has been updated successfully
             </h2>
             <p className="text-gray-600 mb-4">
               Redirecting to your dashboard...

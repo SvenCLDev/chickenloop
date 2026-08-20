@@ -170,23 +170,23 @@ export const jobsApi = {
 };
 
 export const cvApi = {
-  get: () => apiRequest('/cv'),
+  get: () => apiRequest('/profile'),
   create: (data: any) =>
-    apiRequest('/cv', {
+    apiRequest('/profile', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   update: (data: any) =>
-    apiRequest('/cv', {
+    apiRequest('/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
   delete: () =>
-    apiRequest('/cv', {
+    apiRequest('/profile', {
       method: 'DELETE',
     }),
   togglePublish: () =>
-    apiRequest('/cv/toggle-publish', {
+    apiRequest('/profile/toggle-publish', {
       method: 'POST',
     }),
   uploadCertificateDocument: async (file: File) => {
@@ -195,7 +195,7 @@ export const cvApi = {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     const headers: HeadersInit = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const response = await fetch('/api/cv/certificates/upload', {
+    const response = await fetch('/api/profile/certificates/upload', {
       method: 'POST',
       headers,
       body: formData,
@@ -437,11 +437,11 @@ export const adminApi = {
     if (params?.sortBy) queryParams.set('sortBy', params.sortBy);
     if (params?.sortOrder) queryParams.set('sortOrder', params.sortOrder);
     const queryString = queryParams.toString();
-    return apiRequest(`/admin/cvs${queryString ? `?${queryString}` : ''}`);
+    return apiRequest(`/admin/profiles${queryString ? `?${queryString}` : ''}`);
   },
-  getCV: (id: string) => apiRequest(`/admin/cvs/${id}`),
+  getCV: (id: string) => apiRequest(`/admin/profiles/${id}`),
   updateCV: (id: string, data: any) =>
-    apiRequest(`/admin/cvs/${id}`, {
+    apiRequest(`/admin/profiles/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),

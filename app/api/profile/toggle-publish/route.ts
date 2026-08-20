@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const cv = await CV.findOne({ jobSeeker: user.userId });
 
     if (!cv) {
-      return NextResponse.json({ error: 'CV not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
     // Toggle published status
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { 
-        message: cv.published ? 'CV published successfully' : 'CV hidden successfully',
+        message: cv.published ? 'Profile published successfully' : 'Profile hidden successfully',
         published: cv.published 
       },
       { status: 200 }

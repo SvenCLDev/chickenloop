@@ -190,7 +190,7 @@ export async function DELETE(
     // Create audit log
     const reasonParts = [`Deleted ${user.role} user "${user.name}" (${user.email})`];
     if (jobsCount > 0) reasonParts.push(`${jobsCount} job(s)`);
-    if (cvsCount > 0) reasonParts.push(`${cvsCount} CV(s)`);
+    if (cvsCount > 0) reasonParts.push(`${cvsCount} profile(s)`);
     if (applicationsCount > 0) reasonParts.push(`${applicationsCount} application(s)`);
     await createDeleteAuditLog(request, {
       entityType: 'user',

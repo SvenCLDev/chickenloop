@@ -62,7 +62,7 @@ export default function CandidateCard({ candidate }: CandidateCardProps) {
           </p>
         )}
         <p className="text-sm text-blue-600 font-medium hover:text-blue-700 transition-colors">
-          View Full CV →
+          View Full Profile →
         </p>
       </div>
     </Link>

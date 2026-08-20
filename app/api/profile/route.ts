@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const cv = await CV.findOne({ jobSeeker: user.userId }).lean();
 
     if (!cv) {
-      return NextResponse.json({ error: 'CV not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
     return NextResponse.json({ cv }, { status: 200 });
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     const existingCV = await CV.findOne({ jobSeeker: user.userId });
     if (existingCV) {
       return NextResponse.json(
-        { error: 'CV already exists. Please update your existing CV.' },
+        { error: 'Profile already exists. Please update your existing profile.' },
         { status: 400 }
       );
     }
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
       cv.profileSchemaVersion === 2 ? await CV.findById(cv._id) : cv;
 
     return NextResponse.json(
-      { message: 'CV created successfully', cv: responseCv ?? cv },
+      { message: 'Profile created successfully', cv: responseCv ?? cv },
       { status: 201 }
     );
   } catch (error: unknown) {
@@ -202,7 +202,7 @@ export async function PUT(request: NextRequest) {
     const cv = await CV.findOne({ jobSeeker: user.userId });
 
     if (!cv) {
-      return NextResponse.json({ error: 'CV not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
     const body = await request.json();
@@ -317,7 +317,7 @@ export async function PUT(request: NextRequest) {
       cv.profileSchemaVersion === 2 ? await CV.findById(cv._id) : cv;
 
     return NextResponse.json(
-      { message: 'CV updated successfully', cv: responseCv ?? cv },
+      { message: 'Profile updated successfully', cv: responseCv ?? cv },
       { status: 200 }
     );
   } catch (error: unknown) {
@@ -353,13 +353,13 @@ export async function DELETE(request: NextRequest) {
     const cv = await CV.findOne({ jobSeeker: user.userId });
 
     if (!cv) {
-      return NextResponse.json({ error: 'CV not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
     await CV.findByIdAndDelete(cv._id);
 
     return NextResponse.json(
-      { message: 'CV deleted successfully' },
+      { message: 'Profile deleted successfully' },
       { status: 200 }
     );
   } catch (error: unknown) {

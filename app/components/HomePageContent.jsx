@@ -688,7 +688,7 @@ export default function HomePageContent({
           role="alert"
         >
           <p className="text-center">
-            Login or register as a jobseeker to mark jobs as favourites, create job alerts, list your CV and more.
+            Login or register as a jobseeker to mark jobs as favourites, create job alerts, list your profile and more.
           </p>
           <div className="flex items-center justify-center gap-3">
             <Link

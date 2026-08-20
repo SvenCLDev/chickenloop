@@ -818,7 +818,7 @@ function AdminDashboard() {
   };
 
   const handleDeleteJobSeeker = async (userId: string, name: string, email: string) => {
-    if (!confirm(`Are you sure you want to delete the job seeker "${name}" (${email})? This will permanently delete their profile, all CVs, and all applications. This action cannot be undone.`)) {
+    if (!confirm(`Are you sure you want to delete the job seeker "${name}" (${email})? This will permanently delete their account, profile, and all applications. This action cannot be undone.`)) {
       return;
     }
     setDeletingJobSeeker(userId);
@@ -837,7 +837,7 @@ function AdminDashboard() {
 
   const handleEditCV = (cvId: string) => {
     // Navigate to admin CV edit page
-    router.push(`/admin/cvs/${cvId}/edit`);
+    router.push(`/admin/profiles/${cvId}/edit`);
   };
 
   const handleToggleCVFeatured = async (cvId: string, currentFeatured: boolean) => {
@@ -980,7 +980,7 @@ function AdminDashboard() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">CVs</p>
+                  <p className="text-sm font-medium text-gray-600">Profiles</p>
                   <p className="text-3xl font-bold text-gray-900 mt-2">{statistics.cvs}</p>
                 </div>
                 <div className="bg-orange-100 rounded-full p-3">
@@ -1116,7 +1116,7 @@ function AdminDashboard() {
                   {selectedCategory === 'job-seekers' ? 'Job Seekers' : 
                    selectedCategory === 'recruiters' ? 'Recruiters' :
                    selectedCategory === 'jobs' ? 'Jobs' : 
-                   selectedCategory === 'cvs' ? 'CVs' : 
+                   selectedCategory === 'cvs' ? 'Profiles' : 
                    selectedCategory === 'companies' ? 'Companies' :
                    selectedCategory === 'applications' ? 'Applications' :
                    selectedCategory === 'career-advice' ? 'Career Advice' : ''}
@@ -1229,7 +1229,7 @@ function AdminDashboard() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search CVs by name or email…"
+                    placeholder="Search profiles by name or email…"
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   />
                 </div>
@@ -1430,7 +1430,7 @@ function AdminDashboard() {
                               onClick={() => handleSort('hasCV')}
                             >
                               <div className="flex items-center gap-1">
-                                Has CV
+                                Has Profile
                                 {getSortIndicator('hasCV') && (
                                   <span className="text-gray-400">{getSortIndicator('hasCV')}</span>
                                 )}
@@ -1878,7 +1878,7 @@ function AdminDashboard() {
                                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                         : 'bg-red-600 text-white hover:bg-red-700'
                                     }`}
-                                    title="Delete job seeker (profile, CVs, and applications)"
+                                    title="Delete job seeker (profile and applications)"
                                   >
                                     {deletingJobSeeker === entry.id ? 'Deleting...' : 'Delete'}
                                   </button>
@@ -2140,7 +2140,7 @@ function AdminDashboard() {
                                 <button
                                   onClick={() => handleEditCV(entry.id)}
                                   className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
-                                  title="Edit CV"
+                                  title="Edit Profile"
                                 >
                                   Edit
                                 </button>

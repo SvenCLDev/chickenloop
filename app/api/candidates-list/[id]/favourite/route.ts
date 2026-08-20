@@ -17,7 +17,7 @@ export async function POST(
     // Verify CV exists
     const cv = await CV.findById(id);
     if (!cv) {
-      return NextResponse.json({ error: 'CV not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
     // Get user with favourites

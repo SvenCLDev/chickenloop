@@ -37,7 +37,7 @@ export default function TalentNetworkNewPage() {
       }
       try {
         await cvApi.get();
-        router.replace('/job-seeker/cv/talent-network/edit');
+        router.replace('/job-seeker/profile/talent-network/edit');
         return;
       } catch {
         // no CV yet — ok to create
@@ -69,8 +69,8 @@ export default function TalentNetworkNewPage() {
         <Navbar />
         <main className="max-w-2xl mx-auto px-4 py-16 text-center">
           <p className="text-gray-600 mb-6">The Talent Network editor is not enabled for your account.</p>
-          <Link href="/job-seeker/cv/new" className="text-blue-600 hover:underline">
-            Create classic CV instead
+          <Link href="/job-seeker/profile/new" className="text-blue-600 hover:underline">
+            Create classic profile instead
           </Link>
         </main>
       </div>

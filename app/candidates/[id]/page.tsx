@@ -209,13 +209,13 @@ function CVDetailContent() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to load CV');
+        throw new Error('Failed to load profile');
       }
 
       const data = await response.json();
       setCv(data.cv);
     } catch (err: any) {
-      setError(err.message || 'Failed to load CV');
+      setError(err.message || 'Failed to load profile');
     } finally {
       setLoading(false);
     }
@@ -239,13 +239,13 @@ function CVDetailContent() {
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white rounded-lg shadow-lg p-8">
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {error || 'CV not found'}
+              {error || 'Profile not found'}
             </div>
             <Link
               href={returnUrl}
               className="inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold"
             >
-              ← Back to {returnUrl.includes('/applications/') ? 'Application Details' : 'CVs'}
+              ← Back to {returnUrl.includes('/applications/') ? 'Application Details' : 'Profiles'}
             </Link>
           </div>
         </main>
@@ -261,7 +261,7 @@ function CVDetailContent() {
           href={returnUrl}
           className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6 font-semibold"
         >
-          ← Back to {returnUrl.includes('/applications/') ? 'Application Details' : 'CVs'}
+          ← Back to {returnUrl.includes('/applications/') ? 'Application Details' : 'Profiles'}
         </Link>
 
         <div className="bg-white rounded-lg shadow-lg p-8">
@@ -519,7 +519,7 @@ function CVDetailContent() {
                   >
                     <img
                       src={picture}
-                      alt={`CV picture ${index + 1}`}
+                      alt={`Profile picture ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
                   </button>
@@ -540,7 +540,7 @@ function CVDetailContent() {
               >
                 <img
                   src={cv.pictures[lightboxIndex]}
-                  alt={`CV picture ${lightboxIndex + 1}`}
+                  alt={`Profile picture ${lightboxIndex + 1}`}
                   className="w-full h-[70vh] object-contain bg-black"
                 />
                 {cv.pictures && cv.pictures.length > 1 && (

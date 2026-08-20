@@ -607,10 +607,10 @@ export default function AdminApplicationDetailPage() {
                 )}
               </div>
 
-              {/* CV Summary or Link */}
+              {/* Profile Summary or Link */}
               {application.cv ? (
                 <div className="mt-4">
-                  <p className="text-sm text-gray-500 mb-2">CV</p>
+                  <p className="text-sm text-gray-500 mb-2">Profile</p>
                   <div className="bg-gray-50 rounded-lg p-4">
                     {application.cv.summary ? (
                       <div>
@@ -624,14 +624,14 @@ export default function AdminApplicationDetailPage() {
                       href={`/candidates/${application.candidate?._id}`}
                       className="inline-block mt-3 text-blue-600 hover:text-blue-800 font-medium"
                     >
-                      View Full CV →
+                      View Full Profile →
                     </Link>
                   </div>
                 </div>
               ) : (
                 <div className="mt-4">
-                  <p className="text-sm text-gray-500 mb-2">CV</p>
-                  <p className="text-sm text-gray-500 italic">No CV available for this candidate</p>
+                  <p className="text-sm text-gray-500 mb-2">Profile</p>
+                  <p className="text-sm text-gray-500 italic">No profile available for this candidate</p>
                 </div>
               )}
             </div>

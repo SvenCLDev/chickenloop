@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     if (!cvPriceId) {
       return NextResponse.json(
         {
-          error: `Stripe price not configured for CV boost (${durationDays} days). Set STRIPE_CV_BOOST_${durationDays}_PRICE_ID in your environment.`,
+          error: `Stripe price not configured for profile boost (${durationDays} days). Set STRIPE_CV_BOOST_${durationDays}_PRICE_ID in your environment.`,
         },
         { status: 502 }
       );

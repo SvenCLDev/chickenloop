@@ -20,7 +20,7 @@ export interface UseBoostPricesResult {
 
 const ENDPOINTS = {
   job: '/api/stripe/job-boost-prices',
-  cv: '/api/stripe/cv-boost-prices',
+  cv: '/api/stripe/profile-boost-prices',
 } as const;
 
 export function useBoostPrices(type: 'job' | 'cv'): UseBoostPricesResult {

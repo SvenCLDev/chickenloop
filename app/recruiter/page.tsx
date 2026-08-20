@@ -846,7 +846,7 @@ function RecruiterDashboardClient() {
             <div className="bg-white rounded-lg shadow-md p-8 text-center">
               <p className="text-gray-600">You haven't added any candidates to your favourites yet.</p>
               <p className="text-gray-500 text-sm mt-2">
-                Click "Add to Favourites" on any candidate CV to save it here.
+                Click "Add to Favourites" on any candidate profile to save it here.
               </p>
             </div>
           ) : (
@@ -963,7 +963,7 @@ function RecruiterDashboardClient() {
                           href={`/candidates/${candidate._id}`}
                           className="flex-1 text-center bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm font-semibold"
                         >
-                          View CV
+                          View Profile
                         </Link>
                         <button
                           onClick={() => handleRemoveFavourite(candidate._id)}

@@ -30,7 +30,7 @@ function getBaseUrlFromRequest(request: NextRequest): string {
 }
 
 /**
- * POST /api/stripe/cv-boost/checkout
+ * POST /api/stripe/profile-boost/checkout
  * Creates a Stripe Checkout Session for CV boosting.
  * Auth: job-seeker only. Resume must belong to the authenticated user.
  */

@@ -61,7 +61,7 @@ export default function ViewCVPage() {
       const data = await cvApi.get();
       setCv(data.cv);
     } catch (err: any) {
-      setError(err.message || 'Failed to load CV');
+      setError(err.message || 'Failed to load profile');
     } finally {
       setLoading(false);
     }
@@ -85,7 +85,7 @@ export default function ViewCVPage() {
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white rounded-lg shadow-lg p-8">
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {error || 'CV not found'}
+              {error || 'Profile not found'}
             </div>
             <Link
               href="/job-seeker"
@@ -101,8 +101,8 @@ export default function ViewCVPage() {
 
   const isTalentNetworkV2 = cv.profileSchemaVersion === 2;
   const editHref = isTalentNetworkV2
-    ? '/job-seeker/cv/talent-network/edit'
-    : '/job-seeker/cv/edit';
+    ? '/job-seeker/profile/talent-network/edit'
+    : '/job-seeker/profile/edit';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
@@ -111,7 +111,7 @@ export default function ViewCVPage() {
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900">
-              {isTalentNetworkV2 ? 'My Talent Network Profile' : 'My CV'}
+              {isTalentNetworkV2 ? 'My Talent Network Profile' : 'My Profile'}
             </h1>
             <div className="flex gap-3">
               <Link
@@ -375,7 +375,7 @@ export default function ViewCVPage() {
                   >
                     <img
                       src={picture}
-                      alt={`CV picture ${index + 1}`}
+                      alt={`Profile picture ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
                   </button>
@@ -396,7 +396,7 @@ export default function ViewCVPage() {
               >
                 <img
                   src={cv.pictures[lightboxIndex]}
-                  alt={`CV picture ${lightboxIndex + 1}`}
+                  alt={`Profile picture ${lightboxIndex + 1}`}
                   className="w-full h-[70vh] object-contain bg-black"
                 />
                 {cv.pictures && cv.pictures.length > 1 && (

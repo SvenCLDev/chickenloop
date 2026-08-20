@@ -37,10 +37,10 @@ function StripeReturnContent() {
               />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              {isCvBoost ? 'Your CV boost was successful.' : 'Your job boost was successful.'}
+              {isCvBoost ? 'Your profile boost was successful.' : 'Your job boost was successful.'}
             </h1>
             <p className="text-gray-600 mb-8">
-              {isCvBoost ? 'Your CV will be featured shortly.' : 'Your listing will be featured shortly.'}
+              {isCvBoost ? 'Your profile will be featured shortly.' : 'Your listing will be featured shortly.'}
             </p>
             <Link
               href={isCvBoost ? '/job-seeker' : '/recruiter'}

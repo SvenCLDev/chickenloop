@@ -288,13 +288,13 @@ function JobSeekerDashboardClient() {
   };
 
   const handleDeleteCV = async () => {
-    if (!confirm('Are you sure you want to delete your CV?')) return;
+    if (!confirm('Are you sure you want to delete your profile?')) return;
 
     try {
       await cvApi.delete();
       setCv(null);
     } catch (err: any) {
-      alert(err.message || 'Failed to delete CV');
+      alert(err.message || 'Failed to delete profile');
     }
   };
 
@@ -321,7 +321,7 @@ function JobSeekerDashboardClient() {
         setCv(cvData.cv);
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to toggle CV visibility');
+      alert(err.message || 'Failed to toggle profile visibility');
     } finally {
       setTogglingPublish(false);
     }
@@ -421,12 +421,12 @@ function JobSeekerDashboardClient() {
           <PageHeaderMarketingBanner placementKey="job-seeker-dashboard" className="mb-6" />
 
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-2xl font-bold mb-4 text-gray-900">My CV</h2>
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">My Profile</h2>
             {cv ? (
               <div>
                 <p className="text-gray-600 mb-4">
-                  You have created a CV.<br />
-                  Your CV is only visible to registered recruiters.
+                  You have created a profile.<br />
+                  Your profile is only visible to registered recruiters.
                 </p>
                 {(() => {
                   const until = cv.featuredUntil ? new Date(cv.featuredUntil) : null;
@@ -436,7 +436,7 @@ function JobSeekerDashboardClient() {
                   return (
                     <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-200">
                       <p className="text-amber-800 font-medium">
-                        ⭐ Your CV is currently featured.
+                        ⭐ Your profile is currently featured.
                       </p>
                       {dateStr && (
                         <p className="text-amber-700 text-sm mt-1">
@@ -448,23 +448,23 @@ function JobSeekerDashboardClient() {
                 })()}
                 <div className="flex gap-4 flex-wrap">
                   <Link
-                    href="/job-seeker/cv/view"
+                    href="/job-seeker/profile/view"
                     className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                   >
-                    View CV
+                    View Profile
                   </Link>
                   <Link
-                    href={talentNetworkCanEdit ? '/job-seeker/cv/talent-network/edit' : '/job-seeker/cv/edit'}
+                    href={talentNetworkCanEdit ? '/job-seeker/profile/talent-network/edit' : '/job-seeker/profile/edit'}
                     className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                   >
-                    Edit CV
+                    Edit Profile
                   </Link>
                   <button
                     type="button"
                     onClick={() => setShowBoostModal(true)}
                     className="bg-amber-500 text-white px-4 py-2 rounded hover:bg-amber-600"
                   >
-                    Boost CV
+                    Boost Profile
                   </button>
                   <button
                     onClick={handleTogglePublish}
@@ -475,18 +475,18 @@ function JobSeekerDashboardClient() {
                         : 'bg-gray-600 text-white hover:bg-gray-700'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    {togglingPublish ? 'Updating...' : (cv.published === false ? 'Show CV' : 'Hide CV')}
+                    {togglingPublish ? 'Updating...' : (cv.published === false ? 'Show Profile' : 'Hide Profile')}
                   </button>
                   <button
                     onClick={handleDeleteCV}
                     className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
                   >
-                    Delete CV
+                    Delete Profile
                   </button>
                 </div>
                 {cv.published === false && (
                   <p className="text-sm text-orange-600 mt-2">
-                    Your CV is currently hidden, nobody except from you can see it.
+                    Your profile is currently hidden, nobody except from you can see it.
                   </p>
                 )}
                 {showBoostModal && (
@@ -495,18 +495,18 @@ function JobSeekerDashboardClient() {
                     entityId={String(cv._id ?? cv.id ?? '')}
                     currentFeaturedUntil={cv.featuredUntil ?? null}
                     onClose={() => setShowBoostModal(false)}
-                    title="Boost your CV"
+                    title="Boost your profile"
                   />
                 )}
               </div>
             ) : (
               <div>
-                <p className="text-gray-600 mb-4">You don't have a CV yet.</p>
+                <p className="text-gray-600 mb-4">You don&apos;t have a profile yet.</p>
                 <Link
-                  href={talentNetworkCanEdit ? '/job-seeker/cv/talent-network/new' : '/job-seeker/cv/new'}
+                  href={talentNetworkCanEdit ? '/job-seeker/profile/talent-network/new' : '/job-seeker/profile/new'}
                   className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold inline-block"
                 >
-                  Create CV
+                  Create Profile
                 </Link>
               </div>
             )}

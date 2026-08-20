@@ -63,7 +63,7 @@ export default function TalentNetworkCvForm({
     selectedPictures.forEach((file) => {
       uploadFormData.append('pictures', sanitizeFileForUpload(file));
     });
-    const response = await fetch('/api/cv/upload', {
+    const response = await fetch('/api/profile/upload', {
       method: 'POST',
       body: uploadFormData,
       credentials: 'include',

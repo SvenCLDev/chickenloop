@@ -19,7 +19,7 @@ export async function GET(
     const cv = await CV.findById(id).populate('jobSeeker', 'name email');
 
     if (!cv) {
-      return NextResponse.json({ error: 'CV not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
     return NextResponse.json({ cv }, { status: 200 });
@@ -60,7 +60,7 @@ export async function PUT(
     const cv = await CV.findById(id);
 
     if (!cv) {
-      return NextResponse.json({ error: 'CV not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
     const body = await request.json();
@@ -165,7 +165,7 @@ export async function PUT(
       cv.profileSchemaVersion === 2 ? await CV.findById(cv._id) : cv;
 
     return NextResponse.json(
-      { message: 'CV updated successfully', cv: responseCv ?? cv },
+      { message: 'Profile updated successfully', cv: responseCv ?? cv },
       { status: 200 }
     );
   } catch (error: unknown) {

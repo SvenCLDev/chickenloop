@@ -28,7 +28,7 @@ export default function DeleteAccountPage() {
       return;
     }
 
-    if (!confirm('Are you absolutely sure you want to delete your account? This action cannot be undone and will delete all your data including your CV.')) {
+    if (!confirm('Are you absolutely sure you want to delete your account? This action cannot be undone and will delete all your data including your profile.')) {
       return;
     }
 
@@ -80,7 +80,7 @@ export default function DeleteAccountPage() {
               </p>
               <ul className="list-disc list-inside text-red-700 text-sm space-y-1">
                 <li>Your account information</li>
-                <li>Your CV and all associated data</li>
+                <li>Your profile and all associated data</li>
                 <li>Your saved favourite jobs</li>
                 <li>All other account-related data</li>
               </ul>

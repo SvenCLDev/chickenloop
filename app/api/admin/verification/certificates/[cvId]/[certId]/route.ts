@@ -33,7 +33,7 @@ export async function PATCH(
 
     const cv = await CV.findById(cvId);
     if (!cv) {
-      return NextResponse.json({ error: 'CV not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
     const cert = cv.verifiedCertificates?.find(

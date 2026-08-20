@@ -168,10 +168,10 @@ export default function AdminVerificationPage() {
                       </dl>
                       <div className="mt-4 flex flex-wrap gap-3">
                         <Link
-                          href={`/admin/cvs/${item.cvId}/edit`}
+                          href={`/admin/profiles/${item.cvId}/edit`}
                           className="text-blue-600 hover:underline text-sm"
                         >
-                          Edit CV
+                          Edit Profile
                         </Link>
                         <Link
                           href={`/candidates/${item.cvId}`}

@@ -14,7 +14,7 @@ export interface BoostModalProps {
   entityId: string;
   currentFeaturedUntil?: string | null;
   onClose: () => void;
-  /** Optional title. Default: "Feature this job" for job, "Boost your CV" for cv. */
+  /** Optional title. Default: "Feature this job" for job, "Boost your profile" for cv. */
   title?: string;
 }
 
@@ -30,7 +30,7 @@ export default function BoostModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const title = titleProp ?? (type === 'job' ? 'Feature this job' : 'Boost your CV');
+  const title = titleProp ?? (type === 'job' ? 'Feature this job' : 'Boost your profile');
 
   const handleContinue = async () => {
     setLoading(true);
@@ -71,7 +71,7 @@ export default function BoostModal({
           setError('Please select a boost option');
           return;
         }
-        const res = await fetch('/api/stripe/cv-boost/checkout', {
+        const res = await fetch('/api/stripe/profile-boost/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',

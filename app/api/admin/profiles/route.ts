@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ cvs: cvsWithData }, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[API /admin/cvs] Error:', error);
+    console.error('[API /admin/profiles] Error:', error);
     if (errorMessage === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

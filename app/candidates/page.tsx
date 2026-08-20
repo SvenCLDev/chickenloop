@@ -182,7 +182,7 @@ function CVsPageContent() {
       const response = await fetch(url, { credentials: 'include' });
 
       if (!response.ok) {
-        throw new Error('Failed to load CVs');
+        throw new Error('Failed to load profiles');
       }
 
       const data = await response.json();
@@ -195,7 +195,7 @@ function CVsPageContent() {
       });
       setPagination(data.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load CVs');
+      setError(err instanceof Error ? err.message : 'Failed to load profiles');
     } finally {
       setLoading(false);
     }
@@ -426,7 +426,7 @@ function CVsPageContent() {
 
         {cvs.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <p className="text-gray-600">No CVs available at the moment.</p>
+            <p className="text-gray-600">No profiles available at the moment.</p>
             <p className="text-gray-500 mt-2">Check back later for new candidates!</p>
           </div>
         ) : (

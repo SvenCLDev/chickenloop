@@ -117,7 +117,7 @@ export default function JobApplySection({
     
     setLoadingCv(true);
     try {
-      const response = await fetch('/api/cv', {
+      const response = await fetch('/api/profile', {
         credentials: 'include',
       });
       
@@ -215,10 +215,10 @@ export default function JobApplySection({
 
     // Check CV first
     if (!cv) {
-      return 'You need a published CV to apply. Please create and publish your CV first.';
+      return 'You need a published profile to apply. Please create and publish your profile first.';
     }
     if (cv.published === false) {
-      return 'You need a published CV to apply. Please publish your CV in your dashboard.';
+      return 'You need a published profile to apply. Please publish your profile in your dashboard.';
     }
 
     // Check application status

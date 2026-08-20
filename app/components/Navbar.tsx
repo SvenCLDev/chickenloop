@@ -106,7 +106,7 @@ export default function Navbar() {
               )}
               {!(user && isRecruiter) && (
                 <Link
-                  href="/job-seeker/cv/new"
+                  href="/job-seeker/profile/new"
                   className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-400 font-medium text-sm transition-colors"
                 >
                   Post Resume
@@ -219,7 +219,7 @@ export default function Navbar() {
                     )}
                     {!(user && isRecruiter) && (
                       <Link
-                        href="/job-seeker/cv/new"
+                        href="/job-seeker/profile/new"
                         onClick={closeMobileMenu}
                         className="px-4 py-2.5 bg-blue-500 text-white rounded-md hover:bg-blue-400 font-medium text-sm text-center transition-colors"
                       >

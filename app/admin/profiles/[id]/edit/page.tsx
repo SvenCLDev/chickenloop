@@ -60,7 +60,7 @@ export default function AdminEditCVPage() {
       }
       setPictures(cv.pictures || []);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load CV');
+      setError(err instanceof Error ? err.message : 'Failed to load profile');
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ export default function AdminEditCVPage() {
         <Link href="/admin" className="text-blue-600 hover:text-blue-800 text-sm">
           ← Back to Admin Dashboard
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900 mt-4 mb-2">Edit CV (Talent Network)</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mt-4 mb-2">Edit Profile (Talent Network)</h1>
         <p className="text-gray-600 mb-8">Admin editor for Verified Talent Network profiles.</p>
 
         {error && (
@@ -104,7 +104,7 @@ export default function AdminEditCVPage() {
         )}
         {success && (
           <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-800">
-            CV updated successfully.
+            Profile updated successfully.
           </div>
         )}
 
@@ -114,7 +114,7 @@ export default function AdminEditCVPage() {
             initialPictures={pictures}
             mode="edit"
             showPublishedToggle
-            submitLabel="Update CV"
+            submitLabel="Update Profile"
             onSubmit={async (payload) => {
               await adminApi.updateCV(cvId, payload);
               setSuccess(true);

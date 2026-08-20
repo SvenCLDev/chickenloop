@@ -16,7 +16,7 @@ export default function JobSeekerLayout({ children }: JobSeekerLayoutProps) {
   useEffect(() => {
     const fetchCount = async () => {
       try {
-        const res = await fetch('/api/cv/mine/count', { credentials: 'include' });
+        const res = await fetch('/api/profile/mine/count', { credentials: 'include' });
         const data = await res.json();
         if (res.ok && typeof data.count === 'number') {
           setCvCount(data.count);
@@ -39,14 +39,14 @@ export default function JobSeekerLayout({ children }: JobSeekerLayoutProps) {
       {showBanner && (
         <div className="rounded-lg bg-blue-50 border-l-4 border-blue-500 shadow-sm px-5 py-4 flex items-center justify-between gap-4">
           <p className="text-sm font-medium text-blue-900 flex-1">
-            Create your CV so recruiters can reach out to you with job offers.
+            Create your profile so recruiters can reach out to you with job offers.
           </p>
           <div className="flex items-center gap-3 shrink-0">
             <Link
-              href="/create-cv"
+              href="/create-profile"
               className="inline-flex items-center px-5 py-2.5 rounded-md text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              Create CV
+              Create Profile
             </Link>
             <button
               onClick={() => setBannerDismissed(true)}

@@ -46,7 +46,7 @@ export default function TalentNetworkEditPage() {
       setInitialForm(cvToTalentNetworkForm(data.cv));
       setPictures(data.cv.pictures || []);
     } catch {
-      router.push('/job-seeker/cv/new');
+      router.push('/job-seeker/profile/new');
     } finally {
       setLoading(false);
     }
@@ -72,8 +72,8 @@ export default function TalentNetworkEditPage() {
               ? 'The Talent Network feature is not enabled in this environment yet. An administrator must set TALENT_NETWORK_ENABLED=true in the server environment and restart the app.'
               : 'The new profile editor is not enabled for your account yet. Ask an admin to enable Talent Network beta on your user account.'}
           </p>
-          <Link href="/job-seeker/cv/edit" className="text-blue-600 hover:underline">
-            Continue with classic CV editor
+          <Link href="/job-seeker/profile/edit" className="text-blue-600 hover:underline">
+            Continue with classic profile editor
           </Link>
         </main>
       </div>
