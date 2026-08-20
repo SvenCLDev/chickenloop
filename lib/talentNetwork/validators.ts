@@ -144,6 +144,18 @@ export function validateSeasonalExperience(
   if (!isExperienceVerificationStatus(status)) {
     return { ok: false, error: 'Invalid experience verification status' };
   }
+  if (
+    typeof raw.startMonth === 'number' &&
+    typeof raw.startYear === 'number' &&
+    typeof endMonth === 'number' &&
+    typeof endYear === 'number' &&
+    endYear * 12 + endMonth < raw.startYear * 12 + raw.startMonth
+  ) {
+    return {
+      ok: false,
+      error: 'End date must be on or after the start date',
+    };
+  }
   const parsedId = parseMongoObjectId(raw._id);
   return {
     ok: true,

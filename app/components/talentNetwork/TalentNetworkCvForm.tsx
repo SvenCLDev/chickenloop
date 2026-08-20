@@ -6,7 +6,7 @@ import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { cvApi } from '@/lib/api';
 import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import { serializeTalentNetworkForm } from '@/lib/talentNetwork/serializeForm';
-import { countUnverifiedCompleteExperienceEntries } from '@/lib/talentNetwork/experienceVerification';
+import { countUnverifiedCompleteExperienceEntries, getExperienceDateRangeErrorsByIndex } from '@/lib/talentNetwork/experienceVerification';
 import CertificateBlock from './CertificateBlock';
 import SeasonalExperienceBlock from './SeasonalExperienceBlock';
 import LanguageSkillBlock from './LanguageSkillBlock';
@@ -54,6 +54,7 @@ export default function TalentNetworkCvForm({
   const [picturePreviews, setPicturePreviews] = useState<string[]>([]);
   const [uploadingCertIndex, setUploadingCertIndex] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [experienceDateErrors, setExperienceDateErrors] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
 
   const uploadPictures = async (): Promise<string[]> => {
@@ -101,9 +102,33 @@ export default function TalentNetworkCvForm({
     setError('');
   };
 
+  const handleSeasonalExperienceChange = (
+    seasonalExperience: TalentNetworkFormState['seasonalExperience']
+  ) => {
+    setFormData({ ...formData, seasonalExperience });
+    if (Object.keys(experienceDateErrors).length > 0) {
+      setExperienceDateErrors(getExperienceDateRangeErrorsByIndex(seasonalExperience));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setExperienceDateErrors({});
+
+    const dateRangeErrors = getExperienceDateRangeErrorsByIndex(formData.seasonalExperience);
+    const firstInvalidIndex = Object.keys(dateRangeErrors)
+      .map(Number)
+      .sort((a, b) => a - b)[0];
+    if (firstInvalidIndex !== undefined) {
+      setExperienceDateErrors(dateRangeErrors);
+      requestAnimationFrame(() => {
+        document
+          .getElementById(`experience-entry-${firstInvalidIndex}`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      return;
+    }
 
     const unverifiedCount = countUnverifiedCompleteExperienceEntries(formData.seasonalExperience);
     if (unverifiedCount > 0) {
@@ -306,7 +331,8 @@ export default function TalentNetworkCvForm({
 
       <SeasonalExperienceBlock
         entries={formData.seasonalExperience}
-        onChange={(seasonalExperience) => setFormData({ ...formData, seasonalExperience })}
+        onChange={handleSeasonalExperienceChange}
+        dateRangeErrors={experienceDateErrors}
       />
 
       <section className="space-y-4">

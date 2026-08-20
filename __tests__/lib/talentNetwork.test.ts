@@ -108,6 +108,21 @@ describe('talent network validators', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('rejects seasonal experience when end date is before start date', () => {
+    const result = validateSeasonalExperience({
+      schoolName: 'Ion Club Tarifa',
+      role: 'Senior Kite Instructor',
+      startMonth: 10,
+      startYear: 2024,
+      endMonth: 5,
+      endYear: 2024,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain('End date must be on or after the start date');
+    }
+  });
+
   it('validates language skill', () => {
     const result = validateLanguageSkill({
       language: 'English',
