@@ -1,14 +1,116 @@
 import type { Document } from 'mongoose';
 import mongoose from 'mongoose';
 import type { ICV } from '@/models/CV';
+import type { IReferenceVerificationToken } from '@/models/ReferenceVerificationToken';
 import ReferenceVerificationToken from '@/models/ReferenceVerificationToken';
 import { sendReferenceVerificationEmail } from '@/lib/email/sendReferenceVerificationEmail';
 import { findSeasonalExperienceForToken } from '@/lib/talentNetwork/mergeSeasonalExperience';
+import type { SeasonalExperience } from '@/lib/talentNetwork/types';
 import type { ReferenceConfirmInput } from '@/lib/referenceVerificationToken';
 import { generateReferenceToken } from '@/lib/referenceVerificationToken';
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const EXPIRY_DAYS = 14;
+
+export const EXPERIENCE_REMOVED_ERROR =
+  "This reference request is no longer active because the work experience was removed from the candidate's profile.";
+
+export type ReferenceConfirmContext =
+  | { status: 'error'; error: string; httpStatus?: 404 | 410 }
+  | {
+      status: 'entry_removed';
+      candidateName: string;
+      schoolName: string;
+      seasonLabel?: string;
+    }
+  | {
+      status: 'responded';
+      candidateName: string;
+      schoolName: string;
+      seasonLabel?: string;
+      worked: boolean;
+      rehire?: boolean;
+    }
+  | {
+      status: 'pending';
+      candidateName: string;
+      schoolName: string;
+      seasonLabel?: string;
+      tokenDoc: Document & IReferenceVerificationToken;
+      cv: Document & ICV;
+      entry: SeasonalExperience;
+    };
+
+function tokenResponseState(tokenDoc: {
+  workConfirmed?: boolean;
+  confirmed?: boolean;
+  rehire?: boolean;
+}): { worked: boolean; rehire?: boolean } {
+  const worked =
+    tokenDoc.workConfirmed === false
+      ? false
+      : tokenDoc.workConfirmed === true ||
+          tokenDoc.confirmed === true ||
+          tokenDoc.rehire !== undefined;
+  return { worked, rehire: tokenDoc.rehire };
+}
+
+export async function getReferenceConfirmContext(
+  token: string
+): Promise<ReferenceConfirmContext> {
+  const tokenDoc = await ReferenceVerificationToken.findOne({ token });
+  if (!tokenDoc) {
+    return { status: 'error', error: 'Invalid reference link', httpStatus: 404 };
+  }
+  if (tokenDoc.expiresAt < new Date()) {
+    return { status: 'error', error: 'Reference link expired', httpStatus: 410 };
+  }
+
+  if (tokenDoc.respondedAt) {
+    const { worked, rehire } = tokenResponseState(tokenDoc);
+    return {
+      status: 'responded',
+      candidateName: tokenDoc.candidateName,
+      schoolName: tokenDoc.schoolName,
+      seasonLabel: tokenDoc.seasonLabel,
+      worked,
+      rehire,
+    };
+  }
+
+  const CV = (await import('@/models/CV')).default;
+  const cv = await CV.findById(tokenDoc.cvId);
+  if (!cv) {
+    return { status: 'error', error: 'Profile not found' };
+  }
+
+  const entry = findSeasonalExperienceForToken(cv.seasonalExperience, {
+    _id: tokenDoc._id as mongoose.Types.ObjectId,
+    experienceEntryId: tokenDoc.experienceEntryId,
+    schoolName: tokenDoc.schoolName,
+    managerEmail: tokenDoc.managerEmail,
+    seasonLabel: tokenDoc.seasonLabel,
+  });
+
+  if (!entry) {
+    return {
+      status: 'entry_removed',
+      candidateName: tokenDoc.candidateName,
+      schoolName: tokenDoc.schoolName,
+      seasonLabel: tokenDoc.seasonLabel,
+    };
+  }
+
+  return {
+    status: 'pending',
+    candidateName: tokenDoc.candidateName,
+    schoolName: tokenDoc.schoolName,
+    seasonLabel: tokenDoc.seasonLabel,
+    tokenDoc,
+    cv,
+    entry,
+  };
+}
 
 function seasonLabel(entry: {
   seasonTag?: string;
@@ -106,46 +208,29 @@ export async function confirmReferenceToken(
       worked: boolean;
       rehire?: boolean;
     }
-  | { ok: false; error: string }
+  | { ok: false; error: string; code?: 'experience_removed' }
 > {
-  const tokenDoc = await ReferenceVerificationToken.findOne({ token });
-  if (!tokenDoc) {
-    return { ok: false, error: 'Invalid or expired reference link' };
+  const context = await getReferenceConfirmContext(token);
+  if (context.status === 'error') {
+    return { ok: false, error: context.error };
   }
-  if (tokenDoc.expiresAt < new Date()) {
-    return { ok: false, error: 'This reference link has expired' };
+  if (context.status === 'entry_removed') {
+    return {
+      ok: false,
+      error: EXPERIENCE_REMOVED_ERROR,
+      code: 'experience_removed',
+    };
   }
-  if (tokenDoc.respondedAt) {
-    const worked =
-      tokenDoc.workConfirmed === false
-        ? false
-        : tokenDoc.workConfirmed === true ||
-          tokenDoc.confirmed === true ||
-          tokenDoc.rehire !== undefined;
+  if (context.status === 'responded') {
     return {
       ok: true,
-      candidateName: tokenDoc.candidateName,
-      worked,
-      rehire: tokenDoc.rehire,
+      candidateName: context.candidateName,
+      worked: context.worked,
+      rehire: context.rehire,
     };
   }
 
-  const CV = (await import('@/models/CV')).default;
-  const cv = await CV.findById(tokenDoc.cvId);
-  if (!cv) {
-    return { ok: false, error: 'Profile not found' };
-  }
-
-  const entry = findSeasonalExperienceForToken(cv.seasonalExperience, {
-    _id: tokenDoc._id as mongoose.Types.ObjectId,
-    experienceEntryId: tokenDoc.experienceEntryId,
-    schoolName: tokenDoc.schoolName,
-    managerEmail: tokenDoc.managerEmail,
-    seasonLabel: tokenDoc.seasonLabel,
-  });
-  if (!entry) {
-    return { ok: false, error: 'Experience entry not found' };
-  }
+  const { tokenDoc, cv, entry } = context;
 
   if (response.worked === false) {
     entry.verificationStatus = 'reference_disputed';

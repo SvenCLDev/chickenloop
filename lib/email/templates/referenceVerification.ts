@@ -11,6 +11,7 @@ export function referenceVerificationEmail(input: {
   confirmPageUrl?: string;
 }): { subject: string; html: string; text: string } {
   const period = input.seasonLabel ? ` during ${input.seasonLabel}` : '';
+  const confirmQuestion = `Can you please confirm if ${input.candidateName} worked at ${input.schoolName}${period} and, if they did, if you would rehire them?`;
   const subject = `${input.schoolName}: reference request for ${input.candidateName}`;
   const greeting = input.managerName?.trim()
     ? `Hi ${input.managerName.trim()},`
@@ -26,8 +27,7 @@ export function referenceVerificationEmail(input: {
     ``,
     `${input.candidateName} listed you as a reference for their work at ${input.schoolName}${period} on Chickenloop.`,
     ``,
-    `Question 1: Did ${input.candidateName} work at ${input.schoolName}${period}?`,
-    `Question 2 (if yes): Would you rehire them?`,
+    confirmQuestion,
     ``,
     `Yes, they worked here — I would rehire them: ${input.confirmWorkedRehireUrl}`,
     `Yes, they worked here — I would not rehire them: ${input.confirmWorkedNoRehireUrl}`,
@@ -51,8 +51,7 @@ export function referenceVerificationEmail(input: {
     </div>
     <p>${greeting}</p>
     <p><strong>${input.candidateName}</strong> listed you as a reference for their work at <strong>${input.schoolName}</strong>${period} on Chickenloop.</p>
-    <p><strong>Question 1:</strong> Did ${input.candidateName} work at ${input.schoolName}${period}?</p>
-    <p><strong>Question 2 (if yes):</strong> Would you rehire them?</p>
+    <p>${confirmQuestion}</p>
     <p>
       <a href="${input.confirmWorkedRehireUrl}" style="display:inline-block;padding:10px 16px;background:#059669;color:#fff;text-decoration:none;border-radius:6px;margin:0 8px 8px 0;">Yes, they worked here — I would rehire them</a>
       <a href="${input.confirmWorkedNoRehireUrl}" style="display:inline-block;padding:10px 16px;background:#6b7280;color:#fff;text-decoration:none;border-radius:6px;margin:0 8px 8px 0;">Yes, they worked here — I would not rehire them</a>

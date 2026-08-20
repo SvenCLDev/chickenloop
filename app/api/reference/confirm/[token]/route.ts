@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import ReferenceVerificationToken from '@/models/ReferenceVerificationToken';
-import { confirmReferenceToken } from '@/lib/talentNetwork/processReferenceRequests';
+import {
+  confirmReferenceToken,
+  getReferenceConfirmContext,
+} from '@/lib/talentNetwork/processReferenceRequests';
 import { parseReferenceConfirmBody } from '@/lib/referenceVerificationToken';
 
 export async function GET(
@@ -11,28 +13,50 @@ export async function GET(
   try {
     await connectDB();
     const { token } = await params;
-    const tokenDoc = await ReferenceVerificationToken.findOne({ token }).lean();
-    if (!tokenDoc) {
-      return NextResponse.json({ error: 'Invalid reference link' }, { status: 404 });
+    const context = await getReferenceConfirmContext(token);
+
+    if (context.status === 'error') {
+      return NextResponse.json(
+        { error: context.error },
+        { status: context.httpStatus ?? 400 }
+      );
     }
-    if (tokenDoc.expiresAt < new Date()) {
-      return NextResponse.json({ error: 'Reference link expired' }, { status: 410 });
+
+    if (context.status === 'entry_removed') {
+      return NextResponse.json(
+        {
+          candidateName: context.candidateName,
+          schoolName: context.schoolName,
+          seasonLabel: context.seasonLabel,
+          responded: false,
+          entryRemoved: true,
+        },
+        { status: 200 }
+      );
     }
+
+    if (context.status === 'responded') {
+      return NextResponse.json(
+        {
+          candidateName: context.candidateName,
+          schoolName: context.schoolName,
+          seasonLabel: context.seasonLabel,
+          responded: true,
+          entryRemoved: false,
+          worked: context.worked,
+          rehire: context.rehire,
+        },
+        { status: 200 }
+      );
+    }
+
     return NextResponse.json(
       {
-        candidateName: tokenDoc.candidateName,
-        schoolName: tokenDoc.schoolName,
-        seasonLabel: tokenDoc.seasonLabel,
-        responded: !!tokenDoc.respondedAt,
-        worked:
-          tokenDoc.workConfirmed === false
-            ? false
-            : tokenDoc.workConfirmed === true ||
-              tokenDoc.confirmed === true ||
-              tokenDoc.rehire !== undefined
-              ? true
-              : undefined,
-        rehire: tokenDoc.rehire,
+        candidateName: context.candidateName,
+        schoolName: context.schoolName,
+        seasonLabel: context.seasonLabel,
+        responded: false,
+        entryRemoved: false,
       },
       { status: 200 }
     );
@@ -59,7 +83,13 @@ export async function POST(
 
     const result = await confirmReferenceToken(token, response);
     if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: result.error,
+          ...(result.code ? { code: result.code } : {}),
+        },
+        { status: result.code === 'experience_removed' ? 410 : 400 }
+      );
     }
 
     return NextResponse.json(

@@ -96,6 +96,9 @@ describe('referenceVerificationEmail', () => {
     expect(html).toContain('Hello from Chickenloop');
     expect(html).toContain('About Chickenloop');
     expect(html).toContain('Yes, they worked here — I would rehire them');
+    expect(html).toContain(
+      'Can you please confirm if Sven Kelling worked at Aquasail India during summer 2013 and, if they did, if you would rehire them?'
+    );
     expect(html).toContain('Yes, they worked here — I would not rehire them');
     expect(html).toContain('No, they did not work at our center');
     expect(html).toContain('https://www.chickenloop.com/register');

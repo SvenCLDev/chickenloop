@@ -42,6 +42,7 @@ export default function ReferenceConfirmContent() {
     schoolName: string;
     seasonLabel?: string;
     responded: boolean;
+    entryRemoved?: boolean;
     worked?: boolean;
     rehire?: boolean;
   } | null>(null);
@@ -62,7 +63,22 @@ export default function ReferenceConfirmContent() {
           body: JSON.stringify(response),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to submit response');
+        if (!res.ok) {
+          if (data.code === 'experience_removed') {
+            setInfo((prev) =>
+              prev
+                ? { ...prev, entryRemoved: true, responded: false }
+                : {
+                    candidateName: data.candidateName ?? 'the candidate',
+                    schoolName: data.schoolName ?? 'this center',
+                    responded: false,
+                    entryRemoved: true,
+                  }
+            );
+            return;
+          }
+          throw new Error(data.error || 'Failed to submit response');
+        }
         const outcome = outcomeFromInput(response);
         setDone(true);
         setRecordedOutcome(outcome);
@@ -71,6 +87,7 @@ export default function ReferenceConfirmContent() {
             ? {
                 ...prev,
                 responded: true,
+                entryRemoved: false,
                 worked: response.worked,
                 rehire: response.rehire,
               }
@@ -103,6 +120,10 @@ export default function ReferenceConfirmContent() {
           return;
         }
 
+        if (data.entryRemoved) {
+          return;
+        }
+
         if (emailIntent) {
           await submitResponse(emailIntent);
         }
@@ -118,8 +139,11 @@ export default function ReferenceConfirmContent() {
     };
   }, [token, emailIntent, submitResponse]);
 
-  const showManualPrompt = !done && !submitting && (emailIntent === null || !!error);
-  const showEmailProcessing = !done && emailIntent !== null && submitting && !error;
+  const entryRemoved = info?.entryRemoved === true;
+  const showManualPrompt =
+    !done && !entryRemoved && !submitting && (emailIntent === null || !!error);
+  const showEmailProcessing =
+    !done && !entryRemoved && emailIntent !== null && submitting && !error;
   const outcome = recordedOutcome ?? outcomeFromStored(info?.worked, info?.rehire);
   const periodSuffix = info?.seasonLabel ? ` (${info.seasonLabel})` : '';
 
@@ -138,9 +162,25 @@ export default function ReferenceConfirmContent() {
 
           {info && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Reference confirmation</h1>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                {entryRemoved ? 'Reference request no longer active' : 'Reference confirmation'}
+              </h1>
 
-              {done ? (
+              {entryRemoved ? (
+                <div className="p-4 border border-amber-200 rounded-md bg-amber-50 text-amber-950">
+                  <p className="text-sm leading-relaxed">
+                    The work experience for <strong>{info.candidateName}</strong> at{' '}
+                    <strong>{info.schoolName}</strong>
+                    {periodSuffix} is no longer on their Chickenloop profile. It was most likely
+                    removed or updated after this reference email was sent.
+                  </p>
+                  <p className="mt-3 text-sm leading-relaxed">
+                    No action is needed on your part. If you still need to confirm their employment,
+                    ask <strong>{info.candidateName}</strong> to add the experience back and send a
+                    new reference request.
+                  </p>
+                </div>
+              ) : done ? (
                 <div
                   className={`p-4 border rounded-md ${
                     outcome === 'not-worked'
@@ -162,13 +202,11 @@ export default function ReferenceConfirmContent() {
                 <p className="text-gray-600">Recording your response...</p>
               ) : showManualPrompt ? (
                 <>
-                  <p className="text-gray-600 mb-2">
-                    <strong>Question 1:</strong> Did <strong>{info.candidateName}</strong> work at{' '}
-                    <strong>{info.schoolName}</strong>
-                    {info.seasonLabel ? ` (${info.seasonLabel})` : ''}?
-                  </p>
                   <p className="text-gray-600 mb-6">
-                    <strong>Question 2 (if yes):</strong> Would you rehire them?
+                    Can you please confirm if <strong>{info.candidateName}</strong> worked at{' '}
+                    <strong>{info.schoolName}</strong>
+                    {info.seasonLabel ? ` during ${info.seasonLabel}` : ''} and, if they did, if you
+                    would rehire them?
                   </p>
                   <div className="flex flex-col gap-3">
                     <button
