@@ -111,7 +111,7 @@ export async function confirmReferenceToken(
   }
 
   const entry = findSeasonalExperienceForToken(cv.seasonalExperience, {
-    _id: tokenDoc._id,
+    _id: tokenDoc._id as mongoose.Types.ObjectId,
     experienceEntryId: tokenDoc.experienceEntryId,
     schoolName: tokenDoc.schoolName,
     managerEmail: tokenDoc.managerEmail,
