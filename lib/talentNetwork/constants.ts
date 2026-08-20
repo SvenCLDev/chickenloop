@@ -2,6 +2,8 @@ import {
   ISSUING_BODIES,
   LANGUAGE_PROFICIENCIES,
   WATERSPORT_DISCIPLINES,
+  WORK_AUTHORIZATION_STATUSES,
+  type WorkAuthorizationStatus,
 } from './types';
 
 export const ISSUING_BODY_LABELS: Record<(typeof ISSUING_BODIES)[number], string> = {
@@ -44,6 +46,21 @@ export const MONTH_OPTIONS = [
   { value: 11, label: 'November' },
   { value: 12, label: 'December' },
 ];
+
+export const WORK_AUTHORIZATION_STATUS_LABELS: Record<WorkAuthorizationStatus, string> = {
+  citizen: 'Citizen',
+  permanent_resident: 'Permanent resident',
+  eu_eea_right: 'EU / EEA right to work',
+  valid_work_visa: 'Valid work visa',
+  working_holiday: 'Working holiday visa',
+  seasonal_permit: 'Seasonal work permit',
+  requires_sponsorship: 'Requires visa sponsorship',
+};
+
+export const WORK_AUTHORIZATION_STATUS_OPTIONS = WORK_AUTHORIZATION_STATUSES.map((value) => ({
+  value,
+  label: WORK_AUTHORIZATION_STATUS_LABELS[value],
+}));
 
 export const CERTIFICATE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 export const CERTIFICATE_UPLOAD_MIME_TYPES = [

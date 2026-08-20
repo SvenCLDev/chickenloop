@@ -101,6 +101,25 @@ export interface LanguageSkill {
   verificationStatus: LanguageVerificationStatus;
 }
 
+export const WORK_AUTHORIZATION_STATUSES = [
+  'citizen',
+  'permanent_resident',
+  'eu_eea_right',
+  'valid_work_visa',
+  'working_holiday',
+  'seasonal_permit',
+  'requires_sponsorship',
+] as const;
+export type WorkAuthorizationStatus = (typeof WORK_AUTHORIZATION_STATUSES)[number];
+
+export interface WorkAuthorization {
+  country: string;
+  status: WorkAuthorizationStatus;
+  permitType?: string;
+  validUntil?: Date | string;
+  notes?: string;
+}
+
 export interface TalentNetworkUserContext {
   role?: string | null;
   talentNetworkBeta?: boolean;
@@ -111,4 +130,10 @@ export interface TalentNetworkCvFields {
   verifiedCertificates?: VerifiedCertificate[];
   seasonalExperience?: SeasonalExperience[];
   languageSkills?: LanguageSkill[];
+  nationalityCountry?: string;
+  preferredWorkCountries?: string[];
+  workEligibleCountries?: string[];
+  euEeaWorkRights?: boolean;
+  workAuthorizations?: WorkAuthorization[];
+  canWorkWithoutSponsorshipIn?: string[];
 }

@@ -71,6 +71,15 @@ export interface CandidateSearchParams {
 
   /** When true, only CVs with at least one Chickenloop-verified certificate */
   verifiedOnly?: boolean;
+
+  /** Preferred work country filter (ISO code, maps to preferredWorkCountries) */
+  preferredCountry?: string[];
+
+  /** Can legally work in country filter (ISO code, maps to workEligibleCountries) */
+  canWorkIn?: string[];
+
+  /** Can work without sponsorship in country (ISO code, maps to canWorkWithoutSponsorshipIn) */
+  noSponsorshipIn?: string[];
 }
 
 /**
@@ -133,6 +142,30 @@ export function parseCandidateSearchParams(searchParams: URLSearchParams | Reado
   if (searchParams.get('verified_only') === 'true') {
     params.verifiedOnly = true;
   }
+
+  const preferredCountryParam = searchParams.get('preferred_country');
+  if (preferredCountryParam) {
+    params.preferredCountry = preferredCountryParam
+      .split(',')
+      .map((v) => decodeURIComponent(v.trim()).toUpperCase())
+      .filter((v) => v.length === 2);
+  }
+
+  const canWorkInParam = searchParams.get('can_work_in');
+  if (canWorkInParam) {
+    params.canWorkIn = canWorkInParam
+      .split(',')
+      .map((v) => decodeURIComponent(v.trim()).toUpperCase())
+      .filter((v) => v.length === 2);
+  }
+
+  const noSponsorshipParam = searchParams.get('no_sponsorship_in');
+  if (noSponsorshipParam) {
+    params.noSponsorshipIn = noSponsorshipParam
+      .split(',')
+      .map((v) => decodeURIComponent(v.trim()).toUpperCase())
+      .filter((v) => v.length === 2);
+  }
   
   return params;
 }
@@ -190,6 +223,18 @@ export function buildCandidateSearchQuery(params: CandidateSearchParams): string
   if (params.verifiedOnly) {
     queryParts.push('verified_only=true');
   }
+
+  if (params.preferredCountry && params.preferredCountry.length > 0) {
+    queryParts.push(`preferred_country=${encodeURIComponent(params.preferredCountry.join(','))}`);
+  }
+
+  if (params.canWorkIn && params.canWorkIn.length > 0) {
+    queryParts.push(`can_work_in=${encodeURIComponent(params.canWorkIn.join(','))}`);
+  }
+
+  if (params.noSponsorshipIn && params.noSponsorshipIn.length > 0) {
+    queryParts.push(`no_sponsorship_in=${encodeURIComponent(params.noSponsorshipIn.join(','))}`);
+  }
   
   return queryParts.join('&');
 }
@@ -222,6 +267,9 @@ export function hasActiveFilters(params: CandidateSearchParams): boolean {
     (params.certification && params.certification.length > 0) ||
     (params.experienceLevel && params.experienceLevel.length > 0) ||
     (params.availability && params.availability.length > 0) ||
+    (params.preferredCountry && params.preferredCountry.length > 0) ||
+    (params.canWorkIn && params.canWorkIn.length > 0) ||
+    (params.noSponsorshipIn && params.noSponsorshipIn.length > 0) ||
     params.verifiedOnly
   );
 }

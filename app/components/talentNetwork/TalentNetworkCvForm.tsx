@@ -10,6 +10,7 @@ import { countUnverifiedCompleteExperienceEntries, getExperienceDateRangeErrorsB
 import CertificateBlock from './CertificateBlock';
 import SeasonalExperienceBlock from './SeasonalExperienceBlock';
 import LanguageSkillBlock from './LanguageSkillBlock';
+import WorkLocationBlock from './WorkLocationBlock';
 import {
   emptyCertificate,
   emptyLanguageSkill,
@@ -231,7 +232,7 @@ export default function TalentNetworkCvForm({
         <h2 className="text-xl font-semibold text-gray-900">Work Preferences</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Looking for work in these areas:</p>
+            <p className="text-sm font-medium text-gray-700 mb-2">Type of work I&apos;m looking for:</p>
             <div className="flex flex-wrap gap-2">
               {JOB_CATEGORIES.map((area) => (
                 <button
@@ -316,6 +317,11 @@ export default function TalentNetworkCvForm({
           </div>
         </div>
       </section>
+
+      <WorkLocationBlock
+        formData={formData}
+        onChange={(updates) => setFormData({ ...formData, ...updates })}
+      />
 
       <LanguageSkillBlock
         skills={formData.languageSkills}

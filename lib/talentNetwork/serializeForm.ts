@@ -1,4 +1,4 @@
-import type { TalentNetworkFormState } from '@/app/components/talentNetwork/formTypes';
+import type { TalentNetworkFormState, WorkAuthorizationFormEntry } from '@/app/components/talentNetwork/formTypes';
 import { isMongoObjectId } from '@/lib/talentNetwork/mergeSeasonalExperience';
 
 export function serializeTalentNetworkForm(
@@ -15,6 +15,19 @@ export function serializeTalentNetworkForm(
     lookingForWorkInAreas: form.lookingForWorkInAreas,
     experienceLevel: form.experienceLevel || undefined,
     availability: form.availability || undefined,
+    nationalityCountry: form.nationalityCountry || undefined,
+    preferredWorkCountries: form.preferredWorkCountries,
+    workEligibleCountries: form.workEligibleCountries,
+    euEeaWorkRights: form.euEeaWorkRights,
+    workAuthorizations: form.workAuthorizations
+      .filter((a) => a.country && a.status)
+      .map((a) => ({
+        country: a.country,
+        status: a.status,
+        permitType: a.permitType || undefined,
+        validUntil: a.validUntil || undefined,
+        notes: a.notes || undefined,
+      })),
     pictures,
     published: form.published,
     profileSchemaVersion: 2,
@@ -111,6 +124,21 @@ export function cvToTalentNetworkForm(cv: Record<string, unknown>): TalentNetwor
     lookingForWorkInAreas: (cv.lookingForWorkInAreas as string[]) ?? [],
     experienceLevel: (cv.experienceLevel as TalentNetworkFormState['experienceLevel']) ?? '',
     availability: (cv.availability as TalentNetworkFormState['availability']) ?? '',
+    nationalityCountry: String(cv.nationalityCountry ?? ''),
+    preferredWorkCountries: (cv.preferredWorkCountries as string[]) ?? [],
+    workEligibleCountries: (cv.workEligibleCountries as string[]) ?? [],
+    euEeaWorkRights: cv.euEeaWorkRights === true,
+    workAuthorizations:
+      ((cv.workAuthorizations as Record<string, unknown>[] | undefined) ?? []).length > 0
+        ? ((cv.workAuthorizations as Record<string, unknown>[]) ?? []).map((a, i) => ({
+            clientId: `auth-${i}`,
+            country: String(a.country ?? ''),
+            status: (a.status as WorkAuthorizationFormEntry['status']) ?? '',
+            permitType: String(a.permitType ?? ''),
+            validUntil: a.validUntil ? String(a.validUntil).slice(0, 10) : '',
+            notes: String(a.notes ?? ''),
+          }))
+        : [],
     published: cv.published !== false,
   };
 }

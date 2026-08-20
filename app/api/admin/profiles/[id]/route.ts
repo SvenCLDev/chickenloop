@@ -5,6 +5,7 @@ import { requireRole } from '@/lib/auth';
 import { isExperienceLevel, isAvailability, isWorkArea } from '@/lib/domainTypes';
 import { applyTalentNetworkFieldsToCv } from '@/lib/talentNetwork/applyToCv';
 import { processReferenceVerificationRequestsForCvId } from '@/lib/talentNetwork/runReferenceVerificationAfterSave';
+import { applyWorkLocationFieldsToCv } from '@/lib/workLocation';
 
 // GET - Get a single CV by ID (admin only)
 export async function GET(
@@ -153,6 +154,11 @@ export async function PUT(
     });
     if (!applied.ok) {
       return NextResponse.json({ error: applied.error }, { status: 400 });
+    }
+
+    const workLocationApplied = applyWorkLocationFieldsToCv(cv, body);
+    if (!workLocationApplied.ok) {
+      return NextResponse.json({ error: workLocationApplied.error }, { status: 400 });
     }
 
     await cv.save();

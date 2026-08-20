@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { buildCandidateSearchQuery } from '@/lib/candidateSearchParams';
 import { candidatesApi } from '@/lib/api';
+import { COUNTRY_OPTIONS } from '@/lib/countryUtils';
 
 interface CV {
   _id: string;
@@ -19,6 +20,9 @@ interface CV {
   experienceAndSkill?: string[];
   languages?: string[];
   lookingForWorkInAreas?: string[];
+  nationalityCountry?: string;
+  preferredWorkCountries?: string[];
+  workEligibleCountries?: string[];
   professionalCertifications?: string[];
   pictures?: string[];
   featured?: boolean;
@@ -128,6 +132,9 @@ function CVsPageContent() {
   const [selectedWorkArea, setSelectedWorkArea] = useState<string>('');
   const [selectedSport, setSelectedSport] = useState<string>('');
   const [selectedCertification, setSelectedCertification] = useState<string>('');
+  const [selectedCanWorkIn, setSelectedCanWorkIn] = useState<string>('');
+  const [selectedPreferredCountry, setSelectedPreferredCountry] = useState<string>('');
+  const [selectedNoSponsorshipIn, setSelectedNoSponsorshipIn] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [favouriteCvIds, setFavouriteCvIds] = useState<Set<string>>(new Set());
   const [togglingFavouriteId, setTogglingFavouriteId] = useState<string | null>(null);
@@ -158,6 +165,9 @@ function CVsPageContent() {
     setSelectedWorkArea(searchParams.get('work_area') || '');
     setSelectedSport(searchParams.get('sports') || '');
     setSelectedCertification(searchParams.get('certifications') || '');
+    setSelectedCanWorkIn(searchParams.get('can_work_in') || '');
+    setSelectedPreferredCountry(searchParams.get('preferred_country') || '');
+    setSelectedNoSponsorshipIn(searchParams.get('no_sponsorship_in') || '');
   }, [searchParams]);
 
   const loadCVs = useCallback(async () => {
@@ -177,6 +187,12 @@ function CVsPageContent() {
       if (sport) params.set('sports', sport);
       const cert = searchParams.get('certifications');
       if (cert) params.set('certifications', cert);
+      const canWorkIn = searchParams.get('can_work_in');
+      if (canWorkIn) params.set('can_work_in', canWorkIn);
+      const preferredCountry = searchParams.get('preferred_country');
+      if (preferredCountry) params.set('preferred_country', preferredCountry);
+      const noSponsorship = searchParams.get('no_sponsorship_in');
+      if (noSponsorship) params.set('no_sponsorship_in', noSponsorship);
       const queryString = params.toString();
       const url = `/api/candidates-list${queryString ? `?${queryString}` : ''}`;
       const response = await fetch(url, { credentials: 'include' });
@@ -248,21 +264,15 @@ function CVsPageContent() {
     })}`);
   };
 
-  const handleFilterChange = (filter: 'language' | 'workArea' | 'sport' | 'certification', value: string) => {
-    const updates = { language: selectedLanguage, workArea: selectedWorkArea, sport: selectedSport, certification: selectedCertification };
-    if (filter === 'language') {
-      setSelectedLanguage(value);
-      updates.language = value;
-    } else if (filter === 'workArea') {
-      setSelectedWorkArea(value);
-      updates.workArea = value;
-    } else if (filter === 'sport') {
-      setSelectedSport(value);
-      updates.sport = value;
-    } else {
-      setSelectedCertification(value);
-      updates.certification = value;
-    }
+  const pushFilters = (updates: {
+    language?: string;
+    workArea?: string;
+    sport?: string;
+    certification?: string;
+    canWorkIn?: string;
+    preferredCountry?: string;
+    noSponsorshipIn?: string;
+  }) => {
     setCurrentPage(1);
     const q = buildCandidateSearchQuery({
       page: 1,
@@ -270,8 +280,85 @@ function CVsPageContent() {
       ...(updates.workArea && { workArea: [updates.workArea] }),
       ...(updates.sport && { sport: [updates.sport] }),
       ...(updates.certification && { certification: [updates.certification] }),
+      ...(updates.canWorkIn && { canWorkIn: [updates.canWorkIn] }),
+      ...(updates.preferredCountry && { preferredCountry: [updates.preferredCountry] }),
+      ...(updates.noSponsorshipIn && { noSponsorshipIn: [updates.noSponsorshipIn] }),
     });
     router.push(q ? `/candidates?${q}` : '/candidates');
+  };
+
+  const handleFilterChange = (filter: 'language' | 'workArea' | 'sport' | 'certification', value: string) => {
+    if (filter === 'language') {
+      setSelectedLanguage(value);
+      pushFilters({
+        language: value,
+        workArea: selectedWorkArea,
+        sport: selectedSport,
+        certification: selectedCertification,
+        canWorkIn: selectedCanWorkIn,
+        preferredCountry: selectedPreferredCountry,
+        noSponsorshipIn: selectedNoSponsorshipIn,
+      });
+    } else if (filter === 'workArea') {
+      setSelectedWorkArea(value);
+      pushFilters({
+        language: selectedLanguage,
+        workArea: value,
+        sport: selectedSport,
+        certification: selectedCertification,
+        canWorkIn: selectedCanWorkIn,
+        preferredCountry: selectedPreferredCountry,
+        noSponsorshipIn: selectedNoSponsorshipIn,
+      });
+    } else if (filter === 'sport') {
+      setSelectedSport(value);
+      pushFilters({
+        language: selectedLanguage,
+        workArea: selectedWorkArea,
+        sport: value,
+        certification: selectedCertification,
+        canWorkIn: selectedCanWorkIn,
+        preferredCountry: selectedPreferredCountry,
+        noSponsorshipIn: selectedNoSponsorshipIn,
+      });
+    } else {
+      setSelectedCertification(value);
+      pushFilters({
+        language: selectedLanguage,
+        workArea: selectedWorkArea,
+        sport: selectedSport,
+        certification: value,
+        canWorkIn: selectedCanWorkIn,
+        preferredCountry: selectedPreferredCountry,
+        noSponsorshipIn: selectedNoSponsorshipIn,
+      });
+    }
+  };
+
+  const handleCountryFilterChange = (
+    filter: 'canWorkIn' | 'preferredCountry' | 'noSponsorshipIn',
+    value: string
+  ) => {
+    const next = {
+      language: selectedLanguage,
+      workArea: selectedWorkArea,
+      sport: selectedSport,
+      certification: selectedCertification,
+      canWorkIn: selectedCanWorkIn,
+      preferredCountry: selectedPreferredCountry,
+      noSponsorshipIn: selectedNoSponsorshipIn,
+    };
+    if (filter === 'canWorkIn') {
+      setSelectedCanWorkIn(value);
+      next.canWorkIn = value;
+    } else if (filter === 'preferredCountry') {
+      setSelectedPreferredCountry(value);
+      next.preferredCountry = value;
+    } else {
+      setSelectedNoSponsorshipIn(value);
+      next.noSponsorshipIn = value;
+    }
+    pushFilters(next);
   };
 
   if (authLoading || loading) {
@@ -368,14 +455,62 @@ function CVsPageContent() {
               ))}
             </select>
 
+            {/* Can work in country */}
+            <select
+              id="can-work-in-filter"
+              value={selectedCanWorkIn}
+              onChange={(e) => handleCountryFilterChange('canWorkIn', e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
+            >
+              <option value="">Can work in any country</option>
+              {COUNTRY_OPTIONS.map((country) => (
+                <option key={country.code} value={country.code}>
+                  Can work in {country.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Preferred work country */}
+            <select
+              id="preferred-country-filter"
+              value={selectedPreferredCountry}
+              onChange={(e) => handleCountryFilterChange('preferredCountry', e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[200px]"
+            >
+              <option value="">Open to any country</option>
+              {COUNTRY_OPTIONS.map((country) => (
+                <option key={country.code} value={country.code}>
+                  Open to {country.name}
+                </option>
+              ))}
+            </select>
+
+            {/* No sponsorship required */}
+            <select
+              id="no-sponsorship-filter"
+              value={selectedNoSponsorshipIn}
+              onChange={(e) => handleCountryFilterChange('noSponsorshipIn', e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-[220px]"
+            >
+              <option value="">Sponsorship filter off</option>
+              {COUNTRY_OPTIONS.map((country) => (
+                <option key={country.code} value={country.code}>
+                  No sponsorship needed in {country.name}
+                </option>
+              ))}
+            </select>
+
             {/* Clear Filters Button */}
-            {(selectedLanguage || selectedWorkArea || selectedSport || selectedCertification) && (
+            {(selectedLanguage || selectedWorkArea || selectedSport || selectedCertification || selectedCanWorkIn || selectedPreferredCountry || selectedNoSponsorshipIn) && (
               <button
                 onClick={() => {
                   setSelectedLanguage('');
                   setSelectedWorkArea('');
                   setSelectedSport('');
                   setSelectedCertification('');
+                  setSelectedCanWorkIn('');
+                  setSelectedPreferredCountry('');
+                  setSelectedNoSponsorshipIn('');
                   setCurrentPage(1);
                   router.push('/candidates');
                 }}

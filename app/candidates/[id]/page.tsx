@@ -8,6 +8,8 @@ import { candidatesApi } from '@/lib/api';
 import Link from 'next/link';
 import JobSelectionModal from '../../components/JobSelectionModal';
 import TalentNetworkProfileView from '@/app/components/talentNetwork/TalentNetworkProfileView';
+import WorkLocationProfileSection from '@/app/components/talentNetwork/WorkLocationProfileSection';
+import type { WorkAuthorization } from '@/lib/talentNetwork/types';
 
 interface CV {
   _id: string;
@@ -45,6 +47,10 @@ interface CV {
   createdAt: string;
   updatedAt?: string;
   profileSchemaVersion?: number;
+  nationalityCountry?: string;
+  preferredWorkCountries?: string[];
+  workEligibleCountries?: string[];
+  workAuthorizations?: WorkAuthorization[];
   verifiedCertificates?: any[];
   seasonalExperience?: any[];
   languageSkills?: any[];
@@ -341,7 +347,7 @@ function CVDetailContent() {
           {/* Looking for work in these areas */}
           {cv.lookingForWorkInAreas && cv.lookingForWorkInAreas.length > 0 && (
             <div className="mb-6 pb-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Looking for work in these areas:</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Type of work</h2>
               <div className="flex flex-wrap gap-2">
                 {cv.lookingForWorkInAreas.map((area: string, index: number) => (
                   <span
@@ -359,6 +365,14 @@ function CVDetailContent() {
             <TalentNetworkProfileView cv={cv} />
           ) : (
             <>
+          <WorkLocationProfileSection
+            data={{
+              nationalityCountry: cv.nationalityCountry,
+              preferredWorkCountries: cv.preferredWorkCountries,
+              workEligibleCountries: cv.workEligibleCountries,
+              workAuthorizations: cv.workAuthorizations,
+            }}
+          />
           {/* Experience */}
           {cv.experience && cv.experience.length > 0 && (
             <div className="mb-6 pb-6 border-b border-gray-200">

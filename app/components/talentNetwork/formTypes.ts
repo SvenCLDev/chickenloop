@@ -4,6 +4,7 @@ import type {
   LanguageSkill,
   SeasonalExperience,
   VerifiedCertificate,
+  WorkAuthorizationStatus,
 } from '@/lib/talentNetwork/types';
 
 export interface TalentNetworkFormState {
@@ -19,6 +20,11 @@ export interface TalentNetworkFormState {
   lookingForWorkInAreas: string[];
   experienceLevel: '' | 'entry' | 'intermediate' | 'experienced' | 'senior';
   availability: '' | 'available_now' | 'available_soon' | 'seasonal' | 'not_available';
+  nationalityCountry: string;
+  preferredWorkCountries: string[];
+  workEligibleCountries: string[];
+  euEeaWorkRights: boolean;
+  workAuthorizations: WorkAuthorizationFormEntry[];
   published?: boolean;
 }
 
@@ -54,6 +60,15 @@ export interface LanguageSkillFormEntry {
   language: string;
   proficiency: LanguageProficiency | '';
   verificationStatus?: LanguageSkill['verificationStatus'];
+}
+
+export interface WorkAuthorizationFormEntry {
+  clientId: string;
+  country: string;
+  status: WorkAuthorizationStatus | '';
+  permitType: string;
+  validUntil: string;
+  notes: string;
 }
 
 export function createClientId(): string {
@@ -100,6 +115,17 @@ export function emptyLanguageSkill(): LanguageSkillFormEntry {
   };
 }
 
+export function emptyWorkAuthorization(): WorkAuthorizationFormEntry {
+  return {
+    clientId: createClientId(),
+    country: '',
+    status: '',
+    permitType: '',
+    validUntil: '',
+    notes: '',
+  };
+}
+
 export function emptyTalentNetworkForm(): TalentNetworkFormState {
   return {
     fullName: '',
@@ -114,5 +140,10 @@ export function emptyTalentNetworkForm(): TalentNetworkFormState {
     lookingForWorkInAreas: [],
     experienceLevel: '',
     availability: '',
+    nationalityCountry: '',
+    preferredWorkCountries: [],
+    workEligibleCountries: [],
+    euEeaWorkRights: false,
+    workAuthorizations: [],
   };
 }

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/app/components/Navbar';
 import { useAuth } from '@/app/contexts/AuthContext';
+import SuccessChickenModal from '@/app/components/SuccessChickenModal';
 import TalentNetworkCvForm from '@/app/components/talentNetwork/TalentNetworkCvForm';
 import { emptyTalentNetworkForm } from '@/app/components/talentNetwork/formTypes';
 import { cvApi, talentNetworkApi } from '@/lib/api';
@@ -18,7 +19,7 @@ export default function TalentNetworkEditPage() {
   const [initialForm, setInitialForm] = useState(emptyTalentNetworkForm());
   const [pictures, setPictures] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [success, setSuccess] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -93,12 +94,6 @@ export default function TalentNetworkEditPage() {
           manager-confirmed work experience, and language skills.
         </p>
 
-        {success && (
-          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-800">
-            Profile saved successfully.
-          </div>
-        )}
-
         <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
           <TalentNetworkCvForm
             initialForm={initialForm}
@@ -106,12 +101,17 @@ export default function TalentNetworkEditPage() {
             mode="edit"
             onSubmit={async (payload) => {
               await cvApi.update(payload);
-              setSuccess(true);
-              setTimeout(() => router.push('/job-seeker'), 2000);
+              setShowSuccessModal(true);
+              setTimeout(() => router.push('/job-seeker'), 3000);
             }}
           />
         </div>
       </main>
+
+      <SuccessChickenModal
+        open={showSuccessModal}
+        title="Your profile has been saved successfully"
+      />
     </div>
   );
 }

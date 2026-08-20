@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import Navbar from '@/app/components/Navbar';
 import { useAuth } from '@/app/contexts/AuthContext';
+import SuccessChickenModal from '@/app/components/SuccessChickenModal';
 import TalentNetworkCvForm from '@/app/components/talentNetwork/TalentNetworkCvForm';
 import { emptyTalentNetworkForm } from '@/app/components/talentNetwork/formTypes';
 import { adminApi, talentNetworkApi } from '@/lib/api';
@@ -19,7 +20,7 @@ export default function AdminEditCVPage() {
   const [pictures, setPictures] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [useTalentNetwork, setUseTalentNetwork] = useState(false);
 
   useEffect(() => {
@@ -102,11 +103,6 @@ export default function AdminEditCVPage() {
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-800">{error}</div>
         )}
-        {success && (
-          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-800">
-            Profile updated successfully.
-          </div>
-        )}
 
         <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
           <TalentNetworkCvForm
@@ -117,12 +113,18 @@ export default function AdminEditCVPage() {
             submitLabel="Update Profile"
             onSubmit={async (payload) => {
               await adminApi.updateCV(cvId, payload);
-              setSuccess(true);
-              setTimeout(() => router.push('/admin'), 2000);
+              setShowSuccessModal(true);
+              setTimeout(() => router.push('/admin'), 3000);
             }}
           />
         </div>
       </main>
+
+      <SuccessChickenModal
+        open={showSuccessModal}
+        title="Your profile has been saved successfully"
+        subtitle="Redirecting to admin dashboard..."
+      />
     </div>
   );
 }

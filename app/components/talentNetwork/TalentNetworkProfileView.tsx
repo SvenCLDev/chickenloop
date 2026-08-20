@@ -1,6 +1,8 @@
 import { ISSUING_BODY_LABELS, PROFICIENCY_LABELS } from '@/lib/talentNetwork/constants';
 import type { IssuingBody } from '@/lib/talentNetwork/types';
 import ExperienceVerificationBadge from './ExperienceVerificationBadge';
+import WorkLocationProfileSection from './WorkLocationProfileSection';
+import type { WorkAuthorization } from '@/lib/talentNetwork/types';
 
 interface TalentNetworkProfileViewProps {
   cv: {
@@ -31,6 +33,10 @@ interface TalentNetworkProfileViewProps {
       proficiency: keyof typeof PROFICIENCY_LABELS;
       verificationStatus?: string;
     }>;
+    nationalityCountry?: string;
+    preferredWorkCountries?: string[];
+    workEligibleCountries?: string[];
+    workAuthorizations?: WorkAuthorization[];
   };
   /** Show full pending/verified badges (job seeker viewing own profile) */
   showOwnerStatus?: boolean;
@@ -101,6 +107,15 @@ export default function TalentNetworkProfileView({
 
   return (
     <>
+      <WorkLocationProfileSection
+        data={{
+          nationalityCountry: cv.nationalityCountry,
+          preferredWorkCountries: cv.preferredWorkCountries,
+          workEligibleCountries: cv.workEligibleCountries,
+          workAuthorizations: cv.workAuthorizations,
+        }}
+      />
+
       {languages.length > 0 && (
         <div className="mb-6 pb-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Language Skills</h2>

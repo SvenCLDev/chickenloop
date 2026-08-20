@@ -18,6 +18,8 @@ export interface LoadCVsResult {
     certifications: string[];
     experienceLevels: string[];
     availability: string[];
+    preferredCountries: string[];
+    eligibleCountries: string[];
   };
   pagination: {
     page: number;
@@ -133,6 +135,15 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
   if (filters.availability && filters.availability.length > 0) {
     matchConditions.availability = { $in: filters.availability };
   }
+  if (filters.preferredCountry && filters.preferredCountry.length > 0) {
+    matchConditions.preferredWorkCountries = { $in: filters.preferredCountry };
+  }
+  if (filters.canWorkIn && filters.canWorkIn.length > 0) {
+    matchConditions.workEligibleCountries = { $in: filters.canWorkIn };
+  }
+  if (filters.noSponsorshipIn && filters.noSponsorshipIn.length > 0) {
+    matchConditions.canWorkWithoutSponsorshipIn = { $in: filters.noSponsorshipIn };
+  }
 
   const sortOrder: any = { hasPictures: -1 };
   if (filters.sort === 'oldest') {
@@ -177,6 +188,9 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         professionalCertifications: 1,
         experienceLevel: 1,
         availability: 1,
+        nationalityCountry: 1,
+        preferredWorkCountries: 1,
+        workEligibleCountries: 1,
         featured: 1,
         featuredUntil: 1,
         updatedAt: 1,
@@ -252,6 +266,9 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         professionalCertifications: 1,
         experienceLevel: 1,
         availability: 1,
+        nationalityCountry: 1,
+        preferredWorkCountries: 1,
+        workEligibleCountries: 1,
         featured: '$isFeatured',
         pictures: 1,
         createdAt: 1,
@@ -286,6 +303,8 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         professionalCertifications: 1,
         experienceLevel: 1,
         availability: 1,
+        preferredWorkCountries: 1,
+        workEligibleCountries: 1,
       }
     }
   ];
@@ -298,6 +317,8 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
   const uniqueCertifications = new Set<string>();
   const uniqueExperienceLevels = new Set<string>();
   const uniqueAvailability = new Set<string>();
+  const uniquePreferredCountries = new Set<string>();
+  const uniqueEligibleCountries = new Set<string>();
 
   allMatchingCvs.forEach((cv: any) => {
     if (cv.languages) cv.languages.forEach((lang: string) => uniqueLanguages.add(lang));
@@ -306,6 +327,12 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
     if (cv.professionalCertifications) cv.professionalCertifications.forEach((cert: string) => uniqueCertifications.add(cert));
     if (cv.experienceLevel) uniqueExperienceLevels.add(cv.experienceLevel);
     if (cv.availability) uniqueAvailability.add(cv.availability);
+    if (cv.preferredWorkCountries) {
+      cv.preferredWorkCountries.forEach((code: string) => uniquePreferredCountries.add(code));
+    }
+    if (cv.workEligibleCountries) {
+      cv.workEligibleCountries.forEach((code: string) => uniqueEligibleCountries.add(code));
+    }
   });
 
   // Bounded sort ($sort + $limit(sortWindow)) keeps memory under 32MB without requiring allowDiskUse
@@ -320,6 +347,8 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
       certifications: Array.from(uniqueCertifications).sort(),
       experienceLevels: Array.from(uniqueExperienceLevels).sort(),
       availability: Array.from(uniqueAvailability).sort(),
+      preferredCountries: Array.from(uniquePreferredCountries).sort(),
+      eligibleCountries: Array.from(uniqueEligibleCountries).sort(),
     },
     pagination: {
       page,

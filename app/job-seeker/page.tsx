@@ -475,7 +475,7 @@ function JobSeekerDashboardClient() {
                         : 'bg-gray-600 text-white hover:bg-gray-700'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    {togglingPublish ? 'Updating...' : (cv.published === false ? 'Show Profile' : 'Hide Profile')}
+                    {togglingPublish ? 'Updating...' : (cv.published === false ? 'Publish Profile' : 'Hide Profile')}
                   </button>
                   <button
                     onClick={handleDeleteCV}

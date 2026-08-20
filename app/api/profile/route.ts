@@ -7,6 +7,7 @@ import { isExperienceLevel, isAvailability, isWorkArea } from '@/lib/domainTypes
 import { applyTalentNetworkFieldsToCv } from '@/lib/talentNetwork/applyToCv';
 import { canUserWriteTalentNetworkFields } from '@/lib/talentNetwork/userContext';
 import { processReferenceVerificationRequestsForCvId } from '@/lib/talentNetwork/runReferenceVerificationAfterSave';
+import { applyWorkLocationFieldsToCv } from '@/lib/workLocation';
 
 // GET - Get current user's CV (job seekers only)
 export async function GET(request: NextRequest) {
@@ -155,8 +156,14 @@ export async function POST(request: NextRequest) {
       if (!applied.ok) {
         return NextResponse.json({ error: applied.error }, { status: 400 });
       }
-      await cv.save();
     }
+
+    const workLocationApplied = applyWorkLocationFieldsToCv(cv, body);
+    if (!workLocationApplied.ok) {
+      return NextResponse.json({ error: workLocationApplied.error }, { status: 400 });
+    }
+
+    await cv.save();
 
     if (cv.profileSchemaVersion === 2) {
       await processReferenceVerificationRequestsForCvId(cv._id);
@@ -305,6 +312,11 @@ export async function PUT(request: NextRequest) {
       if (!applied.ok) {
         return NextResponse.json({ error: applied.error }, { status: 400 });
       }
+    }
+
+    const workLocationApplied = applyWorkLocationFieldsToCv(cv, body);
+    if (!workLocationApplied.ok) {
+      return NextResponse.json({ error: workLocationApplied.error }, { status: 400 });
     }
 
     await cv.save();

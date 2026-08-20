@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/app/components/Navbar';
 import { useAuth } from '@/app/contexts/AuthContext';
+import SuccessChickenModal from '@/app/components/SuccessChickenModal';
 import TalentNetworkCvForm from '@/app/components/talentNetwork/TalentNetworkCvForm';
 import { emptyTalentNetworkForm } from '@/app/components/talentNetwork/formTypes';
 import { cvApi, talentNetworkApi } from '@/lib/api';
@@ -14,6 +15,7 @@ export default function TalentNetworkNewPage() {
   const router = useRouter();
   const [canEdit, setCanEdit] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -88,11 +90,17 @@ export default function TalentNetworkNewPage() {
             mode="create"
             onSubmit={async (payload) => {
               await cvApi.create(payload);
-              router.push('/job-seeker');
+              setShowSuccessModal(true);
+              setTimeout(() => router.push('/job-seeker'), 3000);
             }}
           />
         </div>
       </main>
+
+      <SuccessChickenModal
+        open={showSuccessModal}
+        title="Your profile has been saved successfully"
+      />
     </div>
   );
 }

@@ -11,6 +11,8 @@ import {
   type ProfileSchemaVersion,
   type SeasonalExperience,
   type VerifiedCertificate,
+  type WorkAuthorization,
+  WORK_AUTHORIZATION_STATUSES,
 } from '@/lib/talentNetwork/types';
 
 export interface ICV extends Document {
@@ -49,6 +51,12 @@ export interface ICV extends Document {
   verifiedCertificates?: VerifiedCertificate[];
   seasonalExperience?: SeasonalExperience[];
   languageSkills?: LanguageSkill[];
+  nationalityCountry?: string;
+  preferredWorkCountries?: string[];
+  workEligibleCountries?: string[];
+  euEeaWorkRights?: boolean;
+  workAuthorizations?: WorkAuthorization[];
+  canWorkWithoutSponsorshipIn?: string[];
   jobSeeker: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -192,6 +200,39 @@ const CVSchema: Schema = new Schema(
         },
       },
     ],
+    nationalityCountry: {
+      type: String,
+      uppercase: true,
+      trim: true,
+    },
+    preferredWorkCountries: {
+      type: [String],
+      default: [],
+    },
+    workEligibleCountries: {
+      type: [String],
+      default: [],
+    },
+    euEeaWorkRights: {
+      type: Boolean,
+      default: false,
+    },
+    workAuthorizations: [
+      {
+        country: { type: String, uppercase: true, trim: true },
+        status: {
+          type: String,
+          enum: [...WORK_AUTHORIZATION_STATUSES],
+        },
+        permitType: String,
+        validUntil: Date,
+        notes: { type: String, maxlength: 200 },
+      },
+    ],
+    canWorkWithoutSponsorshipIn: {
+      type: [String],
+      default: [],
+    },
     jobSeeker: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -244,6 +285,10 @@ CVSchema.index({ profileSchemaVersion: 1 });
 CVSchema.index({ 'verifiedCertificates.verificationStatus': 1 });
 CVSchema.index({ 'verifiedCertificates.issuingBody': 1 });
 CVSchema.index({ 'languageSkills.language': 1 });
+CVSchema.index({ nationalityCountry: 1 });
+CVSchema.index({ preferredWorkCountries: 1 });
+CVSchema.index({ workEligibleCountries: 1 });
+CVSchema.index({ canWorkWithoutSponsorshipIn: 1 });
 
 export default CV;
 
