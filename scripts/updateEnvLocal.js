@@ -6,7 +6,9 @@ const envFilePath = path.join(__dirname, '..', '.env.local');
 // Variables to set (no secrets here - RESEND_API_KEY must be set in .env.local manually and never committed)
 const newVars = {
   RESEND_FROM_EMAIL: 'noreply@notifications.chickenloop.com',
+  RESEND_FROM_NAME: 'Chickenloop',
   CONTACT_EMAIL: 'hello@chickenloop.com',
+  RESEND_REPLY_TO_EMAIL: 'hello@chickenloop.com',
 };
 
 // Read existing .env.local if it exists

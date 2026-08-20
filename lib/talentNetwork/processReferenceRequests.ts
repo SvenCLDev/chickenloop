@@ -72,6 +72,7 @@ export async function processReferenceVerificationRequests(
       candidateName: cv.fullName,
       schoolName: entry.schoolName,
       seasonLabel: seasonLabel(entry),
+      managerName: entry.referenceName,
       token: tokenDoc.token,
     });
 

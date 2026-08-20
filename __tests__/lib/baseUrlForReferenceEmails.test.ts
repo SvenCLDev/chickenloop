@@ -81,7 +81,7 @@ describe('referenceVerificationEmail', () => {
     const { referenceVerificationEmail } = await import(
       '@/lib/email/templates/referenceVerification'
     );
-    const { html, text } = referenceVerificationEmail({
+    const { subject, html, text } = referenceVerificationEmail({
       candidateName: 'Sven Kelling',
       schoolName: 'Aquasail India',
       seasonLabel: 'summer 2013',
@@ -89,6 +89,9 @@ describe('referenceVerificationEmail', () => {
       confirmNoUrl: 'https://example.com/no',
     });
 
+    expect(subject).toBe('Aquasail India: reference request for Sven Kelling');
+    expect(html).toContain('one-click confirm takes 10 seconds');
+    expect(html).toContain('Hello from Chickenloop');
     expect(html).toContain('About Chickenloop');
     expect(html).toContain('Yes, I would rehire them');
     expect(html).toContain('https://www.chickenloop.com/register');
@@ -97,6 +100,24 @@ describe('referenceVerificationEmail', () => {
     expect(text).toContain('About Chickenloop');
     expect(text).toContain('Post a job: https://www.chickenloop.com/register');
     expect(text).toContain('This link expires in 14 days.');
+  });
+
+  it('personalizes greeting when manager name is provided', async () => {
+    process.env.NEXT_PUBLIC_SITE_URL = 'https://www.chickenloop.com';
+    jest.resetModules();
+    const { referenceVerificationEmail } = await import(
+      '@/lib/email/templates/referenceVerification'
+    );
+    const { html, text } = referenceVerificationEmail({
+      candidateName: 'Sven Kelling',
+      schoolName: 'Aquasail India',
+      managerName: 'Maria',
+      confirmYesUrl: 'https://example.com/yes',
+      confirmNoUrl: 'https://example.com/no',
+    });
+
+    expect(html).toContain('Hi Maria,');
+    expect(text).toContain('Hi Maria,');
   });
 });
 

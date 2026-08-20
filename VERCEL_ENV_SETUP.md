@@ -17,16 +17,16 @@
 3. Click **Add New**
 4. Enter:
    - **Key**: `RESEND_API_KEY`
-   - **Value**: Paste your API key **without quotes** (just the key itself: `re_Tr4zB7CP_KhT1mGDxpM6RQ4KLNxXx2BsM`)
+   - **Value**: Paste your API key **without quotes** (just the key itself, e.g. `re_your_api_key_here`)
    - **Environment**: Select **Production** (and **Preview** if you want it in preview deployments)
 5. Click **Save**
 6. **Important**: Redeploy your application for the variable to take effect
 
 **⚠️ Common Mistakes:**
-- ❌ Don't add quotes around the value: `"re_Tr4zB7CP..."`
+- ❌ Don't add quotes around the value: `"re_your_api_key_here"`
 - ❌ Don't add spaces before/after the key
 - ❌ Don't include `RESEND_API_KEY=` prefix
-- ✅ Just paste the key directly: `re_Tr4zB7CP_KhT1mGDxpM6RQ4KLNxXx2BsM`
+- ✅ Just paste the key directly (starts with `re_`)
 
 **If deployment still fails:**
 1. **Regenerate the API key** in Resend dashboard (old key might be invalid)
@@ -40,6 +40,26 @@
 **Value**: `noreply@notifications.chickenloop.com` (or your verified domain)
 
 **How to add**: Same process as above, use key `RESEND_FROM_EMAIL`
+
+### 2b. RESEND_FROM_NAME (RECOMMENDED)
+**Purpose**: Display name shown in recipients' inboxes (e.g. `Chickenloop` instead of `noreply`)
+
+**Value**: `Chickenloop`
+
+**How to add**: Same process as above, use key `RESEND_FROM_NAME`
+
+### 2c. Reference email sender (OPTIONAL)
+**Purpose**: Improve open rates for manager reference-check emails
+
+| Key | Example value |
+|-----|----------------|
+| `RESEND_REFERENCE_FROM_NAME` | `Chickenloop References` |
+| `RESEND_REFERENCE_FROM_EMAIL` | `references@notifications.chickenloop.com` |
+| `RESEND_REPLY_TO_EMAIL` | `hello@chickenloop.com` |
+
+If `RESEND_REFERENCE_FROM_*` are unset, reference emails use `RESEND_FROM_EMAIL` with display name **Chickenloop References** (hardcoded default). Reply-To falls back to `CONTACT_EMAIL` or `hello@chickenloop.com`.
+
+Any `@notifications.chickenloop.com` address works once the domain is verified in Resend.
 
 ### 3. CONTACT_EMAIL (OPTIONAL)
 **Purpose**: Where contact form submissions are sent
@@ -146,6 +166,8 @@ export async function GET() {
 - [ ] `RESEND_API_KEY` added to Vercel (Production environment)
 - [ ] Application redeployed after adding variables
 - [ ] `RESEND_FROM_EMAIL` added (recommended)
+- [ ] `RESEND_FROM_NAME` added (recommended — shows "Chickenloop" in inbox)
+- [ ] `RESEND_REPLY_TO_EMAIL` or `CONTACT_EMAIL` set for reference email replies (optional)
 - [ ] `CRON_SECRET` added (if using job alerts)
 - [ ] Contact form tested and working
 

@@ -4,11 +4,15 @@ export function referenceVerificationEmail(input: {
   candidateName: string;
   schoolName: string;
   seasonLabel?: string;
+  managerName?: string;
   confirmYesUrl: string;
   confirmNoUrl: string;
 }): { subject: string; html: string; text: string } {
   const period = input.seasonLabel ? ` during ${input.seasonLabel}` : '';
-  const subject = `Reference check: did ${input.candidateName} work at ${input.schoolName}?`;
+  const subject = `${input.schoolName}: reference request for ${input.candidateName}`;
+  const greeting = input.managerName?.trim()
+    ? `Hi ${input.managerName.trim()},`
+    : 'Hello from Chickenloop,';
 
   const siteUrl = getMarketingSiteUrl();
   const postJobUrl = `${siteUrl}/register`;
@@ -16,7 +20,7 @@ export function referenceVerificationEmail(input: {
   const viewJobsUrl = `${siteUrl}/jobs`;
 
   const text = [
-    `Hello,`,
+    greeting,
     ``,
     `${input.candidateName} listed you as a reference for their work at ${input.schoolName}${period} on Chickenloop.`,
     ``,
@@ -37,7 +41,10 @@ export function referenceVerificationEmail(input: {
   ].join('\n');
 
   const html = `
-    <p>Hello,</p>
+    <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
+      ${input.candidateName} listed you as a reference — one-click confirm takes 10 seconds.
+    </div>
+    <p>${greeting}</p>
     <p><strong>${input.candidateName}</strong> listed you as a reference for their work at <strong>${input.schoolName}</strong>${period} on Chickenloop.</p>
     <p>Did they work for your center during this period? Would you rehire them?</p>
     <p>

@@ -34,12 +34,21 @@ Add the following to your `.env.local` file:
 # Resend Email Configuration
 RESEND_API_KEY=re_your_api_key_here
 RESEND_FROM_EMAIL=noreply@yourdomain.com  # Optional, defaults to onboarding@resend.dev
+RESEND_FROM_NAME=Chickenloop  # Optional display name in inbox (avoids showing "noreply")
+
+# Reference verification emails (managers confirming work experience)
+RESEND_REFERENCE_FROM_NAME=Chickenloop References  # Optional; default in code if unset
+RESEND_REFERENCE_FROM_EMAIL=references@notifications.chickenloop.com  # Optional; falls back to RESEND_FROM_EMAIL
+RESEND_REPLY_TO_EMAIL=hello@chickenloop.com  # Reply-To for reference emails
+CONTACT_EMAIL=hello@chickenloop.com  # Used as Reply-To fallback
 ```
+
+**Display name:** If `RESEND_FROM_NAME` is set, all transactional emails show that name instead of the local-part of the address (e.g. "noreply"). Reference emails use `RESEND_REFERENCE_FROM_NAME` when set.
 
 **For Vercel Production:**
 1. Go to your Vercel project settings
 2. Navigate to "Environment Variables"
-3. Add `RESEND_API_KEY` and `RESEND_FROM_EMAIL`
+3. Add `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `RESEND_FROM_NAME` (recommended)
 4. Deploy to apply changes
 
 ## Testing Email Configuration

@@ -48,10 +48,23 @@ function getResendClient(): Resend | null {
 }
 
 /**
- * Get the default from email address
+ * Get the default from email address (bare address, no display name).
  */
-function getFromEmail(): string {
+export function getFromEmail(): string {
   return process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+}
+
+/**
+ * Format RFC 5322 From with optional display name (Resend / mail clients).
+ */
+export function formatFromAddress(email: string, displayName?: string): string {
+  if (email.includes('<') && email.includes('>')) {
+    return email;
+  }
+  const name = displayName?.trim() || process.env.RESEND_FROM_NAME?.trim();
+  if (!name) return email;
+  const escaped = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return `"${escaped}" <${email}>`;
 }
 
 /**
@@ -312,7 +325,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ success: b
       bcc?: string[];
       tags?: Array<{ name: string; value: string }>;
     } = {
-      from: from || getFromEmail(),
+      from: formatFromAddress(from || getFromEmail()),
       to: Array.isArray(to) ? to : [to],
       subject,
     };
