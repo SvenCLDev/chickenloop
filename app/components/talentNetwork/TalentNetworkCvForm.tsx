@@ -5,11 +5,17 @@ import { SPORTS_LIST } from '@/lib/sports';
 import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { cvApi } from '@/lib/api';
 import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
+import {
+  JOB_PHOTO_UPLOAD_TOO_LARGE_MESSAGE,
+  looksLikePayloadTooLargeError,
+  validateJobPhotoFilesForUpload,
+} from '@/lib/jobPostPayload';
 import { serializeTalentNetworkForm } from '@/lib/talentNetwork/serializeForm';
 import { getCertificatesMissingDocument } from '@/lib/talentNetwork/certificateVerification';
 import { countUnverifiedCompleteExperienceEntries, getExperienceDateRangeErrorsByIndex } from '@/lib/talentNetwork/experienceVerification';
 import CertificateBlock from './CertificateBlock';
 import CertificateDocumentSaveModal from './CertificateDocumentSaveModal';
+import ProfilePhotosSection, { orderProfilePicturesWithMainFirst } from './ProfilePhotosSection';
 import SeasonalExperienceBlock from './SeasonalExperienceBlock';
 import LanguageSkillBlock from './LanguageSkillBlock';
 import WorkLocationBlock from './WorkLocationBlock';
@@ -55,6 +61,8 @@ export default function TalentNetworkCvForm({
   const [existingPictures, setExistingPictures] = useState(initialPictures);
   const [selectedPictures, setSelectedPictures] = useState<File[]>([]);
   const [picturePreviews, setPicturePreviews] = useState<string[]>([]);
+  const [heroImageUrl, setHeroImageUrl] = useState<string | null>(initialPictures[0] ?? null);
+  const [heroImageIndex, setHeroImageIndex] = useState<number | null>(null);
   const [uploadingCertIndex, setUploadingCertIndex] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [experienceDateErrors, setExperienceDateErrors] = useState<Record<number, string>>({});
@@ -66,6 +74,13 @@ export default function TalentNetworkCvForm({
 
   const uploadPictures = async (): Promise<string[]> => {
     if (selectedPictures.length === 0) return existingPictures;
+
+    const preflight = validateJobPhotoFilesForUpload(selectedPictures);
+    if (preflight) {
+      setError(preflight);
+      throw new Error(preflight);
+    }
+
     const uploadFormData = new FormData();
     selectedPictures.forEach((file) => {
       uploadFormData.append('pictures', sanitizeFileForUpload(file));
@@ -75,7 +90,16 @@ export default function TalentNetworkCvForm({
       body: uploadFormData,
       credentials: 'include',
     });
-    const data = await response.json();
+    const text = await response.text();
+    if (response.status === 413 || looksLikePayloadTooLargeError(text)) {
+      throw new Error(JOB_PHOTO_UPLOAD_TOO_LARGE_MESSAGE);
+    }
+    let data: { error?: string; paths?: string[] };
+    try {
+      data = JSON.parse(text) as { error?: string; paths?: string[] };
+    } catch {
+      throw new Error('Failed to upload pictures');
+    }
     if (!response.ok) throw new Error(data.error || 'Failed to upload pictures');
     return [...existingPictures, ...(data.paths || [])];
   };
@@ -98,15 +122,28 @@ export default function TalentNetworkCvForm({
     }
   };
 
-  const handlePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (existingPictures.length + selectedPictures.length + files.length > 3) {
-      setError('Maximum 3 pictures allowed');
-      return;
+  const handlePictureError = (message: string) => {
+    setError(message);
+  };
+
+  const performSave = async () => {
+    setLoading(true);
+    try {
+      const rawPictures = await uploadPictures();
+      const pictures = orderProfilePicturesWithMainFirst(
+        rawPictures,
+        existingPictures.length,
+        heroImageUrl,
+        heroImageIndex
+      );
+      const payload = serializeTalentNetworkForm(formData, pictures);
+      await onSubmit(payload);
+      picturePreviews.forEach((url) => URL.revokeObjectURL(url));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save profile');
+    } finally {
+      setLoading(false);
     }
-    setSelectedPictures([...selectedPictures, ...files]);
-    setPicturePreviews([...picturePreviews, ...files.map((f) => URL.createObjectURL(f))]);
-    setError('');
   };
 
   const handleSeasonalExperienceChange = (
@@ -115,19 +152,6 @@ export default function TalentNetworkCvForm({
     setFormData({ ...formData, seasonalExperience });
     if (Object.keys(experienceDateErrors).length > 0) {
       setExperienceDateErrors(getExperienceDateRangeErrorsByIndex(seasonalExperience));
-    }
-  };
-
-  const performSave = async () => {
-    setLoading(true);
-    try {
-      const pictures = await uploadPictures();
-      const payload = serializeTalentNetworkForm(formData, pictures);
-      await onSubmit(payload);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save profile');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -386,29 +410,19 @@ export default function TalentNetworkCvForm({
         dateRangeErrors={experienceDateErrors}
       />
 
-      <section className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-900">Profile Photos</h2>
-        <input type="file" accept="image/*" multiple onChange={handlePictureChange} />
-        <div className="flex flex-wrap gap-4">
-          {existingPictures.map((url, i) => (
-            <div key={url} className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="h-24 w-24 object-cover rounded-md border" />
-              <button
-                type="button"
-                onClick={() => setExistingPictures(existingPictures.filter((_, idx) => idx !== i))}
-                className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 text-xs"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-          {picturePreviews.map((url, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={url} src={url} alt="" className="h-24 w-24 object-cover rounded-md border" />
-          ))}
-        </div>
-      </section>
+      <ProfilePhotosSection
+        existingPictures={existingPictures}
+        onExistingPicturesChange={setExistingPictures}
+        selectedPictures={selectedPictures}
+        onSelectedPicturesChange={setSelectedPictures}
+        picturePreviews={picturePreviews}
+        onPicturePreviewsChange={setPicturePreviews}
+        heroImageUrl={heroImageUrl}
+        onHeroImageUrlChange={setHeroImageUrl}
+        heroImageIndex={heroImageIndex}
+        onHeroImageIndexChange={setHeroImageIndex}
+        onError={handlePictureError}
+      />
 
       {showPublishedToggle && (
         <label className="flex items-center gap-2">
