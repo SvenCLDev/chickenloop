@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     // Get counts using native MongoDB driver for better performance
     const collectionName = CareerAdvice.collection.name;
-    const [jobSeekersCount, recruitersCount, jobsCount, cvsCount, companiesCount, applicationsCount, careerAdviceCount] = await Promise.all([
+    const [jobSeekersCount, recruitersCount, jobsCount, cvsCount, companiesCount, applicationsCount, careerAdviceCount, pendingCertificatesResult] = await Promise.all([
       dbConnection.collection('users').countDocuments({ role: 'job-seeker' }),
       dbConnection.collection('users').countDocuments({ role: 'recruiter' }),
       dbConnection.collection('jobs').countDocuments({}),
@@ -34,7 +34,14 @@ export async function GET(request: NextRequest) {
       dbConnection.collection('companies').countDocuments({}),
       dbConnection.collection('applications').countDocuments({}),
       dbConnection.collection(collectionName).countDocuments({}),
+      dbConnection.collection('cvs').aggregate([
+        { $unwind: '$verifiedCertificates' },
+        { $match: { 'verifiedCertificates.verificationStatus': 'pending_review' } },
+        { $count: 'count' },
+      ]).toArray(),
     ]);
+
+    const pendingCertificates = pendingCertificatesResult[0]?.count ?? 0;
 
     return NextResponse.json({
       statistics: {
@@ -45,6 +52,7 @@ export async function GET(request: NextRequest) {
         companies: companiesCount,
         applications: applicationsCount,
         careerAdvice: careerAdviceCount,
+        pendingCertificates,
       },
     }, { status: 200 });
   } catch (error: unknown) {

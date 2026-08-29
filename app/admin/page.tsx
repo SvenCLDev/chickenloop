@@ -17,6 +17,7 @@ interface Statistics {
   companies: number;
   applications: number;
   careerAdvice: number;
+  pendingCertificates: number;
 }
 
 type CategoryType = 'job-seekers' | 'recruiters' | 'jobs' | 'cvs' | 'companies' | 'applications' | 'career-advice' | null;
@@ -1059,7 +1060,14 @@ function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Talent Network</p>
-                  <p className="text-lg font-semibold text-gray-900 mt-2">Verify Certificates</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">
+                    {statistics.pendingCertificates}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {statistics.pendingCertificates === 1
+                      ? 'certification waiting'
+                      : 'certifications waiting'}
+                  </p>
                 </div>
                 <div className="bg-emerald-100 rounded-full p-3">
                   <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

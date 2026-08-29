@@ -9,22 +9,29 @@ export async function GET(request: NextRequest) {
     await requireRole(request, ['admin']);
     await connectDB();
 
-    const [pendingCerts, confirmedReferences, betaUsers, verifiedCerts] =
+    const [pendingCertsResult, confirmedReferences, betaUsers, verifiedCerts] =
       await Promise.all([
-        CV.countDocuments({
-          'verifiedCertificates.verificationStatus': 'pending_review',
-        }),
+        CV.aggregate([
+          { $unwind: '$verifiedCertificates' },
+          { $match: { 'verifiedCertificates.verificationStatus': 'pending_review' } },
+          { $count: 'count' },
+        ]),
         CV.countDocuments({
           'seasonalExperience.verificationStatus': 'reference_confirmed',
         }),
         User.countDocuments({ role: 'job-seeker', talentNetworkBeta: true }),
-        CV.countDocuments({
-          'verifiedCertificates.verificationStatus': 'verified',
-        }),
+        CV.aggregate([
+          { $unwind: '$verifiedCertificates' },
+          { $match: { 'verifiedCertificates.verificationStatus': 'verified' } },
+          { $count: 'count' },
+        ]),
       ]);
 
+    const pendingCerts = pendingCertsResult[0]?.count ?? 0;
+    const verifiedCertsCount = verifiedCerts[0]?.count ?? 0;
+
     return NextResponse.json(
-      { pendingCerts, confirmedReferences, betaUsers, verifiedCerts },
+      { pendingCerts, confirmedReferences, betaUsers, verifiedCerts: verifiedCertsCount },
       { status: 200 }
     );
   } catch (error: unknown) {
