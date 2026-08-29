@@ -17,6 +17,13 @@ type RecruiterCompanyDoc = ICompany & {
 import { normalizeCountryForStorage } from '@/lib/countryUtils';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import { sanitizeRichTextLite } from '@/utils/sanitizeRichTextLite';
+import { resolveRecruiterCompany } from '@/lib/resolveRecruiterCompany';
+
+const COMPANY_NAME_COLLATION = { locale: 'en', strength: 2 } as const;
+
+function duplicateCompanyNameMessage(): string {
+  return 'A company with this name already exists. Please use a different name, or contact support if this is your company from a previous account.';
+}
 
 // GET - Get current recruiter's company
 export async function GET(request: NextRequest) {
@@ -24,20 +31,13 @@ export async function GET(request: NextRequest) {
     const user = await requireRole(request, ['recruiter'], { skipCompanyProfileCheck: true });
     await connectDB();
 
-    const userDoc = await User.findById(user.userId).select('companyId').lean();
-    if (!userDoc) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    if (!userDoc.companyId) {
+    const resolved = await resolveRecruiterCompany(user.userId);
+
+    if (!resolved.company) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    const company = await Company.findById(userDoc.companyId);
-    if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ company }, { status: 200 });
+    return NextResponse.json({ company: resolved.company }, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {
@@ -68,21 +68,13 @@ export async function POST(request: NextRequest) {
     const user = await requireRole(request, ['recruiter'], { skipCompanyProfileCheck: true });
     await connectDB();
 
-    const userDoc = await User.findById(user.userId).select('companyId').lean();
-    if (!userDoc) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    // Only block creation if they have a companyId that points to an existing company.
-    // If companyId is orphaned (company was deleted), allow creation and we'll overwrite companyId below.
-    if (userDoc.companyId) {
-      const existingCompany = await Company.findById(userDoc.companyId).lean();
-      if (existingCompany) {
-        return NextResponse.json(
-          { error: 'You already have a company. You can only have one company.' },
-          { status: 400 }
-        );
-      }
-      // Orphaned companyId: allow creation; User will be updated to new company in the transaction below.
+    const resolved = await resolveRecruiterCompany(user.userId, { repairLink: false });
+
+    if (resolved.company) {
+      return NextResponse.json(
+        { error: 'You already have a company. You can only have one company.' },
+        { status: 400 }
+      );
     }
 
     const { name, description, address, coordinates, website, contact, socialMedia, offeredActivities, offeredServices, logo, pictures } = await request.json();
@@ -90,6 +82,17 @@ export async function POST(request: NextRequest) {
     if (!name) {
       return NextResponse.json(
         { error: 'Company name is required' },
+        { status: 400 }
+      );
+    }
+
+    const trimmedName = name.trim();
+    const existingByName = await Company.findOne({ name: trimmedName })
+      .collation(COMPANY_NAME_COLLATION)
+      .lean();
+    if (existingByName) {
+      return NextResponse.json(
+        { error: duplicateCompanyNameMessage() },
         { status: 400 }
       );
     }
@@ -154,7 +157,7 @@ export async function POST(request: NextRequest) {
     }
 
     const companyData = {
-      name,
+      name: trimmedName,
       description: sanitizedDescription,
       address: cleanedAddress,
       coordinates: coordinates || undefined,
@@ -213,8 +216,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     // Check for MongoDB duplicate key error
-    const mongoError = error as { code?: number };
+    const mongoError = error as { code?: number; keyPattern?: Record<string, unknown>; keyValue?: Record<string, unknown> };
     if (mongoError.code === 11000) {
+      if (mongoError.keyPattern?.name) {
+        return NextResponse.json(
+          { error: duplicateCompanyNameMessage() },
+          { status: 400 }
+        );
+      }
       return NextResponse.json(
         { error: 'You already have a company' },
         { status: 400 }
@@ -233,25 +242,15 @@ export async function PUT(request: NextRequest) {
     const user = await requireRole(request, ['recruiter'], { skipCompanyProfileCheck: true });
     await connectDB();
 
-    const userDoc = await User.findById(user.userId).select('companyId').lean();
-    if (!userDoc) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    if (!userDoc.companyId) {
+    const resolved = await resolveRecruiterCompany(user.userId);
+    if (!resolved.company) {
       return NextResponse.json(
         { error: 'Company not found' },
         { status: 404 }
       );
     }
 
-    const company = await Company.findById(userDoc.companyId);
-    if (!company) {
-      return NextResponse.json(
-        { error: 'Company not found' },
-        { status: 404 }
-      );
-    }
-
+    const company = resolved.company;
     const companyDoc = company as RecruiterCompanyDoc;
 
     const { name, description, address, coordinates, website, contact, socialMedia, offeredActivities, offeredServices, logo, pictures } = await request.json();
@@ -364,24 +363,15 @@ export async function DELETE(request: NextRequest) {
     const user = await requireRole(request, ['recruiter'], { skipCompanyProfileCheck: true });
     await connectDB();
 
-    const userDoc = await User.findById(user.userId).select('companyId').lean();
-    if (!userDoc) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    if (!userDoc.companyId) {
+    const resolved = await resolveRecruiterCompany(user.userId);
+    if (!resolved.company) {
       return NextResponse.json(
         { error: 'Company not found' },
         { status: 404 }
       );
     }
 
-    const company = await Company.findById(userDoc.companyId);
-    if (!company) {
-      return NextResponse.json(
-        { error: 'Company not found' },
-        { status: 404 }
-      );
-    }
+    const company = resolved.company;
 
     // Delete all jobs associated with this company
     const Job = (await import('@/models/Job')).default;
