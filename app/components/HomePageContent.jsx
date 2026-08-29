@@ -14,6 +14,7 @@ import CareerAdviceCard from './CareerAdviceCard';
 import SectionHeader from './SectionHeader';
 import SearchBar from './SearchBar';
 import CompaniesPreview from './CompaniesPreview';
+import HomepageValueProps from './HomepageValueProps';
 import TurnstileWidget from './TurnstileWidget';
 
 // Hero background images - add more images to this array to rotate through them
@@ -344,19 +345,41 @@ export default function HomePageContent({
           
           {/* Hero Content */}
           <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 sm:mb-6 drop-shadow-lg">
-              <span className="block">#1 Free Job Board</span>
-              <span className="block">for Watersport Pros</span>
-            </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-white/90 mb-6 sm:mb-8 drop-shadow-md max-w-2xl mx-auto">
-              Kite • Foil • Surf • Sail • Dive • Yacht Crew
+            <p className="inline-block px-3 py-1 rounded-full bg-white/15 text-white/95 text-sm font-medium mb-4 drop-shadow-md">
+              Verified profiles · Global community · Free to join
             </p>
-            <Link
-              href="/jobs"
-              className="inline-block px-6 sm:px-8 py-3 sm:py-4 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all duration-200 font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              Browse Jobs
-            </Link>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 sm:mb-6 drop-shadow-lg">
+              <span className="block">The Watersports</span>
+              <span className="block">Talent Network & Job Board</span>
+            </h1>
+            <p className="text-lg sm:text-xl md:text-2xl text-white/90 mb-3 sm:mb-4 drop-shadow-md max-w-2xl mx-auto">
+              The only platform where verified instructors, crew & pros connect with centres hiring worldwide.
+            </p>
+            <p className="text-sm sm:text-base md:text-lg text-white/80 mb-6 sm:mb-8 drop-shadow-md">
+              Kite · Foil · Surf · Sail · Dive · Yacht Crew
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+              <Link
+                href="/jobs"
+                className="inline-block px-6 sm:px-8 py-3 sm:py-4 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all duration-200 font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                Browse Jobs
+              </Link>
+              <Link
+                href="/candidates"
+                className="inline-block px-6 sm:px-8 py-3 sm:py-4 border-2 border-white text-white rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl"
+              >
+                Explore Talent
+              </Link>
+            </div>
+            <p className="mt-4 sm:mt-5">
+              <Link
+                href="/register"
+                className="text-sm sm:text-base text-white/90 hover:text-white underline underline-offset-2"
+              >
+                List your profile free →
+              </Link>
+            </p>
           </div>
         </section>
         
@@ -371,6 +394,8 @@ export default function HomePageContent({
           onLocationChange={setLocation}
           onCategoryChange={setCategory}
         />
+        
+        <HomepageValueProps />
         
         {/* Featured Jobs Section */}
         {featuredJobs.length > 0 && (
@@ -527,11 +552,14 @@ export default function HomePageContent({
           </div>
         </section>
         
-        {/* Top Candidates Section - Only visible to recruiters and admins */}
+        {/* Featured Talent Section - Only visible to recruiters and admins */}
         {user && (user.role === 'recruiter' || user.role === 'admin') && (
           <section className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <SectionHeader title="Top Candidates" />
+              <SectionHeader title="Featured Talent" />
+              <p className="text-gray-600 text-base sm:text-lg -mt-4 mb-8 sm:mb-10 max-w-2xl">
+                Verified profiles from the Chickenloop Talent Network
+              </p>
               
               {candidatesLoading ? (
                 <div className="text-center py-16">
@@ -559,6 +587,9 @@ export default function HomePageContent({
             <div className="prose max-w-none text-gray-700 leading-relaxed space-y-6 text-sm">
               <p>
                 Back in 2013, I was deep in the grind of launching a watersports center in India. Between the logistics and the lessons, I hit a major snag: hiring. Finding qualified, reliable instructors felt like trying to kite in a dead calm—expensive, exhausting, and going nowhere.
+              </p>
+              <p>
+                Today, Chickenloop is both a job board and a talent network—helping centres find verified instructors and crew, and helping pros get discovered beyond a single application.
               </p>
               <p>
                 I knew there had to be a better way to link centers with the talent they need. So, I grabbed a coffee, opened a code editor, and Chickenloop was born.

@@ -15,8 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Chickenloop - Free Watersports Job Board",
-  description: "Find your next watersports job for free on Chickenloop. The leading global job board for kiteboarding, surf, windsurf, sailing and dive professionals. No fees, just jobs.",
+  title: "Chickenloop | Watersports Talent Network & Job Board",
+  description:
+    "The global watersports talent network and free job board for kite, foil, surf, sail, dive and yacht crew. Verified profiles for pros. Trusted hiring for centres.",
 };
 
 export default function RootLayout({
