@@ -4,6 +4,10 @@ export function isTalentNetworkGloballyEnabled(): boolean {
   return process.env.TALENT_NETWORK_ENABLED === 'true';
 }
 
+export function isTalentNetworkCutoverEnabled(): boolean {
+  return process.env.TALENT_NETWORK_CUTOVER === 'true';
+}
+
 export function canUseTalentNetworkEditor(user: TalentNetworkUserContext): boolean {
   if (!isTalentNetworkGloballyEnabled()) {
     return false;
@@ -11,7 +15,13 @@ export function canUseTalentNetworkEditor(user: TalentNetworkUserContext): boole
   if (user.role === 'admin') {
     return true;
   }
-  return user.role === 'job-seeker' && user.talentNetworkBeta === true;
+  if (user.role === 'job-seeker') {
+    if (isTalentNetworkCutoverEnabled()) {
+      return true;
+    }
+    return user.talentNetworkBeta === true;
+  }
+  return false;
 }
 
 export function shouldRenderTalentNetworkView(

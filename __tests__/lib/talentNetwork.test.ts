@@ -11,10 +11,12 @@ import {
 } from '@/lib/talentNetwork/validators';
 
 describe('talent network feature flags', () => {
-  const originalEnv = process.env.TALENT_NETWORK_ENABLED;
+  const originalEnabled = process.env.TALENT_NETWORK_ENABLED;
+  const originalCutover = process.env.TALENT_NETWORK_CUTOVER;
 
   afterEach(() => {
-    process.env.TALENT_NETWORK_ENABLED = originalEnv;
+    process.env.TALENT_NETWORK_ENABLED = originalEnabled;
+    process.env.TALENT_NETWORK_CUTOVER = originalCutover;
   });
 
   it('is disabled by default', () => {
@@ -34,11 +36,20 @@ describe('talent network feature flags', () => {
     ).toBe(true);
   });
 
-  it('denies regular job seekers', () => {
+  it('denies regular job seekers when cutover is off', () => {
     process.env.TALENT_NETWORK_ENABLED = 'true';
+    process.env.TALENT_NETWORK_CUTOVER = 'false';
     expect(
       canUseTalentNetworkEditor({ role: 'job-seeker', talentNetworkBeta: false })
     ).toBe(false);
+  });
+
+  it('allows any job seeker when cutover is on', () => {
+    process.env.TALENT_NETWORK_ENABLED = 'true';
+    process.env.TALENT_NETWORK_CUTOVER = 'true';
+    expect(
+      canUseTalentNetworkEditor({ role: 'job-seeker', talentNetworkBeta: false })
+    ).toBe(true);
   });
 
   it('returns access summary for beta job seeker', () => {
