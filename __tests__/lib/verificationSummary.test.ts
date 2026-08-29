@@ -57,4 +57,20 @@ describe('buildTalentNetworkVerificationSummary', () => {
     expect(summary.pendingItems.some((item) => item.includes('awaiting manager response'))).toBe(true);
     expect(summary.pendingItems.some((item) => item.includes('did not work there'))).toBe(true);
   });
+
+  it('describes unverified certificates as profile-only until document upload', () => {
+    const summary = buildTalentNetworkVerificationSummary({
+      verifiedCertificates: [
+        {
+          issuingBody: 'IKO',
+          certificateLevel: 'Level 2',
+          verificationStatus: 'unverified',
+          disciplines: [],
+        },
+      ],
+    });
+
+    expect(summary.pendingItems[0]).toContain('listed on profile only');
+    expect(summary.pendingItems[0]).toContain('upload document in Edit Profile');
+  });
 });

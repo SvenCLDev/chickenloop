@@ -1,3 +1,6 @@
+'use client';
+
+import Link from 'next/link';
 import { buildTalentNetworkVerificationSummary } from '@/lib/talentNetwork/verificationSummary';
 import type {
   LanguageSkill,
@@ -11,10 +14,12 @@ interface TalentNetworkVerificationSummaryProps {
     seasonalExperience?: SeasonalExperience[];
     languageSkills?: LanguageSkill[];
   };
+  editProfileHref?: string;
 }
 
 export default function TalentNetworkVerificationSummary({
   cv,
+  editProfileHref,
 }: TalentNetworkVerificationSummaryProps) {
   const summary = buildTalentNetworkVerificationSummary(cv);
   const hasPending = summary.pendingItems.length > 0;
@@ -27,6 +32,14 @@ export default function TalentNetworkVerificationSummary({
         <p className="text-sm text-gray-600 mt-1">
           Track what Chickenloop has verified and what is still pending on your profile.
         </p>
+        {summary.certificates.unverified > 0 && editProfileHref ? (
+          <p className="text-sm text-amber-800 mt-2">
+            Upload certificate documents to request Chickenloop verification.{' '}
+            <Link href={editProfileHref} className="font-medium text-blue-600 hover:underline">
+              Edit Profile
+            </Link>
+          </p>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

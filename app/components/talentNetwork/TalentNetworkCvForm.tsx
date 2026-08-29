@@ -6,8 +6,10 @@ import { JOB_CATEGORIES } from '@/src/constants/jobCategories';
 import { cvApi } from '@/lib/api';
 import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import { serializeTalentNetworkForm } from '@/lib/talentNetwork/serializeForm';
+import { getCertificatesMissingDocument } from '@/lib/talentNetwork/certificateVerification';
 import { countUnverifiedCompleteExperienceEntries, getExperienceDateRangeErrorsByIndex } from '@/lib/talentNetwork/experienceVerification';
 import CertificateBlock from './CertificateBlock';
+import CertificateDocumentSaveModal from './CertificateDocumentSaveModal';
 import SeasonalExperienceBlock from './SeasonalExperienceBlock';
 import LanguageSkillBlock from './LanguageSkillBlock';
 import WorkLocationBlock from './WorkLocationBlock';
@@ -57,6 +59,10 @@ export default function TalentNetworkCvForm({
   const [error, setError] = useState('');
   const [experienceDateErrors, setExperienceDateErrors] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
+  const [certificateSaveModalOpen, setCertificateSaveModalOpen] = useState(false);
+  const [certificatesMissingDocument, setCertificatesMissingDocument] = useState<
+    { index: number; label: string }[]
+  >([]);
 
   const uploadPictures = async (): Promise<string[]> => {
     if (selectedPictures.length === 0) return existingPictures;
@@ -112,6 +118,33 @@ export default function TalentNetworkCvForm({
     }
   };
 
+  const performSave = async () => {
+    setLoading(true);
+    try {
+      const pictures = await uploadPictures();
+      const payload = serializeTalentNetworkForm(formData, pictures);
+      await onSubmit(payload);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const continueSaveAfterConfirmations = async () => {
+    const unverifiedCount = countUnverifiedCompleteExperienceEntries(formData.seasonalExperience);
+    if (unverifiedCount > 0) {
+      const proceed = window.confirm(
+        `${unverifiedCount} work experience ${unverifiedCount === 1 ? 'entry is' : 'entries are'} not verified.\n\n` +
+          'Recruiters trust verified references. Add a manager email so we can confirm your experience, or save anyway as self-reported.\n\n' +
+          'Click OK to save anyway, or Cancel to go back and add references.'
+      );
+      if (!proceed) return;
+    }
+
+    await performSave();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -131,26 +164,31 @@ export default function TalentNetworkCvForm({
       return;
     }
 
-    const unverifiedCount = countUnverifiedCompleteExperienceEntries(formData.seasonalExperience);
-    if (unverifiedCount > 0) {
-      const proceed = window.confirm(
-        `${unverifiedCount} work experience ${unverifiedCount === 1 ? 'entry is' : 'entries are'} not verified.\n\n` +
-          'Recruiters trust verified references. Add a manager email so we can confirm your experience, or save anyway as self-reported.\n\n' +
-          'Click OK to save anyway, or Cancel to go back and add references.'
-      );
-      if (!proceed) return;
+    const missingDocs = getCertificatesMissingDocument(formData.verifiedCertificates);
+    if (missingDocs.length > 0) {
+      setCertificatesMissingDocument(missingDocs);
+      setCertificateSaveModalOpen(true);
+      return;
     }
 
-    setLoading(true);
-    try {
-      const pictures = await uploadPictures();
-      const payload = serializeTalentNetworkForm(formData, pictures);
-      await onSubmit(payload);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save profile');
-    } finally {
-      setLoading(false);
+    await continueSaveAfterConfirmations();
+  };
+
+  const handleCertificateModalGoBack = () => {
+    setCertificateSaveModalOpen(false);
+    const firstIndex = certificatesMissingDocument[0]?.index;
+    if (firstIndex !== undefined) {
+      requestAnimationFrame(() => {
+        document
+          .getElementById(`certificate-entry-${firstIndex}`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
     }
+  };
+
+  const handleCertificateModalSave = async () => {
+    setCertificateSaveModalOpen(false);
+    await continueSaveAfterConfirmations();
   };
 
   const toggleSport = (sport: string) => {
@@ -174,7 +212,14 @@ export default function TalentNetworkCvForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-10">
+    <>
+      <CertificateDocumentSaveModal
+        open={certificateSaveModalOpen}
+        certificateLabels={certificatesMissingDocument.map((item) => item.label)}
+        onGoBack={handleCertificateModalGoBack}
+        onSaveSelfReported={handleCertificateModalSave}
+      />
+      <form onSubmit={handleSubmit} className="space-y-10">
       {error && (
         <div id="error-banner" className="p-4 bg-red-50 border border-red-200 rounded-md text-red-800">
           {error}
@@ -384,5 +429,6 @@ export default function TalentNetworkCvForm({
         {loading ? 'Saving...' : submitLabel ?? (mode === 'create' ? 'Create Profile' : 'Save Profile')}
       </button>
     </form>
+    </>
   );
 }

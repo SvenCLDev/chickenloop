@@ -84,7 +84,9 @@ export function buildTalentNetworkVerificationSummary(cv: {
     } else if (status === 'pending_review') {
       pendingItems.push(`${label} — pending admin review`);
     } else {
-      pendingItems.push(`${label} — not yet submitted for verification`);
+      pendingItems.push(
+        `${label} — listed on profile only (upload document in Edit Profile to request verification)`
+      );
     }
   });
 

@@ -130,7 +130,7 @@ export default function ViewCVPage() {
           </div>
 
           {isTalentNetworkV2 && (
-            <TalentNetworkVerificationSummary cv={cv} />
+            <TalentNetworkVerificationSummary cv={cv} editProfileHref={editHref} />
           )}
 
           {/* Personal Information */}
