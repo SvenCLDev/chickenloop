@@ -7,6 +7,7 @@ import Navbar from '../../../components/Navbar';
 import TalentNetworkProfileView from '@/app/components/talentNetwork/TalentNetworkProfileView';
 import TalentNetworkVerificationSummary from '@/app/components/talentNetwork/TalentNetworkVerificationSummary';
 import { cvApi } from '@/lib/api';
+import { stripHtmlToText } from '@/lib/sanitizeText';
 import Link from 'next/link';
 
 const EXPERIENCE_LEVEL_LABELS: Record<string, string> = {
@@ -160,7 +161,7 @@ export default function ViewCVPage() {
           {cv.summary && (
             <div className="mb-6 pb-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Summary</h2>
-              <p className="text-gray-700 whitespace-pre-wrap">{cv.summary}</p>
+              <p className="text-gray-700 whitespace-pre-wrap">{stripHtmlToText(cv.summary)}</p>
             </div>
           )}
 

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { stripHtmlToText } from '@/lib/sanitizeText';
 
 interface CandidateCardProps {
   candidate: {
@@ -58,7 +59,7 @@ export default function CandidateCard({ candidate }: CandidateCardProps) {
         </p>
         {candidate.summary && (
           <p className="text-sm text-gray-600 mb-3 line-clamp-3">
-            {candidate.summary}
+            {stripHtmlToText(candidate.summary)}
           </p>
         )}
         <p className="text-sm text-blue-600 font-medium hover:text-blue-700 transition-colors">

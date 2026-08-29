@@ -9,6 +9,7 @@ import { applicationsApi } from '@/lib/api';
 import { ApplicationJobSnapshot } from '@/lib/applicationTypes';
 import { ApplicationStatus, getAllowedTransitions, TERMINAL_STATES, validateTransition } from '@/lib/applicationStatusTransitions';
 import { getJobUrl } from '@/lib/jobSlug';
+import { stripHtmlToText } from '@/lib/sanitizeText';
 import Link from 'next/link';
 
 interface AdminAction {
@@ -615,7 +616,7 @@ export default function AdminApplicationDetailPage() {
                     {application.cv.summary ? (
                       <div>
                         <p className="text-sm text-gray-700 mb-2 font-medium">Summary:</p>
-                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{application.cv.summary}</p>
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{stripHtmlToText(application.cv.summary)}</p>
                       </div>
                     ) : (
                       <p className="text-sm text-gray-500 italic">No summary available</p>

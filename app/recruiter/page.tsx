@@ -15,6 +15,7 @@ import {
   getJobRefreshCooldownMessage,
   getJobRefreshDaysRemaining,
 } from '@/lib/jobRefresh';
+import { stripHtmlToText } from '@/lib/sanitizeText';
 import type { SurveyDefinition } from '@/lib/surveys';
 
 interface Job {
@@ -888,7 +889,7 @@ function RecruiterDashboardClient() {
                       {/* Summary Preview */}
                       {candidate.summary && (
                         <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                          {candidate.summary}
+                          {stripHtmlToText(candidate.summary)}
                         </p>
                       )}
 

@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { buildCandidateSearchQuery } from '@/lib/candidateSearchParams';
 import { candidatesApi } from '@/lib/api';
+import { stripHtmlToText } from '@/lib/sanitizeText';
 import { COUNTRY_OPTIONS } from '@/lib/countryUtils';
 
 interface CV {
@@ -34,19 +35,6 @@ interface CV {
   };
   createdAt: string;
   updatedAt?: string;
-}
-
-// Strip HTML tags from string for plain-text display (e.g. card previews)
-function stripHtml(html: string): string {
-  if (!html || typeof html !== 'string') return '';
-  return html
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
 }
 
 // Helper function to format time ago
@@ -112,7 +100,6 @@ function CVsPageContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [migrationBannerDismissed, setMigrationBannerDismissed] = useState(true); // start true to avoid flash; useEffect will set from localStorage
   const [cvs, setCvs] = useState<CV[]>([]);
   const [filterOptions, setFilterOptions] = useState<{
     languages: string[];
@@ -146,15 +133,6 @@ function CVsPageContent() {
       router.push(`/${user.role === 'job-seeker' ? 'job-seeker' : ''}`);
     }
   }, [user, authLoading, router]);
-
-  useEffect(() => {
-    setMigrationBannerDismissed(localStorage.getItem('candidates-migration-banner-dismissed') === '1');
-  }, []);
-
-  const dismissMigrationBanner = () => {
-    localStorage.setItem('candidates-migration-banner-dismissed', '1');
-    setMigrationBannerDismissed(true);
-  };
 
   // Sync page and filters from URL when searchParams change (e.g. navigation, pagination)
   useEffect(() => {
@@ -375,21 +353,6 @@ function CVsPageContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
       <Navbar />
-      {!migrationBannerDismissed && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-2 text-amber-900">
-            <span className="text-xl shrink-0" aria-hidden>🚧</span>
-            <span className="text-sm sm:text-base">Note: Data still incomplete and under migration from the old site.</span>
-          </div>
-          <button
-            type="button"
-            onClick={dismissMigrationBanner}
-            className="shrink-0 text-sm font-medium text-amber-800 hover:text-amber-900 underline focus:outline-none focus:ring-2 focus:ring-amber-500 rounded px-1"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <h1 className="text-4xl font-bold text-gray-900 mb-8">Job Candidates</h1>
         
@@ -616,7 +579,7 @@ function CVsPageContent() {
                     {/* Summary Preview */}
                     {cv.summary && (
                       <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {stripHtml(cv.summary)}
+                        {stripHtmlToText(cv.summary)}
                       </p>
                     )}
 
