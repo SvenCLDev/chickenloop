@@ -283,6 +283,146 @@ export function clearCandidateSearchParams(): CandidateSearchParams {
   return {};
 }
 
+/** Flat filter state for the candidates list UI (single-select fields). */
+export interface CandidateListFilters {
+  kw: string;
+  location: string;
+  sport: string;
+  certification: string;
+  availability: string;
+  workArea: string;
+  language: string;
+  experienceLevel: string;
+  canWorkIn: string;
+  preferredCountry: string;
+  noSponsorshipIn: string;
+  verifiedOnly: boolean;
+  sort: string;
+}
+
+export const EMPTY_CANDIDATE_LIST_FILTERS: CandidateListFilters = {
+  kw: '',
+  location: '',
+  sport: '',
+  certification: '',
+  availability: '',
+  workArea: '',
+  language: '',
+  experienceLevel: '',
+  canWorkIn: '',
+  preferredCountry: '',
+  noSponsorshipIn: '',
+  verifiedOnly: false,
+  sort: 'newest',
+};
+
+export function searchParamsToCandidateListFilters(
+  params: CandidateSearchParams
+): CandidateListFilters {
+  return {
+    kw: params.kw || '',
+    location: params.location || '',
+    sport: params.sport?.[0] || '',
+    certification: params.certification?.[0] || '',
+    availability: params.availability?.[0] || '',
+    workArea: params.workArea?.[0] || '',
+    language: params.language?.[0] || '',
+    experienceLevel: params.experienceLevel?.[0] || '',
+    canWorkIn: params.canWorkIn?.[0] || '',
+    preferredCountry: params.preferredCountry?.[0] || '',
+    noSponsorshipIn: params.noSponsorshipIn?.[0] || '',
+    verifiedOnly: params.verifiedOnly === true,
+    sort: params.sort || 'newest',
+  };
+}
+
+export function candidateListFiltersToSearchParams(
+  filters: CandidateListFilters,
+  page = 1
+): CandidateSearchParams {
+  const params: CandidateSearchParams = {};
+  if (filters.kw.trim()) params.kw = filters.kw.trim();
+  if (filters.location.trim()) params.location = filters.location.trim();
+  if (filters.sport) params.sport = [filters.sport];
+  if (filters.certification) params.certification = [filters.certification];
+  if (filters.availability) params.availability = [filters.availability];
+  if (filters.workArea) params.workArea = [filters.workArea];
+  if (filters.language) params.language = [filters.language];
+  if (filters.experienceLevel) params.experienceLevel = [filters.experienceLevel];
+  if (filters.canWorkIn) params.canWorkIn = [filters.canWorkIn];
+  if (filters.preferredCountry) params.preferredCountry = [filters.preferredCountry];
+  if (filters.noSponsorshipIn) params.noSponsorshipIn = [filters.noSponsorshipIn];
+  if (filters.verifiedOnly) params.verifiedOnly = true;
+  if (filters.sort && filters.sort !== 'newest') params.sort = filters.sort;
+  if (page > 1) params.page = page;
+  return params;
+}
+
+export type CandidateFilterChip = {
+  key: keyof CandidateListFilters;
+  label: string;
+  value: string;
+};
+
+const EXPERIENCE_LEVEL_LABELS: Record<string, string> = {
+  entry: 'Entry',
+  intermediate: 'Intermediate',
+  experienced: 'Experienced',
+  senior: 'Senior',
+};
+
+const AVAILABILITY_LABELS: Record<string, string> = {
+  available_now: 'Available now',
+  available_soon: 'Available soon',
+  seasonal: 'Seasonal',
+  not_available: 'Not available',
+};
+
+export function buildCandidateFilterChips(
+  filters: CandidateListFilters,
+  countryName: (code: string) => string
+): CandidateFilterChip[] {
+  const chips: CandidateFilterChip[] = [];
+  if (filters.kw.trim()) chips.push({ key: 'kw', label: 'Search', value: filters.kw.trim() });
+  if (filters.location.trim()) chips.push({ key: 'location', label: 'Location', value: filters.location.trim() });
+  if (filters.sport) chips.push({ key: 'sport', label: 'Sport', value: filters.sport });
+  if (filters.certification) chips.push({ key: 'certification', label: 'Certification', value: filters.certification });
+  if (filters.availability) {
+    chips.push({
+      key: 'availability',
+      label: 'Availability',
+      value: AVAILABILITY_LABELS[filters.availability] || filters.availability,
+    });
+  }
+  if (filters.workArea) chips.push({ key: 'workArea', label: 'Work area', value: filters.workArea });
+  if (filters.language) chips.push({ key: 'language', label: 'Language', value: filters.language });
+  if (filters.experienceLevel) {
+    chips.push({
+      key: 'experienceLevel',
+      label: 'Experience',
+      value: EXPERIENCE_LEVEL_LABELS[filters.experienceLevel] || filters.experienceLevel,
+    });
+  }
+  if (filters.canWorkIn) {
+    chips.push({ key: 'canWorkIn', label: 'Can work in', value: countryName(filters.canWorkIn) });
+  }
+  if (filters.preferredCountry) {
+    chips.push({ key: 'preferredCountry', label: 'Open to', value: countryName(filters.preferredCountry) });
+  }
+  if (filters.noSponsorshipIn) {
+    chips.push({
+      key: 'noSponsorshipIn',
+      label: 'No sponsorship',
+      value: countryName(filters.noSponsorshipIn),
+    });
+  }
+  if (filters.verifiedOnly) chips.push({ key: 'verifiedOnly', label: 'Verified', value: 'Qualifications only' });
+  if (filters.sort && filters.sort !== 'newest') {
+    chips.push({ key: 'sort', label: 'Sort', value: filters.sort === 'oldest' ? 'Oldest first' : filters.sort });
+  }
+  return chips;
+}
+
 // Type guard for URLSearchParams compatibility
 type ReadonlyURLSearchParams = {
   get(name: string): string | null;

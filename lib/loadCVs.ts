@@ -145,7 +145,10 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
     matchConditions.canWorkWithoutSponsorshipIn = { $in: filters.noSponsorshipIn };
   }
 
-  const sortOrder: any = { hasPictures: -1 };
+  const sortOrder: any = {
+    verifiedCertCount: -1,
+    confirmedReferenceCount: -1,
+  };
   if (filters.sort === 'oldest') {
     sortOrder.createdAt = 1;
   } else {
@@ -199,17 +202,54 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         jobSeeker: 1,
         profileSchemaVersion: 1,
         verifiedCertificates: 1,
+        seasonalExperience: 1,
       }
     },
     {
       $addFields: {
-        hasPictures: { $cond: [{ $gt: [{ $size: { $ifNull: ['$pictures', []] } }, 0] }, 1, 0] },
         verifiedCertCount: {
           $size: {
             $filter: {
               input: { $ifNull: ['$verifiedCertificates', []] },
               as: 'cert',
               cond: { $eq: ['$$cert.verificationStatus', 'verified'] },
+            },
+          },
+        },
+        confirmedReferenceCount: {
+          $size: {
+            $filter: {
+              input: { $ifNull: ['$seasonalExperience', []] },
+              as: 'exp',
+              cond: { $eq: ['$$exp.verificationStatus', 'confirmed'] },
+            },
+          },
+        },
+        verifiedCertLabels: {
+          $map: {
+            input: {
+              $slice: [
+                {
+                  $filter: {
+                    input: { $ifNull: ['$verifiedCertificates', []] },
+                    as: 'cert',
+                    cond: { $eq: ['$$cert.verificationStatus', 'verified'] },
+                  },
+                },
+                2,
+              ],
+            },
+            as: 'cert',
+            in: {
+              $trim: {
+                input: {
+                  $concat: [
+                    { $ifNull: ['$$cert.issuingBody', ''] },
+                    ' ',
+                    { $ifNull: ['$$cert.certificateLevel', ''] },
+                  ],
+                },
+              },
             },
           },
         },
@@ -271,6 +311,10 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         workEligibleCountries: 1,
         featured: '$isFeatured',
         pictures: 1,
+        profileSchemaVersion: 1,
+        verifiedCertCount: 1,
+        confirmedReferenceCount: 1,
+        verifiedCertLabels: 1,
         createdAt: 1,
         updatedAt: 1,
         jobSeeker: {
@@ -305,6 +349,7 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         availability: 1,
         preferredWorkCountries: 1,
         workEligibleCountries: 1,
+        verifiedCertificates: 1,
       }
     }
   ];
@@ -325,6 +370,11 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
     if (cv.lookingForWorkInAreas) cv.lookingForWorkInAreas.forEach((area: string) => uniqueWorkAreas.add(area));
     if (cv.experienceAndSkill) cv.experienceAndSkill.forEach((sport: string) => uniqueSports.add(sport));
     if (cv.professionalCertifications) cv.professionalCertifications.forEach((cert: string) => uniqueCertifications.add(cert));
+    if (cv.verifiedCertificates) {
+      cv.verifiedCertificates.forEach((cert: { issuingBody?: string }) => {
+        if (cert?.issuingBody) uniqueCertifications.add(cert.issuingBody);
+      });
+    }
     if (cv.experienceLevel) uniqueExperienceLevels.add(cv.experienceLevel);
     if (cv.availability) uniqueAvailability.add(cv.availability);
     if (cv.preferredWorkCountries) {
