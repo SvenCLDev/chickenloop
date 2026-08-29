@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { candidatesApi } from '@/lib/api';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
+import { talentListUrl } from '@/lib/talentRoutes';
 import {
   buildCandidateFilterChips,
   buildCandidateSearchQuery,
@@ -132,7 +133,7 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
         );
         const currentQuery = searchParams.toString();
         if (urlQuery !== currentQuery) {
-          router.push(urlQuery ? `/candidates?${urlQuery}` : '/candidates', { scroll: false });
+          router.push(talentListUrl(urlQuery || undefined), { scroll: false });
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Failed to load profiles');

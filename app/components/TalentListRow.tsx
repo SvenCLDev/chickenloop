@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { stripHtmlToText } from '@/lib/sanitizeText';
 import type { CandidateListItem } from '@/lib/candidateListTypes';
+import { talentProfilePath } from '@/lib/talentRoutes';
 
 const EXPERIENCE_LEVEL_LABELS: Record<string, string> = {
   entry: 'Entry',
@@ -80,7 +81,7 @@ export default function TalentListRow({
       }`}
     >
       <div className="flex gap-4 p-4 sm:p-5">
-        <Link href={`/candidates/${candidate._id}`} className="shrink-0">
+        <Link href={talentProfilePath(candidate._id)} className="shrink-0">
           {picture ? (
             <img
               src={picture}
@@ -97,7 +98,7 @@ export default function TalentListRow({
         <div className="min-w-0 flex-1 pr-8">
           <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1">
             <Link
-              href={`/candidates/${candidate._id}`}
+              href={talentProfilePath(candidate._id)}
               className="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors truncate"
             >
               {candidate.fullName}

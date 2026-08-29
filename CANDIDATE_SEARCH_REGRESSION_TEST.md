@@ -23,7 +23,7 @@ Verify candidate search behavior matches job search in all scenarios.
 - `handleSearchSubmit` preserves existing filters via `parseCandidateSearchParams`
 - Updates `kw` parameter in URL
 - Resets page to 1: `newParams.page = 1`
-- URL format: `/candidates?kw=test`
+- URL format: `/talent?kw=test`
 
 ### Code Verification
 ```typescript
@@ -36,7 +36,7 @@ if (searchKeyword.trim()) {
   delete newParams.kw;
 }
 newParams.page = 1; // ✅ Resets page
-const newUrl = buildCandidateSearchUrl('/candidates', newParams);
+const newUrl = buildCandidateSearchUrl('/talent', newParams);
 router.push(newUrl);
 ```
 
@@ -66,7 +66,7 @@ const currentParams = searchParams ? parseCandidateSearchParams(searchParams) : 
 const newParams: CandidateSearchParams = { ...currentParams };
 // ... update specific filter ...
 newParams.page = 1; // ✅ Resets page
-const newUrl = buildCandidateSearchUrl('/candidates', newParams);
+const newUrl = buildCandidateSearchUrl('/talent', newParams);
 router.push(newUrl);
 ```
 
@@ -85,7 +85,7 @@ router.push(newUrl);
 ✅ **PASS** - Matches job search behavior:
 - Keyword search preserves filters via `parseCandidateSearchParams`
 - Filter changes preserve keyword via same mechanism
-- URL format: `/candidates?kw=instructor&work_area=Instruction&language=English`
+- URL format: `/talent?kw=instructor&work_area=Instruction&language=English`
 - All parameters preserved correctly
 
 ### Code Verification
@@ -130,7 +130,7 @@ const handleRemoveFilterValue = (filterType, value) => {
   const newParams: CandidateSearchParams = { ...currentParams }; // ✅ Preserves all
   // ... remove specific value ...
   newParams.page = 1;
-  const newUrl = buildCandidateSearchUrl('/candidates', newParams);
+  const newUrl = buildCandidateSearchUrl('/talent', newParams);
   router.push(newUrl);
 };
 ```
@@ -192,7 +192,7 @@ useEffect(() => {
 ### Candidate Search Implementation
 ✅ **PASS** - Matches job search behavior:
 - `handleClearAllFilters` resets all state variables
-- Navigates to `/candidates` (no query params)
+- Navigates to `/talent` (no query params)
 - State syncs from empty URL via `useEffect`
 
 ### Code Verification
@@ -211,7 +211,7 @@ const handleClearAllFilters = () => {
   setSelectedExperienceLevel([]);
   setSelectedAvailability([]);
   setCurrentPage(1);
-  router.push('/candidates'); // ✅ Navigates to clean URL
+  router.push('/talent'); // ✅ Navigates to clean URL
 };
 ```
 

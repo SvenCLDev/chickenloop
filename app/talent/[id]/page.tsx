@@ -6,7 +6,7 @@ import Navbar from '../../components/Navbar';
 import { useAuth } from '../../contexts/AuthContext';
 import { candidatesApi } from '@/lib/api';
 import Link from 'next/link';
-import JobSelectionModal from '../../components/JobSelectionModal';
+import { TALENT_LIST_PATH } from '@/lib/talentRoutes';
 import TalentNetworkProfileView from '@/app/components/talentNetwork/TalentNetworkProfileView';
 import WorkLocationProfileSection from '@/app/components/talentNetwork/WorkLocationProfileSection';
 import type { WorkAuthorization } from '@/lib/talentNetwork/types';
@@ -62,7 +62,7 @@ function CVDetailContent() {
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const cvId = params?.id as string;
-  const returnUrl = searchParams?.get('returnUrl') || '/candidates';
+  const returnUrl = searchParams?.get('returnUrl') || TALENT_LIST_PATH;
   const [cv, setCv] = useState<CV | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

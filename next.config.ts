@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
       : '/job-seeker/profile/new';
 
     const legacyCvPageRedirects = [
+      { source: '/candidates', destination: '/talent', permanent: true },
+      { source: '/candidates/:id', destination: '/talent/:id', permanent: true },
       { source: '/create-cv', destination: '/create-profile', permanent: false },
       { source: '/create-profile', destination: createDestination, permanent: false },
       { source: '/job-seeker/cv/new', destination: '/job-seeker/profile/new', permanent: false },

@@ -33,7 +33,7 @@ Use this checklist on **staging/preview** with `TALENT_NETWORK_ENABLED=true` bef
 
 ## Recruiter view
 
-- [ ] v2 profile (`profileSchemaVersion: 2`) shows Talent Network sections on `/candidates/[id]`
+- [ ] v2 profile (`profileSchemaVersion: 2`) shows Talent Network sections on `/talent/[id]`
 - [ ] Green **Chickenloop Verified** badge on verified certificates
 - [ ] **Verified reference** checkmark on confirmed work history
 - [ ] Candidate card shows verified cert count when applicable

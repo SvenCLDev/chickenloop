@@ -9,7 +9,7 @@ import RecruiterSurveyModal from '../components/RecruiterSurveyModal';
 import { jobsApi, companyApi, candidatesApi } from '@/lib/api';
 import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
-import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
+import { talentProfilePath } from '@/lib/talentRoutes';
 import {
   canRefreshJob,
   getJobRefreshCooldownMessage,
@@ -840,14 +840,14 @@ function RecruiterDashboardClient() {
           )}
         </div>
 
-        {/* My Favorite Candidates Section */}
+        {/* Saved Talent Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">My Favorite Candidates</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">Saved Talent</h2>
           {favouriteCandidates.length === 0 ? (
             <div className="bg-white rounded-lg shadow-md p-8 text-center">
-              <p className="text-gray-600">You haven't added any candidates to your favourites yet.</p>
+              <p className="text-gray-600">You haven&apos;t saved any talent profiles yet.</p>
               <p className="text-gray-500 text-sm mt-2">
-                Click "Add to Favourites" on any candidate profile to save it here.
+                Click &quot;Add to Favourites&quot; on any talent profile to save it here.
               </p>
             </div>
           ) : (
@@ -880,7 +880,7 @@ function RecruiterDashboardClient() {
                     {/* Candidate Info */}
                     <div className="p-4">
                       <Link
-                        href={`/candidates/${candidate._id}`}
+                        href={talentProfilePath(candidate._id)}
                         className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600"
                       >
                         {candidate.fullName}
@@ -961,7 +961,7 @@ function RecruiterDashboardClient() {
                       {/* Actions */}
                       <div className="flex gap-2 mt-3">
                         <Link
-                          href={`/candidates/${candidate._id}`}
+                          href={talentProfilePath(candidate._id)}
                           className="flex-1 text-center bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm font-semibold"
                         >
                           View Profile

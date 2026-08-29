@@ -1,7 +1,5 @@
 /**
  * Canonical Candidate Search Parameters
- * 
- * This file defines the single source of truth for candidate search state based on URL query parameters.
  * All candidate search functionality should use these parameters to ensure consistency across the application.
  * 
  * IMPORTANT: These parameters are the canonical definition. Any code that handles candidate search
@@ -33,6 +31,8 @@
  *   are represented as arrays in the internal interface but as comma-separated strings in URLs
  *   (e.g., ?work_area=Instruction,Support&language=English,Spanish)
  */
+
+import { TALENT_LIST_PATH } from '@/lib/talentRoutes';
 
 /**
  * Canonical candidate search parameters interface
@@ -242,11 +242,11 @@ export function buildCandidateSearchQuery(params: CandidateSearchParams): string
 /**
  * Convert CandidateSearchParams to URL object with query string
  * 
- * @param baseUrl - Base URL (default: '/candidates')
+ * @param baseUrl - Base URL (default: '/talent')
  * @param params - CandidateSearchParams object
  * @returns URL string with query parameters
  */
-export function buildCandidateSearchUrl(baseUrl: string = '/candidates', params: CandidateSearchParams): string {
+export function buildCandidateSearchUrl(baseUrl: string = TALENT_LIST_PATH, params: CandidateSearchParams): string {
   const queryString = buildCandidateSearchQuery(params);
   return queryString ? `${baseUrl}?${queryString}` : baseUrl;
 }

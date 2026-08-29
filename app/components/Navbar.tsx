@@ -66,10 +66,10 @@ export default function Navbar() {
               </Link>
               {isRecruiter && (
                 <Link
-                  href="/candidates"
+                  href="/talent"
                   className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors"
                 >
-                  Candidates
+                  Talent
                 </Link>
               )}
               <Link
@@ -279,11 +279,11 @@ export default function Navbar() {
                     </Link>
                     {isRecruiter && (
                       <Link
-                        href="/candidates"
+                        href="/talent"
                         onClick={closeMobileMenu}
                         className="px-4 py-2 rounded hover:bg-blue-700 text-sm"
                       >
-                        Candidates
+                        Talent
                       </Link>
                     )}
                   </div>

@@ -102,7 +102,7 @@ describe('referenceVerificationEmail', () => {
     expect(html).toContain('Yes, they worked here — I would not rehire them');
     expect(html).toContain('No, they did not work at our center');
     expect(html).toContain('https://www.chickenloop.com/register');
-    expect(html).toContain('https://www.chickenloop.com/candidates');
+    expect(html).toContain('https://www.chickenloop.com/talent');
     expect(html).toContain('https://www.chickenloop.com/jobs');
     expect(text).toContain('About Chickenloop');
     expect(text).toContain('Post a job: https://www.chickenloop.com/register');

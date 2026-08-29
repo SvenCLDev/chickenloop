@@ -366,7 +366,7 @@ export default function HomePageContent({
                 Browse Jobs
               </Link>
               <Link
-                href="/candidates"
+                href="/talent"
                 className="inline-block px-6 sm:px-8 py-3 sm:py-4 border-2 border-white text-white rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl"
               >
                 Explore Talent
@@ -563,11 +563,11 @@ export default function HomePageContent({
               
               {candidatesLoading ? (
                 <div className="text-center py-16">
-                  <p className="text-gray-600 text-lg">Loading candidates...</p>
+                  <p className="text-gray-600 text-lg">Loading talent...</p>
                 </div>
               ) : topCandidates.length === 0 ? (
                 <div className="text-center py-16">
-                  <p className="text-gray-600 text-lg">No candidates available at the moment.</p>
+                  <p className="text-gray-600 text-lg">No talent profiles available at the moment.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">

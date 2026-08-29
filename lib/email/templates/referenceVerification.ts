@@ -19,7 +19,7 @@ export function referenceVerificationEmail(input: {
 
   const siteUrl = getMarketingSiteUrl();
   const postJobUrl = `${siteUrl}/register`;
-  const browseCandidatesUrl = `${siteUrl}/candidates`;
+  const browseTalentUrl = `${siteUrl}/talent`;
   const viewJobsUrl = `${siteUrl}/jobs`;
 
   const text = [
@@ -41,7 +41,7 @@ export function referenceVerificationEmail(input: {
     `Chickenloop is the watersports job board where instructors and centers connect. If you're hiring for your next season, you can post a job for free or browse verified talent on the site.`,
     ``,
     `Post a job: ${postJobUrl}`,
-    `Browse candidates: ${browseCandidatesUrl}`,
+    `Browse talent: ${browseTalentUrl}`,
     `View open jobs: ${viewJobsUrl}`,
   ].join('\n');
 
@@ -72,7 +72,7 @@ export function referenceVerificationEmail(input: {
       <p style="margin:0;font-size:13px;">
         <a href="${postJobUrl}" style="color:#2563eb;text-decoration:none;">Post a job</a>
         <span style="color:#9ca3af;"> · </span>
-        <a href="${browseCandidatesUrl}" style="color:#2563eb;text-decoration:none;">Browse candidates</a>
+        <a href="${browseTalentUrl}" style="color:#2563eb;text-decoration:none;">Browse talent</a>
         <span style="color:#9ca3af;"> · </span>
         <a href="${viewJobsUrl}" style="color:#2563eb;text-decoration:none;">View open jobs</a>
       </p>

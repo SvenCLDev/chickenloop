@@ -53,6 +53,8 @@ This document lists all API endpoints available in the Chickenloop application.
 
 ## Candidate APIs (`/api/candidates-list`)
 
+Public browse URLs use `/talent` and `/talent/[id]`; legacy `/candidates` paths redirect permanently.
+
 | Method | Endpoint | Description | Auth Required | Role |
 |--------|----------|-------------|---------------|------|
 | GET | `/api/candidates-list` | Get all candidates (CVs) | Yes | Recruiter |

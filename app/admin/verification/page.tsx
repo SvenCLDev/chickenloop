@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { talentProfilePath } from '@/lib/talentRoutes';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/app/components/Navbar';
 import { useAuth } from '@/app/contexts/AuthContext';
@@ -174,7 +175,7 @@ export default function AdminVerificationPage() {
                           Edit Profile
                         </Link>
                         <Link
-                          href={`/candidates/${item.cvId}`}
+                          href={talentProfilePath(item.cvId)}
                           className="text-blue-600 hover:underline text-sm"
                         >
                           View public profile

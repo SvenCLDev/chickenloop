@@ -9,6 +9,7 @@ import { ApplicationJobSnapshot } from '@/lib/applicationTypes';
 import { getJobUrl } from '@/lib/jobSlug';
 import { stripHtmlToText } from '@/lib/sanitizeText';
 import Link from 'next/link';
+import { talentProfilePath } from '@/lib/talentRoutes';
 
 interface Application {
   _id: string;
@@ -435,7 +436,7 @@ export default function RecruiterApplicationDetailPage() {
                     )}
                     {application.cv._id && (
                       <Link
-                        href={`/candidates/${application.cv._id}?returnUrl=/dashboard/recruiter/applications/${application._id}`}
+                        href={`${talentProfilePath(application.cv._id)}?returnUrl=/dashboard/recruiter/applications/${application._id}`}
                         className="inline-block mt-3 text-blue-600 hover:text-blue-800 font-medium"
                       >
                         View Full Profile →

@@ -11,6 +11,7 @@ import { ApplicationStatus, getAllowedTransitions, TERMINAL_STATES, validateTran
 import { getJobUrl } from '@/lib/jobSlug';
 import { stripHtmlToText } from '@/lib/sanitizeText';
 import Link from 'next/link';
+import { talentProfilePath } from '@/lib/talentRoutes';
 
 interface AdminAction {
   adminId: string;
@@ -622,7 +623,7 @@ export default function AdminApplicationDetailPage() {
                       <p className="text-sm text-gray-500 italic">No summary available</p>
                     )}
                     <Link
-                      href={`/candidates/${application.candidate?._id}`}
+                      href={talentProfilePath(application.candidate?._id || '')}
                       className="inline-block mt-3 text-blue-600 hover:text-blue-800 font-medium"
                     >
                       View Full Profile →

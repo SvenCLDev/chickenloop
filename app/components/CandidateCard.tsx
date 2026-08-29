@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { stripHtmlToText } from '@/lib/sanitizeText';
+import { talentProfilePath } from '@/lib/talentRoutes';
 
 interface CandidateCardProps {
   candidate: {
@@ -24,7 +25,7 @@ export default function CandidateCard({ candidate }: CandidateCardProps) {
 
   return (
     <Link
-      href={`/candidates/${candidate._id}`}
+      href={talentProfilePath(candidate._id)}
       className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer block overflow-hidden transform hover:-translate-y-1 border border-gray-100"
     >
       {/* Candidate Picture */}
