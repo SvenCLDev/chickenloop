@@ -5,6 +5,10 @@ import {
   shouldRenderTalentNetworkView,
 } from '@/lib/talentNetwork/featureFlag';
 import {
+  shouldShowTalentNetworkIntro,
+  TALENT_NETWORK_INTRO_CAMPAIGN_ID,
+} from '@/lib/talentNetwork/introCampaign';
+import {
   validateLanguageSkill,
   validateSeasonalExperience,
   validateVerifiedCertificate,
@@ -62,6 +66,48 @@ describe('talent network feature flags', () => {
   it('renders v2 view only for schema version 2', () => {
     expect(shouldRenderTalentNetworkView(1)).toBe(false);
     expect(shouldRenderTalentNetworkView(2)).toBe(true);
+  });
+});
+
+describe('talent network intro modal', () => {
+  it('shows intro for job seeker with editor access and no prior dismiss', () => {
+    expect(
+      shouldShowTalentNetworkIntro({
+        role: 'job-seeker',
+        canEdit: true,
+        dismissedCampaign: null,
+      })
+    ).toBe(true);
+  });
+
+  it('hides intro when campaign was permanently dismissed', () => {
+    expect(
+      shouldShowTalentNetworkIntro({
+        role: 'job-seeker',
+        canEdit: true,
+        dismissedCampaign: TALENT_NETWORK_INTRO_CAMPAIGN_ID,
+      })
+    ).toBe(false);
+  });
+
+  it('hides intro for recruiters even when canEdit is true', () => {
+    expect(
+      shouldShowTalentNetworkIntro({
+        role: 'recruiter',
+        canEdit: true,
+        dismissedCampaign: null,
+      })
+    ).toBe(false);
+  });
+
+  it('hides intro when editor access is unavailable', () => {
+    expect(
+      shouldShowTalentNetworkIntro({
+        role: 'job-seeker',
+        canEdit: false,
+        dismissedCampaign: null,
+      })
+    ).toBe(false);
   });
 });
 

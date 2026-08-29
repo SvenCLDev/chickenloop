@@ -3,6 +3,10 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import { requireRole } from '@/lib/auth';
 import { getTalentNetworkAccess } from '@/lib/talentNetwork/featureFlag';
+import {
+  shouldShowTalentNetworkIntro,
+  TALENT_NETWORK_INTRO_CAMPAIGN_ID,
+} from '@/lib/talentNetwork/introCampaign';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,15 +14,31 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const userDoc = await User.findById(authUser.userId)
-      .select('role talentNetworkBeta')
+      .select('role talentNetworkBeta talentNetworkIntroDismissedCampaign')
       .lean();
 
+    const role = userDoc?.role ?? authUser.role;
     const access = getTalentNetworkAccess({
-      role: userDoc?.role ?? authUser.role,
+      role,
       talentNetworkBeta: userDoc?.talentNetworkBeta === true,
     });
 
-    return NextResponse.json(access, { status: 200 });
+    const showIntro = shouldShowTalentNetworkIntro({
+      role,
+      canEdit: access.canEdit,
+      dismissedCampaign: userDoc?.talentNetworkIntroDismissedCampaign ?? null,
+    });
+
+    return NextResponse.json(
+      {
+        ...access,
+        intro: {
+          show: showIntro,
+          campaignId: TALENT_NETWORK_INTRO_CAMPAIGN_ID,
+        },
+      },
+      { status: 200 }
+    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (errorMessage === 'Unauthorized') {

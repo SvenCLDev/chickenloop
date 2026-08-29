@@ -4,6 +4,8 @@ import { useEffect, useState, ReactNode } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { talentNetworkApi } from '@/lib/api';
 import Link from 'next/link';
+import TalentNetworkIntroModal from '@/app/components/talentNetwork/TalentNetworkIntroModal';
+import { getTalentNetworkIntroSessionKey } from '@/lib/talentNetwork/introCampaign';
 
 interface JobSeekerLayoutProps {
   children: ReactNode;
@@ -14,6 +16,9 @@ export default function JobSeekerLayout({ children }: JobSeekerLayoutProps) {
   const [cvCount, setCvCount] = useState<number | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [talentNetworkCanEdit, setTalentNetworkCanEdit] = useState(false);
+  const [introCampaignId, setIntroCampaignId] = useState<string | null>(null);
+  const [showIntroModal, setShowIntroModal] = useState(false);
+  const [dismissingIntro, setDismissingIntro] = useState(false);
 
   useEffect(() => {
     const fetchCount = async () => {
@@ -33,23 +38,77 @@ export default function JobSeekerLayout({ children }: JobSeekerLayoutProps) {
   useEffect(() => {
     if (user?.role !== 'job-seeker') {
       setTalentNetworkCanEdit(false);
+      setIntroCampaignId(null);
+      setShowIntroModal(false);
       return;
     }
+
     talentNetworkApi
       .getAccess()
-      .then((access) => setTalentNetworkCanEdit(access.canEdit === true))
-      .catch(() => setTalentNetworkCanEdit(false));
+      .then((access) => {
+        const canEdit = access.canEdit === true;
+        setTalentNetworkCanEdit(canEdit);
+
+        const intro = access.intro;
+        if (!intro?.show || !intro.campaignId) {
+          setIntroCampaignId(null);
+          setShowIntroModal(false);
+          return;
+        }
+
+        const sessionKey = getTalentNetworkIntroSessionKey(intro.campaignId);
+        if (typeof window !== 'undefined' && sessionStorage.getItem(sessionKey) === '1') {
+          setIntroCampaignId(intro.campaignId);
+          setShowIntroModal(false);
+          return;
+        }
+
+        setIntroCampaignId(intro.campaignId);
+        setShowIntroModal(true);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(sessionKey, '1');
+        }
+      })
+      .catch(() => {
+        setTalentNetworkCanEdit(false);
+        setIntroCampaignId(null);
+        setShowIntroModal(false);
+      });
   }, [user]);
 
   const createProfileHref = talentNetworkCanEdit
     ? '/job-seeker/profile/talent-network/new'
     : '/job-seeker/profile/new';
 
+  const editProfileHref =
+    cvCount != null && cvCount > 0
+      ? '/job-seeker/profile/talent-network/edit'
+      : '/job-seeker/profile/talent-network/new';
+
+  const closeIntroForSession = () => {
+    setShowIntroModal(false);
+  };
+
+  const dismissIntroPermanently = async () => {
+    if (!introCampaignId || dismissingIntro) return;
+    setDismissingIntro(true);
+    try {
+      await talentNetworkApi.dismissIntro(introCampaignId);
+      setShowIntroModal(false);
+    } catch {
+      // Non-blocking: close locally even if the API call fails
+      setShowIntroModal(false);
+    } finally {
+      setDismissingIntro(false);
+    }
+  };
+
   const showBanner =
     !authLoading &&
     user?.role === 'job-seeker' &&
     cvCount === 0 &&
-    !bannerDismissed;
+    !bannerDismissed &&
+    !showIntroModal;
 
   return (
     <>
@@ -77,6 +136,13 @@ export default function JobSeekerLayout({ children }: JobSeekerLayoutProps) {
           </div>
         </div>
       )}
+      <TalentNetworkIntroModal
+        open={showIntroModal}
+        editProfileHref={editProfileHref}
+        dismissing={dismissingIntro}
+        onCloseSession={closeIntroForSession}
+        onDismissPermanent={dismissIntroPermanently}
+      />
       {children}
     </>
   );

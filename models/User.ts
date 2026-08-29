@@ -27,6 +27,9 @@ export interface IUser extends Document {
   /** Beta access to Verified Talent Network profile editor */
   talentNetworkBeta?: boolean;
 
+  /** Talent Network intro modal campaign the user permanently dismissed */
+  talentNetworkIntroDismissedCampaign?: string | null;
+
   mustResetPassword?: boolean;
   passwordMigrated?: boolean;
 
@@ -112,6 +115,11 @@ const UserSchema: Schema = new Schema(
     talentNetworkBeta: {
       type: Boolean,
       default: false,
+    },
+    talentNetworkIntroDismissedCampaign: {
+      type: String,
+      required: false,
+      default: null,
     },
     mustResetPassword: {
       type: Boolean,

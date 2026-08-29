@@ -208,6 +208,11 @@ export const cvApi = {
 
 export const talentNetworkApi = {
   getAccess: () => apiRequest('/talent-network/enabled'),
+  dismissIntro: (campaignId: string) =>
+    apiRequest('/talent-network/intro/dismiss', {
+      method: 'POST',
+      body: JSON.stringify({ campaignId }),
+    }),
 };
 
 export const savedSearchesApi = {
