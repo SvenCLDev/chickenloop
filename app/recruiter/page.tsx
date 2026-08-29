@@ -9,6 +9,7 @@ import RecruiterSurveyModal from '../components/RecruiterSurveyModal';
 import { jobsApi, companyApi, candidatesApi } from '@/lib/api';
 import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
+import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
 import { talentProfilePath } from '@/lib/talentRoutes';
 import {
   canRefreshJob,

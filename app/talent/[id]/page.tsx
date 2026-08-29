@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { candidatesApi } from '@/lib/api';
 import Link from 'next/link';
 import { TALENT_LIST_PATH } from '@/lib/talentRoutes';
+import JobSelectionModal from '../../components/JobSelectionModal';
 import TalentNetworkProfileView from '@/app/components/talentNetwork/TalentNetworkProfileView';
 import WorkLocationProfileSection from '@/app/components/talentNetwork/WorkLocationProfileSection';
 import type { WorkAuthorization } from '@/lib/talentNetwork/types';
