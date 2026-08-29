@@ -2,6 +2,7 @@
 
 import { useEffect, useState, ReactNode } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { talentNetworkApi } from '@/lib/api';
 import Link from 'next/link';
 
 interface JobSeekerLayoutProps {
@@ -12,6 +13,7 @@ export default function JobSeekerLayout({ children }: JobSeekerLayoutProps) {
   const { user, loading: authLoading } = useAuth();
   const [cvCount, setCvCount] = useState<number | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [talentNetworkCanEdit, setTalentNetworkCanEdit] = useState(false);
 
   useEffect(() => {
     const fetchCount = async () => {
@@ -28,6 +30,21 @@ export default function JobSeekerLayout({ children }: JobSeekerLayoutProps) {
     fetchCount();
   }, []);
 
+  useEffect(() => {
+    if (user?.role !== 'job-seeker') {
+      setTalentNetworkCanEdit(false);
+      return;
+    }
+    talentNetworkApi
+      .getAccess()
+      .then((access) => setTalentNetworkCanEdit(access.canEdit === true))
+      .catch(() => setTalentNetworkCanEdit(false));
+  }, [user]);
+
+  const createProfileHref = talentNetworkCanEdit
+    ? '/job-seeker/profile/talent-network/new'
+    : '/job-seeker/profile/new';
+
   const showBanner =
     !authLoading &&
     user?.role === 'job-seeker' &&
@@ -43,7 +60,7 @@ export default function JobSeekerLayout({ children }: JobSeekerLayoutProps) {
           </p>
           <div className="flex items-center gap-3 shrink-0">
             <Link
-              href="/create-profile"
+              href={createProfileHref}
               className="inline-flex items-center px-5 py-2.5 rounded-md text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Create Profile
