@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   isCompleteCertificateEntry,
 } from '@/lib/talentNetwork/certificateVerification';
@@ -16,6 +17,77 @@ interface CertificateBlockProps {
   onChange: (certificates: VerifiedCertificateFormEntry[]) => void;
   onUploadDocument: (index: number, file: File) => Promise<void>;
   uploadingIndex: number | null;
+}
+
+function CertificateDocumentUpload({
+  index,
+  cert,
+  uploading,
+  onUploadDocument,
+}: {
+  index: number;
+  cert: VerifiedCertificateFormEntry;
+  uploading: boolean;
+  onUploadDocument: (index: number, file: File) => Promise<void>;
+}) {
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const inputId = `certificate-document-${index}`;
+
+  const triggerLabel = uploading
+    ? 'Uploading...'
+    : cert.documentUrl
+      ? 'Replace document (PDF or image)'
+      : 'Choose document (PDF or image)';
+
+  return (
+    <div>
+      <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
+        Verification document (photo or PDF)
+      </label>
+      <p className="text-xs text-gray-500 mb-2">
+        Required for Chickenloop to verify this certificate.
+      </p>
+      <div className="relative">
+        <input
+          id={inputId}
+          type="file"
+          accept=".pdf,image/jpeg,image/png,image/webp"
+          disabled={uploading}
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            setSelectedFileName(file?.name ?? null);
+            if (file) await onUploadDocument(index, file);
+          }}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
+        />
+        <label
+          htmlFor={inputId}
+          aria-disabled={uploading}
+          className={`block w-full px-3 py-2 border rounded-md text-sm text-center transition-colors ${
+            uploading
+              ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
+              : 'border-gray-300 bg-white text-gray-700 cursor-pointer hover:bg-gray-50 hover:border-gray-400'
+          }`}
+        >
+          {triggerLabel}
+        </label>
+      </div>
+      {selectedFileName && !cert.documentUrl && !uploading && (
+        <p className="text-sm text-gray-700 mt-1">Selected: {selectedFileName}</p>
+      )}
+      {uploading && <p className="text-sm text-gray-600 mt-1">Uploading...</p>}
+      {cert.documentUrl && (
+        <a
+          href={cert.documentUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-blue-600 hover:underline mt-1 inline-block"
+        >
+          View uploaded document
+        </a>
+      )}
+    </div>
+  );
 }
 
 export default function CertificateBlock({
@@ -166,36 +238,12 @@ export default function CertificateBlock({
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Verification document (photo or PDF)
-              </label>
-              <p className="text-xs text-gray-500 mb-2">
-                Required for Chickenloop to verify this certificate.
-              </p>
-              <input
-                type="file"
-                accept=".pdf,image/jpeg,image/png,image/webp"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (file) await onUploadDocument(index, file);
-                }}
-                className="w-full text-sm"
-              />
-              {uploadingIndex === index && (
-                <p className="text-sm text-gray-500 mt-1">Uploading...</p>
-              )}
-              {cert.documentUrl && (
-                <a
-                  href={cert.documentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:underline mt-1 inline-block"
-                >
-                  View uploaded document
-                </a>
-              )}
-            </div>
+            <CertificateDocumentUpload
+              index={index}
+              cert={cert}
+              uploading={uploadingIndex === index}
+              onUploadDocument={onUploadDocument}
+            />
           </div>
         );
       })}
