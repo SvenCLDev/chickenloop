@@ -305,16 +305,9 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
         onOpenMoreFilters={() => setMobileFiltersOpen(true)}
       />
 
-      <div className="lg:hidden sticky top-16 z-40 mt-3 bg-white/95 backdrop-blur border border-gray-200 rounded-lg shadow-sm py-2 px-1">
-        <div className="flex items-center justify-between gap-3 px-1">
-          <button
-            type="button"
-            onClick={() => setMobileFiltersOpen(true)}
-            className="px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 text-sm"
-          >
-            More filters
-          </button>
-          {activeFilterChips.length > 0 && (
+      {activeFilterChips.length > 0 && (
+        <div className="lg:hidden sticky top-16 z-40 mt-3 bg-white/95 backdrop-blur border border-gray-200 rounded-lg shadow-sm py-2 px-1">
+          <div className="flex items-center justify-end gap-3 px-1">
             <button
               type="button"
               onClick={clearAllFilters}
@@ -322,9 +315,7 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
             >
               Clear filters
             </button>
-          )}
-        </div>
-        {activeFilterChips.length > 0 && (
+          </div>
           <div className="mt-2 flex gap-2 overflow-x-auto whitespace-nowrap px-1 pb-1">
             {activeFilterChips.map((chip) => (
               <span
@@ -343,8 +334,8 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
               </span>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row gap-6 mt-4">
         <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-28 self-start">
