@@ -301,6 +301,8 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
         availabilityOptions={filterOptions.availability}
         onSearchKeywordChange={setSearchKeyword}
         onQuickFilterChange={handleQuickFilterChange}
+        onSortChange={(value) => updateFilter('sort', value || 'newest')}
+        onVerifiedOnlyChange={(checked) => updateFilter('verifiedOnly', checked)}
         onSearchSubmit={handleSearchSubmit}
         onOpenMoreFilters={() => setMobileFiltersOpen(true)}
       />
@@ -338,7 +340,7 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
       )}
 
       <div className="flex flex-col lg:flex-row gap-6 mt-4">
-        <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-28 self-start">
+        <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-28 self-start max-h-[calc(100vh-7rem)] overflow-y-auto">
           <CandidateFiltersSidebar
             filters={filters}
             onChange={updateFilter}

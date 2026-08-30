@@ -10,6 +10,8 @@ type CandidateSearchBarProps = {
   availabilityOptions: string[];
   onSearchKeywordChange: (value: string) => void;
   onQuickFilterChange: (key: keyof CandidateListFilters, value: string) => void;
+  onSortChange: (value: string) => void;
+  onVerifiedOnlyChange: (checked: boolean) => void;
   onSearchSubmit: (e: React.FormEvent) => void;
   onOpenMoreFilters: () => void;
 };
@@ -29,6 +31,8 @@ export default function CandidateSearchBar({
   availabilityOptions,
   onSearchKeywordChange,
   onQuickFilterChange,
+  onSortChange,
+  onVerifiedOnlyChange,
   onSearchSubmit,
   onOpenMoreFilters,
 }: CandidateSearchBarProps) {
@@ -64,7 +68,7 @@ export default function CandidateSearchBar({
           aria-label="Sport or discipline"
           value={filters.sport}
           onChange={(e) => onQuickFilterChange('sport', e.target.value)}
-          className="flex-1 min-w-[160px] px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+          className="flex-1 min-w-[140px] px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
         >
           <option value="">All sports / disciplines</option>
           {sports.map((sport) => (
@@ -78,7 +82,7 @@ export default function CandidateSearchBar({
           aria-label="Certification"
           value={filters.certification}
           onChange={(e) => onQuickFilterChange('certification', e.target.value)}
-          className="flex-1 min-w-[160px] px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+          className="flex-1 min-w-[140px] px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
         >
           <option value="">All certifications</option>
           {certifications.map((cert) => (
@@ -92,7 +96,7 @@ export default function CandidateSearchBar({
           aria-label="Availability"
           value={filters.availability}
           onChange={(e) => onQuickFilterChange('availability', e.target.value)}
-          className="flex-1 min-w-[160px] px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+          className="flex-1 min-w-[140px] px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
         >
           <option value="">Any availability</option>
           {availabilityOptions.map((option) => (
@@ -101,6 +105,29 @@ export default function CandidateSearchBar({
             </option>
           ))}
         </select>
+
+        <select
+          aria-label="Sort order"
+          value={filters.sort || 'newest'}
+          onChange={(e) => onSortChange(e.target.value)}
+          className="flex-1 min-w-[140px] px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+        >
+          <option value="newest">Recently updated</option>
+          <option value="oldest">Oldest profiles first</option>
+        </select>
+
+        <button
+          type="button"
+          onClick={() => onVerifiedOnlyChange(!filters.verifiedOnly)}
+          aria-pressed={filters.verifiedOnly}
+          className={`px-3 py-2 rounded-md text-sm font-medium border whitespace-nowrap transition-colors ${
+            filters.verifiedOnly
+              ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+          }`}
+        >
+          Verified only
+        </button>
 
         <button
           type="button"
