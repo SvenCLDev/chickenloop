@@ -20,10 +20,12 @@ import { deferUntilIdle } from '@/lib/deferUntilIdle';
 /**
  * @param {Object} props
  * @param {import('@/lib/homepageJobs').HomepageJobCard[]} [props.initialLatestJobs]
+ * @param {import('@/lib/homepageJobs').HomepageJobCard[]} [props.initialFeaturedJobs]
  * @param {string[]} [props.initialCategoryValues]
  */
 export default function HomePageContent({
   initialLatestJobs = [],
+  initialFeaturedJobs = [],
   initialCategoryValues = [],
 }) {
   const { user } = useAuth();
@@ -34,8 +36,8 @@ export default function HomePageContent({
   const [categoriesLoading, setCategoriesLoading] = useState(initialCategoryValues.length === 0);
   const [latestJobs, setLatestJobs] = useState(initialLatestJobs);
   const [latestJobsLoading, setLatestJobsLoading] = useState(initialLatestJobs.length === 0);
-  const [featuredJobs, setFeaturedJobs] = useState([]);
-  const [featuredJobsLoading, setFeaturedJobsLoading] = useState(true);
+  const [featuredJobs, setFeaturedJobs] = useState(initialFeaturedJobs);
+  const [featuredJobsLoading, setFeaturedJobsLoading] = useState(initialFeaturedJobs.length === 0);
   const [featuredCompanies, setFeaturedCompanies] = useState([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
   const [careerAdviceArticles, setCareerAdviceArticles] = useState([]);
@@ -60,10 +62,9 @@ export default function HomePageContent({
     if (categoryValues.length === 0) {
       loadCategories();
     }
-    // Load featured jobs for display
-    loadFeaturedJobs();
-    // Load featured companies
-    loadFeaturedCompanies();
+    if (initialFeaturedJobs.length === 0) {
+      loadFeaturedJobs();
+    }
     // Load top candidates (only if user is recruiter or admin)
     if (user && (user.role === 'recruiter' || user.role === 'admin')) {
       loadTopCandidates();
@@ -81,6 +82,12 @@ export default function HomePageContent({
   useEffect(() => {
     return deferUntilIdle(() => {
       loadCareerAdvice();
+    }, 5000);
+  }, []);
+
+  useEffect(() => {
+    return deferUntilIdle(() => {
+      loadFeaturedCompanies();
     }, 5000);
   }, []);
 
@@ -296,59 +303,39 @@ export default function HomePageContent({
         <HomepageValueProps />
         
         {/* Featured Jobs Section */}
-        {featuredJobs.length > 0 && (
+        {!featuredJobsLoading && featuredJobs.length > 0 && (
           <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <SectionHeader
-                title="Featured Jobs"
-              />
-              
-              {featuredJobsLoading ? (
-                <div className="text-center py-16">
-                  <p className="text-gray-600 text-lg">Loading featured jobs...</p>
-                </div>
-              ) : featuredJobs.length === 0 ? (
-                <div className="text-center py-16">
-                  <p className="text-gray-600 text-lg">No featured jobs at the moment.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-                  {featuredJobs.map((job, index) => (
-                    <JobCard
-                      key={job._id}
-                      job={job}
-                      priority={false}
-                      featured
-                      user={user}
-                      isFavourite={favouriteJobIds.has(job._id)}
-                      togglingFavourite={togglingFavouriteId === job._id}
-                      onHeartClick={handleToggleFavourite}
-                      onLoginPrompt={() => setShowLoginPrompt(true)}
-                    />
-                  ))}
-                </div>
-              )}
+              <SectionHeader title="Featured Jobs" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                {featuredJobs.map((job) => (
+                  <JobCard
+                    key={job._id}
+                    job={job}
+                    priority={false}
+                    featured
+                    user={user}
+                    isFavourite={favouriteJobIds.has(job._id)}
+                    togglingFavourite={togglingFavouriteId === job._id}
+                    onHeartClick={handleToggleFavourite}
+                    onLoginPrompt={() => setShowLoginPrompt(true)}
+                  />
+                ))}
+              </div>
             </div>
           </section>
         )}
         
-        {/* Featured Companies Section - hidden when there are no featured companies */}
-        {(!companiesLoading && featuredCompanies.length === 0) ? null : (
+        {/* Featured Companies Section */}
+        {!companiesLoading && featuredCompanies.length > 0 && (
           <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <SectionHeader title="Featured Companies" />
-              
-              {companiesLoading ? (
-                <div className="text-center py-16">
-                  <p className="text-gray-600 text-lg">Loading companies...</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-                  {featuredCompanies.map((company) => (
-                    <CompanyCard key={company.id} company={company} />
-                  ))}
-                </div>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                {featuredCompanies.map((company) => (
+                  <CompanyCard key={company.id} company={company} />
+                ))}
+              </div>
             </div>
           </section>
         )}

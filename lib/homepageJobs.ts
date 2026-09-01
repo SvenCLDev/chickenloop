@@ -17,28 +17,9 @@ export interface HomepageJobCard {
 
 const HOMEPAGE_JOB_SORT_FIELD = 'lastRecruiterEditAt';
 
-/**
- * Latest published jobs for the homepage (minimal fields, capped limit).
- * Uses the same query, filters, and sort as /jobs — standard (non-featured) jobs only.
- * Used by SSR in app/page.tsx and GET /api/jobs-list?limit=N.
- */
-export async function getHomepageLatestJobs(limit = 6): Promise<HomepageJobCard[]> {
-  const safeLimit = Math.min(Math.max(1, Math.floor(limit)), 20);
-  const rawJobs = await getLatestListedJobDocs(safeLimit, { excludeFeatured: true });
+type RawHomepageJob = Awaited<ReturnType<typeof getLatestListedJobDocs>>[number];
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[homepage latest jobs] sort field:', HOMEPAGE_JOB_SORT_FIELD);
-    rawJobs.slice(0, 10).forEach((job, index) => {
-      console.log(`[homepage latest jobs #${index + 1}]`, {
-        title: job.title,
-        updatedAt: job.updatedAt,
-        createdAt: job.createdAt,
-        lastRecruiterEditAt: job.lastRecruiterEditAt,
-        sortField: HOMEPAGE_JOB_SORT_FIELD,
-      });
-    });
-  }
-
+async function mapRawJobsToHomepageCards(rawJobs: RawHomepageJob[]): Promise<HomepageJobCard[]> {
   const companyIds = [
     ...new Set(
       rawJobs
@@ -111,4 +92,39 @@ export async function getHomepageLatestJobs(limit = 6): Promise<HomepageJobCard[
       createdAt: job.createdAt,
     };
   });
+}
+
+/**
+ * Latest published jobs for the homepage (minimal fields, capped limit).
+ * Uses the same query, filters, and sort as /jobs — standard (non-featured) jobs only.
+ * Used by SSR in app/page.tsx and GET /api/jobs-list?limit=N.
+ */
+export async function getHomepageLatestJobs(limit = 6): Promise<HomepageJobCard[]> {
+  const safeLimit = Math.min(Math.max(1, Math.floor(limit)), 20);
+  const rawJobs = await getLatestListedJobDocs(safeLimit, { excludeFeatured: true });
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[homepage latest jobs] sort field:', HOMEPAGE_JOB_SORT_FIELD);
+    rawJobs.slice(0, 10).forEach((job, index) => {
+      console.log(`[homepage latest jobs #${index + 1}]`, {
+        title: job.title,
+        updatedAt: job.updatedAt,
+        createdAt: job.createdAt,
+        lastRecruiterEditAt: job.lastRecruiterEditAt,
+        sortField: HOMEPAGE_JOB_SORT_FIELD,
+      });
+    });
+  }
+
+  return mapRawJobsToHomepageCards(rawJobs);
+}
+
+/**
+ * Currently featured jobs for the homepage (featuredUntil >= now).
+ * Used by SSR in app/page.tsx.
+ */
+export async function getHomepageFeaturedJobs(limit = 6): Promise<HomepageJobCard[]> {
+  const safeLimit = Math.min(Math.max(1, Math.floor(limit)), 20);
+  const rawJobs = await getLatestListedJobDocs(safeLimit, { featuredOnly: true });
+  return mapRawJobsToHomepageCards(rawJobs);
 }

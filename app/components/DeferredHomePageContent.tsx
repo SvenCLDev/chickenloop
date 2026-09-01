@@ -12,6 +12,9 @@ type HomePageContentProps = {
   initialLatestJobs: Awaited<
     ReturnType<typeof import('@/lib/homepageJobs').getHomepageLatestJobs>
   >;
+  initialFeaturedJobs: Awaited<
+    ReturnType<typeof import('@/lib/homepageJobs').getHomepageFeaturedJobs>
+  >;
   initialCategoryValues: string[];
 };
 

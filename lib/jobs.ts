@@ -195,7 +195,7 @@ function mapRawJobToListItem(
  */
 export async function getLatestListedJobDocs(
   limit: number,
-  options?: { excludeFeatured?: boolean; filters?: JobListFilters }
+  options?: { excludeFeatured?: boolean; featuredOnly?: boolean; filters?: JobListFilters }
 ): Promise<RawJobDoc[]> {
   await connectDB();
 
@@ -208,10 +208,21 @@ export async function getLatestListedJobDocs(
   const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 50) : 6;
   const filters = options?.filters;
   const excludeFeatured = options?.excludeFeatured ?? false;
+  const featuredOnly = options?.featuredOnly ?? false;
   const baseQuery = buildBaseQuery(filters);
   const now = new Date();
   const featuredQuery = buildFeaturedQuery(baseQuery, now);
   const standardQuery = buildStandardQuery(baseQuery, now);
+
+  if (featuredOnly) {
+    return jobsCollection
+      .find(featuredQuery)
+      .project(JOB_LIST_PROJECTION)
+      .sort(JOB_LIST_SORT)
+      .limit(safeLimit)
+      .maxTimeMS(10000)
+      .toArray() as Promise<RawJobDoc[]>;
+  }
 
   if (excludeFeatured) {
     return jobsCollection

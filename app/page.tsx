@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import DeferredHomePageContent from './components/DeferredHomePageContent';
 import HomepageHero, { getHomepageHeroLcpPreloadProps } from './components/HomepageHero';
 import Navbar from './components/Navbar';
-import { getHomepageLatestJobs } from '@/lib/homepageJobs';
+import { getHomepageFeaturedJobs, getHomepageLatestJobs } from '@/lib/homepageJobs';
 import { getDistinctJobCategories } from '@/lib/jobCategoriesQuery';
 import { getMarketingSiteUrl } from '@/lib/baseUrlForReferenceEmails';
 import { HOMEPAGE_HERO_LCP_IMAGE } from '@/lib/homepageHero';
@@ -46,9 +46,10 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [initialLatestJobs, initialCategoryValues] = await Promise.all([
+  const [initialLatestJobs, initialCategoryValues, initialFeaturedJobs] = await Promise.all([
     getHomepageLatestJobs(6),
     getDistinctJobCategories(),
+    getHomepageFeaturedJobs(6),
   ]);
 
   const heroLcpPreload = getHomepageHeroLcpPreloadProps();
@@ -80,6 +81,7 @@ export default async function HomePage() {
           <DeferredHomePageContent
             initialLatestJobs={initialLatestJobs}
             initialCategoryValues={initialCategoryValues}
+            initialFeaturedJobs={initialFeaturedJobs}
           />
         </main>
       </div>
