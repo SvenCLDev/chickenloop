@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { jobsApi, careerAdviceApi } from '@/lib/api';
 import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import { useAuth } from '../contexts/AuthContext';
-import Navbar from './Navbar';
 import JobCard from './JobCard';
 import CompanyCard from './CompanyCard';
 import CandidateCard from './CandidateCard';
@@ -16,14 +15,6 @@ import SearchBar from './SearchBar';
 import CompaniesPreview from './CompaniesPreview';
 import HomepageValueProps from './HomepageValueProps';
 import TurnstileWidget from './TurnstileWidget';
-
-// Hero background images - add more images to this array to rotate through them
-const HERO_IMAGES = [
-  '/Kitesurfer.jpg',
-  '/Sailing.jpg',
-  '/Wingfoil.jpg',
-  '/Diving.jpg',
-];
 
 /**
  * @param {Object} props
@@ -59,8 +50,6 @@ export default function HomePageContent({
   const [contactTurnstileToken, setContactTurnstileToken] = useState(null);
   const [contactTurnstileResetKey, setContactTurnstileResetKey] = useState(0);
   
-  // Hero image rotation state
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   // Favourite hearts (job-seeker only)
   const [favouriteJobIds, setFavouriteJobIds] = useState(new Set());
   const [togglingFavouriteId, setTogglingFavouriteId] = useState(null);
@@ -109,18 +98,6 @@ export default function HomePageContent({
       setTogglingFavouriteId(null);
     }
   };
-
-  // Rotate hero background images
-  useEffect(() => {
-    // Only rotate if there are multiple images
-    if (HERO_IMAGES.length <= 1) return;
-
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % HERO_IMAGES.length);
-    }, 5000); // Change image every 5 seconds
-
-    return () => clearInterval(interval);
-  }, []);
 
   const loadCategories = async () => {
     try {
@@ -298,91 +275,7 @@ export default function HomePageContent({
   }, [latestJobs, featuredJobs]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Navigation - Same as all other pages */}
-      <Navbar />
-
-      {/* Main Content Area */}
-      <main className="flex-grow">
-        {/* Hero Section - fixed height to prevent CLS */}
-        <section className="relative h-[60vh] min-h-[400px] flex items-center justify-center overflow-hidden">
-          {/* Background Images Container - relative for fill images */}
-          <div className="absolute inset-0">
-            {HERO_IMAGES.map((imageSrc, index) => (
-              <div
-                key={imageSrc}
-                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                  index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-                }`}
-              >
-                {index === 0 ? (
-                  <Image
-                    src={imageSrc}
-                    alt={`Hero background ${index + 1}`}
-                    fill
-                    priority
-                    fetchPriority="high"
-                    quality={60}
-                    sizes="100vw"
-                    className="object-cover"
-                  />
-                ) : (
-                  <Image
-                    src={imageSrc}
-                    alt={`Hero background ${index + 1}`}
-                    fill
-                    loading="lazy"
-                    quality={60}
-                    sizes="100vw"
-                    className="object-cover"
-                  />
-                )}
-              </div>
-            ))}
-            {/* Overlay for better text readability */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-900/70 via-cyan-900/60 to-teal-900/70"></div>
-          </div>
-          
-          {/* Hero Content */}
-          <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <p className="inline-block px-3 py-1 rounded-full bg-white/15 text-white/95 text-sm font-medium mb-4 drop-shadow-md">
-              Verified profiles · Global community · Free to join
-            </p>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 sm:mb-6 drop-shadow-lg">
-              <span className="block">The Watersports</span>
-              <span className="block">Talent Network & Job Board</span>
-            </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-white/90 mb-3 sm:mb-4 drop-shadow-md max-w-2xl mx-auto">
-              The only platform where verified instructors, crew & pros connect with centres hiring worldwide.
-            </p>
-            <p className="text-sm sm:text-base md:text-lg text-white/80 mb-6 sm:mb-8 drop-shadow-md">
-              Kite · Foil · Surf · Sail · Dive · Yacht Crew
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-              <Link
-                href="/jobs"
-                className="inline-block px-6 sm:px-8 py-3 sm:py-4 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all duration-200 font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                Browse Jobs
-              </Link>
-              <Link
-                href="/talent"
-                className="inline-block px-6 sm:px-8 py-3 sm:py-4 border-2 border-white text-white rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl"
-              >
-                Explore Talent
-              </Link>
-            </div>
-            <p className="mt-4 sm:mt-5">
-              <Link
-                href="/register"
-                className="text-sm sm:text-base text-white/90 hover:text-white underline underline-offset-2"
-              >
-                List your profile free →
-              </Link>
-            </p>
-          </div>
-        </section>
-        
+    <>
         {/* Search Bar Section */}
         <SearchBar
           keyword={keyword}
@@ -419,7 +312,7 @@ export default function HomePageContent({
                     <JobCard
                       key={job._id}
                       job={job}
-                      priority={index < 3}
+                      priority={false}
                       featured
                       user={user}
                       isFavourite={favouriteJobIds.has(job._id)}
@@ -477,7 +370,7 @@ export default function HomePageContent({
                   <JobCard
                     key={job._id}
                     job={job}
-                    priority={featuredJobs.length === 0 && index < 3}
+                    priority={false}
                     user={user}
                     isFavourite={favouriteJobIds.has(job._id)}
                     togglingFavourite={togglingFavouriteId === job._id}
@@ -710,7 +603,6 @@ export default function HomePageContent({
             </form>
           </div>
         </section>
-      </main>
 
       {/* Login prompt toast when anonymous user clicks heart */}
       {showLoginPrompt && (
@@ -747,6 +639,6 @@ export default function HomePageContent({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

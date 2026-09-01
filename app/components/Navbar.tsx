@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
-export default function Navbar() {
+export default function Navbar({ logoPriority = true }: { logoPriority?: boolean }) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -44,7 +44,8 @@ export default function Navbar() {
                   alt="ChickenLoop logo"
                   width={480}
                   height={128}
-                  priority
+                  priority={logoPriority}
+                  fetchPriority={logoPriority ? 'high' : 'auto'}
                   className="absolute left-0 -top-[5px] h-32 w-auto max-w-none"
                 />
               </Link>
@@ -178,7 +179,8 @@ export default function Navbar() {
                   alt="ChickenLoop logo"
                   width={300}
                   height={80}
-                  priority
+                  priority={logoPriority}
+                  fetchPriority={logoPriority ? 'high' : 'auto'}
                   className="block h-auto w-auto max-h-[100px]"
                 />
               </Link>
