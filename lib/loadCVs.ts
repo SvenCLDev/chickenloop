@@ -1,6 +1,6 @@
 import connectDB from '@/lib/db';
 import CV from '@/models/CV';
-import { parseCandidateSearchParams } from '@/lib/candidateSearchParams';
+import { normalizeCandidateSortKey, parseCandidateSearchParams } from '@/lib/candidateSearchParams';
 
 const PAGE_SIZE = 20;
 
@@ -145,15 +145,27 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
     matchConditions.canWorkWithoutSponsorshipIn = { $in: filters.noSponsorshipIn };
   }
 
-  const sortOrder: any = {
+  const sortKey = normalizeCandidateSortKey(filters.sort);
+  const sortOrder: Record<string, 1 | -1> = {
     verifiedCertCount: -1,
     confirmedReferenceCount: -1,
   };
-  if (filters.sort === 'oldest') {
-    sortOrder.createdAt = 1;
-  } else {
-    sortOrder.updatedAt = -1;
-    sortOrder.createdAt = -1;
+  switch (sortKey) {
+    case 'oldest':
+      sortOrder.createdAt = 1;
+      break;
+    case 'updated':
+      sortOrder.updatedAt = -1;
+      sortOrder.createdAt = -1;
+      break;
+    case 'created':
+      sortOrder.createdAt = -1;
+      break;
+    case 'last_active':
+    default:
+      sortOrder.lastActiveAt = -1;
+      sortOrder.updatedAt = -1;
+      break;
   }
 
   const page = filters.page || 1;
@@ -161,19 +173,22 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
   // Cap sort window so MongoDB can use "top N" optimization and stay under 32MB (works without allowDiskUse)
   const sortWindow = Math.min(skip + PAGE_SIZE, 10000);
 
-  // Ensure we only include CVs from users with role 'job-seeker' (excludes orphaned or wrong-role refs)
+  // Job-seeker role filter + lastOnline for activity-based sort (single user lookup)
   const roleFilterStages = [
     {
       $lookup: {
         from: 'users',
         localField: 'jobSeeker',
         foreignField: '_id',
-        as: '_roleCheck',
-        pipeline: [{ $match: { role: 'job-seeker' } }, { $limit: 1 }],
+        as: 'jobSeekerInfo',
+        pipeline: [
+          { $match: { role: 'job-seeker' } },
+          { $project: { _id: 1, name: 1, email: 1, lastOnline: 1 } },
+          { $limit: 1 },
+        ],
       },
     },
-    { $match: { _roleCheck: { $ne: [] } } },
-    { $project: { _roleCheck: 0 } },
+    { $match: { jobSeekerInfo: { $ne: [] } } },
   ];
 
   const aggregationPipeline: any[] = [
@@ -273,27 +288,22 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         },
       }
     },
+    {
+      $addFields: {
+        jobSeekerInfo: { $arrayElemAt: ['$jobSeekerInfo', 0] },
+      },
+    },
+    {
+      $addFields: {
+        lastActiveAt: {
+          $ifNull: ['$jobSeekerInfo.lastOnline', '$updatedAt', '$createdAt'],
+        },
+      },
+    },
     { $sort: { isFeatured: -1, ...sortOrder } },
     { $limit: sortWindow }, // Bounded sort: only keep sortWindow docs in memory (avoids 32MB limit)
     { $skip: skip },
     { $limit: PAGE_SIZE },
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'jobSeeker',
-        foreignField: '_id',
-        as: 'jobSeekerInfo',
-        pipeline: [
-          { $project: { _id: 1, name: 1, email: 1, lastOnline: 1 } }
-        ]
-      }
-    },
-    {
-      $unwind: {
-        path: '$jobSeekerInfo',
-        preserveNullAndEmptyArrays: true
-      }
-    },
     {
       $project: {
         _id: 1,
@@ -321,10 +331,10 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
           _id: '$jobSeekerInfo._id',
           name: '$jobSeekerInfo.name',
           email: '$jobSeekerInfo.email',
-          lastOnline: '$jobSeekerInfo.lastOnline'
-        }
-      }
-    }
+          lastOnline: '$jobSeekerInfo.lastOnline',
+        },
+      },
+    },
   ];
 
   const countPipeline = [

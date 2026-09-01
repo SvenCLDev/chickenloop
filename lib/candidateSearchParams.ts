@@ -15,7 +15,7 @@
  * - experience_level (string): Experience level filters (multi-select, comma-separated: entry, intermediate, experienced, senior)
  * - availability (string): Availability filters (multi-select, comma-separated: available_now, available_soon, seasonal, not_available)
  * - page (number): Page number for pagination (default: 1)
- * - sort (string): Sort order (default: 'newest' - by createdAt descending)
+ * - sort (string): Sort order (default: 'last_active' - by last login / profile activity)
  * 
  * Usage:
  *   import { CandidateSearchParams, parseCandidateSearchParams, buildCandidateSearchQuery } from '@/lib/candidateSearchParams';
@@ -33,6 +33,27 @@
  */
 
 import { TALENT_LIST_PATH } from '@/lib/talentRoutes';
+
+/** Default talent list sort: recently active job seekers first. */
+export const DEFAULT_CANDIDATE_SORT = 'last_active';
+
+/** UI labels for sort dropdown and filter chips. */
+export const CANDIDATE_SORT_LABELS: Record<string, string> = {
+  last_active: 'Recently active',
+  updated: 'Recently updated',
+  created: 'Newest profiles',
+  oldest: 'Oldest profiles',
+};
+
+/**
+ * Normalize sort key from URL or UI. Legacy URLs used sort=newest for updatedAt ordering.
+ */
+export function normalizeCandidateSortKey(sort?: string): string {
+  if (!sort || sort === DEFAULT_CANDIDATE_SORT) return DEFAULT_CANDIDATE_SORT;
+  if (sort === 'newest') return 'updated';
+  if (sort in CANDIDATE_SORT_LABELS) return sort;
+  return DEFAULT_CANDIDATE_SORT;
+}
 
 /**
  * Canonical candidate search parameters interface
@@ -66,7 +87,7 @@ export interface CandidateSearchParams {
   /** Page number for pagination (default: 1) */
   page?: number;
   
-  /** Sort order (default: 'newest' - by createdAt descending) */
+  /** Sort order (default: 'last_active' - by last login with profile fallbacks) */
   sort?: string;
 
   /** When true, only CVs with at least one Chickenloop-verified certificate */
@@ -137,7 +158,7 @@ export function parseCandidateSearchParams(searchParams: URLSearchParams | Reado
   }
   
   const sort = searchParams.get('sort');
-  if (sort) params.sort = decodeURIComponent(sort);
+  if (sort) params.sort = normalizeCandidateSortKey(decodeURIComponent(sort));
 
   if (searchParams.get('verified_only') === 'true') {
     params.verifiedOnly = true;
@@ -216,7 +237,7 @@ export function buildCandidateSearchQuery(params: CandidateSearchParams): string
     queryParts.push(`page=${params.page}`);
   }
   
-  if (params.sort && params.sort !== 'newest') {
+  if (params.sort && params.sort !== DEFAULT_CANDIDATE_SORT) {
     queryParts.push(`sort=${encodeURIComponent(params.sort)}`);
   }
 
@@ -313,7 +334,7 @@ export const EMPTY_CANDIDATE_LIST_FILTERS: CandidateListFilters = {
   preferredCountry: '',
   noSponsorshipIn: '',
   verifiedOnly: false,
-  sort: 'newest',
+  sort: DEFAULT_CANDIDATE_SORT,
 };
 
 export function searchParamsToCandidateListFilters(
@@ -332,7 +353,7 @@ export function searchParamsToCandidateListFilters(
     preferredCountry: params.preferredCountry?.[0] || '',
     noSponsorshipIn: params.noSponsorshipIn?.[0] || '',
     verifiedOnly: params.verifiedOnly === true,
-    sort: params.sort || 'newest',
+    sort: normalizeCandidateSortKey(params.sort),
   };
 }
 
@@ -353,7 +374,7 @@ export function candidateListFiltersToSearchParams(
   if (filters.preferredCountry) params.preferredCountry = [filters.preferredCountry];
   if (filters.noSponsorshipIn) params.noSponsorshipIn = [filters.noSponsorshipIn];
   if (filters.verifiedOnly) params.verifiedOnly = true;
-  if (filters.sort && filters.sort !== 'newest') params.sort = filters.sort;
+  if (filters.sort && filters.sort !== DEFAULT_CANDIDATE_SORT) params.sort = filters.sort;
   if (page > 1) params.page = page;
   return params;
 }
@@ -417,8 +438,12 @@ export function buildCandidateFilterChips(
     });
   }
   if (filters.verifiedOnly) chips.push({ key: 'verifiedOnly', label: 'Verified', value: 'Qualifications only' });
-  if (filters.sort && filters.sort !== 'newest') {
-    chips.push({ key: 'sort', label: 'Sort', value: filters.sort === 'oldest' ? 'Oldest first' : filters.sort });
+  if (filters.sort && filters.sort !== DEFAULT_CANDIDATE_SORT) {
+    chips.push({
+      key: 'sort',
+      label: 'Sort',
+      value: CANDIDATE_SORT_LABELS[filters.sort] || filters.sort,
+    });
   }
   return chips;
 }

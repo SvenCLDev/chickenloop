@@ -10,6 +10,7 @@ import {
   buildCandidateFilterChips,
   buildCandidateSearchQuery,
   candidateListFiltersToSearchParams,
+  DEFAULT_CANDIDATE_SORT,
   EMPTY_CANDIDATE_LIST_FILTERS,
   searchParamsToCandidateListFilters,
   type CandidateListFilters,
@@ -218,7 +219,7 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
       return;
     }
     if (key === 'sort') {
-      updateFilter('sort', 'newest');
+      updateFilter('sort', DEFAULT_CANDIDATE_SORT);
       return;
     }
     if (key === 'kw') {
@@ -301,7 +302,7 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
         availabilityOptions={filterOptions.availability}
         onSearchKeywordChange={setSearchKeyword}
         onQuickFilterChange={handleQuickFilterChange}
-        onSortChange={(value) => updateFilter('sort', value || 'newest')}
+        onSortChange={(value) => updateFilter('sort', value || DEFAULT_CANDIDATE_SORT)}
         onVerifiedOnlyChange={(checked) => updateFilter('verifiedOnly', checked)}
         onSearchSubmit={handleSearchSubmit}
         onOpenMoreFilters={() => setMobileFiltersOpen(true)}

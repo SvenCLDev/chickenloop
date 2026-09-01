@@ -1,6 +1,6 @@
 'use client';
 
-import type { CandidateListFilters } from '@/lib/candidateSearchParams';
+import { DEFAULT_CANDIDATE_SORT, type CandidateListFilters } from '@/lib/candidateSearchParams';
 
 type CandidateSearchBarProps = {
   searchKeyword: string;
@@ -108,12 +108,14 @@ export default function CandidateSearchBar({
 
         <select
           aria-label="Sort order"
-          value={filters.sort || 'newest'}
+          value={filters.sort || DEFAULT_CANDIDATE_SORT}
           onChange={(e) => onSortChange(e.target.value)}
           className="flex-1 min-w-[140px] px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
         >
-          <option value="newest">Recently updated</option>
-          <option value="oldest">Oldest profiles first</option>
+          <option value="last_active">Recently active</option>
+          <option value="updated">Recently updated</option>
+          <option value="created">Newest profiles</option>
+          <option value="oldest">Oldest profiles</option>
         </select>
 
         <button
