@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
-import { isBlobStorageUrl } from '@/lib/imageUtils';
+import { isLocalPath } from '@/lib/imageUtils';
 
 interface JobCardImageProps {
   src: string;
@@ -23,7 +23,7 @@ export default function JobCardImage({ src, alt, priority = false }: JobCardImag
         src={src}
         alt={alt}
         fill
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
         priority={priority}
         fetchPriority={priority ? 'high' : 'auto'}
         loading={priority ? 'eager' : 'lazy'}
@@ -34,7 +34,7 @@ export default function JobCardImage({ src, alt, priority = false }: JobCardImag
         className={`object-cover transition-all duration-300 group-hover:scale-110 ${
           loaded ? 'opacity-100' : 'opacity-0'
         }`}
-        unoptimized={isBlobStorageUrl(src)}
+        unoptimized={isLocalPath(src)}
       />
     </div>
   );

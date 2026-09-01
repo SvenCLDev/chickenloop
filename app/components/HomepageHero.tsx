@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import HomepageHeroRotation from './HomepageHeroRotation';
+import HomepageHeroRotationDeferred from './HomepageHeroRotationDeferred';
 import {
   HOMEPAGE_HERO_BLUR_DATA_URL,
   HOMEPAGE_HERO_LCP_ELEMENT_ID,
@@ -30,7 +30,7 @@ export default function HomepageHero() {
             className="object-cover"
           />
         </div>
-        <HomepageHeroRotation />
+        <HomepageHeroRotationDeferred />
         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/70 via-cyan-900/60 to-teal-900/70" />
       </div>
 

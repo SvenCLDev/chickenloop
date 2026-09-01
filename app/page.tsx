@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getImageProps } from 'next/image';
-import HomePageContent from './components/HomePageContent';
+import DeferredHomePageContent from './components/DeferredHomePageContent';
 import HomepageHero, { getHomepageHeroPreloadProps } from './components/HomepageHero';
 import Navbar from './components/Navbar';
 import { getHomepageLatestJobs } from '@/lib/homepageJobs';
@@ -83,7 +83,7 @@ export default async function HomePage() {
         <Navbar logoPriority={false} />
         <main className="flex-grow">
           <HomepageHero />
-          <HomePageContent
+          <DeferredHomePageContent
             initialLatestJobs={initialLatestJobs}
             initialCategoryValues={initialCategoryValues}
           />

@@ -5,6 +5,7 @@ import { authApi, companyApi } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { setApiRouter } from '@/lib/apiRouterRef';
 import { signOut } from 'next-auth/react';
+import { deferUntilIdle } from '@/lib/deferUntilIdle';
 
 interface User {
   id: string;
@@ -65,13 +66,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   useEffect(() => {
-    // React Strict Mode can run effects twice in development.
-    // Avoid duplicate /api/auth/me calls during initial page load.
-    if (initialAuthCheckedRef.current) {
-      return;
-    }
-    initialAuthCheckedRef.current = true;
-    refreshUser();
+    let cancelled = false;
+
+    const cancelIdle = deferUntilIdle(() => {
+      if (cancelled || initialAuthCheckedRef.current) {
+        return;
+      }
+      initialAuthCheckedRef.current = true;
+      refreshUser();
+    }, 4000);
+
+    return () => {
+      cancelled = true;
+      cancelIdle();
+    };
   }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
