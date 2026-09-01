@@ -3,6 +3,7 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import CV from '@/models/CV';
 import { requireRole } from '@/lib/auth';
+import { mapCvDocumentToCandidateListItem } from '@/lib/mapCandidateListItem';
 
 // GET - Get all favourite candidates for the current user (recruiters only)
 export async function GET(request: NextRequest) {
@@ -15,9 +16,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const rawFavourites = (userData as any).favouriteCandidates || [];
-    // favouriteCandidates stores CV _ids (see toggle in candidates-list/[id]/favourite)
-    const favouriteCvIds = rawFavourites.filter((id: any) => id != null);
+    const rawFavourites = (userData as { favouriteCandidates?: unknown[] }).favouriteCandidates || [];
+    const favouriteCvIds = rawFavourites.filter((id) => id != null);
 
     if (favouriteCvIds.length === 0) {
       return NextResponse.json({ cvs: [] }, { status: 200 });
@@ -25,34 +25,13 @@ export async function GET(request: NextRequest) {
 
     const cvs = await CV.find({
       _id: { $in: favouriteCvIds },
-      published: { $ne: false }, // Only get published CVs
+      published: { $ne: false },
     })
-      .populate('jobSeeker', 'name email lastOnline')
+      .populate('jobSeeker', 'name email lastOnline updatedAt')
       .sort({ createdAt: -1 })
       .lean();
 
-    // Map CVs to include all necessary fields
-    const cvsWithData = cvs.map((cv: any) => ({
-      _id: cv._id,
-      id: cv._id,
-      fullName: cv.fullName,
-      email: cv.email,
-      phone: cv.phone,
-      address: cv.address,
-      summary: cv.summary,
-      experience: cv.experience || [],
-      education: cv.education || [],
-      skills: cv.skills || [],
-      certifications: cv.certifications || [],
-      professionalCertifications: cv.professionalCertifications || [],
-      experienceAndSkill: cv.experienceAndSkill || [],
-      languages: cv.languages || [],
-      lookingForWorkInAreas: cv.lookingForWorkInAreas || [],
-      pictures: cv.pictures || [],
-      jobSeeker: cv.jobSeeker,
-      createdAt: cv.createdAt,
-      updatedAt: cv.updatedAt,
-    }));
+    const cvsWithData = cvs.map((cv) => mapCvDocumentToCandidateListItem(cv));
 
     return NextResponse.json({ cvs: cvsWithData }, { status: 200 });
   } catch (error: unknown) {
@@ -78,12 +57,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
