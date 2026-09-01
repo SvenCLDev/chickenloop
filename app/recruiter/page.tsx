@@ -10,6 +10,7 @@ import { jobsApi, companyApi, candidatesApi } from '@/lib/api';
 import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
 import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
+import RecruiterTalentDiscoveryBanner from '@/app/components/recruiter/RecruiterTalentDiscoveryBanner';
 import { talentProfilePath } from '@/lib/talentRoutes';
 import {
   canRefreshJob,
@@ -499,6 +500,7 @@ function RecruiterDashboardClient() {
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
           {companyName ? `${companyName} Recruiter Dashboard` : 'Recruiter Dashboard'}
         </h1>
+        <RecruiterTalentDiscoveryBanner />
         <PageHeaderMarketingBanner placementKey="recruiter-dashboard" />
 
         {error && (
@@ -511,12 +513,20 @@ function RecruiterDashboardClient() {
         <div className="mb-8">
           <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
             <h2 className="text-3xl font-bold text-gray-900">My Job Postings</h2>
-            <Link
-              href="/recruiter/jobs/new"
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
-            >
-              Post New Job
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/talent"
+                className="rounded-lg border border-blue-600 px-6 py-3 font-semibold text-blue-600 hover:bg-blue-50"
+              >
+                Find Talent
+              </Link>
+              <Link
+                href="/recruiter/jobs/new"
+                className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
+              >
+                Post New Job
+              </Link>
+            </div>
           </div>
           {jobs.length === 0 ? (
             <div className="bg-white rounded-lg shadow-md p-8 text-center">
@@ -848,8 +858,15 @@ function RecruiterDashboardClient() {
             <div className="bg-white rounded-lg shadow-md p-8 text-center">
               <p className="text-gray-600">You haven&apos;t saved any talent profiles yet.</p>
               <p className="text-gray-500 text-sm mt-2">
-                Click &quot;Add to Favourites&quot; on any talent profile to save it here.
+                Use filters to find instructors and crew, then save profiles here with &quot;Add to
+                Favourites&quot;.
               </p>
+              <Link
+                href="/talent"
+                className="mt-4 inline-block font-semibold text-blue-600 hover:underline"
+              >
+                Browse talent profiles →
+              </Link>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
