@@ -10,8 +10,10 @@ type SeasonalExperienceDoc = {
   verificationStatus?: string;
 };
 
+type ObjectIdLike = string | { toString(): string };
+
 type JobSeekerDoc = {
-  _id?: string;
+  _id?: ObjectIdLike;
   name?: string;
   email?: string;
   lastOnline?: string | Date;
@@ -19,7 +21,7 @@ type JobSeekerDoc = {
 };
 
 export type CvDocumentForListItem = {
-  _id: string | { toString(): string };
+  _id: ObjectIdLike;
   fullName: string;
   summary?: string;
   address?: string;
