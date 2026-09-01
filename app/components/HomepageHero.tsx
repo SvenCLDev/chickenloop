@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { getImageProps } from 'next/image';
 import HomepageHeroRotationDeferred from './HomepageHeroRotationDeferred';
 import {
   HOMEPAGE_HERO_BLUR_DATA_URL,
@@ -26,7 +27,7 @@ export default function HomepageHero() {
             quality={60}
             placeholder="blur"
             blurDataURL={HOMEPAGE_HERO_BLUR_DATA_URL}
-            sizes="(max-width: 768px) 100vw, 100vw"
+            sizes={HOMEPAGE_HERO_LCP_SIZES}
             className="object-cover"
           />
         </div>
@@ -76,13 +77,18 @@ export default function HomepageHero() {
   );
 }
 
-/** Preload URL props for the LCP hero image (used in app/page.tsx). */
-export function getHomepageHeroPreloadProps() {
-  return {
+/** Shared LCP hero image sizing — keep in sync with the `<Image>` above. */
+export const HOMEPAGE_HERO_LCP_SIZES = '(max-width: 768px) 100vw, 1600px';
+
+/** Preload props matching the LCP hero `<Image>` (used in app/page.tsx). */
+export function getHomepageHeroLcpPreloadProps() {
+  return getImageProps({
     src: HOMEPAGE_HERO_LCP_IMAGE,
+    alt: '',
     width: HOMEPAGE_HERO_LCP_WIDTH,
     height: HOMEPAGE_HERO_LCP_HEIGHT,
     quality: 60,
-    sizes: '(max-width: 768px) 100vw, 100vw',
-  };
+    sizes: HOMEPAGE_HERO_LCP_SIZES,
+    priority: true,
+  }).props;
 }

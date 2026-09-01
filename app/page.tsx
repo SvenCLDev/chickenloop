@@ -1,22 +1,11 @@
 import type { Metadata } from 'next';
-import { getImageProps } from 'next/image';
 import DeferredHomePageContent from './components/DeferredHomePageContent';
-import HomepageHero, { getHomepageHeroPreloadProps } from './components/HomepageHero';
+import HomepageHero, { getHomepageHeroLcpPreloadProps } from './components/HomepageHero';
 import Navbar from './components/Navbar';
 import { getHomepageLatestJobs } from '@/lib/homepageJobs';
 import { getDistinctJobCategories } from '@/lib/jobCategoriesQuery';
 import { getMarketingSiteUrl } from '@/lib/baseUrlForReferenceEmails';
 import { HOMEPAGE_HERO_LCP_IMAGE } from '@/lib/homepageHero';
-
-/** Mobile-first preload URL aligned with ~750px viewport width. */
-function getHomepageHeroMobilePreloadHref(quality = 60): string {
-  const params = new URLSearchParams({
-    url: HOMEPAGE_HERO_LCP_IMAGE,
-    w: '750',
-    q: String(quality),
-  });
-  return `/_next/image?${params.toString()}`;
-}
 
 /** Regenerate homepage job data at most every 60s (ISR). /jobs is dynamic via searchParams. */
 export const revalidate = 60;
@@ -62,22 +51,27 @@ export default async function HomePage() {
     getDistinctJobCategories(),
   ]);
 
-  const { props: heroPreloadProps } = getImageProps({
-    ...getHomepageHeroPreloadProps(),
-    alt: '',
-  });
-  const heroMobilePreloadHref = getHomepageHeroMobilePreloadHref();
+  const heroLcpPreload = getHomepageHeroLcpPreloadProps();
 
   return (
     <>
-      <link rel="preload" as="image" href={heroMobilePreloadHref} />
       <link
         rel="preload"
         as="image"
-        href={heroPreloadProps.src}
+        href={heroLcpPreload.src}
+        imageSrcSet={heroLcpPreload.srcSet}
+        imageSizes={heroLcpPreload.sizes}
+        fetchPriority="high"
+        media="(max-width: 768px)"
+      />
+      <link
+        rel="preload"
+        as="image"
+        href={heroLcpPreload.src}
+        imageSrcSet={heroLcpPreload.srcSet}
+        imageSizes={heroLcpPreload.sizes}
+        fetchPriority="high"
         media="(min-width: 769px)"
-        imageSrcSet={heroPreloadProps.srcSet}
-        imageSizes={heroPreloadProps.sizes}
       />
       <div className="min-h-screen flex flex-col">
         <Navbar logoPriority={false} />

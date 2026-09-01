@@ -15,6 +15,7 @@ import SearchBar from './SearchBar';
 import CompaniesPreview from './CompaniesPreview';
 import HomepageValueProps from './HomepageValueProps';
 import TurnstileWidget from './TurnstileWidget';
+import { deferUntilIdle } from '@/lib/deferUntilIdle';
 
 /**
  * @param {Object} props
@@ -63,8 +64,6 @@ export default function HomePageContent({
     loadFeaturedJobs();
     // Load featured companies
     loadFeaturedCompanies();
-    // Load career advice articles
-    loadCareerAdvice();
     // Load top candidates (only if user is recruiter or admin)
     if (user && (user.role === 'recruiter' || user.role === 'admin')) {
       loadTopCandidates();
@@ -78,6 +77,12 @@ export default function HomePageContent({
       setFavouriteJobIds(new Set());
     }
   }, [user]);
+
+  useEffect(() => {
+    return deferUntilIdle(() => {
+      loadCareerAdvice();
+    }, 5000);
+  }, []);
 
   const handleToggleFavourite = async (e, jobId) => {
     e.preventDefault();

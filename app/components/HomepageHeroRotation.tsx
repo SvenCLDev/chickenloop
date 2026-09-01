@@ -47,7 +47,7 @@ export default function HomepageHeroRotation() {
               fill
               loading="lazy"
               quality={60}
-              sizes="(max-width: 768px) 100vw, 100vw"
+              sizes="(max-width: 768px) 100vw, 1600px"
               className="object-cover"
             />
           </div>

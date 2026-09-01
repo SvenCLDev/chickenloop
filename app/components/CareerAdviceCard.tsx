@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { isLocalPath } from '@/lib/imageUtils';
 
 interface CareerAdviceCardProps {
   article: {
@@ -30,9 +31,10 @@ export default function CareerAdviceCard({ article }: CareerAdviceCardProps) {
             alt={article.title}
             fill
             loading="lazy"
+            quality={60}
             className="object-cover transition-transform duration-300 hover:scale-110"
-            sizes="(max-width: 640px) 120px, 160px"
-            unoptimized
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
+            unoptimized={isLocalPath(article.picture)}
           />
         ) : (
           <div className="w-full h-full bg-gray-50 flex items-center justify-center">
