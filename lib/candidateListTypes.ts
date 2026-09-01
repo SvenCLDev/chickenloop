@@ -20,6 +20,7 @@ export interface CandidateListItem {
     name: string;
     email: string;
     lastOnline?: string;
+    updatedAt?: string;
   };
   createdAt?: string;
   updatedAt?: string;

@@ -146,25 +146,24 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
   }
 
   const sortKey = normalizeCandidateSortKey(filters.sort);
-  const sortOrder: Record<string, 1 | -1> = {
+  const tieBreakers: Record<string, 1 | -1> = {
     verifiedCertCount: -1,
     confirmedReferenceCount: -1,
   };
+  let mongoSortStage: Record<string, 1 | -1>;
   switch (sortKey) {
     case 'oldest':
-      sortOrder.createdAt = 1;
+      mongoSortStage = { isFeatured: -1, createdAt: 1, ...tieBreakers };
       break;
     case 'updated':
-      sortOrder.updatedAt = -1;
-      sortOrder.createdAt = -1;
+      mongoSortStage = { isFeatured: -1, updatedAt: -1, createdAt: -1, ...tieBreakers };
       break;
     case 'created':
-      sortOrder.createdAt = -1;
+      mongoSortStage = { isFeatured: -1, createdAt: -1, ...tieBreakers };
       break;
     case 'last_active':
     default:
-      sortOrder.lastActiveAt = -1;
-      sortOrder.updatedAt = -1;
+      mongoSortStage = { isFeatured: -1, lastActiveAt: -1, updatedAt: -1, ...tieBreakers };
       break;
   }
 
@@ -183,7 +182,7 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         as: 'jobSeekerInfo',
         pipeline: [
           { $match: { role: 'job-seeker' } },
-          { $project: { _id: 1, name: 1, email: 1, lastOnline: 1 } },
+          { $project: { _id: 1, name: 1, email: 1, lastOnline: 1, updatedAt: 1, createdAt: 1 } },
           { $limit: 1 },
         ],
       },
@@ -215,6 +214,7 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
         createdAt: 1,
         pictures: { $slice: ['$pictures', 1] },
         jobSeeker: 1,
+        jobSeekerInfo: 1,
         profileSchemaVersion: 1,
         verifiedCertificates: 1,
         seasonalExperience: 1,
@@ -296,11 +296,17 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
     {
       $addFields: {
         lastActiveAt: {
-          $ifNull: ['$jobSeekerInfo.lastOnline', '$updatedAt', '$createdAt'],
+          $ifNull: [
+            '$jobSeekerInfo.lastOnline',
+            '$jobSeekerInfo.updatedAt',
+            '$jobSeekerInfo.createdAt',
+            '$updatedAt',
+            '$createdAt',
+          ],
         },
       },
     },
-    { $sort: { isFeatured: -1, ...sortOrder } },
+    { $sort: mongoSortStage },
     { $limit: sortWindow }, // Bounded sort: only keep sortWindow docs in memory (avoids 32MB limit)
     { $skip: skip },
     { $limit: PAGE_SIZE },
@@ -332,6 +338,7 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
           name: '$jobSeekerInfo.name',
           email: '$jobSeekerInfo.email',
           lastOnline: '$jobSeekerInfo.lastOnline',
+          updatedAt: '$jobSeekerInfo.updatedAt',
         },
       },
     },

@@ -69,7 +69,10 @@ export default function TalentListRow({
     candidate.verifiedCertLabels?.filter(Boolean) ||
     (candidate.professionalCertifications || []).slice(0, 2);
   const languages = (candidate.languages || []).slice(0, 2);
-  const lastActive = candidate.jobSeeker?.lastOnline || candidate.updatedAt;
+  const lastActive =
+    candidate.jobSeeker?.lastOnline ||
+    candidate.jobSeeker?.updatedAt ||
+    candidate.updatedAt;
   const summary = candidate.summary ? stripHtmlToText(candidate.summary) : '';
 
   return (
