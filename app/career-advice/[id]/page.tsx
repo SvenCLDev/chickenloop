@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Navbar from '@/app/components/Navbar';
+import CareerAdviceContinueReading from '@/app/components/CareerAdviceContinueReading';
 import { careerAdviceApi } from '@/lib/api';
 import Image from 'next/image';
 
@@ -21,12 +22,20 @@ interface Article {
   updatedAt: string;
 }
 
+interface ArticleListItem {
+  id: string;
+  title: string;
+  picture?: string;
+  createdAt: string;
+}
+
 export default function CareerAdviceArticlePage() {
   const params = useParams();
   const router = useRouter();
   const articleId = (params?.id as string) || '';
 
   const [article, setArticle] = useState<Article | null>(null);
+  const [allArticles, setAllArticles] = useState<ArticleListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -39,8 +48,19 @@ export default function CareerAdviceArticlePage() {
   const loadArticle = async () => {
     try {
       setLoading(true);
-      const data = await careerAdviceApi.getOne(articleId);
-      setArticle(data.article);
+      const [articleData, listData] = await Promise.all([
+        careerAdviceApi.getOne(articleId),
+        careerAdviceApi.getAll(),
+      ]);
+      setArticle(articleData.article);
+      setAllArticles(
+        (listData.articles || []).map((item: ArticleListItem) => ({
+          id: item.id,
+          title: item.title,
+          picture: item.picture,
+          createdAt: item.createdAt,
+        })),
+      );
     } catch (err: any) {
       setError(err.message || 'Failed to load article');
     } finally {
@@ -121,6 +141,11 @@ export default function CareerAdviceArticlePage() {
             />
           </div>
         </article>
+
+        <CareerAdviceContinueReading
+          currentArticleId={article.id}
+          articles={allArticles}
+        />
       </div>
     </div>
   );

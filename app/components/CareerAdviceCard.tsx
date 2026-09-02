@@ -9,9 +9,10 @@ interface CareerAdviceCardProps {
     picture?: string;
     createdAt: string;
   };
+  compact?: boolean;
 }
 
-export default function CareerAdviceCard({ article }: CareerAdviceCardProps) {
+export default function CareerAdviceCard({ article, compact = false }: CareerAdviceCardProps) {
   const formattedDate = new Date(article.createdAt).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -21,10 +22,16 @@ export default function CareerAdviceCard({ article }: CareerAdviceCardProps) {
   return (
     <Link
       href={`/career-advice/${article.id}`}
-      className="bg-white border border-gray-200 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer block overflow-hidden transform hover:-translate-y-1 p-4 sm:p-6 flex flex-col items-center text-center"
+      className={`bg-white border border-gray-200 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer block overflow-hidden transform hover:-translate-y-1 flex flex-col items-center text-center ${
+        compact ? 'p-3' : 'p-4 sm:p-6'
+      }`}
     >
       {/* Article Picture */}
-      <div className="w-full h-24 sm:h-32 mb-4 bg-gray-200 rounded-lg overflow-hidden relative">
+      <div
+        className={`w-full bg-gray-200 rounded-lg overflow-hidden relative ${
+          compact ? 'h-16 sm:h-20 mb-3' : 'h-24 sm:h-32 mb-4'
+        }`}
+      >
         {article.picture ? (
           <Image
             src={article.picture}
@@ -33,7 +40,11 @@ export default function CareerAdviceCard({ article }: CareerAdviceCardProps) {
             loading="lazy"
             quality={60}
             className="object-cover transition-transform duration-300 hover:scale-110"
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
+            sizes={
+              compact
+                ? '(max-width: 640px) 100vw, 33vw'
+                : '(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px'
+            }
             unoptimized={isLocalPath(article.picture)}
           />
         ) : (
@@ -47,10 +58,14 @@ export default function CareerAdviceCard({ article }: CareerAdviceCardProps) {
       </div>
 
       {/* Article Info */}
-      <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
+      <h3
+        className={`font-bold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors ${
+          compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+        }`}
+      >
         {article.title}
       </h3>
-      <p className="text-xs sm:text-sm text-gray-600 line-clamp-3 mt-auto">
+      <p className={`text-gray-600 mt-auto ${compact ? 'text-xs' : 'text-xs sm:text-sm line-clamp-3'}`}>
         {formattedDate}
       </p>
     </Link>
