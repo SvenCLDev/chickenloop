@@ -474,9 +474,6 @@ export default function HomePageContent({
                 Back in 2013, I was deep in the grind of launching a watersports center in India. Between the logistics and the lessons, I hit a major snag: hiring. Finding qualified, reliable instructors felt like trying to kite in a dead calm—expensive, exhausting, and going nowhere.
               </p>
               <p>
-                Today, Chickenloop is both a job board and a talent network—helping centres find verified instructors and crew, and helping pros get discovered beyond a single application.
-              </p>
-              <p>
                 I knew there had to be a better way to link centers with the talent they need. So, I grabbed a coffee, opened a code editor, and Chickenloop was born.
               </p>
               <p>
@@ -484,6 +481,9 @@ export default function HomePageContent({
               </p>
               <p>
                 Fast forward to 2024. The original site was a bit &quot;weathered,&quot; and it was time for a total refit. I&apos;ve spent my recent downtime rebuilding Chickenloop from scratch. The new platform is built on modern tech, designed to be the fastest way to get your crew on the boat or your instructors on the beach.
+              </p>
+              <p>
+                Today, Chickenloop is both a job board and a talent network—helping centres find verified instructors and crew, and helping pros get discovered beyond a single application.
               </p>
               <p>
                 This project is for the community. That&apos;s why basic job posts and resumes are free, supported by a few optional premium features to keep us running.
