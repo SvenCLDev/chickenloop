@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import Providers from "./components/Providers";
+import GoogleAnalyticsConsentMode from "./components/GoogleAnalyticsConsentMode";
+import { GA_MEASUREMENT_ID } from "@/lib/analyticsConsent";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,6 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <GoogleAnalyticsConsentMode />
         <link rel="icon" href="/favicon.png" type="image/png" />
         <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
         <meta httpEquiv="Pragma" content="no-cache" />
@@ -40,6 +44,7 @@ export default function RootLayout({
           {children}
         </Providers>
         <SpeedInsights />
+        <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
       </body>
     </html>
   );

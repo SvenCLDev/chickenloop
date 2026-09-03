@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { applyAnalyticsConsent } from '@/lib/analyticsConsent';
 
 export interface CookieConsent {
   necessary: boolean;
@@ -40,6 +41,7 @@ export function CookieConsentProvider({ children }: { children: ReactNode }) {
         // Check if consent version matches (for future updates)
         if (parsed.version === CONSENT_VERSION) {
           setConsentState(parsed);
+          applyAnalyticsConsent(parsed.analytics);
           setShowBanner(false);
         } else {
           // Version mismatch, show banner again
@@ -88,12 +90,8 @@ export function CookieConsentProvider({ children }: { children: ReactNode }) {
   };
 
   const loadCookiesBasedOnConsent = (consentData: CookieConsent) => {
-    // Load analytics cookies if consented
-    if (consentData.analytics) {
-      // Add your analytics scripts here (e.g., Google Analytics)
-      // Example: window.gtag = function() { ... }
-    }
-    
+    applyAnalyticsConsent(consentData.analytics);
+
     // Load marketing cookies if consented
     if (consentData.marketing) {
       // Add your marketing scripts here

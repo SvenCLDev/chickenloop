@@ -1,27 +1,39 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useCookieConsent } from '@/app/contexts/CookieConsentContext';
-import { deferUntilIdle } from '@/lib/deferUntilIdle';
-import GoogleAnalytics from './GoogleAnalytics';
+import { applyAnalyticsConsent } from '@/lib/analyticsConsent';
 
-/** Loads Google Analytics only when the user has opted in to analytics cookies. */
+/**
+ * Syncs Google Consent Mode with cookie preferences.
+ * gtag loads site-wide via @next/third-parties in layout (cookieless until granted).
+ */
 export default function ConsentGatedGoogleAnalytics() {
   const { consent } = useCookieConsent();
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!consent?.analytics) {
-      setReady(false);
+    if (consent === null) {
       return;
     }
 
-    return deferUntilIdle(() => setReady(true), 5000);
-  }, [consent?.analytics]);
+    const granted = consent.analytics;
 
-  if (!consent?.analytics || !ready) {
-    return null;
-  }
+    const sync = () => applyAnalyticsConsent(granted);
+    sync();
 
-  return <GoogleAnalytics />;
+    if (typeof window.gtag === 'function') {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (typeof window.gtag === 'function') {
+        sync();
+        window.clearInterval(intervalId);
+      }
+    }, 100);
+
+    return () => window.clearInterval(intervalId);
+  }, [consent]);
+
+  return null;
 }
