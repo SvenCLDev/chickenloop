@@ -3,16 +3,33 @@ Disallow: /api/
 Disallow: /admin/
 Disallow: /_next/
 
-# Block AI crawlers
+# Allow AI search/citation crawlers on public pages
 User-agent: GPTBot
-Disallow: /
+Allow: /
+Disallow: /api/
+Disallow: /admin/
 
 User-agent: ClaudeBot
-Disallow: /
+Allow: /
+Disallow: /api/
+Disallow: /admin/
 
 User-agent: PerplexityBot
-Disallow: /
+Allow: /
+Disallow: /api/
+Disallow: /admin/
 
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+
+# Block training/scraping bots not needed for citations
 User-agent: CCBot
 Disallow: /
 
@@ -52,4 +69,4 @@ User-agent: Applebot
 Allow: /
 
 # Sitemap
-Sitemap: https://chickenloop.com/sitemap.xml
+Sitemap: https://www.chickenloop.com/sitemap.xml

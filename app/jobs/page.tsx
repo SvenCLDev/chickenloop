@@ -78,6 +78,12 @@ export default async function JobsPage({
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
           Latest Jobs
         </h1>
+        <p className="text-sm text-gray-600 mb-6">
+          <a href="/insights" className="text-blue-600 hover:underline">
+            Job market insights
+          </a>
+          {' — live counts by country, sport, and role type.'}
+        </p>
         <JobList
           initialJobs={initialJobs}
           initialCountries={availableCountries}

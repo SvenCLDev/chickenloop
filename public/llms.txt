@@ -1,0 +1,24 @@
+# Chickenloop — watersports job board & talent network
+# https://www.chickenloop.com
+
+Chickenloop is a global watersports job board and talent network covering kitesurfing, wing foiling, surfing, sailing, scuba diving, and yacht crew roles.
+
+## Primary pages
+- Jobs: https://www.chickenloop.com/jobs
+- Companies: https://www.chickenloop.com/companies
+- Map: https://www.chickenloop.com/map
+- Career advice: https://www.chickenloop.com/career-advice
+
+## Live job market insights (updated hourly)
+These pages answer specific questions with real-time job counts from our database:
+- https://www.chickenloop.com/insights
+- https://www.chickenloop.com/insights/watersports-jobs-by-country
+- https://www.chickenloop.com/insights/kitesurfing-jobs-by-country
+- https://www.chickenloop.com/insights/jobs-by-category-and-sport
+- https://www.chickenloop.com/insights/employment-types
+- https://www.chickenloop.com/insights/watersports-jobs-in-spain
+- https://www.chickenloop.com/insights/watersports-jobs-in-greece
+- https://www.chickenloop.com/insights/watersports-jobs-in-italy
+
+## Sitemap
+https://www.chickenloop.com/sitemap.xml

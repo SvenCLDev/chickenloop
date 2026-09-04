@@ -6,6 +6,7 @@ import "./globals.css";
 import Providers from "./components/Providers";
 import GoogleAnalyticsConsentMode from "./components/GoogleAnalyticsConsentMode";
 import { GA_MEASUREMENT_ID } from "@/lib/analyticsConsent";
+import { getSiteUrl } from "@/lib/siteUrl";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,6 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   title: "Chickenloop | Watersports Talent Network & Job Board",
   description:
     "The global watersports talent network and free job board for kite, foil, surf, sail, dive and yacht crew. Verified profiles for pros. Trusted hiring for centres.",

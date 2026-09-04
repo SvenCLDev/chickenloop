@@ -75,6 +75,10 @@ export default function MapPage() {
             </div>
             <span className="text-sm text-gray-500">
               {mode === 'jobs' ? `${jobs.length} jobs` : `${companies.length} companies`}
+              {' · '}
+              <a href="/insights/watersports-jobs-by-country" className="text-blue-600 hover:underline">
+                Jobs by country
+              </a>
             </span>
           </div>
         </div>

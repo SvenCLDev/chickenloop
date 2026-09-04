@@ -7,9 +7,6 @@ const blockedBots = [
   'MJ12bot',
   'DotBot',
   'BLEXBot',
-  'GPTBot',
-  'ClaudeBot',
-  'PerplexityBot',
   'CCBot',
   'Amazonbot',
 ];
@@ -19,9 +16,17 @@ const allowedBots = [
   'Googlebot-News',
   'Googlebot-Image',
   'Googlebot-Video',
+  'Google-Extended',
   'Bingbot',
   'DuckDuckBot',
   'Applebot',
+  // AI search / citation crawlers (GEO)
+  'GPTBot',
+  'ChatGPT-User',
+  'ClaudeBot',
+  'anthropic-ai',
+  'PerplexityBot',
+  'OAI-SearchBot',
   // Meta / Facebook – required for Instagram Graph API image fetching, link previews, platform integrations
   'facebookexternalhit',
   'Facebot',
