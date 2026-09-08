@@ -313,6 +313,15 @@ export async function PUT(
       );
     }
 
+    // Content edits (admin or recruiter) bump listing order; metadata-only toggles do not
+    const METADATA_ONLY_KEYS = new Set(['featured', 'spam', 'published']);
+    const hasContentEdit = Object.keys(requestBody).some(
+      (key) => requestBody[key] !== undefined && !METADATA_ONLY_KEYS.has(key)
+    );
+    if (hasContentEdit) {
+      job.lastRecruiterEditAt = new Date();
+    }
+
     // Re-geocode location for map pin
     const coords = await geocodeJobLocation(job.city, job.country);
     (job as IJob).coordinates = coords ?? null;
