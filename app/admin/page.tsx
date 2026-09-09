@@ -186,6 +186,7 @@ function AdminDashboard() {
   const [instagramModalPos, setInstagramModalPos] = useState<string>('bl');
   const [instagramModalBg, setInstagramModalBg] = useState<string>('grey');
   const [instagramModalCustomTags, setInstagramModalCustomTags] = useState<string>('');
+  const [instagramModalCollab, setInstagramModalCollab] = useState<string>('');
   const [instagramPreviewCaption, setInstagramPreviewCaption] = useState<string>('');
   const [deletingJobSeeker, setDeletingJobSeeker] = useState<string | null>(null);
   const [blockingRecruiterId, setBlockingRecruiterId] = useState<string | null>(null);
@@ -266,14 +267,16 @@ function AdminDashboard() {
     return () => clearTimeout(timer);
   }, [emailFilter]);
 
-  // Fetch Instagram caption preview when modal opens
+  // Fetch Instagram caption preview and the detected company handle when modal opens
   useEffect(() => {
     if (!instagramModalJobId) return;
     let cancelled = false;
     fetch(`/api/instagram-preview/${instagramModalJobId}`)
       .then((res) => res.json())
       .then((data) => {
-        if (!cancelled && data?.fullCaption) setInstagramPreviewCaption(data.fullCaption);
+        if (cancelled) return;
+        if (data?.fullCaption) setInstagramPreviewCaption(data.fullCaption);
+        if (typeof data?.collaborator === 'string') setInstagramModalCollab(data.collaborator);
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -700,7 +703,13 @@ function AdminDashboard() {
     router.push(`/admin/jobs/${jobId}/edit`);
   };
 
-  const handlePostToInstagram = async (jobId: string, pos?: string, bg?: string, customTags?: string) => {
+  const handlePostToInstagram = async (
+    jobId: string,
+    pos?: string,
+    bg?: string,
+    customTags?: string,
+    collaborator?: string
+  ) => {
     setPostingToInstagramJobId(jobId);
     try {
       const res = await fetch(`/api/admin/instagram-post/${jobId}`, {
@@ -710,6 +719,7 @@ function AdminDashboard() {
           pos: pos ?? 'bl',
           bg: bg ?? 'grey',
           ...(typeof customTags === 'string' ? { customTags } : {}),
+          ...(collaborator?.trim() ? { collaborator: collaborator.trim() } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -764,12 +774,19 @@ function AdminDashboard() {
     setInstagramModalPos('bl');
     setInstagramModalBg('grey');
     setInstagramModalCustomTags('');
+    setInstagramModalCollab('');
     setInstagramPreviewCaption('');
   };
 
   const handleConfirmInstagramPost = () => {
     if (!instagramModalJobId) return;
-    handlePostToInstagram(instagramModalJobId, instagramModalPos, instagramModalBg, instagramModalCustomTags);
+    handlePostToInstagram(
+      instagramModalJobId,
+      instagramModalPos,
+      instagramModalBg,
+      instagramModalCustomTags,
+      instagramModalCollab
+    );
   };
 
   const handleEditUser = (userId: string) => {
@@ -2416,6 +2433,21 @@ function AdminDashboard() {
                     <option value="red">Red</option>
                   </select>
                 </div>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Collab With (Instagram handle)</label>
+                <input
+                  type="text"
+                  value={instagramModalCollab}
+                  onChange={(e) => setInstagramModalCollab(e.target.value)}
+                  placeholder="kitehousetarifa"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Prefilled from the company profile. The post is published as a Collab so it also appears
+                  on their feed. Leave empty to post without tagging. The caption preview below shows the
+                  detected handle; edits here are applied when posting.
+                </p>
               </div>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Additional Hashtags / Mentions</label>

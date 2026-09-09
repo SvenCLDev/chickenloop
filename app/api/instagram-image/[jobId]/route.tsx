@@ -17,7 +17,7 @@ export const runtime = 'nodejs';
 
 /**
  * GET /api/instagram-image/[jobId] or /api/instagram-image/[jobId].png
- * Generates a 1080x1080 image. Supports both URL forms; .png path returns PNG, otherwise JPEG.
+ * Generates a 1080x1350 image. Supports both URL forms; .png path returns PNG, otherwise JPEG.
  * Does not call the Instagram API.
  */
 export async function GET(
@@ -44,8 +44,9 @@ export async function GET(
 
     await connectDB();
 
+    // Logo is populated so the admin preview matches what actually gets published.
     const job = await Job.findById(jobId)
-      .populate('companyId', 'name')
+      .populate('companyId', 'name logo')
       .lean();
 
     if (!job) {

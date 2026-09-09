@@ -6,7 +6,8 @@ import { buildInstagramPreview } from '@/lib/social/instagram';
 
 /**
  * GET /api/instagram-preview/[jobId]
- * Returns preview data for posting the job to Instagram (caption, hashtags, image URL).
+ * Returns preview data for posting the job to Instagram (caption, hashtags, image URL,
+ * and the company Instagram handle that will be collab-tagged).
  * Does not call the Instagram API.
  */
 export async function GET(
@@ -25,14 +26,18 @@ export async function GET(
     await connectDB();
 
     const job = await Job.findById(jobId)
-      .populate('companyId', 'name logo')
+      .populate('companyId', 'name logo socialMedia')
       .lean();
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
-    const companyId = job.companyId as { name?: string; logo?: string } | null;
+    const companyId = job.companyId as {
+      name?: string;
+      logo?: string;
+      socialMedia?: Record<string, string>;
+    } | null;
     const jobForPreview = {
       ...job,
       _id: job._id,
@@ -42,11 +47,15 @@ export async function GET(
       pictures: job.pictures,
       slug: generateJobSlug(job.title ?? ''),
       company: companyId
-        ? { name: companyId.name, logo: companyId.logo }
+        ? {
+            name: companyId.name,
+            logo: companyId.logo,
+            socialMedia: companyId.socialMedia,
+          }
         : undefined,
     };
 
-    const { imageUrl, caption, hashtags, fullCaption } =
+    const { imageUrl, caption, hashtags, fullCaption, collaborator } =
       buildInstagramPreview(jobForPreview);
 
     if (!imageUrl) {
@@ -61,6 +70,7 @@ export async function GET(
       caption,
       hashtags,
       fullCaption,
+      collaborator,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';

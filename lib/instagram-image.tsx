@@ -1,6 +1,7 @@
 /**
  * Shared Instagram card image generation.
  * Used by GET /api/instagram-image/[jobId] and by the Instagram post flow (upload to Blob then send URL to Meta).
+ * Renders 1080x1350 (4:5 portrait), the tallest aspect ratio the feed allows.
  */
 
 import { ImageResponse } from 'next/og';
@@ -23,11 +24,14 @@ export const BG_VALUES = [
 export type Pos = (typeof POS_VALUES)[number];
 export type Bg = (typeof BG_VALUES)[number];
 
+const CARD_WIDTH = 1080;
+const CARD_HEIGHT = 1350;
+
 const PANEL_POSITION: Record<Pos, { bottom?: number; top?: number; left?: number; right?: number }> = {
-  bl: { bottom: 80, left: 80 },
-  br: { bottom: 80, right: 80 },
-  tl: { top: 80, left: 80 },
-  tr: { top: 80, right: 80 },
+  bl: { bottom: 96, left: 72 },
+  br: { bottom: 96, right: 72 },
+  tl: { top: 96, left: 72 },
+  tr: { top: 96, right: 72 },
 };
 
 const PANEL_BG: Record<Bg, string> = {
@@ -44,7 +48,20 @@ const PANEL_BG: Record<Bg, string> = {
   red: 'rgba(239, 68, 68, 0.65)',
 };
 
-const TITLE_MAX_CHARS = 70;
+const TITLE_MAX_CHARS = 48;
+const TITLE_FONT_SIZE = 64;
+const TITLE_LINE_HEIGHT = 1.15;
+/** Conservative characters-per-line for the title font inside the panel width. */
+const TITLE_CHARS_PER_LINE = 18;
+
+/**
+ * Satori does not measure the height of wrapped text, so siblings render on top of it.
+ * Reserve height up front from an estimated line count.
+ */
+function titleBoxHeight(title: string): number {
+  const lines = Math.max(1, Math.ceil(title.length / TITLE_CHARS_PER_LINE));
+  return Math.ceil(lines * TITLE_FONT_SIZE * TITLE_LINE_HEIGHT);
+}
 
 function clampTitle(title: string, maxChars: number = TITLE_MAX_CHARS): string {
   if (!title) return '';
@@ -62,7 +79,7 @@ export interface InstagramImageJob {
   country?: string | null;
   sports?: unknown[];
   occupationalAreas?: unknown[];
-  companyId?: { name?: string | null };
+  companyId?: { name?: string | null; logo?: string | null };
   company?: { name?: string | null; logo?: string | null };
   pictures?: (string | null)[];
 }
@@ -85,41 +102,40 @@ function normalizeBg(bg: Bg | string | undefined): Bg {
 }
 
 /**
- * Generate the Instagram card image as a JPEG buffer (suitable for upload to Blob and for Instagram Graph API).
- * Uses job.pictures[0] or job.company?.logo as background when available.
+ * Build the card JSX. Shared by the JPEG and PNG generators so the two cannot drift.
+ * A job photo is used as a full-bleed background; a company logo is not, because
+ * cropping a logo to fill the frame looks broken. Logos render as a contained badge instead.
  */
-export async function generateInstagramImageBuffer(
+function buildCardElement(
   job: InstagramImageJob,
   options?: GenerateInstagramImageOptions
-): Promise<Buffer> {
+) {
   const pos = normalizePos(options?.pos);
   const bg = normalizeBg(options?.bg);
-  const companyName =
-    (job.company?.name ?? (job.companyId as { name?: string } | undefined)?.name) ?? '';
-  const activity =
-    (job.sports?.[0] ?? job.occupationalAreas?.[0]) ?? '';
+  // The post flow passes `company`; the preview route passes the populated `companyId`.
+  const companyName = job.company?.name ?? job.companyId?.name ?? '';
+  const activity = (job.sports?.[0] ?? job.occupationalAreas?.[0]) ?? '';
   const activityLabel = activity ? String(activity).toUpperCase() : '';
   const city = job.city ?? '';
   const country = job.country ?? '';
   const locationLine = [city, country].filter(Boolean).join(', ');
   const title = job.title ?? 'Job';
   const displayTitle = clampTitle(title, TITLE_MAX_CHARS);
-  const backgroundImageUrl =
-    (job.pictures?.[0] && typeof job.pictures[0] === 'string'
-      ? job.pictures[0]
-      : null) ??
-    (typeof job.company === 'object' && job.company?.logo && typeof job.company.logo === 'string'
-      ? job.company.logo
-      : null);
+
+  const photoUrl =
+    job.pictures?.[0] && typeof job.pictures[0] === 'string' ? job.pictures[0] : null;
+  const rawLogo = job.company?.logo ?? job.companyId?.logo ?? null;
+  const logoUrl = typeof rawLogo === 'string' && rawLogo ? rawLogo : null;
+  const showLogoBadge = !photoUrl && !!logoUrl;
 
   const panelStyle = PANEL_POSITION[pos];
   const panelBg = PANEL_BG[bg];
   const isPanelLeft = pos === 'bl' || pos === 'tl';
   const watermarkStyle = isPanelLeft
-    ? { position: 'absolute' as const, bottom: 40, right: 60 }
-    : { position: 'absolute' as const, bottom: 40, left: 60 };
+    ? { position: 'absolute' as const, bottom: 48, right: 60 }
+    : { position: 'absolute' as const, bottom: 48, left: 60 };
 
-  const element = (
+  return (
     <div
       style={{
         position: 'relative',
@@ -130,9 +146,9 @@ export async function generateInstagramImageBuffer(
         overflow: 'hidden',
       }}
     >
-      {backgroundImageUrl ? (
+      {photoUrl ? (
         <img
-          src={backgroundImageUrl}
+          src={photoUrl}
           alt=""
           style={{
             position: 'absolute',
@@ -146,8 +162,11 @@ export async function generateInstagramImageBuffer(
         <div
           style={{
             position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(180deg, #2563eb 0%, #0f172a 100%)',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundImage: 'linear-gradient(180deg, #2563eb 0%, #0f172a 100%)',
           }}
         />
       )}
@@ -155,24 +174,44 @@ export async function generateInstagramImageBuffer(
         style={{
           position: 'absolute',
           ...panelStyle,
-          maxWidth: '70%',
+          maxWidth: '80%',
           background: panelBg,
-          padding: 40,
-          borderRadius: 24,
+          padding: 56,
+          borderRadius: 28,
           color: 'white',
           display: 'flex',
           flexDirection: 'column',
-          gap: 16,
+          gap: 20,
         }}
       >
+        {showLogoBadge ? (
+          <div
+            style={{
+              display: 'flex',
+              width: 180,
+              height: 180,
+              borderRadius: 20,
+              background: 'rgba(255,255,255,0.95)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src={logoUrl as string}
+              alt=""
+              style={{ width: 150, height: 150, objectFit: 'contain' }}
+            />
+          </div>
+        ) : null}
         {activityLabel ? (
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
-              fontSize: 14,
+              fontSize: 28,
               fontWeight: 600,
-              letterSpacing: '2px',
+              letterSpacing: '3px',
               color: 'rgba(255,255,255,0.95)',
               marginTop: 0,
             }}
@@ -184,12 +223,12 @@ export async function generateInstagramImageBuffer(
           style={{
             display: 'block',
             overflow: 'hidden',
-            fontSize: 36,
+            minHeight: titleBoxHeight(displayTitle),
+            fontSize: TITLE_FONT_SIZE,
             fontWeight: 'bold',
             color: 'white',
-            lineHeight: 1.25,
+            lineHeight: TITLE_LINE_HEIGHT,
             maxWidth: '100%',
-            minHeight: 160,
             wordBreak: 'break-word',
           }}
         >
@@ -200,7 +239,7 @@ export async function generateInstagramImageBuffer(
             style={{
               display: 'flex',
               flexDirection: 'column',
-              fontSize: 24,
+              fontSize: 34,
               color: 'rgba(255,255,255,0.95)',
             }}
           >
@@ -212,7 +251,7 @@ export async function generateInstagramImageBuffer(
             style={{
               display: 'flex',
               flexDirection: 'column',
-              fontSize: 26,
+              fontSize: 36,
               color: 'rgba(255,255,255,0.9)',
             }}
           >
@@ -223,26 +262,31 @@ export async function generateInstagramImageBuffer(
       <div
         style={{
           ...watermarkStyle,
-          fontSize: 28,
+          fontSize: 32,
           color: 'white',
-          opacity: 0.5,
-          fontWeight: 500,
+          opacity: 0.85,
+          fontWeight: 600,
         }}
       >
         chickenloop.com
       </div>
     </div>
   );
+}
 
-  const pngResponse = new ImageResponse(element, {
-    width: 1080,
-    height: 1080,
+/**
+ * Generate the Instagram card image as a JPEG buffer (suitable for upload to Blob and for Instagram Graph API).
+ */
+export async function generateInstagramImageBuffer(
+  job: InstagramImageJob,
+  options?: GenerateInstagramImageOptions
+): Promise<Buffer> {
+  const pngResponse = new ImageResponse(buildCardElement(job, options), {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
   });
   const pngBuffer = Buffer.from(await pngResponse.arrayBuffer());
-  const jpegBuffer = await sharp(pngBuffer)
-    .jpeg({ quality: 90 })
-    .toBuffer();
-  return jpegBuffer;
+  return sharp(pngBuffer).jpeg({ quality: 90 }).toBuffer();
 }
 
 /**
@@ -252,151 +296,9 @@ export async function generateInstagramImagePngBuffer(
   job: InstagramImageJob,
   options?: GenerateInstagramImageOptions
 ): Promise<Buffer> {
-  const pos = normalizePos(options?.pos);
-  const bg = normalizeBg(options?.bg);
-  const companyName =
-    (job.company?.name ?? (job.companyId as { name?: string } | undefined)?.name) ?? '';
-  const activity =
-    (job.sports?.[0] ?? job.occupationalAreas?.[0]) ?? '';
-  const activityLabel = activity ? String(activity).toUpperCase() : '';
-  const city = job.city ?? '';
-  const country = job.country ?? '';
-  const locationLine = [city, country].filter(Boolean).join(', ');
-  const title = job.title ?? 'Job';
-  const displayTitle = clampTitle(title, TITLE_MAX_CHARS);
-  const backgroundImageUrl =
-    (job.pictures?.[0] && typeof job.pictures[0] === 'string'
-      ? job.pictures[0]
-      : null) ??
-    (typeof job.company === 'object' && job.company?.logo && typeof job.company.logo === 'string'
-      ? job.company.logo
-      : null);
-
-  const panelStyle = PANEL_POSITION[pos];
-  const panelBg = PANEL_BG[bg];
-  const isPanelLeft = pos === 'bl' || pos === 'tl';
-  const watermarkStyle = isPanelLeft
-    ? { position: 'absolute' as const, bottom: 40, right: 60 }
-    : { position: 'absolute' as const, bottom: 40, left: 60 };
-
-  const element = (
-    <div
-      style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}
-    >
-      {backgroundImageUrl ? (
-        <img
-          src={backgroundImageUrl}
-          alt=""
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(180deg, #2563eb 0%, #0f172a 100%)',
-          }}
-        />
-      )}
-      <div
-        style={{
-          position: 'absolute',
-          ...panelStyle,
-          maxWidth: '70%',
-          background: panelBg,
-          padding: 40,
-          borderRadius: 24,
-          color: 'white',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}
-      >
-        {activityLabel ? (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              fontSize: 14,
-              fontWeight: 600,
-              letterSpacing: '2px',
-              color: 'rgba(255,255,255,0.95)',
-              marginTop: 0,
-            }}
-          >
-            {activityLabel}
-          </div>
-        ) : null}
-        <div
-          style={{
-            display: 'block',
-            overflow: 'hidden',
-            fontSize: 36,
-            fontWeight: 'bold',
-            color: 'white',
-            lineHeight: 1.25,
-            maxWidth: '100%',
-            minHeight: 160,
-            wordBreak: 'break-word',
-          }}
-        >
-          {displayTitle}
-        </div>
-        {locationLine ? (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              fontSize: 24,
-              color: 'rgba(255,255,255,0.95)',
-            }}
-          >
-            📍 {locationLine}
-          </div>
-        ) : null}
-        {companyName ? (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              fontSize: 26,
-              color: 'rgba(255,255,255,0.9)',
-            }}
-          >
-            {companyName}
-          </div>
-        ) : null}
-      </div>
-      <div
-        style={{
-          ...watermarkStyle,
-          fontSize: 28,
-          color: 'white',
-          opacity: 0.5,
-          fontWeight: 500,
-        }}
-      >
-        chickenloop.com
-      </div>
-    </div>
-  );
-
-  const pngResponse = new ImageResponse(element, {
-    width: 1080,
-    height: 1080,
+  const pngResponse = new ImageResponse(buildCardElement(job, options), {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
   });
   return Buffer.from(await pngResponse.arrayBuffer());
 }

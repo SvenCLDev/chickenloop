@@ -7,7 +7,9 @@ import { postJobToInstagram } from '@/lib/social/instagram';
 /**
  * POST /api/admin/instagram-post/[jobId]
  * Post a job to Instagram (admin only).
- * Body (optional): { pos?: string; bg?: string; customTags?: string } — layout options and extra hashtags/mentions.
+ * Body (optional): { pos?: string; bg?: string; customTags?: string; collaborator?: string }
+ * — layout options, extra hashtags/mentions, and an Instagram handle to collab-tag
+ * (defaults to the company's own Instagram profile when not provided).
  * Returns { success, postId, jobId } on success.
  */
 export async function POST(
@@ -28,7 +30,7 @@ export async function POST(
     await connectDB();
 
     const job = await Job.findById(jobId)
-      .populate('companyId', 'name logo')
+      .populate('companyId', 'name logo socialMedia')
       .lean();
 
     if (!job) {
@@ -42,21 +44,31 @@ export async function POST(
       );
     }
 
-    const company = job.companyId as { name?: string; logo?: string } | null;
+    const company = job.companyId as {
+      name?: string;
+      logo?: string;
+      socialMedia?: Record<string, string>;
+    } | null;
     const jobForInstagram = {
       ...job,
       company: company
-        ? { name: company.name, logo: company.logo }
+        ? { name: company.name, logo: company.logo, socialMedia: company.socialMedia }
         : undefined,
     };
 
-    let body: { pos?: string; bg?: string; customTags?: string } = {};
+    const body: {
+      pos?: string;
+      bg?: string;
+      customTags?: string;
+      collaborator?: string;
+    } = {};
     try {
       const raw = await request.json();
       if (raw && typeof raw === 'object') {
         if (typeof raw.pos === 'string') body.pos = raw.pos;
         if (typeof raw.bg === 'string') body.bg = raw.bg;
         if (typeof raw.customTags === 'string') body.customTags = raw.customTags;
+        if (typeof raw.collaborator === 'string') body.collaborator = raw.collaborator;
       }
     } catch {
       // no body or invalid JSON – use defaults
