@@ -144,6 +144,10 @@ interface Job {
   createdAt: string;
   visitCount?: number;
   likeCount?: number;
+  instagramPostId?: string | null;
+  instagramPostedAt?: string | null;
+  instagramPostCount?: number;
+  facebookPostId?: string | null;
 }
 
 interface CV {
@@ -730,7 +734,17 @@ function AdminDashboard() {
       if (data.success && data.postId) {
         setTableData((prev) =>
           prev.map((entry) =>
-            entry.id === jobId ? { ...entry, instagramPostId: data.postId } : entry
+            entry.id === jobId
+              ? {
+                  ...entry,
+                  instagramPostId: data.postId,
+                  instagramPostedAt: data.postedAt ?? new Date().toISOString(),
+                  instagramPostCount:
+                    typeof data.postCount === 'number'
+                      ? data.postCount
+                      : (entry.instagramPostCount ?? 0) + 1,
+                }
+              : entry
           )
         );
         setInstagramModalJobId(null);
@@ -2060,14 +2074,47 @@ function AdminDashboard() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 {entry.instagramPostId ? (
-                                  <a
-                                    href={`https://instagram.com/p/${entry.instagramPostId}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200"
-                                  >
-                                    Posted
-                                  </a>
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2">
+                                      <a
+                                        href={`https://instagram.com/p/${entry.instagramPostId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200"
+                                        title={
+                                          entry.instagramPostedAt
+                                            ? `Last posted ${new Date(entry.instagramPostedAt).toLocaleString()}${
+                                                entry.instagramPostCount && entry.instagramPostCount > 1
+                                                  ? ` (${entry.instagramPostCount} posts)`
+                                                  : ''
+                                              }`
+                                            : 'View latest Instagram post'
+                                        }
+                                      >
+                                        Posted
+                                        {entry.instagramPostCount && entry.instagramPostCount > 1
+                                          ? ` ×${entry.instagramPostCount}`
+                                          : ''}
+                                      </a>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenInstagramModal(entry.id)}
+                                        className="px-3 py-1 rounded-md text-xs font-medium transition-colors bg-indigo-600 text-white hover:bg-indigo-700"
+                                        title={
+                                          entry.instagramPostedAt
+                                            ? `Last: ${new Date(entry.instagramPostedAt).toLocaleDateString()} — create a new Instagram post`
+                                            : 'Create a new Instagram post'
+                                        }
+                                      >
+                                        Post again
+                                      </button>
+                                    </div>
+                                    {entry.instagramPostedAt && (
+                                      <span className="text-xs text-gray-500">
+                                        Last: {new Date(entry.instagramPostedAt).toLocaleDateString()}
+                                      </span>
+                                    )}
+                                  </div>
                                 ) : (
                                   <button
                                     type="button"
@@ -2398,7 +2445,25 @@ function AdminDashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setInstagramModalJobId(null)}>
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Post to Instagram</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                {tableData.find((entry) => entry.id === instagramModalJobId)?.instagramPostId
+                  ? 'Post to Instagram again'
+                  : 'Post to Instagram'}
+              </h3>
+              {(() => {
+                const modalJob = tableData.find((entry) => entry.id === instagramModalJobId);
+                if (!modalJob?.instagramPostedAt) return null;
+                return (
+                  <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    Last posted to Instagram on{' '}
+                    {new Date(modalJob.instagramPostedAt).toLocaleString()}
+                    {modalJob.instagramPostCount && modalJob.instagramPostCount > 1
+                      ? ` (${modalJob.instagramPostCount} posts so far)`
+                      : ''}
+                    . Confirming creates a new post; the previous post stays live on Instagram.
+                  </div>
+                );
+              })()}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Text Position</label>

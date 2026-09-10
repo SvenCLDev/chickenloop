@@ -10,6 +10,7 @@ jest.mock('@/lib/instagram-image', () => ({
 import {
   buildInstagramAltText,
   buildInstagramHashtags,
+  buildInstagramPostHistoryUpdate,
   buildInstagramPreview,
   buildJobCaption,
   instagramHandleFromUrl,
@@ -166,5 +167,70 @@ describe('buildInstagramAltText', () => {
     expect(buildInstagramAltText(kiteJob)).toBe(
       'Kitesurf Instructor at Kite House in Tarifa, Spain. Watersports job vacancy listed on Chickenloop.'
     );
+  });
+});
+
+describe('buildInstagramPostHistoryUpdate', () => {
+  const now = new Date('2026-06-01T12:00:00.000Z');
+
+  it('creates history with a single entry on the first post', () => {
+    const update = buildInstagramPostHistoryUpdate({}, 'post-1', now);
+
+    expect(update.instagramPostId).toBe('post-1');
+    expect(update.instagramPostedAt).toEqual(now);
+    expect(update.history).toEqual([{ postId: 'post-1', postedAt: now }]);
+  });
+
+  it('archives a legacy latest post then appends the new one', () => {
+    const previousAt = new Date('2025-09-01T10:00:00.000Z');
+    const update = buildInstagramPostHistoryUpdate(
+      {
+        instagramPostId: 'post-old',
+        instagramPostedAt: previousAt,
+        instagramPostHistory: [],
+      },
+      'post-new',
+      now
+    );
+
+    expect(update.history).toHaveLength(2);
+    expect(update.history[0]).toEqual({ postId: 'post-old', postedAt: previousAt });
+    expect(update.history[1]).toEqual({ postId: 'post-new', postedAt: now });
+    expect(update.instagramPostId).toBe('post-new');
+    expect(update.instagramPostedAt).toEqual(now);
+  });
+
+  it('does not duplicate when the latest post is already in history', () => {
+    const firstAt = new Date('2025-09-01T10:00:00.000Z');
+    const update = buildInstagramPostHistoryUpdate(
+      {
+        instagramPostId: 'post-1',
+        instagramPostedAt: firstAt,
+        instagramPostHistory: [{ postId: 'post-1', postedAt: firstAt }],
+      },
+      'post-2',
+      now
+    );
+
+    expect(update.history).toEqual([
+      { postId: 'post-1', postedAt: firstAt },
+      { postId: 'post-2', postedAt: now },
+    ]);
+  });
+
+  it('does not append the same new post ID twice', () => {
+    const firstAt = new Date('2025-09-01T10:00:00.000Z');
+    const update = buildInstagramPostHistoryUpdate(
+      {
+        instagramPostId: 'post-1',
+        instagramPostedAt: firstAt,
+        instagramPostHistory: [{ postId: 'post-1', postedAt: firstAt }],
+      },
+      'post-1',
+      now
+    );
+
+    expect(update.history).toHaveLength(1);
+    expect(update.instagramPostId).toBe('post-1');
   });
 });

@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
         createdAt: 1,
         visitCount: 1,
         instagramPostId: 1,
+        instagramPostedAt: 1,
+        instagramPostHistory: 1,
         facebookPostId: 1,
       }
     });
@@ -196,6 +198,12 @@ export async function GET(request: NextRequest) {
       visitCount: job.visitCount ?? 0,
       likeCount: job.likeCount ?? 0,
       instagramPostId: job.instagramPostId ?? null,
+      instagramPostedAt: job.instagramPostedAt ?? null,
+      instagramPostCount: Array.isArray(job.instagramPostHistory) && job.instagramPostHistory.length > 0
+        ? job.instagramPostHistory.length
+        : job.instagramPostId
+          ? 1
+          : 0,
       facebookPostId: job.facebookPostId ?? null,
     }));
 

@@ -94,10 +94,15 @@ export interface IJob extends Document {
 
   legacySlug?: string;
 
-  /** Instagram post ID after publishing job to Instagram */
+  /** Latest Instagram media ID after publishing (or re-publishing) this job */
   instagramPostId?: string | null;
-  /** When the job was posted to Instagram */
+  /** When the latest Instagram post was published */
   instagramPostedAt?: Date | null;
+  /** Append-only history of all Instagram posts for this job (includes latest) */
+  instagramPostHistory?: Array<{
+    postId: string;
+    postedAt: Date;
+  }>;
 
   /** Facebook post ID after publishing job to Facebook Page */
   facebookPostId?: string | null;
@@ -269,6 +274,16 @@ const JobSchema: Schema = new Schema(
     instagramPostedAt: {
       type: Date,
       default: null,
+    },
+    instagramPostHistory: {
+      type: [
+        {
+          postId: { type: String, required: true },
+          postedAt: { type: Date, required: true },
+          _id: false,
+        },
+      ],
+      default: [],
     },
 
     facebookPostId: {

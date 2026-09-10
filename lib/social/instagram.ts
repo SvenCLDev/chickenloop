@@ -419,10 +419,74 @@ async function createMediaContainer(
   return { ok: res.ok, status: res.status, data };
 }
 
+export interface InstagramPostHistoryEntry {
+  postId: string;
+  postedAt: Date;
+}
+
+export interface InstagramPostHistoryUpdate {
+  history: InstagramPostHistoryEntry[];
+  instagramPostId: string;
+  instagramPostedAt: Date;
+}
+
+/**
+ * Build the next Instagram post history + latest fields after a successful publish.
+ * Archives a legacy latest post into history when it is missing from the array,
+ * then appends the new post without duplicating IDs.
+ */
+export function buildInstagramPostHistoryUpdate(
+  existing: {
+    instagramPostId?: string | null;
+    instagramPostedAt?: Date | string | null;
+    instagramPostHistory?: Array<{ postId: string; postedAt: Date | string }>;
+  },
+  newPostId: string,
+  now: Date = new Date()
+): InstagramPostHistoryUpdate {
+  const history: InstagramPostHistoryEntry[] = (existing.instagramPostHistory ?? []).map((entry) => ({
+    postId: String(entry.postId),
+    postedAt:
+      entry.postedAt instanceof Date ? entry.postedAt : new Date(entry.postedAt),
+  }));
+
+  const seen = new Set(history.map((entry) => entry.postId));
+
+  if (existing.instagramPostId && !seen.has(existing.instagramPostId)) {
+    const archivedAt =
+      existing.instagramPostedAt != null
+        ? existing.instagramPostedAt instanceof Date
+          ? existing.instagramPostedAt
+          : new Date(existing.instagramPostedAt)
+        : now;
+    history.push({
+      postId: existing.instagramPostId,
+      postedAt: archivedAt,
+    });
+    seen.add(existing.instagramPostId);
+  }
+
+  if (!seen.has(newPostId)) {
+    history.push({ postId: newPostId, postedAt: now });
+  }
+
+  return {
+    history,
+    instagramPostId: newPostId,
+    instagramPostedAt: now,
+  };
+}
+
+export interface PostJobToInstagramResult {
+  postId: string;
+  postedAt: Date;
+  postCount: number;
+}
+
 export async function postJobToInstagram(
   job: any,
   options?: { pos?: string; bg?: string; customTags?: string; collaborator?: string | null }
-): Promise<string> {
+): Promise<PostJobToInstagramResult> {
   if (!process.env.INSTAGRAM_USER_ID || !process.env.META_ACCESS_TOKEN) {
     throw new Error('Missing Instagram environment variables.');
   }
@@ -437,10 +501,6 @@ export async function postJobToInstagram(
     throw new Error(
       'Job must have an image: set job.pictures[0] or job.company.logo'
     );
-  }
-
-  if (job.instagramPostId) {
-    throw new Error('Job already posted to Instagram.');
   }
 
   const jobIdStr = typeof jobId === 'string' ? jobId : String(jobId);
@@ -596,11 +656,22 @@ export async function postJobToInstagram(
     );
   }
 
-  const postId = publishData?.id;
-  if (postId == null) {
+  if (publishData?.id == null) {
     console.error('Instagram publish: no id in response:', publishData);
     throw new Error('Instagram publish did not return a media id');
   }
+
+  const postId = String(publishData.id);
+  const postedAt = new Date();
+  const historyUpdate = buildInstagramPostHistoryUpdate(
+    {
+      instagramPostId: job.instagramPostId,
+      instagramPostedAt: job.instagramPostedAt,
+      instagramPostHistory: job.instagramPostHistory,
+    },
+    postId,
+    postedAt
+  );
 
   await connectDB();
   // Use native driver so updatedAt is not changed (listing order must not be affected by Instagram post)
@@ -612,8 +683,9 @@ export async function postJobToInstagram(
     { _id: new mongoose.Types.ObjectId(jobId) },
     {
       $set: {
-        instagramPostId: postId,
-        instagramPostedAt: new Date(),
+        instagramPostId: historyUpdate.instagramPostId,
+        instagramPostedAt: historyUpdate.instagramPostedAt,
+        instagramPostHistory: historyUpdate.history,
       },
     }
   );
@@ -622,5 +694,9 @@ export async function postJobToInstagram(
     throw new Error('Failed to save Instagram post ID to job.');
   }
 
-  return postId;
+  return {
+    postId: historyUpdate.instagramPostId,
+    postedAt: historyUpdate.instagramPostedAt,
+    postCount: historyUpdate.history.length,
+  };
 }

@@ -6,11 +6,12 @@ import { postJobToInstagram } from '@/lib/social/instagram';
 
 /**
  * POST /api/admin/instagram-post/[jobId]
- * Post a job to Instagram (admin only).
+ * Post a job to Instagram (admin only). Re-posts are allowed; prior posts are kept in
+ * instagramPostHistory and instagramPostId always points at the latest media.
  * Body (optional): { pos?: string; bg?: string; customTags?: string; collaborator?: string }
  * — layout options, extra hashtags/mentions, and an Instagram handle to collab-tag
  * (defaults to the company's own Instagram profile when not provided).
- * Returns { success, postId, jobId } on success.
+ * Returns { success, postId, postedAt, postCount, jobId } on success.
  */
 export async function POST(
   request: NextRequest,
@@ -35,13 +36,6 @@ export async function POST(
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
-    }
-
-    if (job.instagramPostId) {
-      return NextResponse.json(
-        { error: 'Job already posted to Instagram.' },
-        { status: 400 }
-      );
     }
 
     const company = job.companyId as {
@@ -74,12 +68,14 @@ export async function POST(
       // no body or invalid JSON – use defaults
     }
 
-    const postId = await postJobToInstagram(jobForInstagram, body);
+    const result = await postJobToInstagram(jobForInstagram, body);
 
     return NextResponse.json(
       {
         success: true,
-        postId,
+        postId: result.postId,
+        postedAt: result.postedAt,
+        postCount: result.postCount,
         jobId,
       },
       { status: 200 }
@@ -98,12 +94,6 @@ export async function POST(
     }
     if (message === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    if (message === 'Job already posted to Instagram.') {
-      return NextResponse.json(
-        { error: message },
-        { status: 400 }
-      );
     }
     if (
       message === 'Job must have an image: set job.pictures[0] or job.company.logo'
