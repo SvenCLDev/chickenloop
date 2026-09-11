@@ -10,6 +10,7 @@ import { sanitizeFileForUpload } from '@/lib/sanitizeFilenameForUpload';
 import {
   JOB_PHOTO_UPLOAD_TOO_LARGE_MESSAGE,
   looksLikePayloadTooLargeError,
+  sanitizeJobDescriptionForSubmit,
   validateJobPhotoFilesForUpload,
 } from '@/lib/jobPostPayload';
 import { OFFICIAL_LANGUAGES } from '@/lib/languages';
@@ -21,6 +22,7 @@ import {
 import { SPORTS_LIST } from '@/lib/sports';
 import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import UrlInput from '../../../../components/form/UrlInput';
+import JobDescriptionEditor from '../../../../components/form/JobDescriptionEditor';
 import Link from 'next/link';
 
 export default function AdminEditJobPage() {
@@ -251,9 +253,16 @@ export default function AdminEditJobPage() {
       // Update job with picture paths
       const normalizedCountry = normalizeCountryForStorage(formData.country);
 
+      const { description: cleanDescription, strippedImageCount } =
+        sanitizeJobDescriptionForSubmit(formData.description);
+      if (strippedImageCount > 0) {
+        setFormData((prev) => ({ ...prev, description: cleanDescription }));
+      }
+
       const { company: _company, ...updatePayload } = formData;
       await adminApi.updateJob(jobId, {
         ...updatePayload,
+        description: cleanDescription,
         country: normalizedCountry,
         sports: formData.sports,
         pictures: allPicturePaths,
@@ -405,16 +414,12 @@ export default function AdminEditJobPage() {
               />
             </div>
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                Description *
-              </label>
-              <textarea
+              <JobDescriptionEditor
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(html) => setFormData({ ...formData, description: html })}
                 required
-                rows={8}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                className="mt-1"
               />
             </div>
 
