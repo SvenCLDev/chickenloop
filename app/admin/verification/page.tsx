@@ -152,19 +152,23 @@ export default function AdminVerificationPage() {
                       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                         <div>
                           <dt className="font-medium text-gray-700">Issuing body</dt>
-                          <dd>{bodyLabel}</dd>
+                          <dd className="text-gray-900">{bodyLabel}</dd>
                         </div>
                         <div>
                           <dt className="font-medium text-gray-700">Level</dt>
-                          <dd>{item.certificate.certificateLevel}</dd>
+                          <dd className="text-gray-900">{item.certificate.certificateLevel}</dd>
                         </div>
                         <div>
                           <dt className="font-medium text-gray-700">Disciplines</dt>
-                          <dd>{(item.certificate.disciplines ?? []).join(', ') || '—'}</dd>
+                          <dd className="text-gray-900">
+                            {(item.certificate.disciplines ?? []).join(', ') || '—'}
+                          </dd>
                         </div>
                         <div>
                           <dt className="font-medium text-gray-700">License / Member ID</dt>
-                          <dd>{item.certificate.licenseMemberId || '—'}</dd>
+                          <dd className="text-gray-900">
+                            {item.certificate.licenseMemberId || '—'}
+                          </dd>
                         </div>
                       </dl>
                       <div className="mt-4 flex flex-wrap gap-3">
