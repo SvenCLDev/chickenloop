@@ -532,6 +532,13 @@ export const adminApi = {
     return apiRequest(`/admin/equipment-waitlist${queryString ? `?${queryString}` : ''}`);
   },
   getSurveyStats: () => apiRequest('/admin/surveys'),
+  getTalentUsageStats: (params?: { days?: 7 | 30 | 90; includeAdmin?: boolean }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.days) queryParams.set('days', String(params.days));
+    if (params?.includeAdmin) queryParams.set('includeAdmin', '1');
+    const queryString = queryParams.toString();
+    return apiRequest(`/admin/talent-usage${queryString ? `?${queryString}` : ''}`);
+  },
 };
 
 export const careerAdviceApi = {

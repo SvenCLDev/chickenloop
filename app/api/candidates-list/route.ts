@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth';
 import { loadCVs } from '@/lib/loadCVs';
 import { parseCandidateSearchParams } from '@/lib/candidateSearchParams';
+import {
+  listEventForPage,
+  logTalentSearchEvent,
+} from '@/lib/talentSearchAnalytics';
 
 // GET - Get all CVs (recruiters and admins only)
 export async function GET(request: NextRequest) {
@@ -30,6 +34,15 @@ export async function GET(request: NextRequest) {
     const result = await loadCVs({ searchParams });
     const queryTime = Date.now() - startTime;
     console.log(`API: /api/candidates-list - Found ${result.cvs.length} CVs (page ${result.pagination.page}, total ${result.pagination.total}) in ${queryTime}ms`);
+
+    // Fire-and-forget product analytics; never block or fail the search response.
+    void logTalentSearchEvent({
+      event: listEventForPage(result.pagination.page),
+      recruiterId: user.userId,
+      role: user.role,
+      filters,
+      resultCount: result.pagination.total,
+    });
 
     return NextResponse.json({
       cvs: result.cvs,
@@ -60,4 +73,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

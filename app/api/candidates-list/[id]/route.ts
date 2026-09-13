@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import CV from '@/models/CV';
 import { requireRole } from '@/lib/auth';
+import { logTalentSearchEvent } from '@/lib/talentSearchAnalytics';
 
 // GET - Get a single CV (recruiters and admins only)
 export async function GET(
@@ -18,6 +19,13 @@ export async function GET(
     if (!cv) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
+
+    void logTalentSearchEvent({
+      event: 'talent_profile_view',
+      recruiterId: user.userId,
+      role: user.role,
+      candidateId: String(cv._id),
+    });
 
     return NextResponse.json({ cv }, { status: 200 });
   } catch (error: unknown) {
@@ -43,4 +51,3 @@ export async function GET(
     );
   }
 }
-

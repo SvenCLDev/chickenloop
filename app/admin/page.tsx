@@ -1143,6 +1143,24 @@ function AdminDashboard() {
                 </div>
               </div>
             </Link>
+
+            {/* Talent search usage */}
+            <Link
+              href="/admin/talent-usage"
+              className="bg-white rounded-lg shadow-md p-6 border-l-4 border-indigo-500 text-left transition-all hover:shadow-lg cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Talent Usage</p>
+                  <p className="text-lg font-semibold text-gray-900 mt-2">Search intensity</p>
+                </div>
+                <div className="bg-indigo-100 rounded-full p-3">
+                  <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+            </Link>
           </div>
         )}
 
