@@ -33,6 +33,7 @@ export type SplitBand = (typeof SPLIT_BANDS)[number];
 export const IMAGE_MODES = [
   'picture0',
   'picture1',
+  'picture2',
   'picture0_blur',
   'gradient',
 ] as const;
@@ -137,8 +138,10 @@ export function defaultImageModeForSlide(
     if (pics[0]) return 'picture0_blur';
     return 'gradient';
   }
-  // CTA slide: prefer gradient/brand feel; still allow photo if present
-  return pics[0] ? 'picture0' : 'gradient';
+  // CTA slide: prefer a distinct 3rd photo when available
+  if (pics[2]) return 'picture2';
+  if (pics[0]) return 'picture0';
+  return 'gradient';
 }
 
 export function buildDefaultCarouselConfig(

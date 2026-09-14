@@ -385,9 +385,11 @@ export default function InstagramPostModal({
                               ? 'Photo 1'
                               : m === 'picture1'
                                 ? 'Photo 2'
-                                : m === 'picture0_blur'
-                                  ? 'Photo 1 (blurred)'
-                                  : 'Gradient'}
+                                : m === 'picture2'
+                                  ? 'Photo 3'
+                                  : m === 'picture0_blur'
+                                    ? 'Photo 1 (blurred)'
+                                    : 'Gradient'}
                           </option>
                         ))}
                       </select>

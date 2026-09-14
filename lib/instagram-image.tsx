@@ -348,6 +348,7 @@ async function resolveSlideImageSrc(
     : [];
 
   if (imageMode === 'gradient') return null;
+  if (imageMode === 'picture2') return pics[2] ?? pics[1] ?? pics[0] ?? null;
   if (imageMode === 'picture1') return pics[1] ?? pics[0] ?? null;
   if (imageMode === 'picture0') return pics[0] ?? null;
 
@@ -636,12 +637,16 @@ function buildSplitSlide(
   const bandTop = config.splitBand === 'top';
   const solid = SOLID_BG[bg];
 
+  // Satori/ImageResponse does not reliably render React Fragments as flex children —
+  // the second sibling was ending up pure black (confirmed via pixel samples).
+  // Keep both bands as direct children of the column flex container.
   const imageBlock = (
     <div
       style={{
         display: 'flex',
         width: '100%',
         height: SPLIT_IMAGE_HEIGHT,
+        flexShrink: 0,
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -670,6 +675,7 @@ function buildSplitSlide(
         display: 'flex',
         width: '100%',
         height: SPLIT_TEXT_HEIGHT,
+        flexShrink: 0,
         background: solid,
         padding: 56,
         color: 'white',
@@ -691,17 +697,8 @@ function buildSplitSlide(
         overflow: 'hidden',
       }}
     >
-      {bandTop ? (
-        <>
-          {textBlock}
-          {imageBlock}
-        </>
-      ) : (
-        <>
-          {imageBlock}
-          {textBlock}
-        </>
-      )}
+      {bandTop ? textBlock : imageBlock}
+      {bandTop ? imageBlock : textBlock}
     </div>
   );
 }

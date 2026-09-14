@@ -15,6 +15,15 @@ const twoPicJob = {
   pictures: ['https://cdn.example.com/a.jpg', 'https://cdn.example.com/b.jpg'],
 };
 
+const threePicJob = {
+  ...twoPicJob,
+  pictures: [
+    'https://cdn.example.com/a.jpg',
+    'https://cdn.example.com/b.jpg',
+    'https://cdn.example.com/c.jpg',
+  ],
+};
+
 const onePicJob = {
   title: 'Surf Coach',
   city: 'Hossegor',
@@ -28,6 +37,12 @@ describe('defaultImageModeForSlide', () => {
     expect(defaultImageModeForSlide(0, twoPicJob)).toBe('picture0');
     expect(defaultImageModeForSlide(1, twoPicJob)).toBe('picture1');
     expect(defaultImageModeForSlide(2, twoPicJob)).toBe('picture0');
+  });
+
+  it('uses photo0 / photo1 / photo2 for a three-picture job', () => {
+    expect(defaultImageModeForSlide(0, threePicJob)).toBe('picture0');
+    expect(defaultImageModeForSlide(1, threePicJob)).toBe('picture1');
+    expect(defaultImageModeForSlide(2, threePicJob)).toBe('picture2');
   });
 
   it('blurs photo0 on slide 2 when only one picture exists', () => {
