@@ -170,7 +170,11 @@ export async function GET(request: NextRequest) {
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://chickenloop.com');
         const { generateJobUrlPath } = await import('@/lib/jobSlug');
         const jobsForEmail = matches.map((match) => {
-          const canonicalPath = generateJobUrlPath(match.job.title, match.job.country);
+          const canonicalPath = generateJobUrlPath(
+            match.job.title,
+            match.job.country,
+            String(match.job._id)
+          );
           return {
             _id: String(match.job._id),
             title: match.job.title,

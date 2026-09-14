@@ -139,6 +139,7 @@ export async function PUT(
     }
 
     const previousJobForRevalidate = {
+      _id: String(job._id),
       title: job.title,
       country: job.country ?? null,
     };
@@ -409,7 +410,11 @@ export async function PUT(
       try {
         const recruiterForEmail = await User.findById(job.recruiter).select('name email').lean();
         if (recruiterForEmail?.email) {
-          const { jobUrl, dashboardUrl } = buildJobPostedConfirmationUrls(job.title, job.country);
+          const { jobUrl, dashboardUrl } = buildJobPostedConfirmationUrls(
+            job.title,
+            job.country,
+            String(job._id)
+          );
           const result = await sendJobPostedConfirmation({
             recruiterEmail: recruiterForEmail.email,
             recruiterName: recruiterForEmail.name ?? undefined,
@@ -505,7 +510,7 @@ export async function PUT(
     } : updatedJob;
 
     revalidateJobPages(
-      { title: job.title, country: job.country ?? null },
+      { _id: String(job._id), title: job.title, country: job.country ?? null },
       previousJobForRevalidate
     );
 

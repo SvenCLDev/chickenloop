@@ -149,7 +149,11 @@ export async function POST(request: NextRequest) {
       boostDurationDays,
     });
 
-    revalidateJobPages({ title: job.title, country: job.country ?? null });
+    revalidateJobPages({
+      _id: String(job._id),
+      title: job.title,
+      country: job.country ?? null,
+    });
 
     await acknowledgeEvent(event.id);
     return NextResponse.json({ received: true }, { status: 200 });

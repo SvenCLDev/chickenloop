@@ -4,10 +4,16 @@ import { generateJobUrlPath } from '@/lib/jobSlug';
 export type JobPageRevalidateTarget = {
   title: string;
   country?: string | null;
+  _id?: string | { toString(): string } | null | unknown;
+  id?: string | { toString(): string } | null | unknown;
 };
 
 function jobDetailPath(job: JobPageRevalidateTarget): string {
-  return generateJobUrlPath(job.title, job.country);
+  const jobId = job._id ?? job.id;
+  if (jobId == null || jobId === '') {
+    throw new Error('Job id is required to revalidate a job detail path');
+  }
+  return generateJobUrlPath(job.title, job.country, jobId);
 }
 
 /**

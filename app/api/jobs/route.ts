@@ -1047,6 +1047,7 @@ export async function POST(request: NextRequest) {
     try {
       if (isPublished) {
         const fbResult = await postJobToFacebook({
+          _id: String(job._id),
           title: job.title,
           city: job.city,
           country: job.country,
@@ -1071,7 +1072,11 @@ export async function POST(request: NextRequest) {
       try {
         const recruiterForEmail = await User.findById(targetRecruiterId).select('name email').lean();
         if (recruiterForEmail?.email) {
-          const { jobUrl, dashboardUrl } = buildJobPostedConfirmationUrls(job.title, job.country);
+          const { jobUrl, dashboardUrl } = buildJobPostedConfirmationUrls(
+            job.title,
+            job.country,
+            String(job._id)
+          );
           if (createdByAdmin) {
             const companyDoc = await Company.findById(companyId).select('name').lean();
             const companyName =
@@ -1119,7 +1124,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    revalidateJobPages({ title: job.title, country: job.country });
+    revalidateJobPages({ _id: String(job._id), title: job.title, country: job.country });
 
     return NextResponse.json(
       { message: 'Job created successfully', job: populatedJob },

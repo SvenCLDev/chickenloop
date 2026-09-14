@@ -51,10 +51,11 @@ export async function sendJobPostedConfirmation({
 /** Build canonical live job URL and recruiter dashboard URL for confirmation emails. */
 export function buildJobPostedConfirmationUrls(
   jobTitle: string,
-  country?: string | null
+  country: string | null | undefined,
+  jobId: string | { toString(): string } | unknown
 ): { jobUrl: string; dashboardUrl: string } {
   const baseUrl = getSiteBaseUrl();
-  const jobPath = generateJobUrlPath(jobTitle, country);
+  const jobPath = generateJobUrlPath(jobTitle, country, jobId);
   return {
     jobUrl: `${baseUrl}${jobPath}`,
     dashboardUrl: `${baseUrl}/recruiter`,

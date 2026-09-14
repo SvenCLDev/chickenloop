@@ -78,6 +78,7 @@ export async function PUT(
     }
 
     const previousJobForRevalidate = {
+      _id: String(job._id),
       title: job.title,
       country: job.country ?? null,
     };
@@ -333,7 +334,7 @@ export async function PUT(
       .populate('companyId', 'name email website');
 
     revalidateJobPages(
-      { title: job.title, country: job.country ?? null },
+      { _id: String(job._id), title: job.title, country: job.country ?? null },
       previousJobForRevalidate
     );
 

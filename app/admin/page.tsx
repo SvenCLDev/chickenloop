@@ -2034,6 +2034,7 @@ function AdminDashboard() {
                               <td className="px-6 py-4 text-sm font-medium text-gray-900" style={{ maxWidth: '400px' }}>
                                 <Link
                                   href={getJobUrl({
+                                    _id: entry.id,
                                     title: entry.title,
                                     country: entry.country,
                                   })}
@@ -2275,10 +2276,15 @@ function AdminDashboard() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 {entry.jobTitle && entry.jobTitle !== 'No job linked' ? (
                                   <Link
-                                    href={getJobUrl({
-                                      title: entry.jobTitle,
-                                      country: entry.jobCountry,
-                                    })}
+                                    href={
+                                      entry.jobId
+                                        ? getJobUrl({
+                                            _id: entry.jobId,
+                                            title: entry.jobTitle,
+                                            country: entry.jobCountry,
+                                          })
+                                        : '#'
+                                    }
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-blue-600 hover:text-blue-800 hover:underline"

@@ -7,7 +7,7 @@ import ShareJobButton from '../../../components/ShareJobButton';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { buildJobJsonLd } from '@/lib/seo/jobJsonLd';
 import { getCompanyUrl } from '@/lib/companySlug';
-import { generateJobSlug, generateCountrySlug, generateJobUrlPath, getCountryValuesForSlug } from '@/lib/jobSlug';
+import { generateJobSlug, generateCountrySlug, generateJobUrlPath, getCountryValuesForSlug, parseJobSlug, jobIdSlugSuffix, getJobUrl, pickOldestJobMatch } from '@/lib/jobSlug';
 import { stripHtmlToText } from '@/lib/sanitizeText';
 import Link from 'next/link';
 import connectDB from '@/lib/db';
@@ -156,7 +156,8 @@ async function getUserFromCookies(): Promise<{ userId: string; role: string } | 
 }
 
 /**
- * Resolve job from slug: canonical match first, then legacySlug fallback with redirect.
+ * Resolve job from slug: unique id-suffix URL first, then title-only 308 redirect,
+ * then legacySlug fallback with redirect to the unique URL.
  * Returns { jobId } | { redirect: path } | null.
  */
 type ResolveSlugOptions = { includeUnpublished?: boolean };
@@ -168,7 +169,6 @@ async function resolveJobFromSlug(
 ): Promise<{ jobId: string } | { redirect: string } | null> {
   await connectDB();
 
-  // 1. Canonical slug: filter by country, then match title slug
   const countryValues = getCountryValuesForSlug(countrySlug);
   const countryFilter =
     countryValues.length > 0
@@ -176,24 +176,45 @@ async function resolveJobFromSlug(
       : { country: { $in: [] } };
 
   const publishedFilter = options?.includeUnpublished ? {} : { published: { $ne: false } };
+  const { baseSlug, idSuffix } = parseJobSlug(slug);
 
-  const canonicalCandidates = await Job.find({
+  const candidates = await Job.find({
     ...publishedFilter,
     ...countryFilter,
   })
-    .select('_id title country')
+    .select('_id title country createdAt')
     .lean();
 
-  for (const job of canonicalCandidates) {
-    if (
-      generateJobSlug(job.title) === slug &&
-      generateCountrySlug(job.country) === countrySlug
-    ) {
-      return { jobId: String(job._id) };
+  const inCountry = (job: { country?: string | null }) =>
+    generateCountrySlug(job.country) === countrySlug;
+
+  // 1. Unique URL: `{titleSlug}-{8hex}`
+  if (idSuffix) {
+    const match = candidates.find((job) => {
+      if (!inCountry(job)) return false;
+      if (jobIdSlugSuffix(job._id) !== idSuffix) return false;
+      const titleBase = generateJobSlug(job.title) || 'job';
+      return baseSlug === titleBase;
+    });
+    if (match) {
+      return { jobId: String(match._id) };
+    }
+    // Wrong/unknown suffix — do not fall back to a different job with the same title
+  } else {
+    // 2. Legacy title-only URL → 308 to oldest matching job's unique URL
+    const titleMatches = candidates.filter(
+      (job) => inCountry(job) && generateJobSlug(job.title) === slug
+    );
+    const oldest = pickOldestJobMatch(titleMatches);
+
+    if (oldest) {
+      return {
+        redirect: generateJobUrlPath(oldest.title, oldest.country, oldest._id),
+      };
     }
   }
 
-  // 2. Legacy slug fallback: indexed query by legacySlug (no country filter)
+  // 3. Legacy Drupal slug fallback
   const legacyQuery: Record<string, unknown> = { legacySlug: slug };
   if (!options?.includeUnpublished) {
     legacyQuery.published = { $ne: false };
@@ -203,9 +224,9 @@ async function resolveJobFromSlug(
     .lean();
 
   if (legacyJob) {
-    const correctCountrySlug = generateCountrySlug(legacyJob.country);
-    const correctSlug = generateJobSlug(legacyJob.title);
-    return { redirect: `/job/${correctCountrySlug}/${correctSlug}` };
+    return {
+      redirect: generateJobUrlPath(legacyJob.title, legacyJob.country, legacyJob._id),
+    };
   }
 
   return null;
@@ -640,7 +661,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         ? String((job.companyId as { name?: string }).name ?? '')
         : '';
 
-    const canonicalPath = generateJobUrlPath(job.title, job.country);
+    const canonicalPath = getJobUrl({
+      _id: job._id,
+      title: job.title,
+      country: job.country,
+    });
     const canonicalUrl = `${siteOrigin.replace(/\/$/, '')}${canonicalPath}`;
 
     const rawPictures = Array.isArray((job as { pictures?: string[] }).pictures)
@@ -731,9 +756,9 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
   }
   
   // Verify the slug matches the canonical slug (redirect if not)
-  const canonicalJobSlug = generateJobSlug(job.title);
+  const canonicalPath = getJobUrl(job);
+  const canonicalJobSlug = canonicalPath.split('/').pop() || '';
   const canonicalCountrySlug = generateCountrySlug(job.country);
-  const canonicalPath = generateJobUrlPath(job.title, job.country);
   
   // If the slug or country doesn't match, redirect to canonical URL
   if (slug !== canonicalJobSlug || countrySlug !== canonicalCountrySlug) {

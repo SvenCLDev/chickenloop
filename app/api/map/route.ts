@@ -54,7 +54,7 @@ export async function GET() {
         if (!centroid) continue;
         [lat, lng] = centroid;
       }
-      const href = getJobUrl({ title: job.title, country: job.country });
+      const href = getJobUrl({ _id: job._id, title: job.title, country: job.country });
       const subtitle = [job.city, job.country].filter(Boolean).join(', ') || undefined;
       jobPoints.push({
         id: String(job._id),

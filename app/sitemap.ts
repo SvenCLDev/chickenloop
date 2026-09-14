@@ -3,7 +3,7 @@ import connectDB from '@/lib/db';
 import Company from '@/models/Company';
 import Job from '@/models/Job';
 import { getCompanyUrl } from '@/lib/companySlug';
-import { generateJobSlug, generateCountrySlug } from '@/lib/jobSlug';
+import { buildJobPathSlug, generateCountrySlug } from '@/lib/jobSlug';
 import { getAllInsightSlugs } from '@/lib/insightsConfig';
 import { getPublishedCareerAdviceArticles } from '@/lib/careerAdviceServer';
 import { getSiteUrl } from '@/lib/siteUrl';
@@ -45,7 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const jobUrls: MetadataRoute.Sitemap = (jobs || []).map((j) => {
       const countrySlug = generateCountrySlug(j.country || '');
-      const jobSlug = generateJobSlug(j.title || 'job');
+      const jobSlug = buildJobPathSlug(j.title || 'job', j._id);
       return {
         url: `${baseUrl}/job/${countrySlug}/${jobSlug}`,
         lastModified: j.updatedAt ? new Date(j.updatedAt) : new Date(),

@@ -32,6 +32,8 @@ function getCompanyName(job: { company?: string | { name?: string } }): string {
 }
 
 export interface FacebookJobInput {
+  _id?: string | { toString(): string };
+  id?: string | { toString(): string };
   title: string;
   city: string;
   country?: string | null;
@@ -48,7 +50,12 @@ export async function postJobToFacebook(job: FacebookJobInput) {
     throw new Error('FACEBOOK_PAGE_ID and FACEBOOK_PAGE_ACCESS_TOKEN must be set');
   }
 
-  const jobPath = getJobUrl({ title: job.title, country: job.country });
+  const jobId = job._id ?? job.id;
+  if (jobId == null || jobId === '') {
+    throw new Error('Job id is required to post to Facebook');
+  }
+
+  const jobPath = getJobUrl({ _id: jobId, title: job.title, country: job.country });
   const jobUrl = `${siteUrl}${jobPath}`;
 
   const countryDisplay = job.country ? getCountryNameFromCode(job.country) || job.country : '';

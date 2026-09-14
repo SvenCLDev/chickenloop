@@ -63,7 +63,11 @@ export async function POST(
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
-    revalidateJobPages({ title: refreshed.title, country: refreshed.country ?? null });
+    revalidateJobPages({
+      _id: String(refreshed._id),
+      title: refreshed.title,
+      country: refreshed.country ?? null,
+    });
 
     return NextResponse.json(
       {

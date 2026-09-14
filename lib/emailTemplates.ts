@@ -272,7 +272,7 @@ export function getJobAlertEmail(data: JobAlertEmailData): { subject: string; ht
 
   const jobsHtml = jobs.map((job) => {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://chickenloop.com');
-    const canonicalPath = generateJobUrlPath(job.title, job.country);
+    const canonicalPath = generateJobUrlPath(job.title, job.country, job._id);
     const jobUrl = job.url || `${baseUrl}${canonicalPath}`;
     const dateStr = new Date(job.createdAt).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -339,7 +339,7 @@ We found ${jobCount} new ${jobCount === 1 ? 'job' : 'jobs'} that match your save
 
 ${jobs.length > 0 ? jobs.map((job) => {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://chickenloop.com');
-    const canonicalPath = generateJobUrlPath(job.title, job.country);
+    const canonicalPath = generateJobUrlPath(job.title, job.country, job._id);
     const jobUrl = job.url || `${baseUrl}${canonicalPath}`;
     const dateStr = new Date(job.createdAt).toLocaleDateString('en-US', {
       year: 'numeric',

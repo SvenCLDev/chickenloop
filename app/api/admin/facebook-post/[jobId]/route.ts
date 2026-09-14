@@ -45,6 +45,7 @@ export async function POST(
     const companyName = (company?.name as string | undefined) || '';
 
     const jobForFacebook = {
+      _id: String(job._id),
       title: job.title,
       city: job.city ?? '',
       country: job.country ?? null,

@@ -5,6 +5,7 @@ import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 
 interface JobForRedirect {
+  _id: string;
   title: string;
   country?: string | null;
 }
@@ -33,6 +34,7 @@ async function getJob(id: string): Promise<JobForRedirect | null> {
       : job.country;
     
     return {
+      _id: String(job._id),
       title: job.title,
       country: countryValue,
     };
@@ -55,7 +57,7 @@ export default async function JobDetailPage({ params }: PageProps) {
   }
 
   // Generate canonical URL path
-  const canonicalPath = generateJobUrlPath(job.title, job.country);
+  const canonicalPath = generateJobUrlPath(job.title, job.country, job._id);
   
   // Get query parameters from request headers if available
   const headersList = await headers();
