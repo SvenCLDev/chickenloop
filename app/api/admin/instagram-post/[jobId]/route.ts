@@ -3,14 +3,20 @@ import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import { requireRole } from '@/lib/auth';
 import { postJobToInstagram } from '@/lib/social/instagram';
+import {
+  normalizeCarouselSlides,
+  type CarouselSlideConfig,
+} from '@/lib/instagramSlideConfig';
 
 /**
  * POST /api/admin/instagram-post/[jobId]
  * Post a job to Instagram (admin only). Re-posts are allowed; prior posts are kept in
  * instagramPostHistory and instagramPostId always points at the latest media.
- * Body (optional): { pos?: string; bg?: string; customTags?: string; collaborator?: string }
- * — layout options, extra hashtags/mentions, and an Instagram handle to collab-tag
- * (defaults to the company's own Instagram profile when not provided).
+ * Body (optional): {
+ *   mode?: 'carousel' | 'single';
+ *   slides?: CarouselSlideConfig[];
+ *   pos?; bg?; customTags?; collaborator?
+ * }
  * Returns { success, postId, postedAt, postCount, jobId } on success.
  */
 export async function POST(
@@ -51,6 +57,8 @@ export async function POST(
     };
 
     const body: {
+      mode?: 'carousel' | 'single';
+      slides?: CarouselSlideConfig[];
       pos?: string;
       bg?: string;
       customTags?: string;
@@ -59,6 +67,10 @@ export async function POST(
     try {
       const raw = await request.json();
       if (raw && typeof raw === 'object') {
+        if (raw.mode === 'carousel' || raw.mode === 'single') body.mode = raw.mode;
+        if (Array.isArray(raw.slides)) {
+          body.slides = normalizeCarouselSlides(raw.slides, jobForInstagram);
+        }
         if (typeof raw.pos === 'string') body.pos = raw.pos;
         if (typeof raw.bg === 'string') body.bg = raw.bg;
         if (typeof raw.customTags === 'string') body.customTags = raw.customTags;
@@ -66,6 +78,13 @@ export async function POST(
       }
     } catch {
       // no body or invalid JSON – use defaults
+    }
+
+    if (body.mode !== 'single' && body.slides && (body.slides.length < 2 || body.slides.length > 10)) {
+      return NextResponse.json(
+        { error: 'Carousel posts require between 2 and 10 slides.' },
+        { status: 400 }
+      );
     }
 
     const result = await postJobToInstagram(jobForInstagram, body);

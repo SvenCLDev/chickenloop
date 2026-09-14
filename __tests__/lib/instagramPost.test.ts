@@ -5,6 +5,7 @@ jest.mock('@/lib/db', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('@/models/Job', () => ({ __esModule: true, default: {} }));
 jest.mock('@/lib/instagram-image', () => ({
   generateInstagramImageBuffer: jest.fn(),
+  generateInstagramSlideBuffer: jest.fn(),
 }));
 
 import {

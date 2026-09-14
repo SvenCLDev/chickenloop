@@ -3,11 +3,12 @@ import connectDB from '@/lib/db';
 import Job from '@/models/Job';
 import { generateJobSlug } from '@/lib/jobSlug';
 import { buildInstagramPreview } from '@/lib/social/instagram';
+import { buildDefaultCarouselConfig } from '@/lib/instagramSlideConfig';
 
 /**
  * GET /api/instagram-preview/[jobId]
  * Returns preview data for posting the job to Instagram (caption, hashtags, image URL,
- * and the company Instagram handle that will be collab-tagged).
+ * company Instagram handle, and default carousel slide config).
  * Does not call the Instagram API.
  */
 export async function GET(
@@ -45,6 +46,11 @@ export async function GET(
       city: job.city,
       country: job.country,
       pictures: job.pictures,
+      description: job.description,
+      type: (job as { type?: string }).type,
+      experience: (job as { experience?: string }).experience,
+      experienceLevel: (job as { experienceLevel?: string | string[] }).experienceLevel,
+      qualifications: (job as { qualifications?: string[] }).qualifications,
       slug: generateJobSlug(job.title ?? ''),
       company: companyId
         ? {
@@ -58,12 +64,7 @@ export async function GET(
     const { imageUrl, caption, hashtags, fullCaption, collaborator } =
       buildInstagramPreview(jobForPreview);
 
-    if (!imageUrl) {
-      return NextResponse.json(
-        { error: 'Job must have an image (pictures[0] or company logo) to preview' },
-        { status: 400 }
-      );
-    }
+    const slides = buildDefaultCarouselConfig(jobForPreview);
 
     return NextResponse.json({
       imageUrl,
@@ -71,6 +72,10 @@ export async function GET(
       hashtags,
       fullCaption,
       collaborator,
+      slides,
+      pictureCount: Array.isArray(job.pictures)
+        ? job.pictures.filter((p) => typeof p === 'string' && p).length
+        : 0,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';

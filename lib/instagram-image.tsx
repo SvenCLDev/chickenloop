@@ -4,8 +4,17 @@
  * Renders 1080x1350 (4:5 portrait), the tallest aspect ratio the feed allows.
  */
 
+import type { ReactNode } from 'react';
 import { ImageResponse } from 'next/og';
 import sharp from 'sharp';
+import {
+  CTA_LABELS,
+  type CarouselSlideConfig,
+  type CtaOption,
+  type ImageMode,
+  resolveExperienceLabel,
+  resolveJobLocationLabel,
+} from '@/lib/instagramSlideConfig';
 
 export const POS_VALUES = ['bl', 'br', 'tl', 'tr'] as const;
 export const BG_VALUES = [
@@ -77,6 +86,11 @@ export interface InstagramImageJob {
   title?: string | null;
   city?: string | null;
   country?: string | null;
+  type?: string | null;
+  experience?: string | null;
+  experienceLevel?: string | string[] | null;
+  qualifications?: string[] | null;
+  description?: string | null;
   sports?: unknown[];
   occupationalAreas?: unknown[];
   companyId?: { name?: string | null; logo?: string | null };
@@ -297,6 +311,437 @@ export async function generateInstagramImagePngBuffer(
   options?: GenerateInstagramImageOptions
 ): Promise<Buffer> {
   const pngResponse = new ImageResponse(buildCardElement(job, options), {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+  });
+  return Buffer.from(await pngResponse.arrayBuffer());
+}
+
+// --- Carousel slide generation -------------------------------------------------
+
+const SPLIT_IMAGE_HEIGHT = 900;
+const SPLIT_TEXT_HEIGHT = 450;
+
+const SOLID_BG: Record<Bg, string> = {
+  grey: '#1f2937',
+  navy: '#0f172a',
+  blue: '#1d4ed8',
+  teal: '#0f766e',
+  yellow: '#ca8a04',
+  amber: '#b45309',
+  emerald: '#047857',
+  green: '#15803d',
+  orange: '#c2410c',
+  sunset: '#9a3412',
+  red: '#b91c1c',
+};
+
+/** In-memory cache for blurred backgrounds within a single publish/preview request. */
+const blurCache = new Map<string, string>();
+
+async function resolveSlideImageSrc(
+  job: InstagramImageJob,
+  imageMode: ImageMode
+): Promise<string | null> {
+  const pics = Array.isArray(job.pictures)
+    ? job.pictures.filter((p): p is string => typeof p === 'string' && !!p)
+    : [];
+
+  if (imageMode === 'gradient') return null;
+  if (imageMode === 'picture1') return pics[1] ?? pics[0] ?? null;
+  if (imageMode === 'picture0') return pics[0] ?? null;
+
+  // picture0_blur
+  const src = pics[0];
+  if (!src) return null;
+  if (blurCache.has(src)) return blurCache.get(src)!;
+
+  try {
+    const res = await fetch(src);
+    if (!res.ok) return src;
+    const input = Buffer.from(await res.arrayBuffer());
+    const blurred = await sharp(input)
+      .resize(CARD_WIDTH, CARD_HEIGHT, { fit: 'cover' })
+      .blur(18)
+      .jpeg({ quality: 85 })
+      .toBuffer();
+    const dataUrl = `data:image/jpeg;base64,${blurred.toString('base64')}`;
+    blurCache.set(src, dataUrl);
+    return dataUrl;
+  } catch {
+    return src;
+  }
+}
+
+function chipRow(chips: string[]) {
+  if (!chips.length) return null;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+      }}
+    >
+      {chips.slice(0, 4).map((chip) => (
+        <div
+          key={chip}
+          style={{
+            display: 'flex',
+            padding: '10px 18px',
+            borderRadius: 999,
+            background: 'rgba(255,255,255,0.18)',
+            color: 'white',
+            fontSize: 22,
+            fontWeight: 600,
+          }}
+        >
+          {chip}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function buildSlideTextContent(
+  job: InstagramImageJob,
+  slideIndex: number,
+  config: CarouselSlideConfig
+) {
+  const title = clampTitle(
+    (config.titleOverride || job.title || 'Job').trim(),
+    TITLE_MAX_CHARS
+  );
+  const location =
+    (config.locationOverride || resolveJobLocationLabel(job)).trim();
+  const headline = (config.headline || 'Wanted').trim().toUpperCase();
+  const companyName = job.company?.name ?? job.companyId?.name ?? '';
+
+  if (slideIndex === 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, width: '100%' }}>
+        <div
+          style={{
+            display: 'flex',
+            fontSize: 32,
+            fontWeight: 700,
+            letterSpacing: '4px',
+            color: 'rgba(255,255,255,0.95)',
+          }}
+        >
+          {headline}
+        </div>
+        <div
+          style={{
+            display: 'block',
+            overflow: 'hidden',
+            minHeight: titleBoxHeight(title),
+            fontSize: TITLE_FONT_SIZE,
+            fontWeight: 'bold',
+            color: 'white',
+            lineHeight: TITLE_LINE_HEIGHT,
+            wordBreak: 'break-word',
+          }}
+        >
+          {title}
+        </div>
+        {location ? (
+          <div style={{ display: 'flex', fontSize: 34, color: 'rgba(255,255,255,0.95)' }}>
+            📍 {location}
+          </div>
+        ) : null}
+        {companyName ? (
+          <div style={{ display: 'flex', fontSize: 30, color: 'rgba(255,255,255,0.9)' }}>
+            {companyName}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (slideIndex === 1) {
+    const body = (config.bodyText || '').trim() || 'Details on chickenloop.com';
+    const chips: string[] = [];
+    if (config.showType && job.type) chips.push(String(job.type));
+    if (config.showExperience) {
+      const exp = resolveExperienceLabel(job);
+      if (exp) chips.push(exp);
+    }
+    if (config.showQualifications && Array.isArray(job.qualifications)) {
+      for (const q of job.qualifications) {
+        if (typeof q === 'string' && q.trim()) chips.push(q.trim());
+      }
+    }
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, width: '100%' }}>
+        <div
+          style={{
+            display: 'flex',
+            fontSize: 28,
+            fontWeight: 700,
+            letterSpacing: '3px',
+            color: 'rgba(255,255,255,0.9)',
+          }}
+        >
+          THE ROLE
+        </div>
+        <div
+          style={{
+            display: 'block',
+            overflow: 'hidden',
+            fontSize: 32,
+            fontWeight: 600,
+            color: 'white',
+            lineHeight: 1.25,
+            wordBreak: 'break-word',
+            maxHeight: 420,
+          }}
+        >
+          {body.length > 360 ? `${body.slice(0, 360).trim()}…` : body}
+        </div>
+        {chipRow(chips)}
+      </div>
+    );
+  }
+
+  const ctas: CtaOption[] =
+    Array.isArray(config.ctas) && config.ctas.length > 0
+      ? config.ctas
+      : (['link_in_bio', 'create_profile', 'share_friend'] as CtaOption[]);
+  const lines = [
+    ...ctas.map((c) => CTA_LABELS[c]),
+    ...(config.customCta?.trim() ? [config.customCta.trim()] : []),
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28, width: '100%' }}>
+      <div
+        style={{
+          display: 'flex',
+          fontSize: 28,
+          fontWeight: 700,
+          letterSpacing: '3px',
+          color: 'rgba(255,255,255,0.9)',
+        }}
+      >
+        NEXT STEP
+      </div>
+      {lines.slice(0, 5).map((line) => (
+        <div
+          key={line}
+          style={{
+            display: 'flex',
+            fontSize: 36,
+            fontWeight: 700,
+            color: 'white',
+            lineHeight: 1.2,
+          }}
+        >
+          → {line}
+        </div>
+      ))}
+      <div style={{ display: 'flex', fontSize: 28, color: 'rgba(255,255,255,0.9)', marginTop: 12 }}>
+        chickenloop.com
+      </div>
+    </div>
+  );
+}
+
+function buildOverlaySlide(
+  imageSrc: string | null,
+  textContent: ReactNode,
+  config: CarouselSlideConfig
+) {
+  const pos = normalizePos(config.pos);
+  const bg = normalizeBg(config.bg);
+  const panelStyle = PANEL_POSITION[pos];
+  const panelBg = PANEL_BG[bg];
+  const isPanelLeft = pos === 'bl' || pos === 'tl';
+  const watermarkStyle = isPanelLeft
+    ? { position: 'absolute' as const, bottom: 48, right: 60 }
+    : { position: 'absolute' as const, bottom: 48, left: 60 };
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      {imageSrc ? (
+        <img
+          src={imageSrc}
+          alt=""
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundImage: 'linear-gradient(180deg, #2563eb 0%, #0f172a 100%)',
+          }}
+        />
+      )}
+      <div
+        style={{
+          position: 'absolute',
+          ...panelStyle,
+          maxWidth: '82%',
+          background: panelBg,
+          padding: 56,
+          borderRadius: 28,
+          color: 'white',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {textContent}
+      </div>
+      <div
+        style={{
+          ...watermarkStyle,
+          fontSize: 32,
+          color: 'white',
+          opacity: 0.85,
+          fontWeight: 600,
+        }}
+      >
+        chickenloop.com
+      </div>
+    </div>
+  );
+}
+
+function buildSplitSlide(
+  imageSrc: string | null,
+  textContent: ReactNode,
+  config: CarouselSlideConfig
+) {
+  const bg = normalizeBg(config.bg);
+  const bandTop = config.splitBand === 'top';
+  const solid = SOLID_BG[bg];
+
+  const imageBlock = (
+    <div
+      style={{
+        display: 'flex',
+        width: '100%',
+        height: SPLIT_IMAGE_HEIGHT,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {imageSrc ? (
+        <img
+          src={imageSrc}
+          alt=""
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      ) : (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            backgroundImage: 'linear-gradient(180deg, #2563eb 0%, #0f172a 100%)',
+          }}
+        />
+      )}
+    </div>
+  );
+
+  const textBlock = (
+    <div
+      style={{
+        display: 'flex',
+        width: '100%',
+        height: SPLIT_TEXT_HEIGHT,
+        background: solid,
+        padding: 56,
+        color: 'white',
+        flexDirection: 'column',
+        justifyContent: 'center',
+      }}
+    >
+      {textContent}
+    </div>
+  );
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      {bandTop ? (
+        <>
+          {textBlock}
+          {imageBlock}
+        </>
+      ) : (
+        <>
+          {imageBlock}
+          {textBlock}
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Generate one carousel slide as a JPEG buffer.
+ */
+export async function generateInstagramSlideBuffer(
+  job: InstagramImageJob,
+  slideIndex: number,
+  config: CarouselSlideConfig
+): Promise<Buffer> {
+  const imageSrc = await resolveSlideImageSrc(job, config.imageMode);
+  const textContent = buildSlideTextContent(job, slideIndex, config);
+  const element =
+    config.layout === 'split'
+      ? buildSplitSlide(imageSrc, textContent, config)
+      : buildOverlaySlide(imageSrc, textContent, config);
+
+  const pngResponse = new ImageResponse(element, {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+  });
+  const pngBuffer = Buffer.from(await pngResponse.arrayBuffer());
+  return sharp(pngBuffer).jpeg({ quality: 90 }).toBuffer();
+}
+
+export async function generateInstagramSlidePngBuffer(
+  job: InstagramImageJob,
+  slideIndex: number,
+  config: CarouselSlideConfig
+): Promise<Buffer> {
+  const imageSrc = await resolveSlideImageSrc(job, config.imageMode);
+  const textContent = buildSlideTextContent(job, slideIndex, config);
+  const element =
+    config.layout === 'split'
+      ? buildSplitSlide(imageSrc, textContent, config)
+      : buildOverlaySlide(imageSrc, textContent, config);
+
+  const pngResponse = new ImageResponse(element, {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
   });

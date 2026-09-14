@@ -8,7 +8,14 @@
 import mongoose from 'mongoose';
 import { put } from '@vercel/blob';
 import connectDB from '@/lib/db';
-import { generateInstagramImageBuffer } from '@/lib/instagram-image';
+import {
+  generateInstagramImageBuffer,
+  generateInstagramSlideBuffer,
+} from '@/lib/instagram-image';
+import {
+  normalizeCarouselSlides,
+  type CarouselSlideConfig,
+} from '@/lib/instagramSlideConfig';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 
 const GRAPH_API_VERSION = 'v25.0';
@@ -419,6 +426,112 @@ async function createMediaContainer(
   return { ok: res.ok, status: res.status, data };
 }
 
+async function waitForMediaFinished(creationId: string): Promise<void> {
+  const maxAttempts = 10;
+  const delayMs = 2000;
+  let status: string = 'IN_PROGRESS';
+  let attempts = 0;
+
+  while (status === 'IN_PROGRESS' && attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+    const statusParams = new URLSearchParams({
+      fields: 'status_code',
+      access_token: process.env.META_ACCESS_TOKEN!,
+    });
+
+    const statusRes = await fetch(`${GRAPH_API_BASE}/${creationId}?${statusParams}`);
+    const statusData = (await statusRes.json()) as { status_code?: string };
+    status = statusData?.status_code ?? 'IN_PROGRESS';
+    attempts++;
+
+    if (status === 'FINISHED' || status === 'ERROR') {
+      break;
+    }
+  }
+
+  if (status === 'ERROR') {
+    throw new Error('Instagram media processing failed.');
+  }
+  if (status !== 'FINISHED') {
+    throw new Error('Instagram media processing timed out.');
+  }
+}
+
+async function publishMediaContainer(creationId: string): Promise<string> {
+  const publishParams = new URLSearchParams({
+    creation_id: creationId,
+    access_token: process.env.META_ACCESS_TOKEN!,
+  });
+
+  const publishRes = await fetch(
+    `${GRAPH_API_BASE}/${process.env.INSTAGRAM_USER_ID}/media_publish`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: publishParams,
+    }
+  );
+
+  const publishData = await publishRes.json();
+
+  if (!publishRes.ok) {
+    throw new Error(
+      publishData?.error?.message || `Instagram publish failed: ${publishRes.status}`
+    );
+  }
+
+  if (publishData?.id == null) {
+    console.error('Instagram publish: no id in response:', publishData);
+    throw new Error('Instagram publish did not return a media id');
+  }
+
+  return String(publishData.id);
+}
+
+function assembleCaption(
+  job: any,
+  options?: { customTags?: string; collaborator?: string | null }
+): string {
+  const collaborator =
+    normalizeHandle(options?.collaborator) ?? resolveCompanyInstagramHandle(job);
+
+  const { caption: baseCaption, hashtags } = buildJobCaption(job, {
+    companyHandle: collaborator,
+  });
+
+  const autoHashtagSegments = new Set(hashtags.map((h) => h.slice(1).toLowerCase()));
+  const autoMentions = new Set(collaborator ? [collaborator] : []);
+  let { customHashtags, customMentions } = parseCustomTags(
+    typeof options?.customTags === 'string' ? options.customTags : '',
+    autoHashtagSegments,
+    autoMentions
+  );
+
+  const assemble = (): string => {
+    const parts: string[] = [baseCaption + '\n\n' + hashtags.join(' ')];
+    if (customHashtags.length > 0) parts.push('\n\n' + customHashtags.join(' '));
+    if (customMentions.length > 0) parts.push('\n\n' + customMentions.join(' '));
+    return parts.join('');
+  };
+
+  let caption = assemble();
+  while (customHashtags.length > 0 && caption.length > INSTAGRAM_CAPTION_MAX) {
+    customHashtags = customHashtags.slice(0, -1);
+    caption = assemble();
+  }
+  while (customMentions.length > 0 && caption.length > INSTAGRAM_CAPTION_MAX) {
+    customMentions = customMentions.slice(0, -1);
+    caption = assemble();
+  }
+  if (caption.length > INSTAGRAM_CAPTION_MAX) {
+    caption = caption.slice(0, INSTAGRAM_CAPTION_MAX);
+  }
+  return caption;
+}
+
 export interface InstagramPostHistoryEntry {
   postId: string;
   postedAt: Date;
@@ -483,19 +596,63 @@ export interface PostJobToInstagramResult {
   postCount: number;
 }
 
-export async function postJobToInstagram(
+export interface PostJobToInstagramOptions {
+  mode?: 'carousel' | 'single';
+  slides?: CarouselSlideConfig[];
+  pos?: string;
+  bg?: string;
+  customTags?: string;
+  collaborator?: string | null;
+}
+
+async function persistInstagramPost(
   job: any,
-  options?: { pos?: string; bg?: string; customTags?: string; collaborator?: string | null }
+  postId: string
 ): Promise<PostJobToInstagramResult> {
-  if (!process.env.INSTAGRAM_USER_ID || !process.env.META_ACCESS_TOKEN) {
-    throw new Error('Missing Instagram environment variables.');
-  }
+  const postedAt = new Date();
+  const historyUpdate = buildInstagramPostHistoryUpdate(
+    {
+      instagramPostId: job.instagramPostId,
+      instagramPostedAt: job.instagramPostedAt,
+      instagramPostHistory: job.instagramPostHistory,
+    },
+    postId,
+    postedAt
+  );
 
+  await connectDB();
+  // Use native driver so updatedAt is not changed (listing order must not be affected by Instagram post)
+  const db = mongoose.connection.db;
+  if (!db) {
+    throw new Error('Database connection not available');
+  }
   const jobId = job._id;
-  if (!jobId) {
-    throw new Error('Job must have an _id to post to Instagram.');
+  const result = await db.collection('jobs').updateOne(
+    { _id: new mongoose.Types.ObjectId(jobId) },
+    {
+      $set: {
+        instagramPostId: historyUpdate.instagramPostId,
+        instagramPostedAt: historyUpdate.instagramPostedAt,
+        instagramPostHistory: historyUpdate.history,
+      },
+    }
+  );
+  if (result.matchedCount === 0) {
+    console.error('Job update failed: document not found', { jobId: String(jobId) });
+    throw new Error('Failed to save Instagram post ID to job.');
   }
 
+  return {
+    postId: historyUpdate.instagramPostId,
+    postedAt: historyUpdate.instagramPostedAt,
+    postCount: historyUpdate.history.length,
+  };
+}
+
+async function postSingleImageToInstagram(
+  job: any,
+  options?: PostJobToInstagramOptions
+): Promise<PostJobToInstagramResult> {
   const hasImage = resolveCardImageSource(job);
   if (!hasImage) {
     throw new Error(
@@ -503,15 +660,8 @@ export async function postJobToInstagram(
     );
   }
 
-  const jobIdStr = typeof jobId === 'string' ? jobId : String(jobId);
+  const jobIdStr = typeof job._id === 'string' ? job._id : String(job._id);
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    throw new Error(
-      'BLOB_READ_WRITE_TOKEN is required to post to Instagram. The image is generated and uploaded to Vercel Blob so Meta can fetch it reliably.'
-    );
-  }
-
-  // Generate the card image once and upload to Vercel Blob; Instagram requires a fast, static URL.
   const imageBuffer = await generateInstagramImageBuffer(job, {
     pos: options?.pos,
     bg: options?.bg,
@@ -523,41 +673,12 @@ export async function postJobToInstagram(
   });
   const imageUrl = blob.url;
 
-  // A Collab post also appears in the company's own feed, which is what earns reshares.
   const collaborator =
     normalizeHandle(options?.collaborator) ?? resolveCompanyInstagramHandle(job);
-
-  const { caption: baseCaption, hashtags } = buildJobCaption(job, {
-    companyHandle: collaborator,
+  const caption = assembleCaption(job, {
+    customTags: options?.customTags,
+    collaborator,
   });
-
-  const autoHashtagSegments = new Set(hashtags.map((h) => h.slice(1).toLowerCase()));
-  const autoMentions = new Set(collaborator ? [collaborator] : []);
-  let { customHashtags, customMentions } = parseCustomTags(
-    typeof options?.customTags === 'string' ? options.customTags : '',
-    autoHashtagSegments,
-    autoMentions
-  );
-
-  const assemble = (): string => {
-    const parts: string[] = [baseCaption + '\n\n' + hashtags.join(' ')];
-    if (customHashtags.length > 0) parts.push('\n\n' + customHashtags.join(' '));
-    if (customMentions.length > 0) parts.push('\n\n' + customMentions.join(' '));
-    return parts.join('');
-  };
-
-  let caption = assemble();
-  while (customHashtags.length > 0 && caption.length > INSTAGRAM_CAPTION_MAX) {
-    customHashtags = customHashtags.slice(0, -1);
-    caption = assemble();
-  }
-  while (customMentions.length > 0 && caption.length > INSTAGRAM_CAPTION_MAX) {
-    customMentions = customMentions.slice(0, -1);
-    caption = assemble();
-  }
-  if (caption.length > INSTAGRAM_CAPTION_MAX) {
-    caption = caption.slice(0, INSTAGRAM_CAPTION_MAX);
-  }
 
   const baseParams: Record<string, string> = {
     image_url: imageUrl,
@@ -597,106 +718,119 @@ export async function postJobToInstagram(
     throw new Error('Instagram create media did not return a container id');
   }
 
-  const maxAttempts = 10;
-  const delayMs = 2000;
-  let status: string = 'IN_PROGRESS';
-  let attempts = 0;
+  await waitForMediaFinished(creationId);
+  const postId = await publishMediaContainer(creationId);
+  return persistInstagramPost(job, postId);
+}
 
-  while (status === 'IN_PROGRESS' && attempts < maxAttempts) {
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
+async function postCarouselToInstagram(
+  job: any,
+  options?: PostJobToInstagramOptions
+): Promise<PostJobToInstagramResult> {
+  const jobIdStr = typeof job._id === 'string' ? job._id : String(job._id);
+  const slides = normalizeCarouselSlides(options?.slides, job);
+  if (slides.length < 2) {
+    throw new Error('Carousel posts require at least 2 slides.');
+  }
 
-    const statusParams = new URLSearchParams({
-      fields: 'status_code',
+  const altText = buildInstagramAltText(job);
+  const childIds: string[] = [];
+  const stamp = Date.now();
+
+  for (let i = 0; i < slides.length; i++) {
+    const buffer = await generateInstagramSlideBuffer(job, i, slides[i]);
+    const blob = await put(`instagram/${jobIdStr}-${stamp}-slide${i}.jpg`, buffer, {
+      access: 'public',
+      contentType: 'image/jpeg',
+    });
+
+    const child = await createMediaContainer({
+      image_url: blob.url,
+      is_carousel_item: 'true',
+      alt_text: altText,
       access_token: process.env.META_ACCESS_TOKEN!,
     });
 
-    const statusRes = await fetch(
-      `${GRAPH_API_BASE}/${creationId}?${statusParams}`
-    );
-
-    const statusData = (await statusRes.json()) as { status_code?: string };
-    status = statusData?.status_code ?? 'IN_PROGRESS';
-    attempts++;
-
-
-    if (status === 'FINISHED' || status === 'ERROR') {
-      break;
+    if (!child.ok || !child.data?.id) {
+      throw new Error(
+        child.data?.error?.message ||
+          `Instagram carousel child create failed: ${child.status}`
+      );
     }
+
+    const childId = String(child.data.id);
+    await waitForMediaFinished(childId);
+    childIds.push(childId);
   }
 
-  if (status === 'ERROR') {
-    throw new Error('Instagram media processing failed.');
-  }
-  if (status !== 'FINISHED') {
-    throw new Error('Instagram media processing timed out.');
-  }
-
-  const publishParams = new URLSearchParams({
-    creation_id: creationId,
-    access_token: process.env.META_ACCESS_TOKEN!,
+  const collaborator =
+    normalizeHandle(options?.collaborator) ?? resolveCompanyInstagramHandle(job);
+  const caption = assembleCaption(job, {
+    customTags: options?.customTags,
+    collaborator,
   });
 
-  const publishRes = await fetch(
-    `${GRAPH_API_BASE}/${process.env.INSTAGRAM_USER_ID}/media_publish`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: publishParams,
-    }
-  );
+  const parentBase: Record<string, string> = {
+    media_type: 'CAROUSEL',
+    children: childIds.join(','),
+    caption,
+    access_token: process.env.META_ACCESS_TOKEN!,
+  };
 
-  const publishData = await publishRes.json();
+  const taggingParams: Record<string, string> = {};
+  if (collaborator) {
+    const pos = slides[0]?.pos ?? options?.pos ?? 'bl';
+    const { x, y } = userTagPosition(pos);
+    taggingParams.collaborators = JSON.stringify([collaborator].slice(0, MAX_COLLABORATORS));
+    taggingParams.user_tags = JSON.stringify([{ username: collaborator, x, y }]);
+  }
 
-  if (!publishRes.ok) {
+  const hasTagging = Object.keys(taggingParams).length > 0;
+  let parent = await createMediaContainer({ ...parentBase, ...taggingParams });
+
+  if (!parent.ok && hasTagging && isTaggingRelatedError(parent.data)) {
+    console.warn(
+      `[instagram] Retrying carousel parent without collaborator/user tags for @${collaborator}:`,
+      parent.data?.error?.message
+    );
+    parent = await createMediaContainer(parentBase);
+  }
+
+  if (!parent.ok || !parent.data?.id) {
     throw new Error(
-      publishData?.error?.message ||
-        `Instagram publish failed: ${publishRes.status}`
+      parent.data?.error?.message ||
+        `Instagram carousel create failed: ${parent.status}`
     );
   }
 
-  if (publishData?.id == null) {
-    console.error('Instagram publish: no id in response:', publishData);
-    throw new Error('Instagram publish did not return a media id');
+  const parentId = String(parent.data.id);
+  await waitForMediaFinished(parentId);
+  const postId = await publishMediaContainer(parentId);
+  return persistInstagramPost(job, postId);
+}
+
+export async function postJobToInstagram(
+  job: any,
+  options?: PostJobToInstagramOptions
+): Promise<PostJobToInstagramResult> {
+  if (!process.env.INSTAGRAM_USER_ID || !process.env.META_ACCESS_TOKEN) {
+    throw new Error('Missing Instagram environment variables.');
   }
 
-  const postId = String(publishData.id);
-  const postedAt = new Date();
-  const historyUpdate = buildInstagramPostHistoryUpdate(
-    {
-      instagramPostId: job.instagramPostId,
-      instagramPostedAt: job.instagramPostedAt,
-      instagramPostHistory: job.instagramPostHistory,
-    },
-    postId,
-    postedAt
-  );
-
-  await connectDB();
-  // Use native driver so updatedAt is not changed (listing order must not be affected by Instagram post)
-  const db = mongoose.connection.db;
-  if (!db) {
-    throw new Error('Database connection not available');
-  }
-  const result = await db.collection('jobs').updateOne(
-    { _id: new mongoose.Types.ObjectId(jobId) },
-    {
-      $set: {
-        instagramPostId: historyUpdate.instagramPostId,
-        instagramPostedAt: historyUpdate.instagramPostedAt,
-        instagramPostHistory: historyUpdate.history,
-      },
-    }
-  );
-  if (result.matchedCount === 0) {
-    console.error('Job update failed: document not found', { jobId: String(jobId) });
-    throw new Error('Failed to save Instagram post ID to job.');
+  const jobId = job._id;
+  if (!jobId) {
+    throw new Error('Job must have an _id to post to Instagram.');
   }
 
-  return {
-    postId: historyUpdate.instagramPostId,
-    postedAt: historyUpdate.instagramPostedAt,
-    postCount: historyUpdate.history.length,
-  };
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error(
+      'BLOB_READ_WRITE_TOKEN is required to post to Instagram. The image is generated and uploaded to Vercel Blob so Meta can fetch it reliably.'
+    );
+  }
+
+  const mode = options?.mode === 'single' ? 'single' : 'carousel';
+  if (mode === 'single') {
+    return postSingleImageToInstagram(job, options);
+  }
+  return postCarouselToInstagram(job, options);
 }

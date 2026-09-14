@@ -6,8 +6,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import CreateCompanyForRecruiterModal from '@/components/admin/CreateCompanyForRecruiterModal';
+import InstagramPostModal from '@/components/admin/InstagramPostModal';
 import { adminApi } from '@/lib/api';
 import { getJobUrl } from '@/lib/jobSlug';
+import type { CarouselSlideConfig } from '@/lib/instagramSlideConfig';
 
 interface Statistics {
   jobSeekers: number;
@@ -187,11 +189,6 @@ function AdminDashboard() {
   const [postingToInstagramJobId, setPostingToInstagramJobId] = useState<string | null>(null);
   const [postingToFacebookJobId, setPostingToFacebookJobId] = useState<string | null>(null);
   const [instagramModalJobId, setInstagramModalJobId] = useState<string | null>(null);
-  const [instagramModalPos, setInstagramModalPos] = useState<string>('bl');
-  const [instagramModalBg, setInstagramModalBg] = useState<string>('grey');
-  const [instagramModalCustomTags, setInstagramModalCustomTags] = useState<string>('');
-  const [instagramModalCollab, setInstagramModalCollab] = useState<string>('');
-  const [instagramPreviewCaption, setInstagramPreviewCaption] = useState<string>('');
   const [deletingJobSeeker, setDeletingJobSeeker] = useState<string | null>(null);
   const [blockingRecruiterId, setBlockingRecruiterId] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string>('lastActive');
@@ -270,21 +267,6 @@ function AdminDashboard() {
     }, 300);
     return () => clearTimeout(timer);
   }, [emailFilter]);
-
-  // Fetch Instagram caption preview and the detected company handle when modal opens
-  useEffect(() => {
-    if (!instagramModalJobId) return;
-    let cancelled = false;
-    fetch(`/api/instagram-preview/${instagramModalJobId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (data?.fullCaption) setInstagramPreviewCaption(data.fullCaption);
-        if (typeof data?.collaborator === 'string') setInstagramModalCollab(data.collaborator);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [instagramModalJobId]);
 
   // Refetch job-seekers data when sort, search, or email filter changes
   useEffect(() => {
@@ -709,10 +691,14 @@ function AdminDashboard() {
 
   const handlePostToInstagram = async (
     jobId: string,
-    pos?: string,
-    bg?: string,
-    customTags?: string,
-    collaborator?: string
+    payload: {
+      mode?: 'carousel' | 'single';
+      slides?: CarouselSlideConfig[];
+      pos?: string;
+      bg?: string;
+      customTags?: string;
+      collaborator?: string;
+    }
   ) => {
     setPostingToInstagramJobId(jobId);
     try {
@@ -720,10 +706,21 @@ function AdminDashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          pos: pos ?? 'bl',
-          bg: bg ?? 'grey',
-          ...(typeof customTags === 'string' ? { customTags } : {}),
-          ...(collaborator?.trim() ? { collaborator: collaborator.trim() } : {}),
+          mode: payload.mode ?? 'carousel',
+          ...(payload.mode === 'single'
+            ? {
+                pos: payload.pos ?? 'bl',
+                bg: payload.bg ?? 'grey',
+              }
+            : {
+                slides: payload.slides,
+              }),
+          ...(typeof payload.customTags === 'string'
+            ? { customTags: payload.customTags }
+            : {}),
+          ...(payload.collaborator?.trim()
+            ? { collaborator: payload.collaborator.trim() }
+            : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -785,22 +782,6 @@ function AdminDashboard() {
 
   const handleOpenInstagramModal = (jobId: string) => {
     setInstagramModalJobId(jobId);
-    setInstagramModalPos('bl');
-    setInstagramModalBg('grey');
-    setInstagramModalCustomTags('');
-    setInstagramModalCollab('');
-    setInstagramPreviewCaption('');
-  };
-
-  const handleConfirmInstagramPost = () => {
-    if (!instagramModalJobId) return;
-    handlePostToInstagram(
-      instagramModalJobId,
-      instagramModalPos,
-      instagramModalBg,
-      instagramModalCustomTags,
-      instagramModalCollab
-    );
   };
 
   const handleEditUser = (userId: string) => {
@@ -2460,130 +2441,19 @@ function AdminDashboard() {
       />
 
       {instagramModalJobId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setInstagramModalJobId(null)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {tableData.find((entry) => entry.id === instagramModalJobId)?.instagramPostId
-                  ? 'Post to Instagram again'
-                  : 'Post to Instagram'}
-              </h3>
-              {(() => {
-                const modalJob = tableData.find((entry) => entry.id === instagramModalJobId);
-                if (!modalJob?.instagramPostedAt) return null;
-                return (
-                  <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                    Last posted to Instagram on{' '}
-                    {new Date(modalJob.instagramPostedAt).toLocaleString()}
-                    {modalJob.instagramPostCount && modalJob.instagramPostCount > 1
-                      ? ` (${modalJob.instagramPostCount} posts so far)`
-                      : ''}
-                    . Confirming creates a new post; the previous post stays live on Instagram.
-                  </div>
-                );
-              })()}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Text Position</label>
-                  <select
-                    value={instagramModalPos}
-                    onChange={(e) => setInstagramModalPos(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                  >
-                    <option value="bl">Bottom Left</option>
-                    <option value="br">Bottom Right</option>
-                    <option value="tl">Top Left</option>
-                    <option value="tr">Top Right</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Background Shade</label>
-                  <select
-                    value={instagramModalBg}
-                    onChange={(e) => setInstagramModalBg(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                  >
-                    <option value="grey">Grey</option>
-                    <option value="navy">Navy</option>
-                    <option value="blue">Blue</option>
-                    <option value="teal">Teal</option>
-                    <option value="yellow">Yellow</option>
-                    <option value="amber">Amber</option>
-                    <option value="emerald">Emerald</option>
-                    <option value="green">Green</option>
-                    <option value="orange">Orange</option>
-                    <option value="sunset">Sunset</option>
-                    <option value="red">Red</option>
-                  </select>
-                </div>
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Collab With (Instagram handle)</label>
-                <input
-                  type="text"
-                  value={instagramModalCollab}
-                  onChange={(e) => setInstagramModalCollab(e.target.value)}
-                  placeholder="kitehousetarifa"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Prefilled from the company profile. The post is published as a Collab so it also appears
-                  on their feed. Leave empty to post without tagging. The caption preview below shows the
-                  detected handle; edits here are applied when posting.
-                </p>
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Hashtags / Mentions</label>
-                <textarea
-                  value={instagramModalCustomTags}
-                  onChange={(e) => setInstagramModalCustomTags(e.target.value)}
-                  placeholder="#beachlife #summerjobs @kitebeachsardinia"
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">Add optional hashtags (#...) or mentions (@...). They will be appended to the caption.</p>
-              </div>
-              <div className="mb-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Preview</p>
-                <img
-                  src={`/api/instagram-image/${instagramModalJobId}?pos=${instagramModalPos}&bg=${instagramModalBg}`}
-                  alt="Instagram preview"
-                  className="w-full max-w-[400px] rounded-lg border border-gray-200"
-                />
-              </div>
-              {instagramPreviewCaption && (
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Caption preview</p>
-                  <div className="text-sm text-gray-600 whitespace-pre-wrap break-words max-h-32 overflow-y-auto p-3 bg-gray-50 rounded-md border border-gray-200">
-                    {instagramPreviewCaption}
-                    {instagramModalCustomTags.trim() ? `\n\n${instagramModalCustomTags.trim()}` : ''}
-                  </div>
-                </div>
-              )}
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setInstagramModalJobId(null)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmInstagramPost}
-                  disabled={postingToInstagramJobId === instagramModalJobId}
-                  className={`px-4 py-2 text-sm font-medium rounded-md ${
-                    postingToInstagramJobId === instagramModalJobId
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  }`}
-                >
-                  {postingToInstagramJobId === instagramModalJobId ? 'Posting...' : 'Confirm Post'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <InstagramPostModal
+          jobId={instagramModalJobId}
+          isRepost={!!tableData.find((entry) => entry.id === instagramModalJobId)?.instagramPostId}
+          lastPostedAt={
+            tableData.find((entry) => entry.id === instagramModalJobId)?.instagramPostedAt ?? null
+          }
+          postCount={
+            tableData.find((entry) => entry.id === instagramModalJobId)?.instagramPostCount
+          }
+          posting={postingToInstagramJobId === instagramModalJobId}
+          onClose={() => setInstagramModalJobId(null)}
+          onConfirm={(payload) => handlePostToInstagram(instagramModalJobId, payload)}
+        />
       )}
     </div>
   );
