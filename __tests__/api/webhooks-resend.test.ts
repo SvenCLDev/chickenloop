@@ -54,19 +54,21 @@ describe('POST /api/webhooks/resend', () => {
     expect(handleReferenceEmailBounce).not.toHaveBeenCalled();
   });
 
-  it('handles email.bounced events', async () => {
+  it('handles email.bounced events (svix v2 verify returns undefined)', async () => {
+    // Svix v2: verify validates signature only and returns undefined
     (Webhook as unknown as jest.Mock).mockImplementation(() => ({
-      verify: () => ({
-        type: 'email.bounced',
-        data: { email_id: 're_123', bounce: { type: 'hard' } },
-      }),
+      verify: () => undefined,
     }));
     (handleReferenceEmailBounce as jest.Mock).mockResolvedValue({
       ok: true,
       outcome: 'updated',
     });
 
-    const res = await POST(buildRequest('{"type":"email.bounced"}'));
+    const body = JSON.stringify({
+      type: 'email.bounced',
+      data: { email_id: 're_123', bounce: { type: 'hard' } },
+    });
+    const res = await POST(buildRequest(body));
     const json = await res.json();
 
     expect(res.status).toBe(200);
@@ -79,10 +81,14 @@ describe('POST /api/webhooks/resend', () => {
 
   it('ignores unrelated event types', async () => {
     (Webhook as unknown as jest.Mock).mockImplementation(() => ({
-      verify: () => ({ type: 'email.delivered', data: { email_id: 're_123' } }),
+      verify: () => undefined,
     }));
 
-    const res = await POST(buildRequest('{}'));
+    const body = JSON.stringify({
+      type: 'email.delivered',
+      data: { email_id: 're_123' },
+    });
+    const res = await POST(buildRequest(body));
     const json = await res.json();
 
     expect(res.status).toBe(200);

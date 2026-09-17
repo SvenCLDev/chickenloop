@@ -202,6 +202,33 @@ export async function processReferenceVerificationRequests(
       entry.verificationStatus = 'reference_requested';
       entry.referenceTokenId = tokenDoc._id as mongoose.Types.ObjectId;
       entry.lastReferenceEmailSentAt = new Date();
+      // #region agent log
+      {
+        const payload = {
+          sessionId: '85d025',
+          runId: 'pre-fix',
+          hypothesisId: 'D',
+          location: 'processReferenceRequests.ts:afterSend',
+          message: 'Reference email send result messageId persistence',
+          data: {
+            success: result.success,
+            hasMessageId: Boolean(result.messageId),
+            messageIdSuffix: result.messageId ? result.messageId.slice(-8) : null,
+            willPersistMessageId: Boolean(result.messageId),
+          },
+          timestamp: Date.now(),
+        };
+        console.log('[processReferenceRequests][debug]', JSON.stringify(payload));
+        fetch('http://127.0.0.1:7714/ingest/809469dc-4731-4443-a5ec-6d4761840282', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Debug-Session-Id': '85d025',
+          },
+          body: JSON.stringify(payload),
+        }).catch(() => {});
+      }
+      // #endregion
       if (result.messageId) {
         tokenDoc.resendMessageId = result.messageId;
         tokenDoc.bouncedAt = undefined;
