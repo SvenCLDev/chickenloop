@@ -27,7 +27,7 @@ export async function sendReferenceVerificationEmail(input: {
   seasonLabel?: string;
   managerName?: string;
   token: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const emailContent = referenceVerificationEmail({
     candidateName: input.candidateName,
     schoolName: input.schoolName,

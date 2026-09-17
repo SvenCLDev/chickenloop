@@ -149,6 +149,20 @@ export async function processReferenceVerificationRequests(
 
     if (!entry._id) continue;
     const entryId = String(entry._id);
+
+    // Do not re-send to the same address that already bounced until the seeker changes it
+    if (entry.verificationStatus === 'reference_email_bounced') {
+      const bouncedToken = entry.referenceTokenId
+        ? await ReferenceVerificationToken.findById(entry.referenceTokenId).lean()
+        : null;
+      if (
+        bouncedToken?.bouncedAt &&
+        bouncedToken.managerEmail?.toLowerCase() === email.toLowerCase()
+      ) {
+        continue;
+      }
+    }
+
     const lastSent = entry.lastReferenceEmailSentAt
       ? new Date(entry.lastReferenceEmailSentAt).getTime()
       : 0;
@@ -188,6 +202,12 @@ export async function processReferenceVerificationRequests(
       entry.verificationStatus = 'reference_requested';
       entry.referenceTokenId = tokenDoc._id as mongoose.Types.ObjectId;
       entry.lastReferenceEmailSentAt = new Date();
+      if (result.messageId) {
+        tokenDoc.resendMessageId = result.messageId;
+        tokenDoc.bouncedAt = undefined;
+        tokenDoc.bounceType = undefined;
+        await tokenDoc.save();
+      }
       modified = true;
     }
   }

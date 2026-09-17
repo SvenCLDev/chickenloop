@@ -41,6 +41,10 @@ RESEND_REFERENCE_FROM_NAME=Chickenloop References  # Optional; default in code i
 RESEND_REFERENCE_FROM_EMAIL=references@notifications.chickenloop.com  # Optional; falls back to RESEND_FROM_EMAIL
 RESEND_REPLY_TO_EMAIL=hello@chickenloop.com  # Reply-To for reference emails
 CONTACT_EMAIL=hello@chickenloop.com  # Used as Reply-To fallback
+
+# Resend webhooks (reference email bounce → notify job seeker)
+# Create a webhook in Resend for email.bounced and email.failed pointing at /api/webhooks/resend
+RESEND_WEBHOOK_SECRET=whsec_your_svix_signing_secret
 ```
 
 **Display name:** If `RESEND_FROM_NAME` is set, all transactional emails show that name instead of the local-part of the address (e.g. "noreply"). Reference emails use `RESEND_REFERENCE_FROM_NAME` when set.
@@ -49,7 +53,15 @@ CONTACT_EMAIL=hello@chickenloop.com  # Used as Reply-To fallback
 1. Go to your Vercel project settings
 2. Navigate to "Environment Variables"
 3. Add `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `RESEND_FROM_NAME` (recommended)
-4. Deploy to apply changes
+4. Add `RESEND_WEBHOOK_SECRET` from the Resend webhook signing secret
+5. Deploy to apply changes
+
+### 5. Resend webhook (reference bounces)
+
+1. In Resend → Webhooks, create an endpoint: `https://your-domain/api/webhooks/resend`
+2. Subscribe to `email.bounced` and `email.failed`
+3. Copy the signing secret into `RESEND_WEBHOOK_SECRET`
+4. When a manager reference email bounces, the job seeker’s experience is marked bounced and they receive an email asking them to enter a different manager address
 
 ## Testing Email Configuration
 

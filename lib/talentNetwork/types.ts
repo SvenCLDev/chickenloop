@@ -38,6 +38,7 @@ export type CertificateVerificationStatus =
 export const EXPERIENCE_VERIFICATION_STATUSES = [
   'self_reported',
   'reference_requested',
+  'reference_email_bounced',
   'reference_confirmed',
   'reference_disputed',
 ] as const;

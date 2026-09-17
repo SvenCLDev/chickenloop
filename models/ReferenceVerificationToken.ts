@@ -13,6 +13,10 @@ export interface IReferenceVerificationToken extends Document {
   confirmed?: boolean;
   workConfirmed?: boolean;
   rehire?: boolean;
+  /** Resend email id from the outbound reference request (for bounce correlation). */
+  resendMessageId?: string;
+  bouncedAt?: Date;
+  bounceType?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +35,9 @@ const ReferenceVerificationTokenSchema = new Schema(
     confirmed: Boolean,
     workConfirmed: Boolean,
     rehire: Boolean,
+    resendMessageId: { type: String, index: true, sparse: true },
+    bouncedAt: Date,
+    bounceType: String,
   },
   { timestamps: true }
 );

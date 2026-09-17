@@ -17,6 +17,7 @@ export interface VerificationSummary {
     confirmed: number;
     disputed: number;
     requested: number;
+    bounced: number;
     selfReported: number;
   };
   languages: {
@@ -61,6 +62,7 @@ export function buildTalentNetworkVerificationSummary(cv: {
     confirmed: experience.filter((e) => e.verificationStatus === 'reference_confirmed').length,
     disputed: experience.filter((e) => e.verificationStatus === 'reference_disputed').length,
     requested: experience.filter((e) => e.verificationStatus === 'reference_requested').length,
+    bounced: experience.filter((e) => e.verificationStatus === 'reference_email_bounced').length,
     selfReported: experience.filter(
       (e) => (e.verificationStatus ?? 'self_reported') === 'self_reported'
     ).length,
@@ -97,6 +99,10 @@ export function buildTalentNetworkVerificationSummary(cv: {
       verifiedItems.push(`${label} — verified reference`);
     } else if (status === 'reference_disputed') {
       pendingItems.push(`${label} — manager says they did not work there`);
+    } else if (status === 'reference_email_bounced') {
+      pendingItems.push(
+        `${label} — reference email bounced; enter a different manager email`
+      );
     } else if (status === 'reference_requested') {
       pendingItems.push(`${label} — reference email sent, awaiting manager response`);
     } else if (entry.referenceEmail?.trim()) {

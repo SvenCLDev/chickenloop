@@ -41,6 +41,14 @@ describe('buildTalentNetworkVerificationSummary', () => {
           verificationStatus: 'reference_requested',
           referenceEmail: 'coach@example.com',
         },
+        {
+          schoolName: 'Flag Beach',
+          role: 'Guide',
+          startMonth: 8,
+          startYear: 2021,
+          verificationStatus: 'reference_email_bounced',
+          referenceEmail: 'bounced@example.com',
+        },
       ],
       languageSkills: [
         { language: 'English', proficiency: 'professional', verificationStatus: 'self_assessed' },
@@ -52,10 +60,12 @@ describe('buildTalentNetworkVerificationSummary', () => {
     expect(summary.references.confirmed).toBe(1);
     expect(summary.references.disputed).toBe(1);
     expect(summary.references.requested).toBe(1);
+    expect(summary.references.bounced).toBe(1);
     expect(summary.verifiedItems.some((item) => item.includes('Chickenloop verified'))).toBe(true);
     expect(summary.pendingItems.some((item) => item.includes('pending admin review'))).toBe(true);
     expect(summary.pendingItems.some((item) => item.includes('awaiting manager response'))).toBe(true);
     expect(summary.pendingItems.some((item) => item.includes('did not work there'))).toBe(true);
+    expect(summary.pendingItems.some((item) => item.includes('reference email bounced'))).toBe(true);
   });
 
   it('describes unverified certificates as profile-only until document upload', () => {

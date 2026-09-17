@@ -193,6 +193,24 @@ export default function SeasonalExperienceBlock({
 
             <div className="border-t pt-4 space-y-3">
               <p className="text-sm font-medium text-gray-900">Verify with a manager reference</p>
+              {entry.verificationStatus === 'reference_email_bounced' && (
+                <div
+                  className="rounded-lg border border-red-200 bg-red-50 p-4"
+                  role="alert"
+                >
+                  <p className="text-sm font-medium text-red-900">
+                    We could not deliver the reference email
+                    {entry.referenceEmail?.trim()
+                      ? ` to ${entry.referenceEmail.trim()}`
+                      : ''}
+                    .
+                  </p>
+                  <p className="text-sm text-red-800 mt-1">
+                    Please enter a different manager email below and save your profile so we can
+                    send a new verification request.
+                  </p>
+                </div>
+              )}
               <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
                 <p className="text-sm font-medium text-gray-900">Why add a manager email?</p>
                 <p className="text-sm text-gray-600 mt-1">
