@@ -62,7 +62,7 @@ export async function GET(
     }
 
     const payload = applyTalentDetailVisibility(
-      cv.toObject({ virtuals: true }) as Record<string, unknown>,
+      cv.toObject({ virtuals: true }) as unknown as Record<string, unknown>,
       viewerTier
     );
 
