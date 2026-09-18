@@ -63,6 +63,16 @@ RESEND_WEBHOOK_SECRET=whsec_your_svix_signing_secret
 3. Copy the signing secret into `RESEND_WEBHOOK_SECRET`
 4. When a manager reference email bounces, the job seeker’s experience is marked bounced and they receive an email asking them to enter a different manager address
 
+### 6. Reference follow-up cron (no-response reminders)
+
+Vercel cron hits `/api/cron/reference-followup` daily at **10:00 UTC** (`vercel.json`).
+
+- After **5 days** with no manager reply: one automatic reminder email to the manager + notice to the job seeker
+- After the **14-day** link expires with no reply: experience status becomes `reference_expired`
+- Job seekers can also send a reminder after **3 days**, cancel a request, or change the manager email (immediate re-send) from Edit Profile
+
+Requires the same `CRON_SECRET` (or Vercel Cron user-agent) as other crons.
+
 ## Testing Email Configuration
 
 ### Using the Test API Endpoint

@@ -53,6 +53,8 @@ export interface SeasonalExperienceFormEntry {
   referenceEmail: string;
   referencePhone: string;
   verificationStatus?: SeasonalExperience['verificationStatus'];
+  lastReferenceEmailSentAt?: string;
+  reminderSentAt?: string;
 }
 
 export interface LanguageSkillFormEntry {

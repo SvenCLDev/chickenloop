@@ -9,8 +9,8 @@ import type { SeasonalExperience } from '@/lib/talentNetwork/types';
 import type { ReferenceConfirmInput } from '@/lib/referenceVerificationToken';
 import { generateReferenceToken } from '@/lib/referenceVerificationToken';
 
-const COOLDOWN_MS = 24 * 60 * 60 * 1000;
-const EXPIRY_DAYS = 14;
+export const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+export const EXPIRY_DAYS = 14;
 
 export const EXPERIENCE_REMOVED_ERROR =
   "This reference request is no longer active because the work experience was removed from the candidate's profile.";
@@ -130,6 +130,15 @@ function seasonLabel(entry: {
   return undefined;
 }
 
+async function invalidatePreviousToken(
+  tokenId: mongoose.Types.ObjectId | string | undefined
+): Promise<void> {
+  if (!tokenId) return;
+  await ReferenceVerificationToken.findByIdAndUpdate(tokenId, {
+    $set: { expiresAt: new Date() },
+  });
+}
+
 export async function processReferenceVerificationRequests(
   cv: Document & ICV
 ): Promise<void> {
@@ -163,10 +172,30 @@ export async function processReferenceVerificationRequests(
       }
     }
 
+    let emailChanged = false;
+    if (entry.referenceTokenId) {
+      const linkedToken = await ReferenceVerificationToken.findById(
+        entry.referenceTokenId
+      ).lean();
+      if (
+        linkedToken?.managerEmail &&
+        linkedToken.managerEmail.toLowerCase() !== email.toLowerCase()
+      ) {
+        emailChanged = true;
+        await invalidatePreviousToken(entry.referenceTokenId);
+        entry.referenceTokenId = undefined;
+        entry.lastReferenceEmailSentAt = undefined;
+        entry.referenceReminderSentAt = undefined;
+      }
+    }
+
     const lastSent = entry.lastReferenceEmailSentAt
       ? new Date(entry.lastReferenceEmailSentAt).getTime()
       : 0;
-    if (lastSent && Date.now() - lastSent < COOLDOWN_MS) continue;
+    // Bypass cooldown when the manager email changed so seekers can switch contacts immediately
+    if (!emailChanged && lastSent && Date.now() - lastSent < COOLDOWN_MS) {
+      continue;
+    }
 
     let tokenDoc = await ReferenceVerificationToken.findOne({
       cvId: cv._id,
@@ -202,37 +231,17 @@ export async function processReferenceVerificationRequests(
       entry.verificationStatus = 'reference_requested';
       entry.referenceTokenId = tokenDoc._id as mongoose.Types.ObjectId;
       entry.lastReferenceEmailSentAt = new Date();
-      // #region agent log
-      {
-        const payload = {
-          sessionId: '85d025',
-          runId: 'pre-fix',
-          hypothesisId: 'D',
-          location: 'processReferenceRequests.ts:afterSend',
-          message: 'Reference email send result messageId persistence',
-          data: {
-            success: result.success,
-            hasMessageId: Boolean(result.messageId),
-            messageIdSuffix: result.messageId ? result.messageId.slice(-8) : null,
-            willPersistMessageId: Boolean(result.messageId),
-          },
-          timestamp: Date.now(),
-        };
-        console.log('[processReferenceRequests][debug]', JSON.stringify(payload));
-        fetch('http://127.0.0.1:7714/ingest/809469dc-4731-4443-a5ec-6d4761840282', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Debug-Session-Id': '85d025',
-          },
-          body: JSON.stringify(payload),
-        }).catch(() => {});
-      }
-      // #endregion
+      entry.referenceReminderSentAt = undefined;
       if (result.messageId) {
         tokenDoc.resendMessageId = result.messageId;
         tokenDoc.bouncedAt = undefined;
         tokenDoc.bounceType = undefined;
+        tokenDoc.reminderSentAt = undefined;
+        tokenDoc.reminderCount = 0;
+        await tokenDoc.save();
+      } else {
+        tokenDoc.reminderSentAt = undefined;
+        tokenDoc.reminderCount = 0;
         await tokenDoc.save();
       }
       modified = true;

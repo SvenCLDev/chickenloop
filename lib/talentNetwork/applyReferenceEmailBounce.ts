@@ -54,6 +54,7 @@ export function applyReferenceEmailBounceToCv(
 
   entry.verificationStatus = 'reference_email_bounced';
   entry.lastReferenceEmailSentAt = undefined;
+  entry.referenceReminderSentAt = undefined;
   cv.markModified('seasonalExperience');
 
   const now = new Date();

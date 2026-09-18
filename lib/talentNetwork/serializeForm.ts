@@ -109,6 +109,12 @@ export function cvToTalentNetworkForm(cv: Record<string, unknown>): TalentNetwor
             referenceEmail: String(e.referenceEmail ?? ''),
             referencePhone: String(e.referencePhone ?? ''),
             verificationStatus: e.verificationStatus as TalentNetworkFormState['seasonalExperience'][0]['verificationStatus'],
+            lastReferenceEmailSentAt: e.lastReferenceEmailSentAt
+              ? String(e.lastReferenceEmailSentAt)
+              : undefined,
+            reminderSentAt: e.referenceReminderSentAt
+              ? String(e.referenceReminderSentAt)
+              : undefined,
           }))
         : [],
     languageSkills:

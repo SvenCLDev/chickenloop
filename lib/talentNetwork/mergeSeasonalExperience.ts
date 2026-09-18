@@ -46,6 +46,8 @@ export function mergeSeasonalExperienceForSave(
       referenceTokenId: fingerprintMatch?.referenceTokenId ?? entry.referenceTokenId,
       lastReferenceEmailSentAt:
         fingerprintMatch?.lastReferenceEmailSentAt ?? entry.lastReferenceEmailSentAt,
+      referenceReminderSentAt:
+        fingerprintMatch?.referenceReminderSentAt ?? entry.referenceReminderSentAt,
       workConfirmed: entry.workConfirmed ?? fingerprintMatch?.workConfirmed,
       rehireAnswer: entry.rehireAnswer ?? fingerprintMatch?.rehireAnswer,
     };

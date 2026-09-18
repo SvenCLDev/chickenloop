@@ -68,6 +68,11 @@ export default function TalentNetworkVerificationSummary({
               {summary.references.bounced} email bounced — update manager email
             </p>
           )}
+          {summary.references.expired > 0 && (
+            <p className="mt-2 text-sm text-gray-700">
+              {summary.references.expired} request expired — no reply
+            </p>
+          )}
           {summary.references.disputed > 0 && (
             <p className="mt-2 text-sm text-red-700">
               {summary.references.disputed} employment disputed

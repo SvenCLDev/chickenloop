@@ -17,6 +17,10 @@ export interface IReferenceVerificationToken extends Document {
   resendMessageId?: string;
   bouncedAt?: Date;
   bounceType?: string;
+  /** When a manager reminder email was last sent (auto or seeker-triggered). */
+  reminderSentAt?: Date;
+  /** Number of manager reminder emails sent for this token (max 1). */
+  reminderCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +42,8 @@ const ReferenceVerificationTokenSchema = new Schema(
     resendMessageId: { type: String, index: true, sparse: true },
     bouncedAt: Date,
     bounceType: String,
+    reminderSentAt: Date,
+    reminderCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

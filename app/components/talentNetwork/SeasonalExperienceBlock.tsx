@@ -1,6 +1,9 @@
 'use client';
 
+import { useState } from 'react';
+import { talentNetworkApi } from '@/lib/api';
 import { MONTH_OPTIONS } from '@/lib/talentNetwork/constants';
+import { REFERENCE_MANUAL_REMIND_AFTER_MS } from '@/lib/talentNetwork/referenceFollowupConstants';
 import ExperienceVerificationBadge from './ExperienceVerificationBadge';
 import type { SeasonalExperienceFormEntry } from './formTypes';
 import { emptySeasonalExperience } from './formTypes';
@@ -20,15 +23,90 @@ function fieldClass(hasError: boolean): string {
     : 'w-full px-3 py-2 border border-gray-300 rounded-md';
 }
 
+function formatShortDate(value?: string): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function canManualRemind(entry: SeasonalExperienceFormEntry): boolean {
+  if (entry.verificationStatus !== 'reference_requested') return false;
+  if (entry.reminderSentAt) return false;
+  if (!entry.lastReferenceEmailSentAt) return false;
+  const sent = new Date(entry.lastReferenceEmailSentAt).getTime();
+  return Date.now() - sent >= REFERENCE_MANUAL_REMIND_AFTER_MS;
+}
+
 export default function SeasonalExperienceBlock({
   entries,
   onChange,
   dateRangeErrors = {},
 }: SeasonalExperienceBlockProps) {
+  const [actionKey, setActionKey] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<Record<string, string>>({});
+  const [actionInfo, setActionInfo] = useState<Record<string, string>>({});
+
   const update = (index: number, patch: Partial<SeasonalExperienceFormEntry>) => {
     const next = [...entries];
     next[index] = { ...next[index], ...patch };
     onChange(next);
+  };
+
+  const runAction = async (
+    index: number,
+    action: 'remind' | 'cancel' | 'resend'
+  ) => {
+    const entry = entries[index];
+    if (!entry?.clientId) return;
+    setActionError((prev) => ({ ...prev, [entry.clientId]: '' }));
+    setActionInfo((prev) => ({ ...prev, [entry.clientId]: '' }));
+    setActionKey(`${entry.clientId}:${action}`);
+    try {
+      const result = (await talentNetworkApi.referenceAction(
+        entry.clientId,
+        action
+      )) as {
+        ok?: boolean;
+        verificationStatus?: SeasonalExperienceFormEntry['verificationStatus'];
+        error?: string;
+      };
+      const nextStatus = result.verificationStatus ?? entry.verificationStatus;
+      update(index, {
+        verificationStatus: nextStatus,
+        ...(action === 'cancel'
+          ? {
+              lastReferenceEmailSentAt: undefined,
+              reminderSentAt: undefined,
+            }
+          : {}),
+        ...(action === 'remind'
+          ? { reminderSentAt: new Date().toISOString() }
+          : {}),
+        ...(action === 'resend'
+          ? {
+              lastReferenceEmailSentAt: new Date().toISOString(),
+              reminderSentAt: undefined,
+              verificationStatus: nextStatus ?? 'reference_requested',
+            }
+          : {}),
+      });
+      const messages: Record<typeof action, string> = {
+        remind: 'Reminder sent to the manager. We also emailed you.',
+        cancel: 'Reference request cancelled.',
+        resend: 'New reference request sent.',
+      };
+      setActionInfo((prev) => ({ ...prev, [entry.clientId]: messages[action] }));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Action failed';
+      setActionError((prev) => ({ ...prev, [entry.clientId]: message }));
+    } finally {
+      setActionKey(null);
+    }
   };
 
   return (
@@ -47,6 +125,9 @@ export default function SeasonalExperienceBlock({
       {entries.map((entry, index) => {
         const dateError = dateRangeErrors[index];
         const hasDateError = Boolean(dateError);
+        const sentLabel = formatShortDate(entry.lastReferenceEmailSentAt);
+        const reminderLabel = formatShortDate(entry.reminderSentAt);
+        const busy = actionKey?.startsWith(`${entry.clientId}:`);
 
         return (
           <div
@@ -80,7 +161,9 @@ export default function SeasonalExperienceBlock({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">School / center name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  School / center name
+                </label>
                 <input
                   type="text"
                   value={entry.schoolName}
@@ -99,52 +182,71 @@ export default function SeasonalExperienceBlock({
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Season tag (optional)</label>
-                <input
-                  type="text"
-                  value={entry.seasonTag}
-                  onChange={(e) => update(index, { seasonTag: e.target.value })}
-                  placeholder="e.g. Summer 2025"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
             </div>
 
             <div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Season tag (optional)
+              </label>
+              <input
+                type="text"
+                value={entry.seasonTag}
+                onChange={(e) => update(index, { seasonTag: e.target.value })}
+                placeholder="e.g. Summer 2024"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+            </div>
+
+            <div>
+              <p className="block text-sm font-medium text-gray-700 mb-2">Dates</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start month</label>
+                  <label className="block text-xs text-gray-500 mb-1">Start month</label>
                   <select
                     value={entry.startMonth}
-                    onChange={(e) => update(index, { startMonth: Number(e.target.value) })}
+                    onChange={(e) =>
+                      update(index, {
+                        startMonth: e.target.value ? Number(e.target.value) : '',
+                      })
+                    }
                     className={fieldClass(hasDateError)}
-                    required
                     aria-invalid={hasDateError}
+                    aria-describedby={
+                      hasDateError ? `experience-date-error-${index}` : undefined
+                    }
+                    required
                   >
                     <option value="">Month</option>
                     {MONTH_OPTIONS.map((m) => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start year</label>
+                  <label className="block text-xs text-gray-500 mb-1">Start year</label>
                   <select
                     value={entry.startYear}
-                    onChange={(e) => update(index, { startYear: Number(e.target.value) })}
+                    onChange={(e) =>
+                      update(index, {
+                        startYear: e.target.value ? Number(e.target.value) : '',
+                      })
+                    }
                     className={fieldClass(hasDateError)}
-                    required
                     aria-invalid={hasDateError}
+                    required
                   >
                     <option value="">Year</option>
                     {yearOptions.map((y) => (
-                      <option key={y} value={y}>{y}</option>
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End month</label>
+                  <label className="block text-xs text-gray-500 mb-1">End month</label>
                   <select
                     value={entry.endMonth}
                     onChange={(e) =>
@@ -155,14 +257,16 @@ export default function SeasonalExperienceBlock({
                     className={fieldClass(hasDateError)}
                     aria-invalid={hasDateError}
                   >
-                    <option value="">Current / N/A</option>
+                    <option value="">Month</option>
                     {MONTH_OPTIONS.map((m) => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End year</label>
+                  <label className="block text-xs text-gray-500 mb-1">End year</label>
                   <select
                     value={entry.endYear}
                     onChange={(e) =>
@@ -173,9 +277,11 @@ export default function SeasonalExperienceBlock({
                     className={fieldClass(hasDateError)}
                     aria-invalid={hasDateError}
                   >
-                    <option value="">Current / N/A</option>
+                    <option value="">Year</option>
                     {yearOptions.map((y) => (
-                      <option key={y} value={y}>{y}</option>
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -211,6 +317,84 @@ export default function SeasonalExperienceBlock({
                   </p>
                 </div>
               )}
+              {entry.verificationStatus === 'reference_requested' && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-2">
+                  <p className="text-sm text-amber-900">
+                    {sentLabel
+                      ? `Reference email sent ${sentLabel}.`
+                      : 'Reference email sent.'}{' '}
+                    {reminderLabel
+                      ? `Reminder sent ${reminderLabel}.`
+                      : 'We automatically remind the manager after 5 days if there is no reply.'}
+                  </p>
+                  <p className="text-sm text-amber-800">
+                    You can change the manager email and save anytime (we send immediately to the new
+                    address), send a reminder after 3 days, or cancel the request.
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {canManualRemind(entry) && (
+                      <button
+                        type="button"
+                        disabled={Boolean(busy)}
+                        onClick={() => runAction(index, 'remind')}
+                        className="text-sm px-3 py-1.5 rounded-md bg-amber-700 text-white hover:bg-amber-800 disabled:opacity-50"
+                      >
+                        {actionKey === `${entry.clientId}:remind`
+                          ? 'Sending…'
+                          : 'Send reminder now'}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={Boolean(busy)}
+                      onClick={() => runAction(index, 'cancel')}
+                      className="text-sm px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {actionKey === `${entry.clientId}:cancel`
+                        ? 'Cancelling…'
+                        : 'Cancel request'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {entry.verificationStatus === 'reference_expired' && (
+                <div className="rounded-lg border border-gray-300 bg-gray-50 p-4 space-y-2">
+                  <p className="text-sm font-medium text-gray-900">
+                    This reference request expired with no reply.
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    Change the manager email below and save, or request again with the same email.
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={Boolean(busy) || !entry.referenceEmail?.trim()}
+                      onClick={() => runAction(index, 'resend')}
+                      className="text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {actionKey === `${entry.clientId}:resend`
+                        ? 'Sending…'
+                        : 'Request again'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={Boolean(busy)}
+                      onClick={() => runAction(index, 'cancel')}
+                      className="text-sm px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Clear request
+                    </button>
+                  </div>
+                </div>
+              )}
+              {actionError[entry.clientId] && (
+                <p className="text-sm text-red-700" role="alert">
+                  {actionError[entry.clientId]}
+                </p>
+              )}
+              {actionInfo[entry.clientId] && (
+                <p className="text-sm text-emerald-700">{actionInfo[entry.clientId]}</p>
+              )}
               <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
                 <p className="text-sm font-medium text-gray-900">Why add a manager email?</p>
                 <p className="text-sm text-gray-600 mt-1">
@@ -233,6 +417,7 @@ export default function SeasonalExperienceBlock({
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Required for verification. We send a one-click confirm link when you save.
+                    Changing the email while awaiting a reply sends a new request immediately.
                   </p>
                 </div>
                 <div>

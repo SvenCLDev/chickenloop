@@ -39,6 +39,7 @@ export const EXPERIENCE_VERIFICATION_STATUSES = [
   'self_reported',
   'reference_requested',
   'reference_email_bounced',
+  'reference_expired',
   'reference_confirmed',
   'reference_disputed',
 ] as const;
@@ -93,6 +94,8 @@ export interface SeasonalExperience {
   workConfirmed?: boolean;
   rehireAnswer?: boolean;
   lastReferenceEmailSentAt?: Date | string;
+  /** When a manager reminder was sent (auto or seeker-triggered). */
+  referenceReminderSentAt?: Date | string;
 }
 
 export interface LanguageSkill {

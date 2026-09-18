@@ -27,6 +27,7 @@ interface TalentNetworkProfileViewProps {
       verificationStatus?: string;
       workConfirmed?: boolean;
       rehireAnswer?: boolean;
+      referenceReminderSentAt?: string | Date;
     }>;
     languageSkills?: Array<{
       language: string;
@@ -216,6 +217,19 @@ export default function TalentNetworkProfileView({
                     The listed manager says this candidate did not work at this center.
                   </p>
                 )}
+                {entry.verificationStatus === 'reference_expired' && showOwnerStatus && (
+                  <p className="text-sm text-gray-700 mt-2">
+                    The reference request expired with no reply. Update the manager email or request
+                    again from Edit Profile.
+                  </p>
+                )}
+                {entry.verificationStatus === 'reference_requested' &&
+                  entry.referenceReminderSentAt &&
+                  showOwnerStatus && (
+                    <p className="text-sm text-amber-800 mt-2">
+                      A reminder was sent to the manager. Still awaiting their response.
+                    </p>
+                  )}
               </div>
             ))}
           </div>

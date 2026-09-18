@@ -184,6 +184,7 @@ const CVSchema: Schema = new Schema(
         workConfirmed: Boolean,
         rehireAnswer: Boolean,
         lastReferenceEmailSentAt: Date,
+        referenceReminderSentAt: Date,
       },
     ],
     languageSkills: [

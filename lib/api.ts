@@ -213,6 +213,11 @@ export const talentNetworkApi = {
       method: 'POST',
       body: JSON.stringify({ campaignId }),
     }),
+  referenceAction: (experienceEntryId: string, action: 'remind' | 'cancel' | 'resend') =>
+    apiRequest('/talent-network/reference-actions', {
+      method: 'POST',
+      body: JSON.stringify({ experienceEntryId, action }),
+    }),
 };
 
 export const savedSearchesApi = {

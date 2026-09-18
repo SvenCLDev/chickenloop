@@ -18,6 +18,7 @@ export interface VerificationSummary {
     disputed: number;
     requested: number;
     bounced: number;
+    expired: number;
     selfReported: number;
   };
   languages: {
@@ -63,6 +64,7 @@ export function buildTalentNetworkVerificationSummary(cv: {
     disputed: experience.filter((e) => e.verificationStatus === 'reference_disputed').length,
     requested: experience.filter((e) => e.verificationStatus === 'reference_requested').length,
     bounced: experience.filter((e) => e.verificationStatus === 'reference_email_bounced').length,
+    expired: experience.filter((e) => e.verificationStatus === 'reference_expired').length,
     selfReported: experience.filter(
       (e) => (e.verificationStatus ?? 'self_reported') === 'self_reported'
     ).length,
@@ -103,8 +105,16 @@ export function buildTalentNetworkVerificationSummary(cv: {
       pendingItems.push(
         `${label} — reference email bounced; enter a different manager email`
       );
+    } else if (status === 'reference_expired') {
+      pendingItems.push(
+        `${label} — reference request expired with no reply; request again or change email`
+      );
     } else if (status === 'reference_requested') {
-      pendingItems.push(`${label} — reference email sent, awaiting manager response`);
+      pendingItems.push(
+        entry.referenceReminderSentAt
+          ? `${label} — reminder sent, still awaiting manager response`
+          : `${label} — reference email sent, awaiting manager response`
+      );
     } else if (entry.referenceEmail?.trim()) {
       pendingItems.push(`${label} — manager email saved, reference not yet confirmed`);
     } else {

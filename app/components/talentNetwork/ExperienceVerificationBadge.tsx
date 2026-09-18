@@ -34,6 +34,13 @@ export default function ExperienceVerificationBadge({
       </span>
     );
   }
+  if (status === 'reference_expired' && showOwnerStatus) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+        Request expired — no reply
+      </span>
+    );
+  }
   if (!showOwnerStatus) return null;
   if (status === 'reference_requested') {
     return (

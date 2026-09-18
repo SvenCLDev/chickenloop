@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/job-followup",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/reference-followup",
+      "schedule": "0 10 * * *"
     }
   ]
 }
