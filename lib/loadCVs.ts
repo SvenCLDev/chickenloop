@@ -1,12 +1,18 @@
 import connectDB from '@/lib/db';
 import CV from '@/models/CV';
 import { normalizeCandidateSortKey, parseCandidateSearchParams } from '@/lib/candidateSearchParams';
+import {
+  applyTalentListVisibility,
+  type TalentViewerTier,
+} from '@/lib/talentVisibility';
 
 const PAGE_SIZE = 20;
 
 export interface LoadCVsOptions {
   /** URL search params (e.g. from request.url) */
   searchParams: URLSearchParams;
+  /** Who is viewing — controls PII stripping on list rows. Default recruiter (full). */
+  viewerTier?: TalentViewerTier;
 }
 
 export interface LoadCVsResult {
@@ -35,7 +41,7 @@ export interface LoadCVsResult {
  * Uses the shared cached connection from connectDB() to avoid duplicate connections.
  */
 export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
-  const { searchParams } = options;
+  const { searchParams, viewerTier = 'recruiter' } = options;
 
   // Ensure connection is awaited before any CV.aggregate() (fix applied inside loadCVs)
   await connectDB();
@@ -403,7 +409,10 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
   });
 
   // Bounded sort ($sort + $limit(sortWindow)) keeps memory under 32MB without requiring allowDiskUse
-  const cvs = await CV.aggregate(aggregationPipeline, aggOptions);
+  const rawCvs = await CV.aggregate(aggregationPipeline, aggOptions);
+  const cvs = rawCvs.map((cv: Record<string, unknown>) =>
+    applyTalentListVisibility(cv, viewerTier as TalentViewerTier)
+  );
 
   return {
     cvs,

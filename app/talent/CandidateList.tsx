@@ -61,14 +61,6 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
   const filtersKeyRef = useRef('');
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login');
-    } else if (user && user.role !== 'recruiter' && user.role !== 'admin') {
-      router.push(`/${user.role === 'job-seeker' ? 'job-seeker' : user.role || 'recruiter'}`);
-    }
-  }, [user, authLoading, router]);
-
-  useEffect(() => {
     if (user && (user.role === 'recruiter' || user.role === 'admin')) {
       candidatesApi
         .getFavourites()
@@ -82,7 +74,6 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
 
   const loadCandidates = useCallback(
     async (pageToLoad: number, activeFilters: CandidateListFilters, replace = false) => {
-      if (!user || (user.role !== 'recruiter' && user.role !== 'admin')) return;
       setLoading(true);
       setError('');
 
@@ -147,11 +138,11 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
         setLoading(false);
       }
     },
-    [router, searchParams, user]
+    [router, searchParams]
   );
 
   useEffect(() => {
-    if (!user || (user.role !== 'recruiter' && user.role !== 'admin')) return;
+    if (authLoading) return;
 
     const filtersKey = buildCandidateSearchQuery(candidateListFiltersToSearchParams(filters));
 
@@ -172,7 +163,7 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
     setCvs([]);
     loadedPagesRef.current = new Set([1]);
     void loadCandidates(1, filters, true);
-  }, [filters, user, loadCandidates]);
+  }, [filters, authLoading, loadCandidates, initialFilters]);
 
   const loadMore = useCallback(() => {
     if (loading || !hasMore) return;
@@ -278,8 +269,10 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
   );
 
   const showFavourite = user?.role === 'recruiter' || user?.role === 'admin';
+  const isAnonymous = !user;
+  const isJobSeeker = user?.role === 'job-seeker';
 
-  if (authLoading || (!user && !authLoading)) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-xl text-gray-600">Loading...</div>
@@ -292,6 +285,33 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
       <div className="mb-6">
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Find Talent</h1>
         <p className="mt-2 text-gray-600">Browse verified watersports professionals</p>
+        {isAnonymous && (
+          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            You&apos;re browsing a preview of the Talent Network. Names are shown as initials and
+            contact details stay private.{' '}
+            <a href="/register" className="font-semibold underline hover:text-blue-700">
+              Create a free profile
+            </a>{' '}
+            or{' '}
+            <a href="/login" className="font-semibold underline hover:text-blue-700">
+              log in
+            </a>{' '}
+            to see how instructors appear to recruiters.
+          </div>
+        )}
+        {isJobSeeker && (
+          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            This is the directory recruiters browse. Contact details are hidden from other
+            instructors — recruiters see email and phone when your profile is published.{' '}
+            <a
+              href="/job-seeker/profile/view?preview=recruiter"
+              className="font-semibold underline hover:text-emerald-800"
+            >
+              Preview your profile as a recruiter
+            </a>
+            .
+          </div>
+        )}
       </div>
 
       <CandidateSearchBar
@@ -422,6 +442,7 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
                 isFavourite={favouriteCvIds.has(candidate._id)}
                 togglingFavourite={togglingFavouriteId === candidate._id}
                 onToggleFavourite={handleToggleFavourite}
+                linkToProfile={!isAnonymous}
               />
             ))}
           </div>

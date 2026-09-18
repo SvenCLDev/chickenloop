@@ -15,7 +15,7 @@ import type { WorkAuthorization } from '@/lib/talentNetwork/types';
 interface CV {
   _id: string;
   fullName: string;
-  email: string;
+  email?: string;
   phone?: string;
   address?: string;
   summary?: string;
@@ -77,25 +77,27 @@ function CVDetailContent() {
   const [showJobModal, setShowJobModal] = useState(false);
   const [availableJobs, setAvailableJobs] = useState<any[]>([]);
   const [showContactSuccessModal, setShowContactSuccessModal] = useState(false);
+  const [profileLocked, setProfileLocked] = useState(false);
+  const [lockedMessage, setLockedMessage] = useState('');
+  const isRecruiterUser = user?.role === 'recruiter' || user?.role === 'admin';
+  const isJobSeekerUser = user?.role === 'job-seeker';
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login');
-    } else if (user && user.role !== 'recruiter' && user.role !== 'admin') {
-      router.push(`/${user.role === 'job-seeker' ? 'job-seeker' : ''}`);
-    }
-  }, [user, authLoading, router]);
-
-  useEffect(() => {
-    if (user && (user.role === 'recruiter' || user.role === 'admin') && cvId) {
-      loadCV();
+    if (authLoading || !cvId) return;
+    void loadCV();
+    if (isRecruiterUser) {
       checkFavouriteStatus();
-      checkContactStatus();
     }
-  }, [user, cvId]);
+  }, [user, cvId, authLoading, isRecruiterUser]);
+
+  useEffect(() => {
+    if (isRecruiterUser && cv) {
+      void checkContactStatus();
+    }
+  }, [cv, isRecruiterUser]);
 
   const checkContactStatus = async () => {
-    if (!user || (user.role !== 'recruiter' && user.role !== 'admin') || !cv) return;
+    if (!user || !isRecruiterUser || !cv) return;
     
     try {
       const response = await fetch('/api/applications', {
@@ -220,6 +222,17 @@ function CVDetailContent() {
       }
 
       const data = await response.json();
+      if (data.locked) {
+        setProfileLocked(true);
+        setLockedMessage(
+          typeof data.message === 'string'
+            ? data.message
+            : 'Create a free profile to browse Talent Network profiles.'
+        );
+        setCv(null);
+        return;
+      }
+      setProfileLocked(false);
       setCv(data.cv);
     } catch (err: any) {
       setError(err.message || 'Failed to load profile');
@@ -235,6 +248,42 @@ function CVDetailContent() {
         <div className="flex items-center justify-center h-screen">
           <div className="text-xl">Loading...</div>
         </div>
+      </div>
+    );
+  }
+
+  if (profileLocked) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+        <Navbar />
+        <main className="max-w-4xl mx-auto px-4 py-12">
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-3">
+              See how Talent Network works
+            </h1>
+            <p className="text-gray-600 mb-6 max-w-lg mx-auto">{lockedMessage}</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link
+                href="/register"
+                className="bg-blue-600 text-white px-5 py-2.5 rounded-md hover:bg-blue-700 font-medium"
+              >
+                Create a free profile
+              </Link>
+              <Link
+                href="/login"
+                className="bg-gray-100 text-gray-800 px-5 py-2.5 rounded-md hover:bg-gray-200 font-medium"
+              >
+                Log in
+              </Link>
+              <Link
+                href={returnUrl}
+                className="text-blue-600 hover:underline px-3 py-2.5"
+              >
+                ← Back to Talent
+              </Link>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -314,23 +363,33 @@ function CVDetailContent() {
           {/* Personal Information */}
           <div className="mb-6 pb-6 border-b border-gray-200">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Personal Information</h2>
+            {isJobSeekerUser && (
+              <p className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2 mb-4">
+                Contact details are hidden from other instructors. Recruiters see email and phone when
+                the profile is published.
+              </p>
+            )}
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-medium text-gray-500">Full Name</p>
                 <p className="text-lg text-gray-900">{cv.fullName || '-'}</p>
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Email</p>
-                <p className="text-lg text-gray-900">{cv.email || '-'}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Phone</p>
-                <p className="text-lg text-gray-900">{cv.phone || '-'}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Address</p>
-                <p className="text-lg text-gray-900">{cv.address || '-'}</p>
-              </div>
+              {isRecruiterUser && (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Email</p>
+                    <p className="text-lg text-gray-900">{cv.email || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Phone</p>
+                    <p className="text-lg text-gray-900">{cv.phone || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Address</p>
+                    <p className="text-lg text-gray-900">{cv.address || '-'}</p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

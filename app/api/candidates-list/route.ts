@@ -1,60 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireRole } from '@/lib/auth';
+import { verifyAuthIncludingNextAuth } from '@/lib/auth';
 import { loadCVs } from '@/lib/loadCVs';
 import { parseCandidateSearchParams } from '@/lib/candidateSearchParams';
 import {
   listEventForPage,
   logTalentSearchEvent,
 } from '@/lib/talentSearchAnalytics';
+import { resolveTalentViewerTier } from '@/lib/talentVisibility';
 
-// GET - Get all CVs (recruiters and admins only)
+/**
+ * GET /api/candidates-list
+ * Public directory for anonymous + job seekers (tiered PII).
+ * Full payload for recruiters/admins. Analytics only for recruiters/admins.
+ */
 export async function GET(request: NextRequest) {
-  console.log('API: /api/candidates-list called');
   try {
-    const user = await requireRole(request, ['recruiter', 'admin']);
-    console.log('API: /api/candidates-list - User authorized:', user.email);
+    const user = await verifyAuthIncludingNextAuth(request);
+    const viewerTier = resolveTalentViewerTier(user);
 
     const { searchParams } = new URL(request.url);
     const filters = parseCandidateSearchParams(searchParams);
-    console.log('API: /api/candidates-list - Querying CVs with filters:', {
-      featured: searchParams.get('featured') || null,
-      kw: filters.kw || null,
-      location: filters.location || null,
-      workArea: filters.workArea || null,
-      language: filters.language || null,
-      sport: filters.sport || null,
-      certification: filters.certification || null,
-      experienceLevel: filters.experienceLevel || null,
-      availability: filters.availability || null,
-      page: filters.page || null,
-      sort: filters.sort || null,
-    });
 
-    const startTime = Date.now();
-    const result = await loadCVs({ searchParams });
-    const queryTime = Date.now() - startTime;
-    console.log(`API: /api/candidates-list - Found ${result.cvs.length} CVs (page ${result.pagination.page}, total ${result.pagination.total}) in ${queryTime}ms`);
+    const result = await loadCVs({ searchParams, viewerTier });
 
-    // Fire-and-forget product analytics; never block or fail the search response.
-    void logTalentSearchEvent({
-      event: listEventForPage(result.pagination.page),
-      recruiterId: user.userId,
-      role: user.role,
-      filters,
-      resultCount: result.pagination.total,
-    });
+    if (user && (user.role === 'recruiter' || user.role === 'admin')) {
+      void logTalentSearchEvent({
+        event: listEventForPage(result.pagination.page),
+        recruiterId: user.userId,
+        role: user.role,
+        filters,
+        resultCount: result.pagination.total,
+      });
+    }
 
-    return NextResponse.json({
-      cvs: result.cvs,
-      filters: result.filters,
-      pagination: result.pagination,
-    }, { status: 200 });
+    return NextResponse.json(
+      {
+        cvs: result.cvs,
+        filters: result.filters,
+        pagination: result.pagination,
+        viewerTier,
+      },
+      { status: 200 }
+    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('API: /api/candidates-list - Error:', error);
-    if (errorMessage === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
     if (errorMessage === 'PASSWORD_RESET_REQUIRED') {
       return NextResponse.json({ error: 'PASSWORD_RESET_REQUIRED' }, { status: 403 });
     }
@@ -63,9 +53,6 @@ export async function GET(request: NextRequest) {
         { error: 'COMPANY_PROFILE_INCOMPLETE' },
         { status: 403 }
       );
-    }
-    if (errorMessage === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     return NextResponse.json(
       { error: errorMessage || 'Internal server error' },

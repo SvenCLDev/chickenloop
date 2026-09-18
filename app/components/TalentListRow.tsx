@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { stripHtmlToText } from '@/lib/sanitizeText';
 import type { CandidateListItem } from '@/lib/candidateListTypes';
 import { talentProfilePath } from '@/lib/talentRoutes';
+import { getNameInitials } from '@/lib/talentVisibility';
+import { getCountryNameFromCode } from '@/lib/countryUtils';
 
 const EXPERIENCE_LEVEL_LABELS: Record<string, string> = {
   entry: 'Entry',
@@ -18,13 +20,6 @@ const AVAILABILITY_LABELS: Record<string, string> = {
   seasonal: 'Seasonal',
   not_available: 'Not available',
 };
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
 
 function getTimeAgo(date: string): string {
   const now = new Date();
@@ -48,6 +43,8 @@ type TalentListRowProps = {
   isFavourite?: boolean;
   togglingFavourite?: boolean;
   onToggleFavourite?: (e: React.MouseEvent, cvId: string) => void;
+  /** When false, card is not clickable (anonymous directory). */
+  linkToProfile?: boolean;
 };
 
 export default function TalentListRow({
@@ -56,8 +53,12 @@ export default function TalentListRow({
   isFavourite = false,
   togglingFavourite = false,
   onToggleFavourite,
+  linkToProfile = true,
 }: TalentListRowProps) {
   const picture = candidate.pictures?.[0] || null;
+  const displayName = candidate.displayName || candidate.fullName;
+  const allowLink =
+    linkToProfile && candidate.profileLinkAllowed !== false;
   const primaryRole =
     candidate.lookingForWorkInAreas?.[0] ||
     candidate.experienceAndSkill?.[0] ||
@@ -74,6 +75,40 @@ export default function TalentListRow({
     candidate.jobSeeker?.updatedAt ||
     candidate.updatedAt;
   const summary = candidate.summary ? stripHtmlToText(candidate.summary) : '';
+  const regionRaw = candidate.regionLabel || candidate.nationalityCountry;
+  const regionLabel = regionRaw
+    ? getCountryNameFromCode(regionRaw) !== regionRaw
+      ? getCountryNameFromCode(regionRaw)
+      : regionRaw
+    : null;
+  const locationLabel = candidate.address
+    ? `Based in ${candidate.address}`
+    : regionLabel
+      ? `Based in ${regionLabel}`
+      : null;
+
+  const avatar = picture ? (
+    <img
+      src={picture}
+      alt={displayName}
+      className="w-14 h-14 rounded-full object-cover object-top bg-gray-100"
+    />
+  ) : (
+    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-100 to-cyan-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
+      {getNameInitials(candidate.fullName || displayName)}
+    </div>
+  );
+
+  const nameEl = allowLink ? (
+    <Link
+      href={talentProfilePath(candidate._id)}
+      className="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors truncate"
+    >
+      {displayName}
+    </Link>
+  ) : (
+    <span className="text-lg font-bold text-gray-900 truncate">{displayName}</span>
+  );
 
   return (
     <div
@@ -84,28 +119,17 @@ export default function TalentListRow({
       }`}
     >
       <div className="flex gap-4 p-4 sm:p-5">
-        <Link href={talentProfilePath(candidate._id)} className="shrink-0">
-          {picture ? (
-            <img
-              src={picture}
-              alt={candidate.fullName}
-              className="w-14 h-14 rounded-full object-cover object-top bg-gray-100"
-            />
-          ) : (
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-100 to-cyan-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
-              {getInitials(candidate.fullName)}
-            </div>
-          )}
-        </Link>
+        {allowLink ? (
+          <Link href={talentProfilePath(candidate._id)} className="shrink-0">
+            {avatar}
+          </Link>
+        ) : (
+          <div className="shrink-0">{avatar}</div>
+        )}
 
         <div className="min-w-0 flex-1 pr-8">
           <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1">
-            <Link
-              href={talentProfilePath(candidate._id)}
-              className="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors truncate"
-            >
-              {candidate.fullName}
-            </Link>
+            {nameEl}
             {candidate.featured && (
               <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
                 Featured
@@ -157,14 +181,15 @@ export default function TalentListRow({
             )}
             {candidate.experienceLevel && (
               <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-                {EXPERIENCE_LEVEL_LABELS[candidate.experienceLevel] || candidate.experienceLevel}
+                {EXPERIENCE_LEVEL_LABELS[candidate.experienceLevel] ||
+                  candidate.experienceLevel}
               </span>
             )}
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-            {candidate.address && <span>Based in {candidate.address}</span>}
-            {lastActive && <span>Active {getTimeAgo(lastActive)}</span>}
+            {locationLabel && <span>{locationLabel}</span>}
+            {lastActive && allowLink && <span>Active {getTimeAgo(lastActive)}</span>}
           </div>
 
           {summary && (

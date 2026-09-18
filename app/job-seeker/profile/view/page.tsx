@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '../../../components/Navbar';
 import TalentNetworkProfileView from '@/app/components/talentNetwork/TalentNetworkProfileView';
 import TalentNetworkVerificationSummary from '@/app/components/talentNetwork/TalentNetworkVerificationSummary';
@@ -35,8 +35,27 @@ function formatAvailability(value?: string): string {
 }
 
 export default function ViewCVPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+          <Navbar />
+          <div className="flex items-center justify-center h-screen">
+            <div className="text-xl">Loading...</div>
+          </div>
+        </div>
+      }
+    >
+      <ViewCVPageContent />
+    </Suspense>
+  );
+}
+
+function ViewCVPageContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const previewAsRecruiter = searchParams.get('preview') === 'recruiter';
   const [cv, setCv] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -110,17 +129,38 @@ export default function ViewCVPage() {
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 py-12">
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
             <h1 className="text-3xl font-bold text-gray-900">
-              {isTalentNetworkV2 ? 'My Talent Network Profile' : 'My Profile'}
+              {previewAsRecruiter
+                ? 'Recruiter preview'
+                : isTalentNetworkV2
+                  ? 'My Talent Network Profile'
+                  : 'My Profile'}
             </h1>
-            <div className="flex gap-3">
-              <Link
-                href={editHref}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              >
-                Edit profile
-              </Link>
+            <div className="flex flex-wrap gap-3">
+              {!previewAsRecruiter ? (
+                <>
+                  <Link
+                    href="/job-seeker/profile/view?preview=recruiter"
+                    className="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700"
+                  >
+                    Preview as recruiter
+                  </Link>
+                  <Link
+                    href={editHref}
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                  >
+                    Edit profile
+                  </Link>
+                </>
+              ) : (
+                <Link
+                  href="/job-seeker/profile/view"
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+                >
+                  Exit preview
+                </Link>
+              )}
               <Link
                 href="/job-seeker"
                 className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
@@ -130,7 +170,20 @@ export default function ViewCVPage() {
             </div>
           </div>
 
-          {isTalentNetworkV2 && (
+          {previewAsRecruiter && (
+            <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              This is how recruiters see your published profile on Talent. Email and phone are visible
+              to them here; other instructors never see your contact details in the directory.
+              {cv.published === false && (
+                <span className="block mt-1 font-medium">
+                  Your profile is currently unpublished — recruiters will not find you until you
+                  publish it.
+                </span>
+              )}
+            </div>
+          )}
+
+          {isTalentNetworkV2 && !previewAsRecruiter && (
             <TalentNetworkVerificationSummary cv={cv} editProfileHref={editHref} />
           )}
 
@@ -143,15 +196,36 @@ export default function ViewCVPage() {
                 <p className="text-lg text-gray-900">{cv.fullName || '-'}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">Email</p>
+                <p className="text-sm font-medium text-gray-500">
+                  Email
+                  {previewAsRecruiter ? (
+                    <span className="ml-1 text-xs font-normal text-emerald-700">
+                      (visible to recruiters)
+                    </span>
+                  ) : null}
+                </p>
                 <p className="text-lg text-gray-900">{cv.email || '-'}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">Phone</p>
+                <p className="text-sm font-medium text-gray-500">
+                  Phone
+                  {previewAsRecruiter ? (
+                    <span className="ml-1 text-xs font-normal text-emerald-700">
+                      (visible to recruiters)
+                    </span>
+                  ) : null}
+                </p>
                 <p className="text-lg text-gray-900">{cv.phone || '-'}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">Address</p>
+                <p className="text-sm font-medium text-gray-500">
+                  Address
+                  {previewAsRecruiter ? (
+                    <span className="ml-1 text-xs font-normal text-emerald-700">
+                      (visible to recruiters)
+                    </span>
+                  ) : null}
+                </p>
                 <p className="text-lg text-gray-900">{cv.address || '-'}</p>
               </div>
             </div>
@@ -226,7 +300,7 @@ export default function ViewCVPage() {
           )}
 
           {isTalentNetworkV2 ? (
-            <TalentNetworkProfileView cv={cv} showOwnerStatus />
+            <TalentNetworkProfileView cv={cv} showOwnerStatus={!previewAsRecruiter} />
           ) : (
             <>
           {/* Experience */}

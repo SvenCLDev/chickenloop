@@ -65,14 +65,12 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
               >
                 Companies
               </Link>
-              {isRecruiter && (
-                <Link
-                  href="/talent"
-                  className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors"
-                >
-                  Talent
-                </Link>
-              )}
+              <Link
+                href="/talent"
+                className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors"
+              >
+                Talent
+              </Link>
               <Link
                 href="/career-advice"
                 className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors"
@@ -279,15 +277,13 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
                     >
                       Companies
                     </Link>
-                    {isRecruiter && (
-                      <Link
-                        href="/talent"
-                        onClick={closeMobileMenu}
-                        className="px-4 py-2 rounded hover:bg-blue-700 text-sm"
-                      >
-                        Talent
-                      </Link>
-                    )}
+                    <Link
+                      href="/talent"
+                      onClick={closeMobileMenu}
+                      className="px-4 py-2 rounded hover:bg-blue-700 text-sm"
+                    >
+                      Talent
+                    </Link>
                   </div>
                 </div>
 
