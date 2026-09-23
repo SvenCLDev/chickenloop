@@ -1,6 +1,10 @@
 import connectDB from '@/lib/db';
 import CV from '@/models/CV';
-import { normalizeCandidateSortKey, parseCandidateSearchParams } from '@/lib/candidateSearchParams';
+import {
+  normalizeCandidateSortKey,
+  parseCandidateSearchParams,
+  type CandidateSearchParams,
+} from '@/lib/candidateSearchParams';
 import {
   applyTalentListVisibility,
   type TalentViewerTier,
@@ -35,26 +39,34 @@ export interface LoadCVsResult {
   };
 }
 
-/**
- * Load CVs with aggregation. Ensures DB connection is established inside this function
- * before any CV.aggregate() call (same pattern as Job and Company loaders).
- * Uses the shared cached connection from connectDB() to avoid duplicate connections.
- */
-export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
-  const { searchParams, viewerTier = 'recruiter' } = options;
 
-  // Ensure connection is awaited before any CV.aggregate() (fix applied inside loadCVs)
-  await connectDB();
+const ROLE_FILTER_STAGES = [
+  {
+    $lookup: {
+      from: 'users',
+      localField: 'jobSeeker',
+      foreignField: '_id',
+      as: 'jobSeekerInfo',
+      pipeline: [
+        { $match: { role: 'job-seeker' } },
+        { $project: { _id: 1, name: 1, email: 1, lastOnline: 1, updatedAt: 1, createdAt: 1 } },
+        { $limit: 1 },
+      ],
+    },
+  },
+  { $match: { jobSeekerInfo: { $ne: [] } } },
+];
 
-  const featured = searchParams.get('featured');
-  const filters = parseCandidateSearchParams(searchParams);
-
-  // Build match conditions
+/** Build Mongo match conditions from talent search params (shared by list + count). */
+export function buildCvMatchConditions(
+  filters: CandidateSearchParams,
+  options?: { featured?: string | null }
+): Record<string, unknown> {
   const matchConditions: any = {
-    published: { $ne: false }
+    published: { $ne: false },
   };
 
-  if (featured === 'true') {
+  if (options?.featured === 'true') {
     matchConditions.$and = [
       {
         $or: [
@@ -90,10 +102,7 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
       if (matchConditions.$or && filters.kw) {
         const keywordOr = matchConditions.$or;
         delete matchConditions.$or;
-        matchConditions.$and = [
-          { $or: keywordOr },
-          { address: locationRegex }
-        ];
+        matchConditions.$and = [{ $or: keywordOr }, { address: locationRegex }];
       } else {
         matchConditions.address = locationRegex;
       }
@@ -150,6 +159,54 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
   if (filters.noSponsorshipIn && filters.noSponsorshipIn.length > 0) {
     matchConditions.canWorkWithoutSponsorshipIn = { $in: filters.noSponsorshipIn };
   }
+  if (filters.workCountry && filters.workCountry.length > 0) {
+    const workCountryMatch = {
+      $or: [
+        { preferredWorkCountries: { $in: filters.workCountry } },
+        { workEligibleCountries: { $in: filters.workCountry } },
+        { canWorkWithoutSponsorshipIn: { $in: filters.workCountry } },
+      ],
+    };
+    if (matchConditions.$and) {
+      matchConditions.$and.push(workCountryMatch);
+    } else {
+      matchConditions.$and = [workCountryMatch];
+    }
+  }
+
+  return matchConditions;
+}
+
+/**
+ * Count CVs matching talent search params (lightweight — no sort / page fetch).
+ */
+export async function countCVs(searchParams: URLSearchParams): Promise<number> {
+  await connectDB();
+  const filters = parseCandidateSearchParams(searchParams);
+  const matchConditions = buildCvMatchConditions(filters, {
+    featured: searchParams.get('featured'),
+  });
+  const countResult = await CV.aggregate(
+    [{ $match: matchConditions }, ...ROLE_FILTER_STAGES, { $count: 'total' }],
+    { allowDiskUse: true }
+  );
+  return countResult.length > 0 ? countResult[0].total : 0;
+}
+
+/**
+ * Load CVs with aggregation. Ensures DB connection is established inside this function
+ * before any CV.aggregate() call (same pattern as Job and Company loaders).
+ * Uses the shared cached connection from connectDB() to avoid duplicate connections.
+ */
+export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
+  const { searchParams, viewerTier = 'recruiter' } = options;
+
+  // Ensure connection is awaited before any CV.aggregate() (fix applied inside loadCVs)
+  await connectDB();
+
+  const featured = searchParams.get('featured');
+  const filters = parseCandidateSearchParams(searchParams);
+  const matchConditions = buildCvMatchConditions(filters, { featured });
 
   const sortKey = normalizeCandidateSortKey(filters.sort);
   const tieBreakers: Record<string, 1 | -1> = {
@@ -178,23 +235,7 @@ export async function loadCVs(options: LoadCVsOptions): Promise<LoadCVsResult> {
   // Cap sort window so MongoDB can use "top N" optimization and stay under 32MB (works without allowDiskUse)
   const sortWindow = Math.min(skip + PAGE_SIZE, 10000);
 
-  // Job-seeker role filter + lastOnline for activity-based sort (single user lookup)
-  const roleFilterStages = [
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'jobSeeker',
-        foreignField: '_id',
-        as: 'jobSeekerInfo',
-        pipeline: [
-          { $match: { role: 'job-seeker' } },
-          { $project: { _id: 1, name: 1, email: 1, lastOnline: 1, updatedAt: 1, createdAt: 1 } },
-          { $limit: 1 },
-        ],
-      },
-    },
-    { $match: { jobSeekerInfo: { $ne: [] } } },
-  ];
+  const roleFilterStages = ROLE_FILTER_STAGES;
 
   const aggregationPipeline: any[] = [
     { $match: matchConditions },

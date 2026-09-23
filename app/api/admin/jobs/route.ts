@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import Job from '@/models/Job';
 import Company from '@/models/Company';
 import { requireRole } from '@/lib/auth';
 import mongoose from 'mongoose';
+import {
+  buildJobTalentMatchUrl,
+  countCvsMatchingJob,
+  mapWithConcurrency,
+} from '@/lib/jobTalentMatch';
+
+const MATCH_COUNT_CONCURRENCY = 8;
 
 // GET - Get all jobs (admin only)
 export async function GET(request: NextRequest) {
@@ -47,6 +53,9 @@ export async function GET(request: NextRequest) {
         companyId: 1,
         createdAt: 1,
         visitCount: 1,
+        sports: 1,
+        occupationalAreas: 1,
+        languages: 1,
         instagramPostId: 1,
         instagramPostedAt: 1,
         instagramPostHistory: 1,
@@ -180,32 +189,50 @@ export async function GET(request: NextRequest) {
       .maxTimeMS(10000)
       .toArray();
 
-    const jobsWithData = jobs.map((job: any) => ({
-      // Featured display source of truth: now <= featuredUntil
-      // (legacy boolean is ignored for runtime display)
-      featured:
-        !!job.featuredUntil &&
-        !Number.isNaN(new Date(job.featuredUntil).getTime()) &&
-        new Date(job.featuredUntil).getTime() >= Date.now(),
-      id: job._id.toString(),
-      title: job.title,
-      companyName: job.companyName || '—',
-      city: job.city,
+    const matchInputs = jobs.map((job: any) => ({
+      sports: job.sports,
+      occupationalAreas: job.occupationalAreas,
+      languages: job.languages,
       country: job.country,
-      featuredUntil: job.featuredUntil ?? null,
-      recruiter: job.recruiterInfo || { name: 'Unknown', email: 'unknown@example.com' },
-      createdAt: job.createdAt,
-      visitCount: job.visitCount ?? 0,
-      likeCount: job.likeCount ?? 0,
-      instagramPostId: job.instagramPostId ?? null,
-      instagramPostedAt: job.instagramPostedAt ?? null,
-      instagramPostCount: Array.isArray(job.instagramPostHistory) && job.instagramPostHistory.length > 0
-        ? job.instagramPostHistory.length
-        : job.instagramPostId
-          ? 1
-          : 0,
-      facebookPostId: job.facebookPostId ?? null,
     }));
+
+    const matchCounts = await mapWithConcurrency(
+      matchInputs,
+      MATCH_COUNT_CONCURRENCY,
+      (input) => countCvsMatchingJob(input)
+    );
+
+    const jobsWithData = jobs.map((job: any, index: number) => {
+      const matchInput = matchInputs[index];
+      return {
+        // Featured display source of truth: now <= featuredUntil
+        // (legacy boolean is ignored for runtime display)
+        featured:
+          !!job.featuredUntil &&
+          !Number.isNaN(new Date(job.featuredUntil).getTime()) &&
+          new Date(job.featuredUntil).getTime() >= Date.now(),
+        id: job._id.toString(),
+        title: job.title,
+        companyName: job.companyName || '—',
+        city: job.city,
+        country: job.country,
+        featuredUntil: job.featuredUntil ?? null,
+        recruiter: job.recruiterInfo || { name: 'Unknown', email: 'unknown@example.com' },
+        createdAt: job.createdAt,
+        visitCount: job.visitCount ?? 0,
+        likeCount: job.likeCount ?? 0,
+        matchCount: matchCounts[index] ?? 0,
+        matchUrl: buildJobTalentMatchUrl(matchInput),
+        instagramPostId: job.instagramPostId ?? null,
+        instagramPostedAt: job.instagramPostedAt ?? null,
+        instagramPostCount: Array.isArray(job.instagramPostHistory) && job.instagramPostHistory.length > 0
+          ? job.instagramPostHistory.length
+          : job.instagramPostId
+            ? 1
+            : 0,
+        facebookPostId: job.facebookPostId ?? null,
+      };
+    });
 
     return NextResponse.json({ jobs: jobsWithData }, { status: 200 });
   } catch (error: unknown) {

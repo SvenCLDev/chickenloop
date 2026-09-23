@@ -14,6 +14,7 @@
  * - certifications (string): Professional certification filters (multi-select, comma-separated)
  * - experience_level (string): Experience level filters (multi-select, comma-separated: entry, intermediate, experienced, senior)
  * - availability (string): Availability filters (multi-select, comma-separated: available_now, available_soon, seasonal, not_available)
+ * - work_country (string): ISO codes; OR across preferred / eligible / no-sponsorship (job match)
  * - page (number): Page number for pagination (default: 1)
  * - sort (string): Sort order (default: 'last_active' - by last login / profile activity)
  * 
@@ -101,6 +102,13 @@ export interface CandidateSearchParams {
 
   /** Can work without sponsorship in country (ISO code, maps to canWorkWithoutSponsorshipIn) */
   noSponsorshipIn?: string[];
+
+  /**
+   * Job-match country filter (ISO code): OR across preferredWorkCountries,
+   * workEligibleCountries, and canWorkWithoutSponsorshipIn.
+   * Used by job→talent matching; separate from AND of preferred_country / can_work_in.
+   */
+  workCountry?: string[];
 }
 
 /**
@@ -187,6 +195,14 @@ export function parseCandidateSearchParams(searchParams: URLSearchParams | Reado
       .map((v) => decodeURIComponent(v.trim()).toUpperCase())
       .filter((v) => v.length === 2);
   }
+
+  const workCountryParam = searchParams.get('work_country');
+  if (workCountryParam) {
+    params.workCountry = workCountryParam
+      .split(',')
+      .map((v) => decodeURIComponent(v.trim()).toUpperCase())
+      .filter((v) => v.length === 2);
+  }
   
   return params;
 }
@@ -256,6 +272,10 @@ export function buildCandidateSearchQuery(params: CandidateSearchParams): string
   if (params.noSponsorshipIn && params.noSponsorshipIn.length > 0) {
     queryParts.push(`no_sponsorship_in=${encodeURIComponent(params.noSponsorshipIn.join(','))}`);
   }
+
+  if (params.workCountry && params.workCountry.length > 0) {
+    queryParts.push(`work_country=${encodeURIComponent(params.workCountry.join(','))}`);
+  }
   
   return queryParts.join('&');
 }
@@ -291,6 +311,7 @@ export function hasActiveFilters(params: CandidateSearchParams): boolean {
     (params.preferredCountry && params.preferredCountry.length > 0) ||
     (params.canWorkIn && params.canWorkIn.length > 0) ||
     (params.noSponsorshipIn && params.noSponsorshipIn.length > 0) ||
+    (params.workCountry && params.workCountry.length > 0) ||
     params.verifiedOnly
   );
 }

@@ -146,6 +146,8 @@ interface Job {
   createdAt: string;
   visitCount?: number;
   likeCount?: number;
+  matchCount?: number;
+  matchUrl?: string;
   instagramPostId?: string | null;
   instagramPostedAt?: string | null;
   instagramPostCount?: number;
@@ -1630,6 +1632,9 @@ function AdminDashboard() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Liked
                             </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Matches
+                            </th>
                             <th 
                               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                               onClick={() => handleSort('created')}
@@ -2068,6 +2073,21 @@ function AdminDashboard() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {entry.likeCount ?? 0}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {entry.matchUrl ? (
+                                  <Link
+                                    href={entry.matchUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                    title="View matching talent on /talent"
+                                  >
+                                    {entry.matchCount ?? 0}
+                                  </Link>
+                                ) : (
+                                  entry.matchCount ?? 0
+                                )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {new Date(entry.createdAt).toLocaleDateString()}
