@@ -11,6 +11,7 @@ export const ISSUING_BODIES = [
   'PADI',
   'PASA',
   'BKSA',
+  'SA',
   'OTHER',
 ] as const;
 export type IssuingBody = (typeof ISSUING_BODIES)[number];

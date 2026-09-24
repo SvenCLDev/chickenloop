@@ -17,6 +17,10 @@ export const QUALIFICATIONS: QualificationCategory[] = [
       'ISA Stand Up Paddle (SUP) Instructor',
       'ASI Surf Instructor Level 1',
       'ASI Surf Instructor Level 2',
+      'Surfing Australia Foundation Surf Coach',
+      'Surfing Australia Progression Surf Coach',
+      'Surfing Australia Club Coach',
+      'Surfing Australia Foundation SUP Coach',
     ],
   },
   {

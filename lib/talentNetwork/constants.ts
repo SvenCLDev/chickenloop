@@ -15,6 +15,7 @@ export const ISSUING_BODY_LABELS: Record<(typeof ISSUING_BODIES)[number], string
   PADI: 'PADI',
   PASA: 'PASA',
   BKSA: 'BKSA',
+  SA: 'Surfing Australia',
   OTHER: 'Other',
 };
 

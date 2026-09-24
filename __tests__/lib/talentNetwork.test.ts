@@ -143,6 +143,16 @@ describe('talent network validators', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('accepts SA (Surfing Australia) as issuing body', () => {
+    const result = validateVerifiedCertificate({
+      issuingBody: 'SA',
+      certificateLevel: 'Foundation Surf Coach',
+      disciplines: ['Surfing'],
+      verificationStatus: 'unverified',
+    });
+    expect(result.ok).toBe(true);
+  });
+
   it('rejects invalid certificate issuing body', () => {
     const result = validateVerifiedCertificate({
       issuingBody: 'INVALID',
