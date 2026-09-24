@@ -27,7 +27,6 @@ import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketin
 import OtherJobsAtCompany from './OtherJobsAtCompany';
 import OtherJobsInCountry from './OtherJobsInCountry';
 import CareerAdviceSection from './CareerAdviceSection';
-import JobLcpDebugProbe from './JobLcpDebugProbe';
 import { verifyToken } from '@/lib/jwt';
 import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import { getEmploymentTypeLabel } from '@/lib/employmentTypes';
@@ -837,7 +836,6 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
         )}
         {/* Demote logo priority so it does not compete with the job hero LCP image */}
         <Navbar logoPriority={false} />
-        <JobLcpDebugProbe heroUrl={job.heroImageUrl} />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Link
           href="/jobs"
