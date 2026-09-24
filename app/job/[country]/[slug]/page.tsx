@@ -21,12 +21,13 @@ import JobSimilarJobsAlertButton from '../../../jobs/JobSimilarJobsAlertButton';
 import JobApplySection from '../../../jobs/[id]/JobApplySection';
 import JobSpamButton from '../../../jobs/[id]/JobSpamButton';
 import JobThumbnailGallery from '../../../jobs/[id]/JobThumbnailGallery';
-import JobHeroImage from '../../../jobs/[id]/JobHeroImage';
+import JobHeroImage, { getJobHeroLcpPreloadProps } from '../../../jobs/[id]/JobHeroImage';
 import JobOwnerActions from './JobOwnerActions';
 import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
 import OtherJobsAtCompany from './OtherJobsAtCompany';
 import OtherJobsInCountry from './OtherJobsInCountry';
 import CareerAdviceSection from './CareerAdviceSection';
+import JobLcpDebugProbe from './JobLcpDebugProbe';
 import { verifyToken } from '@/lib/jwt';
 import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import { getEmploymentTypeLabel } from '@/lib/employmentTypes';
@@ -810,8 +811,22 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
     otherJobs.length === 0 ? await getCareerAdviceForFill(3) : [];
 
   const showDraftBanner = adminPreview && job.published === false;
+  const heroLcpPreload = job.heroImageUrl
+    ? getJobHeroLcpPreloadProps(job.heroImageUrl)
+    : null;
 
   return (
+    <>
+      {heroLcpPreload ? (
+        <link
+          rel="preload"
+          as="image"
+          href={heroLcpPreload.src}
+          imageSrcSet={heroLcpPreload.srcSet}
+          imageSizes={heroLcpPreload.sizes}
+          fetchPriority="high"
+        />
+      ) : null}
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
         {/* Google Jobs JSON-LD — omit for unpublished jobs (admin preview) */}
         {jsonLd && job.published !== false && (
@@ -820,7 +835,9 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
             dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
           />
         )}
-        <Navbar />
+        {/* Demote logo priority so it does not compete with the job hero LCP image */}
+        <Navbar logoPriority={false} />
+        <JobLcpDebugProbe heroUrl={job.heroImageUrl} />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Link
           href="/jobs"
@@ -849,13 +866,16 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
           </div>
         )}
 
-        <PageHeaderMarketingBanner placementKey="job-details-page" />
-
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          {/* Hero Image - Main featured image at the top */}
+          {/* Hero Image - Main featured image at the top (LCP) */}
           {job.heroImageUrl && (
             <JobHeroImage imageUrl={job.heroImageUrl} jobTitle={job.title} />
           )}
+
+          {/* Marketing banner after hero so it cannot delay LCP resource discovery */}
+          <div className="px-8 pt-6">
+            <PageHeaderMarketingBanner placementKey="job-details-page" className="mb-0" />
+          </div>
 
           <div className="p-8">
             {/* Job Title and Company */}
@@ -1140,5 +1160,6 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
         <CareerAdviceSection articles={careerAdviceSection} />
       </main>
     </div>
+    </>
   );
 }

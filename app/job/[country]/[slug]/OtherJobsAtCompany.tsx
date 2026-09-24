@@ -85,11 +85,11 @@ export default function OtherJobsAtCompany({
         Other jobs at {companyName}
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {otherJobs.map((job, index) => (
+        {otherJobs.map((job) => (
           <JobCard
             key={job._id}
             job={job}
-            priority={index < 3}
+            priority={false}
             user={user ? { role: user.role } : null}
             isFavourite={favouriteJobIds.has(job._id)}
             togglingFavourite={togglingFavouriteId === job._id}

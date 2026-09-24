@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 interface JobThumbnailGalleryProps {
   pictures: string[];
@@ -30,6 +31,12 @@ export default function JobThumbnailGallery({ pictures, jobTitle, allPictures }:
   const count = pictures.length;
   const gridCols = count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : 'grid-cols-3';
   const thumbHeight = count === 1 ? 'h-64 sm:h-80' : 'h-32';
+  const thumbSizes =
+    count === 1
+      ? '(max-width: 1024px) 100vw, 896px'
+      : count === 2
+        ? '(max-width: 1024px) 50vw, 448px'
+        : '(max-width: 1024px) 33vw, 300px';
 
   return (
     <>
@@ -42,48 +49,39 @@ export default function JobThumbnailGallery({ pictures, jobTitle, allPictures }:
               setLightboxIndex(getLightboxIndex(index));
               setIsLightboxOpen(true);
             }}
-            className={`w-full ${thumbHeight} overflow-hidden rounded-lg border border-gray-300 p-0`}
+            className={`relative w-full ${thumbHeight} overflow-hidden rounded-lg border border-gray-300 p-0`}
             type="button"
           >
-            <img
+            <Image
               src={picture}
               alt={`${jobTitle} - Image ${index + 1}`}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const img = e.target as HTMLImageElement;
-                if (img.src.includes('/uploads/')) {
-                  img.style.display = 'none';
-                } else {
-                  console.error('Failed to load image:', img.src);
-                }
-              }}
+              fill
+              loading="lazy"
+              quality={60}
+              sizes={thumbSizes}
+              className="object-cover"
             />
           </button>
         ))}
       </div>
 
-      {/* Lightbox */}
+      {/* Lightbox — full-res only when opened */}
       {isLightboxOpen && lightboxPictures.length > 0 && (
         <div
           className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
           onClick={() => setIsLightboxOpen(false)}
         >
           <div
-            className="relative max-w-3xl w-full mx-auto"
+            className="relative max-w-3xl w-full mx-auto h-[70vh]"
             onClick={(event) => event.stopPropagation()}
           >
-            <img
+            <Image
               src={lightboxPictures[lightboxIndex]}
               alt={`${jobTitle} - Image ${lightboxIndex + 1}`}
-              className="w-full h-[70vh] object-contain bg-black"
-              onError={(e) => {
-                const img = e.target as HTMLImageElement;
-                img.style.display = 'none';
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'w-full h-[70vh] flex items-center justify-center bg-black text-white';
-                errorDiv.textContent = 'Image not available';
-                img.parentElement?.appendChild(errorDiv);
-              }}
+              fill
+              quality={75}
+              sizes="(max-width: 768px) 100vw, 768px"
+              className="object-contain bg-black"
             />
             {lightboxPictures.length > 1 && (
               <>
@@ -94,7 +92,7 @@ export default function JobThumbnailGallery({ pictures, jobTitle, allPictures }:
                       prev === 0 ? lightboxPictures.length - 1 : prev - 1
                     )
                   }
-                  className="absolute top-1/2 -translate-y-1/2 left-2 bg-white/80 text-gray-900 rounded-full p-2"
+                  className="absolute top-1/2 -translate-y-1/2 left-2 bg-white/80 text-gray-900 rounded-full p-2 z-10"
                 >
                   ‹
                 </button>
@@ -105,7 +103,7 @@ export default function JobThumbnailGallery({ pictures, jobTitle, allPictures }:
                       prev === lightboxPictures.length - 1 ? 0 : prev + 1
                     )
                   }
-                  className="absolute top-1/2 -translate-y-1/2 right-2 bg-white/80 text-gray-900 rounded-full p-2"
+                  className="absolute top-1/2 -translate-y-1/2 right-2 bg-white/80 text-gray-900 rounded-full p-2 z-10"
                 >
                   ›
                 </button>
@@ -114,9 +112,9 @@ export default function JobThumbnailGallery({ pictures, jobTitle, allPictures }:
             <button
               type="button"
               onClick={() => setIsLightboxOpen(false)}
-              className="absolute top-2 right-2 bg-white/80 text-gray-900 rounded-full p-2"
+              className="absolute top-2 right-2 bg-white/80 text-gray-900 rounded-full px-3 py-1 text-sm z-10"
             >
-              ✕
+              Close
             </button>
           </div>
         </div>

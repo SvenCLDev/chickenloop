@@ -116,7 +116,7 @@ export default function MarketingBannerDisplay({
         src={image}
         alt={headline}
         fill
-        priority
+        loading="lazy"
         quality={BANNER_IMAGE_QUALITY}
         className="object-cover object-center group-hover:scale-[1.02] transition-transform duration-200"
         sizes={imageSizes}
