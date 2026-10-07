@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { jobsApi, careerAdviceApi } from '@/lib/api';
 import { JOB_CATEGORIES } from '@/lib/jobCategories';
@@ -29,6 +30,9 @@ export default function HomePageContent({
   initialCategoryValues = [],
 }) {
   const { user } = useAuth();
+  const t = useTranslations('Home');
+  const tAbout = useTranslations('About');
+  const tContact = useTranslations('Contact');
   const [keyword, setKeyword] = useState('');
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState('');
@@ -253,20 +257,20 @@ export default function HomePageContent({
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setContactStatus({ type: 'success', text: data.message || 'Thanks! Your message has been sent.' });
+        setContactStatus({ type: 'success', text: data.message || tContact('success') });
         setContactName('');
         setContactEmail('');
         setContactMessage('');
       } else {
         setContactStatus({
           type: 'error',
-          text: data.error || 'Something went wrong. Please try again or email hello@chickenloop.com.',
+          text: data.error || tContact('error'),
         });
       }
     } catch {
       setContactStatus({
         type: 'error',
-        text: 'Something went wrong. Please try again or email hello@chickenloop.com.',
+        text: tContact('error'),
       });
     } finally {
       setContactSubmitting(false);
@@ -306,7 +310,7 @@ export default function HomePageContent({
         {!featuredJobsLoading && featuredJobs.length > 0 && (
           <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <SectionHeader title="Featured Jobs" />
+              <SectionHeader title={t("featuredJobs")} />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                 {featuredJobs.map((job) => (
                   <JobCard
@@ -330,7 +334,7 @@ export default function HomePageContent({
         {!companiesLoading && featuredCompanies.length > 0 && (
           <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <SectionHeader title="Featured Companies" />
+              <SectionHeader title={t("featuredCompanies")} />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                 {featuredCompanies.map((company) => (
                   <CompanyCard key={company.id} company={company} />
@@ -344,7 +348,7 @@ export default function HomePageContent({
         <section className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <SectionHeader
-              title="Latest Jobs"
+              title={t("latestJobs")}
               actionLabel="View All Jobs"
               actionHref="/jobs-list"
             />
@@ -380,7 +384,7 @@ export default function HomePageContent({
           <section className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <SectionHeader
-                title="Career Advice"
+                title={t("careerAdvice")}
                 actionLabel="View All Articles"
                 actionHref="/career-advice"
               />
@@ -411,7 +415,7 @@ export default function HomePageContent({
         <section className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <SectionHeader
-              title="World Watersports Map"
+              title={t("worldMap")}
               actionLabel="View Map"
               actionHref="/map"
             />
@@ -441,7 +445,7 @@ export default function HomePageContent({
         {user && (user.role === 'recruiter' || user.role === 'admin') && (
           <section className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <SectionHeader title="Featured Talent" />
+              <SectionHeader title={t("featuredTalent")} />
               <p className="text-gray-600 text-base sm:text-lg -mt-4 mb-8 sm:mb-10 max-w-2xl">
                 Verified profiles from the Chickenloop Talent Network
               </p>
@@ -468,38 +472,25 @@ export default function HomePageContent({
         {/* About Section - The Chickenloop Story */}
         <section id="about" className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-8">The Chickenloop Story</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-8">{tAbout('title')}</h2>
             <div className="prose max-w-none text-gray-700 leading-relaxed space-y-6 text-sm">
-              <p>
-                Back in 2013, I was deep in the grind of launching a watersports center in India. Between the logistics and the lessons, I hit a major snag: hiring. Finding qualified, reliable instructors felt like trying to kite in a dead calm—expensive, exhausting, and going nowhere.
-              </p>
-              <p>
-                I knew there had to be a better way to link centers with the talent they need. So, I grabbed a coffee, opened a code editor, and Chickenloop was born.
-              </p>
-              <p>
-                We started with kitesurfing, but the community had other plans. As more centers reached out, we expanded to cover the whole horizon—sailing, surfing, diving, SUP, and beyond.
-              </p>
-              <p>
-                Fast forward to 2024. The original site was a bit &quot;weathered,&quot; and it was time for a total refit. I&apos;ve spent my recent downtime rebuilding Chickenloop from scratch. The new platform is built on modern tech, designed to be the fastest way to get your crew on the boat or your instructors on the beach.
-              </p>
-              <p>
-                Today, Chickenloop is both a job board and a talent network—helping centres find verified instructors and crew, and helping pros get discovered beyond a single application.
-              </p>
-              <p>
-                This project is for the community. That&apos;s why basic job posts and resumes are free, supported by a few optional premium features to keep us running.
-              </p>
-              <p>
-                Whether you&apos;re looking for your next season in the sun or the perfect addition to your team, I hope Chickenloop helps you find your line.
-              </p>
+              <p>{tAbout('p1')}</p>
+              <p>{tAbout('p2')}</p>
+              <p>{tAbout('p3')}</p>
+              <p>{tAbout('p4')}</p>
+              <p>{tAbout('p5')}</p>
+              <p>{tAbout('p6')}</p>
+              <p>{tAbout('p7')}</p>
               <p className="font-medium">
-                See you on the water,<br />
-                Sven
+                {tAbout('signOff')}
+                <br />
+                {tAbout('signName')}
               </p>
             </div>
             <div className="mt-10 flex justify-center">
               <Image
                 src="https://cy1wkdwruflm9kfu.public.blob.vercel-storage.com/about/sven-rooster.png"
-                alt="Sven"
+                alt={tAbout('imageAlt')}
                 width={300}
                 height={300}
                 className="rounded-lg object-cover shadow-md"
@@ -508,34 +499,26 @@ export default function HomePageContent({
           </div>
         </section>
 
-        {/* Contact Section - Signal the Shore */}
+        {/* Contact Section */}
         <section id="contact" className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-8">Signal the Shore 🚩</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-8">{tContact('title')}</h2>
             <div className="prose max-w-none text-gray-700 leading-relaxed space-y-6 mb-10 text-sm">
-              <p>
-                Whether you&apos;ve got a suggestion for the new website, a bug to report, or just want to touch base, I&apos;m always listening.
-              </p>
-              <p>
-                Chickenloop is a community-driven project, and your feedback is the &quot;wind&quot; that helps me figure out which direction to steer the platform next.
-              </p>
-              <p>
-                Keep me in the (chicken) loop and drop me a line.
-              </p>
-              <h3 className="text-xl font-bold text-gray-900 mt-8 mb-4">Where to Find Me</h3>
-              <p>
-                Chickenloop is a passion project of Sven Kelling (Chesterton Consulting). When I am not managing the code, you&apos;ll usually find me between these two spots:
-              </p>
+              <p>{tContact('p1')}</p>
+              <p>{tContact('p2')}</p>
+              <p>{tContact('p3')}</p>
+              <h3 className="text-xl font-bold text-gray-900 mt-8 mb-4">{tContact('whereTitle')}</h3>
+              <p>{tContact('whereIntro')}</p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Miramar Beach, Goa, India 🇮🇳</li>
-                <li>Playa de Can Pastilla, Mallorca, Spain 🇪🇸</li>
+                <li>{tContact('location1')}</li>
+                <li>{tContact('location2')}</li>
               </ul>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">Drop a Message</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">{tContact('formTitle')}</h3>
             <form onSubmit={handleContactSubmit} className="space-y-4">
               <div>
                 <label htmlFor="home-contact-name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Your Name
+                  {tContact('nameLabel')}
                 </label>
                 <input
                   id="home-contact-name"
@@ -544,12 +527,12 @@ export default function HomePageContent({
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700"
-                  placeholder="Your name"
+                  placeholder={tContact('namePlaceholder')}
                 />
               </div>
               <div>
                 <label htmlFor="home-contact-email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Your Email
+                  {tContact('emailLabel')}
                 </label>
                 <input
                   id="home-contact-email"
@@ -558,12 +541,12 @@ export default function HomePageContent({
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700"
-                  placeholder="you@example.com"
+                  placeholder={tContact('emailPlaceholder')}
                 />
               </div>
               <div>
                 <label htmlFor="home-contact-message" className="block text-sm font-medium text-gray-700 mb-1">
-                  What&apos;s on your mind? (Suggestions, feedback, or just a hello)
+                  {tContact('messageLabel')}
                 </label>
                 <textarea
                   id="home-contact-message"
@@ -572,7 +555,7 @@ export default function HomePageContent({
                   value={contactMessage}
                   onChange={(e) => setContactMessage(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y text-gray-700"
-                  placeholder="Your message..."
+                  placeholder={tContact('messagePlaceholder')}
                 />
               </div>
               <TurnstileWidget
@@ -590,7 +573,7 @@ export default function HomePageContent({
                 disabled={contactSubmitting || !contactTurnstileToken}
                 className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {contactSubmitting ? 'Sending...' : 'Send Message 🤙'}
+                {contactSubmitting ? tContact('submitting') : tContact('submit')}
               </button>
             </form>
           </div>

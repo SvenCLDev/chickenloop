@@ -1,6 +1,7 @@
-import Link from 'next/link';
 import Image from 'next/image';
 import { getImageProps } from 'next/image';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import HomepageHeroRotationDeferred from './HomepageHeroRotationDeferred';
 import {
   HOMEPAGE_HERO_BLUR_DATA_URL,
@@ -11,6 +12,8 @@ import {
 } from '@/lib/homepageHero';
 
 export default function HomepageHero() {
+  const t = useTranslations('Home');
+
   return (
     <section className="relative h-[60vh] min-h-[400px] flex items-center justify-center overflow-hidden">
       <div className="absolute inset-0">
@@ -20,7 +23,7 @@ export default function HomepageHero() {
         >
           <Image
             src={HOMEPAGE_HERO_LCP_IMAGE}
-            alt="Kitesurfer on the water — Chickenloop watersports talent network"
+            alt={t('heroImageAlt')}
             fill
             priority
             fetchPriority="high"
@@ -37,31 +40,30 @@ export default function HomepageHero() {
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <p className="inline-block px-3 py-1 rounded-full bg-white/15 text-white/95 text-sm font-medium mb-4 drop-shadow-md">
-          Verified profiles · Global community · Free to join
+          {t('badge')}
         </p>
         <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 sm:mb-6 drop-shadow-lg">
-          <span className="block">The Watersports</span>
-          <span className="block">Talent Network & Job Board</span>
+          <span className="block">{t('titleLine1')}</span>
+          <span className="block">{t('titleLine2')}</span>
         </h1>
         <p className="text-lg sm:text-xl md:text-2xl text-white/90 mb-3 sm:mb-4 drop-shadow-md max-w-2xl mx-auto">
-          The only platform where verified instructors, crew & pros connect with centres hiring
-          worldwide.
+          {t('subtitle')}
         </p>
         <p className="text-sm sm:text-base md:text-lg text-white/80 mb-6 sm:mb-8 drop-shadow-md">
-          Kite · Foil · Surf · Sail · Dive · Yacht Crew
+          {t('sportsLine')}
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
           <Link
             href="/jobs"
             className="inline-block px-6 sm:px-8 py-3 sm:py-4 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all duration-200 font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
           >
-            Browse Jobs
+            {t('browseJobs')}
           </Link>
           <Link
             href="/talent"
             className="inline-block px-6 sm:px-8 py-3 sm:py-4 border-2 border-white text-white rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl"
           >
-            Explore Talent
+            {t('exploreTalent')}
           </Link>
         </div>
         <p className="mt-4 sm:mt-5">
@@ -69,7 +71,7 @@ export default function HomepageHero() {
             href="/register"
             className="text-sm sm:text-base text-white/90 hover:text-white underline underline-offset-2"
           >
-            List your profile free →
+            {t('listProfileFree')}
           </Link>
         </p>
       </div>
@@ -80,7 +82,7 @@ export default function HomepageHero() {
 /** Shared LCP hero image sizing — keep in sync with the `<Image>` above. */
 export const HOMEPAGE_HERO_LCP_SIZES = '(max-width: 768px) 100vw, 1600px';
 
-/** Preload props matching the LCP hero `<Image>` (used in app/page.tsx). */
+/** Preload props matching the LCP hero `<Image>` (used in app/[locale]/page.tsx). */
 export function getHomepageHeroLcpPreloadProps() {
   return getImageProps({
     src: HOMEPAGE_HERO_LCP_IMAGE,

@@ -1,5 +1,9 @@
+import createMiddleware from 'next-intl/middleware';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { routing } from './i18n/routing';
+
+const handleI18nRouting = createMiddleware(routing);
 
 const blockedBots = [
   'AhrefsBot',
@@ -37,22 +41,24 @@ export default async function proxy(request: NextRequest) {
   const userAgent = request.headers.get('user-agent') || '';
 
   if (allowedBots.some((bot) => userAgent.includes(bot))) {
-    return NextResponse.next();
-  }
-
-  if (blockedBots.some((bot) => userAgent.includes(bot))) {
+    // Still run locale routing for crawlers so /en|/de|/es resolve correctly.
+  } else if (blockedBots.some((bot) => userAgent.includes(bot))) {
     return new NextResponse('Blocked bot', { status: 403 });
   }
 
-  const response = NextResponse.next();
+  const response = handleI18nRouting(request);
 
   // Add cache control headers to prevent stale content
   if (request.nextUrl.pathname.startsWith('/api')) {
-    // API routes - no cache
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set(
+      'Cache-Control',
+      'no-store, no-cache, must-revalidate, proxy-revalidate'
+    );
   } else {
-    // Pages - revalidate frequently
-    response.headers.set('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=59');
+    response.headers.set(
+      'Cache-Control',
+      'public, s-maxage=10, stale-while-revalidate=59'
+    );
   }
 
   return response;
@@ -61,11 +67,10 @@ export default async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except static assets. This includes:
-     * - /api/* (all API routes, including /api/instagram-image/* for Meta crawlers)
-     * - All page routes
-     * Excluded: _next/static, _next/image, favicon.ico, robots.txt, sitemap.xml
+     * Match all pathnames except:
+     * - api, _next, _vercel
+     * - files with an extension (favicon.ico, robots.txt, sitemap.xml, images, etc.)
      */
-    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
+    '/((?!api|_next|_vercel|.*\\..*).*)',
   ],
 };

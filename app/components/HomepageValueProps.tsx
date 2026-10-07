@@ -1,37 +1,38 @@
-import Link from 'next/link';
+'use client';
 
-const VALUE_PROPS = [
-  {
-    title: 'Verified qualifications',
-    description:
-      'Upload IKO, VDWS, and other certificates so recruiters see confirmed credentials—not just claims on a CV.',
-  },
-  {
-    title: 'Trusted work history',
-    description:
-      'Seasonal experience and references from past centres, structured so owners can trust your background at a glance.',
-  },
-  {
-    title: 'Get discovered by centres',
-    description:
-      "List once in the talent network. Centres browse verified instructors and crew—and reach out when you're a fit, while you can still apply to jobs anytime.",
-  },
-];
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 
 export default function HomepageValueProps() {
+  const t = useTranslations('Home');
+
+  const valueProps = [
+    {
+      title: t('valueProp1Title'),
+      description: t('valueProp1Description'),
+    },
+    {
+      title: t('valueProp2Title'),
+      description: t('valueProp2Description'),
+    },
+    {
+      title: t('valueProp3Title'),
+      description: t('valueProp3Description'),
+    },
+  ];
+
   return (
     <section className="bg-gray-50 pt-8 pb-12 sm:pt-10 sm:pb-14">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-4">
-          Built for watersports hiring
+          {t('valuePropsTitle')}
         </h2>
         <p className="text-center text-gray-600 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto mb-8 sm:mb-10">
-          <span className="font-semibold text-gray-800">Don&apos;t just apply to individual jobs.</span>{' '}
-          Create one profile, upload your IKO/VDWS certifications, and let top international school
-          owners find you—not only the other way around.
+          <span className="font-semibold text-gray-800">{t('valuePropsLeadStrong')}</span>{' '}
+          {t('valuePropsLead')}
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {VALUE_PROPS.map((item) => (
+          {valueProps.map((item) => (
             <div key={item.title} className="flex gap-3">
               <span
                 className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700"
@@ -53,7 +54,7 @@ export default function HomepageValueProps() {
             href="/register"
             className="text-sm sm:text-base font-semibold text-blue-600 hover:text-blue-800 underline underline-offset-2"
           >
-            Create your profile free →
+            {t('createProfileFree')}
           </Link>
         </p>
       </div>

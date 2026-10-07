@@ -31,6 +31,7 @@
     "mongoose": "^8.19.4",
     "next": "^16.0.7",
     "next-auth": "^4.24.13",
+    "next-intl": "^4.14.9",
     "nodemailer": "^7.0.11",
     "openai": "^4.104.0",
     "react": "19.2.0",

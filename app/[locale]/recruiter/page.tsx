@@ -1,0 +1,1038 @@
+'use client';
+
+import { useEffect, useState, Suspense } from 'react';
+import { useAuth } from '@/app/contexts/AuthContext';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Navbar from '@/app/components/Navbar';
+import FeatureJobModal from '@/app/components/FeatureJobModal';
+import RecruiterSurveyModal from '@/app/components/RecruiterSurveyModal';
+import { jobsApi, companyApi, candidatesApi } from '@/lib/api';
+import { getJobUrl } from '@/lib/jobSlug';
+import Link from 'next/link';
+import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
+import RecruiterTalentDiscoveryBanner from '@/app/components/recruiter/RecruiterTalentDiscoveryBanner';
+import TalentListRow from '@/app/components/TalentListRow';
+import type { CandidateListItem } from '@/lib/candidateListTypes';
+import {
+  canRefreshJob,
+  getJobRefreshCooldownMessage,
+  getJobRefreshDaysRemaining,
+} from '@/lib/jobRefresh';
+import type { SurveyDefinition } from '@/lib/surveys';
+
+interface Job {
+  _id: string;
+  title: string;
+  description: string;
+  company: string;
+  city: string;
+  salary?: string;
+  type: string;
+  pictures?: string[];
+  published?: boolean;
+  featured?: boolean;
+  featuredUntil?: string | null;
+  visitCount?: number;
+  lastRecruiterEditAt?: string | null;
+  lastRefreshedAt?: string | null;
+  createdAt: string;
+}
+
+export default function RecruiterDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+        <Navbar />
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    }>
+      <RecruiterDashboardClient />
+    </Suspense>
+  );
+}
+
+function RecruiterDashboardClient() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [hasCompany, setHasCompany] = useState<boolean | undefined>(undefined);
+  const [companyName, setCompanyName] = useState<string>('');
+  const [companyId, setCompanyId] = useState<string>('');
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState('');
+  const [favouriteCandidates, setFavouriteCandidates] = useState<CandidateListItem[]>([]);
+  const [togglingFavouriteId, setTogglingFavouriteId] = useState<string | null>(null);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [loadingApplications, setLoadingApplications] = useState(false);
+  const [removingApplication, setRemovingApplication] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastVariant, setToastVariant] = useState<'success' | 'error'>('success');
+  const [unsubscribedCategory, setUnsubscribedCategory] = useState<string | null>(null);
+  const [showUnsubscribedNotification, setShowUnsubscribedNotification] = useState(false);
+  const [featureModalJobId, setFeatureModalJobId] = useState<string | null>(null);
+  const [activeSurvey, setActiveSurvey] = useState<SurveyDefinition | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    } else if (user && user.role !== 'recruiter') {
+      router.push(`/${user.role === 'admin' ? 'admin' : 'job-seeker'}`);
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (user && user.role === 'recruiter') {
+      checkCompany();
+      loadJobs();
+      loadFavouriteCandidates();
+      loadApplications();
+      loadActiveSurvey();
+    }
+  }, [user]);
+
+  const loadActiveSurvey = async () => {
+    try {
+      const response = await fetch('/api/surveys/active', { credentials: 'include' });
+      if (!response.ok) return;
+      const data = await response.json();
+      const survey = data.survey as SurveyDefinition | null;
+      if (!survey?.id) return;
+
+      // Once per login session until completed / dismissed / remind-later is stored
+      const sessionKey = `survey_prompted_${survey.id}`;
+      if (typeof window !== 'undefined' && sessionStorage.getItem(sessionKey) === '1') {
+        return;
+      }
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(sessionKey, '1');
+      }
+      setActiveSurvey(survey);
+    } catch {
+      // Non-blocking: survey failure must not break the dashboard
+    }
+  };
+
+  // Handle unsubscribe notification
+  useEffect(() => {
+    const unsubscribed = searchParams.get('unsubscribed');
+    const category = searchParams.get('category');
+    if (unsubscribed === 'true' && category) {
+      setUnsubscribedCategory(category);
+      setShowUnsubscribedNotification(true);
+      // Remove query params from URL without reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete('unsubscribed');
+      url.searchParams.delete('category');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams]);
+
+  const checkCompany = async () => {
+    try {
+      const data = await companyApi.get();
+      setHasCompany(true);
+      setCompanyName(data.company?.name || '');
+      const id = data.company?._id || data.company?.id;
+      setCompanyId(id ? String(id) : '');
+    } catch (err: any) {
+      if (err.message.includes('not found')) {
+        setHasCompany(false);
+      } else {
+        setError(err.message || 'Failed to check company status');
+      }
+    }
+  };
+
+  const handleDeleteCompany = async () => {
+    if (!confirm('Are you absolutely sure you want to delete your company? This action cannot be undone and will delete all your job postings.')) {
+      return;
+    }
+
+    try {
+      await companyApi.delete();
+      setHasCompany(false);
+      setCompanyName('');
+      setCompanyId('');
+      setJobs([]);
+      router.push('/recruiter');
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete company');
+    }
+  };
+
+  const loadJobs = async () => {
+    try {
+      const data = await jobsApi.getMyJobs();
+      // Ensure published field is properly set (default to true if undefined, preserve false)
+      const jobsWithPublished = data.jobs.map((job: Job) => ({
+        ...job,
+        published: job.published === undefined ? true : job.published,
+      }));
+      setJobs(jobsWithPublished);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load jobs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadFavouriteCandidates = async () => {
+    try {
+      const data = await candidatesApi.getFavourites().catch(() => ({ cvs: [] }));
+      setFavouriteCandidates(data.cvs || []);
+    } catch (err: any) {
+      // Silently fail - not critical for dashboard load
+      console.error('Failed to load favourite candidates:', err);
+    }
+  };
+
+  const loadApplications = async () => {
+    setLoadingApplications(true);
+    try {
+      const response = await fetch('/api/applications', {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setApplications(data.applications || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to load applications:', err);
+    } finally {
+      setLoadingApplications(false);
+    }
+  };
+
+  const handleRemoveApplication = async (applicationId: string) => {
+    if (!confirm('Remove this application from your list? You can still access it via direct link.')) {
+      return;
+    }
+
+    // Find the application to remove (for potential restoration on error)
+    const applicationToRemove = applications.find((app: any) => app._id === applicationId);
+    if (!applicationToRemove) return;
+
+    // Optimistically remove from UI
+    setApplications((prev) => prev.filter((app: any) => app._id !== applicationId));
+    setRemovingApplication(applicationId);
+
+    try {
+      const response = await fetch(`/api/applications/${applicationId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ published: false }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to remove application from list');
+      }
+
+      // Show success toast
+      setToastMessage('Application removed from list');
+      // Auto-hide toast after 3 seconds
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err: any) {
+      // Restore the application on error (using functional update to get current state)
+      setApplications((prev) => {
+        const restored = [...prev, applicationToRemove];
+        // Sort by appliedAt descending (newest first) to match original order
+        return restored.sort((a: any, b: any) => 
+          new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime()
+        );
+      });
+      console.error('Failed to remove application:', err);
+      // Show error toast
+      setToastMessage(err.message || 'Failed to remove application from list');
+      setTimeout(() => setToastMessage(null), 5000);
+    } finally {
+      setRemovingApplication(null);
+    }
+  };
+
+
+  const handleToggleFavourite = async (e: React.MouseEvent, cvId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (togglingFavouriteId) return;
+
+    setTogglingFavouriteId(cvId);
+    try {
+      await candidatesApi.toggleFavourite(cvId);
+      setFavouriteCandidates((prev) => prev.filter((candidate) => candidate._id !== cvId));
+    } catch (err: unknown) {
+      await loadFavouriteCandidates();
+      alert(err instanceof Error ? err.message : 'Failed to remove from favourites');
+    } finally {
+      setTogglingFavouriteId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this job?')) return;
+
+    try {
+      await jobsApi.delete(id);
+      setJobs(jobs.filter((job) => job._id !== id));
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete job');
+    }
+  };
+
+  const handleTogglePublish = async (id: string, currentPublished: boolean) => {
+    try {
+      const newPublishedStatus = !currentPublished;
+      await jobsApi.update(id, { published: newPublishedStatus });
+      // Reload jobs to ensure we have the latest state from the server
+      await loadJobs();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update job');
+    }
+  };
+
+  const showToast = (message: string, variant: 'success' | 'error' = 'success') => {
+    setToastVariant(variant);
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), variant === 'error' ? 9000 : 3000);
+  };
+
+  const handleRefreshJob = async (id: string) => {
+    const job = jobs.find((j) => j._id === id);
+    if (job && !canRefreshJob(job.lastRefreshedAt)) {
+      const daysRemaining = getJobRefreshDaysRemaining(job.lastRefreshedAt);
+      showToast(getJobRefreshCooldownMessage(daysRemaining), 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/recruiter/jobs/refresh/${id}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to refresh job');
+      }
+      await loadJobs();
+      showToast('Job refreshed');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to refresh job', 'error');
+    }
+  };
+
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setSubmitMessage('');
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(contactForm),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSubmitMessage(data.message || 'Thank you for your feedback!');
+        setContactForm({ name: '', email: '', message: '' });
+        setTimeout(() => {
+          setShowContactModal(false);
+          setSubmitMessage('');
+        }, 2000);
+      } else {
+        // If email service is not configured, show fallback message
+        if (data.fallback) {
+          setSubmitMessage('Email service is not configured. Please contact us directly at hello@chickenloop.com');
+        } else {
+          setSubmitMessage(data.error || 'Failed to send message. Please try again.');
+        }
+      }
+    } catch (err: any) {
+      setSubmitMessage('Failed to send message. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (authLoading || loading || hasCompany === undefined) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+        <Navbar />
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to company creation if no company exists
+  if (hasCompany === false) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+        <Navbar />
+        <main className="max-w-3xl mx-auto px-4 py-12">
+          {/* Unsubscribe Notification */}
+          {showUnsubscribedNotification && (
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center mb-2">
+                  <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h3 className="text-sm font-semibold text-blue-900">Email Preferences Updated</h3>
+                </div>
+                <p className="text-sm text-blue-700 mb-3">
+                  {unsubscribedCategory === 'important_transactional' 
+                    ? 'You have been unsubscribed from application update emails. You can re-enable these emails from your account settings.'
+                    : unsubscribedCategory === 'user_notification'
+                    ? 'You have been unsubscribed from job alert emails. You can re-enable these emails from your account settings.'
+                    : 'Your email preferences have been updated. You can manage your preferences from your account settings.'
+                  }
+                </p>
+                <Link
+                  href="/recruiter/account/edit"
+                  className="inline-block text-sm font-medium text-blue-600 hover:text-blue-800 underline"
+                >
+                  Manage Email Preferences →
+                </Link>
+              </div>
+              <button
+                onClick={() => setShowUnsubscribedNotification(false)}
+                className="ml-4 text-blue-400 hover:text-blue-600"
+                aria-label="Dismiss notification"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+            <h1 className="text-3xl font-bold mb-4 text-gray-900">Company Profile Required</h1>
+            <p className="text-gray-600 mb-6">
+              Before you can post jobs, you need to create a company profile. This helps job seekers learn more about your organization.
+            </p>
+            <Link
+              href="/recruiter/company/new"
+              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
+            >
+              Create Company Profile
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+      <Navbar />
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          className={`fixed top-20 right-4 z-50 max-w-md px-6 py-3 rounded-lg shadow-lg flex items-start gap-2 transition-all duration-300 ${
+            toastVariant === 'error' ? 'bg-amber-600 text-white' : 'bg-green-600 text-white'
+          }`}
+        >
+          {toastVariant === 'error' ? (
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+          <span className="font-medium leading-snug">{toastMessage}</span>
+        </div>
+      )}
+      {featureModalJobId && (() => {
+        const job = jobs.find((j) => j._id === featureModalJobId);
+        return (
+          <FeatureJobModal
+            jobId={featureModalJobId}
+            currentFeaturedUntil={job?.featuredUntil ?? null}
+            onClose={() => setFeatureModalJobId(null)}
+          />
+        );
+      })()}
+      {activeSurvey && (
+        <RecruiterSurveyModal
+          survey={activeSurvey}
+          onClose={() => setActiveSurvey(null)}
+          onSubmitted={() => setActiveSurvey(null)}
+        />
+      )}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          {companyName ? `${companyName} Recruiter Dashboard` : 'Recruiter Dashboard'}
+        </h1>
+        <RecruiterTalentDiscoveryBanner />
+        <PageHeaderMarketingBanner placementKey="recruiter-dashboard" />
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+
+        {/* My Job Postings Section */}
+        <div className="mb-8">
+          <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
+            <h2 className="text-3xl font-bold text-gray-900">My Job Postings</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/talent"
+                className="rounded-lg border border-blue-600 px-6 py-3 font-semibold text-blue-600 hover:bg-blue-50"
+              >
+                Find Talent
+              </Link>
+              <Link
+                href="/recruiter/jobs/new"
+                className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
+              >
+                Post New Job
+              </Link>
+            </div>
+          </div>
+          {jobs.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <p className="text-gray-600 mb-4">You haven't posted any jobs yet.</p>
+              <Link
+                href="/recruiter/jobs/new"
+                className="text-blue-600 hover:underline font-semibold"
+              >
+                Post your first job →
+              </Link>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full table-fixed divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="w-[7.5rem] max-w-[7.5rem] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Title
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Location
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Posted
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Visits
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Promotion
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {jobs.map((job) => {
+                      const isFeatured = !!(job.featuredUntil && new Date(job.featuredUntil) >= new Date());
+                      const featuredUntilDate = job.featuredUntil
+                        ? (() => {
+                            try {
+                              const d = new Date(job.featuredUntil);
+                              return isNaN(d.getTime()) ? job.featuredUntil : d.toLocaleDateString(undefined, { dateStyle: 'medium' });
+                            } catch {
+                              return job.featuredUntil;
+                            }
+                          })()
+                        : null;
+                      return (
+                      <tr key={job._id}>
+                        <td className="w-[10rem] max-w-[10rem] px-6 py-4 text-sm font-medium text-gray-900">
+                          <Link
+                            href={getJobUrl(job)}
+                            className="block truncate text-blue-600 hover:text-blue-900 hover:underline"
+                            title={job.title}
+                          >
+                            {job.title}
+                          </Link>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {job.city}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(job.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {job.visitCount || 0}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {isFeatured && featuredUntilDate ? (
+                            <div className="space-y-2">
+                              <p className="text-gray-600 text-xs">Featured until {featuredUntilDate}</p>
+                              <button
+                                type="button"
+                                onClick={() => setFeatureModalJobId(job._id)}
+                                className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium text-sm hover:bg-blue-50 hover:border-blue-400"
+                              >
+                                Extend
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setFeatureModalJobId(job._id)}
+                              className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium text-sm hover:bg-blue-50 hover:border-blue-400"
+                            >
+                              Feature job
+                            </button>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
+                          <span className="inline-flex flex-nowrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleRefreshJob(job._id)}
+                              title={
+                                canRefreshJob(job.lastRefreshedAt)
+                                  ? 'Move this job back to the top of search results.'
+                                  : `You can refresh this job again in ${getJobRefreshDaysRemaining(job.lastRefreshedAt)} day(s).`
+                              }
+                              className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 font-medium text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              🔄 Refresh Job
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePublish(job._id, job.published === true)}
+                              className={`inline-flex items-center px-3 py-1.5 rounded border font-medium text-sm ${
+                                job.published === true
+                                  ? 'border-orange-300 bg-white text-orange-700 hover:bg-orange-50 hover:border-orange-400'
+                                  : 'border-green-300 bg-white text-green-700 hover:bg-green-50 hover:border-green-400'
+                              }`}
+                            >
+                              {job.published === true ? 'Unpublish' : 'Publish'}
+                            </button>
+                            <Link
+                              href={`/recruiter/jobs/${job._id}/edit`}
+                              className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium text-sm hover:bg-blue-50 hover:border-blue-400"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(job._id)}
+                              className="inline-flex items-center px-3 py-1.5 rounded border border-red-300 bg-white text-red-700 font-medium text-sm hover:bg-red-50 hover:border-red-400"
+                            >
+                              Delete
+                            </button>
+                          </span>
+                        </td>
+                      </tr>
+                    );})}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ATS - Applications Section */}
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">Applicant Tracking System</h2>
+          {loadingApplications ? (
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <p className="text-gray-600">Loading applications...</p>
+            </div>
+          ) : applications.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <p className="text-gray-600">No applications received yet.</p>
+              <p className="text-gray-500 text-sm mt-2">
+                Applications will appear here when candidates apply to your jobs.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {(() => {
+                // Group applications by job
+                const groupedByJob: { [key: string]: any[] } = {};
+                applications.forEach((app: any) => {
+                  const jobId = app.jobId?._id || app.jobId;
+                  if (!groupedByJob[jobId]) {
+                    groupedByJob[jobId] = [];
+                  }
+                  groupedByJob[jobId].push(app);
+                });
+
+                return Object.entries(groupedByJob).map(([jobId, jobApplications]) => {
+                  const job = jobApplications[0].jobId;
+                  const jobTitle = job?.title || 'Unknown Job';
+                  const jobCity = job?.city || '';
+                  
+                  // Count active applications (exclude withdrawn)
+                  const activeApplications = jobApplications.filter((app: any) => app.status !== 'withdrawn');
+                  const withdrawnCount = jobApplications.filter((app: any) => app.status === 'withdrawn').length;
+
+                  return (
+                    <div key={jobId} className="bg-white rounded-lg shadow-md overflow-hidden">
+                      <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                        <h3 className="text-xl font-semibold text-gray-900">{jobTitle}</h3>
+                        {jobCity && (
+                          <p className="text-sm text-gray-600 mt-1">📍 {jobCity}</p>
+                        )}
+                        <p className="text-sm text-gray-500 mt-1">
+                          <span>
+                            {activeApplications.length} active {activeApplications.length === 1 ? 'application' : 'applications'}
+                          </span>
+                          {withdrawnCount > 0 && (
+                            <span className="ml-2 text-gray-400">
+                              ({withdrawnCount} withdrawn)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Candidate
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Applied Date
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {jobApplications.map((app: any) => {
+                              const candidate = app.candidateId;
+                              const candidateName = candidate?.name || 'Unknown';
+                              const candidateEmail = candidate?.email || '';
+                              const appliedDate = new Date(app.appliedAt).toLocaleDateString();
+                              const isWithdrawn = app.status === 'withdrawn';
+                              const statusColors: { [key: string]: string } = {
+                                // New status lifecycle values
+                                applied: 'bg-blue-100 text-blue-800',
+                                viewed: 'bg-purple-100 text-purple-800',
+                                contacted: 'bg-yellow-100 text-yellow-800',
+                                interviewing: 'bg-purple-100 text-purple-800',
+                                offered: 'bg-green-100 text-green-800',
+                                hired: 'bg-green-100 text-green-800',
+                                accepted: 'bg-green-100 text-green-800',
+                                rejected: 'bg-red-100 text-red-800',
+                                withdrawn: 'bg-gray-100 text-gray-800',
+                                // Legacy values (for backward compatibility during migration)
+                                new: 'bg-blue-100 text-blue-800',
+                                interviewed: 'bg-purple-100 text-purple-800',
+                              };
+
+                              const getStatusLabel = (status: string) => {
+                                if (status === 'withdrawn') {
+                                  return 'Withdrawn by candidate';
+                                }
+                                // Map new status values to readable labels
+                                const statusLabels: { [key: string]: string } = {
+                                  applied: 'Applied',
+                                  viewed: 'Viewed',
+                                  contacted: 'Contacted',
+                                  interviewing: 'Interviewing',
+                                  offered: 'Offered',
+                                  hired: 'Hired',
+                                  accepted: 'Accepted',
+                                  rejected: 'Rejected',
+                                };
+                                return statusLabels[status] || status.charAt(0).toUpperCase() + status.slice(1);
+                              };
+
+                              // Check if Remove button should be shown
+                              const canRemove = app.status === 'rejected' || app.status === 'withdrawn' || app.status === 'accepted';
+
+                              return (
+                                <tr key={app._id} className={isWithdrawn ? 'opacity-75' : ''}>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="flex items-center gap-2">
+                                      <Link
+                                        href={`/dashboard/recruiter/applications/${app._id}`}
+                                        className={`text-sm font-medium ${isWithdrawn ? 'text-gray-500' : 'text-blue-600 hover:text-blue-800 hover:underline'}`}
+                                      >
+                                        {candidateName}
+                                      </Link>
+                                      {app.coverNote && (
+                                        <span
+                                          className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs font-semibold cursor-help"
+                                          title="Cover note included"
+                                        >
+                                          📝
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className={`text-sm ${isWithdrawn ? 'text-gray-400' : 'text-gray-500'}`}>{candidateEmail}</div>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <div>{appliedDate}</div>
+                                    {isWithdrawn && app.withdrawnAt && (
+                                      <div className="text-xs text-gray-400 mt-1">
+                                        Withdrawn: {new Date(app.withdrawnAt).toLocaleDateString()}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[app.status] || 'bg-gray-100 text-gray-800'}`}>
+                                      {getStatusLabel(app.status)}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div className="flex items-center gap-3">
+                                      <Link
+                                        href={`/dashboard/recruiter/applications/${app._id}`}
+                                        className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold transition-colors"
+                                      >
+                                        Application Details
+                                      </Link>
+                                      {canRemove && (
+                                        <button
+                                          onClick={() => handleRemoveApplication(app._id)}
+                                          disabled={removingApplication === app._id}
+                                          className="text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          {removingApplication === app._id ? 'Removing...' : 'Remove'}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
+        </div>
+
+        {/* Saved Talent Section */}
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">Saved Talent</h2>
+          {favouriteCandidates.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <p className="text-gray-600">You haven&apos;t saved any talent profiles yet.</p>
+              <p className="text-gray-500 text-sm mt-2">
+                Use filters to find instructors and crew, then save profiles here with &quot;Add to
+                Favourites&quot;.
+              </p>
+              <Link
+                href="/talent"
+                className="mt-4 inline-block font-semibold text-blue-600 hover:underline"
+              >
+                Browse talent profiles →
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {favouriteCandidates.map((candidate) => (
+                <TalentListRow
+                  key={candidate._id}
+                  candidate={candidate}
+                  showFavourite
+                  isFavourite
+                  togglingFavourite={togglingFavouriteId === candidate._id}
+                  onToggleFavourite={handleToggleFavourite}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* My Company Section */}
+        <div className="mb-8">
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">My Company</h2>
+            <p className="text-gray-600 mb-4">
+              Manage your company profile and information.
+            </p>
+            <div className="flex gap-4 flex-wrap">
+              {companyId && (
+                <Link
+                  href={`/companies/${companyId}`}
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                >
+                  View Company
+                </Link>
+              )}
+              <Link
+                href="/recruiter/company/edit"
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Edit Company
+              </Link>
+              <button
+                onClick={handleDeleteCompany}
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+              >
+                Delete Company
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* My Account Section */}
+        <div className="mb-8">
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">My Account</h2>
+            <p className="text-gray-600 mb-4">
+              Manage your account settings and preferences.
+            </p>
+            <div className="flex gap-4 flex-wrap">
+              <Link
+                href="/recruiter/account/edit"
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Edit Account
+              </Link>
+              <Link
+                href="/recruiter/account/change-password"
+                className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
+              >
+                Change Password
+              </Link>
+              <Link
+                href="/recruiter/account/delete"
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+              >
+                Delete Account
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Feedback Section */}
+        <div className="mb-8 flex justify-end">
+          <div className="bg-white rounded-lg shadow-md p-6 max-w-sm border border-gray-200">
+            <p className="text-sm text-gray-700 mb-3">
+              <span className="text-red-600">Feedback or Feature Requests?</span><br />
+              We love to hear from you!
+            </p>
+            <button
+              onClick={() => {
+                setContactForm({ 
+                  name: user?.name || '', 
+                  email: user?.email || '', 
+                  message: '' 
+                });
+                setShowContactModal(true);
+              }}
+              className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-semibold text-sm text-center w-full"
+            >
+              Send Mail to Site Admin
+            </button>
+          </div>
+        </div>
+
+        {/* Contact Modal */}
+        {showContactModal && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => !submitting && setShowContactModal(false)}
+          >
+            <div 
+              className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-2xl font-bold mb-4 text-gray-900">Contact Us</h2>
+              <form onSubmit={handleContactSubmit}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={contactForm.name}
+                    onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={contactForm.email}
+                    onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Message *
+                  </label>
+                  <textarea
+                    value={contactForm.message}
+                    onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                    required
+                    rows={5}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    placeholder="Tell us your feedback or feature request..."
+                  />
+                </div>
+                {submitMessage && (
+                  <div className={`mb-4 p-3 rounded-md ${
+                    submitMessage.includes('Thank you') 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {submitMessage}
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? 'Sending...' : 'Send Message'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowContactModal(false)}
+                    disabled={submitting}
+                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+

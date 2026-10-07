@@ -1,4 +1,9 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
+
+const LOCALE = 'en|de|es';
 
 const nextConfig: NextConfig = {
   async redirects() {
@@ -8,37 +13,79 @@ const nextConfig: NextConfig = {
       : '/job-seeker/profile/new';
 
     const legacyCvPageRedirects = [
-      { source: '/kitesurf-center-directory', destination: '/companies', permanent: true },
-      { source: '/candidates', destination: '/talent', permanent: true },
-      { source: '/candidates/:id', destination: '/talent/:id', permanent: true },
-      { source: '/create-cv', destination: '/create-profile', permanent: false },
-      { source: '/create-profile', destination: createDestination, permanent: false },
-      { source: '/job-seeker/cv/new', destination: '/job-seeker/profile/new', permanent: false },
-      { source: '/job-seeker/cv/edit', destination: '/job-seeker/profile/edit', permanent: false },
-      { source: '/job-seeker/cv/view', destination: '/job-seeker/profile/view', permanent: false },
       {
-        source: '/job-seeker/cv/talent-network/new',
-        destination: '/job-seeker/profile/talent-network/new',
+        source: `/:locale(${LOCALE})/kitesurf-center-directory`,
+        destination: '/:locale/companies',
+        permanent: true,
+      },
+      {
+        source: `/:locale(${LOCALE})/candidates`,
+        destination: '/:locale/talent',
+        permanent: true,
+      },
+      {
+        source: `/:locale(${LOCALE})/candidates/:id`,
+        destination: '/:locale/talent/:id',
+        permanent: true,
+      },
+      {
+        source: `/:locale(${LOCALE})/create-cv`,
+        destination: `/:locale/create-profile`,
         permanent: false,
       },
       {
-        source: '/job-seeker/cv/talent-network/edit',
-        destination: '/job-seeker/profile/talent-network/edit',
+        source: `/:locale(${LOCALE})/create-profile`,
+        destination: `/:locale${createDestination}`,
         permanent: false,
       },
-      { source: '/admin/cvs/:id/edit', destination: '/admin/profiles/:id/edit', permanent: false },
+      {
+        source: `/:locale(${LOCALE})/job-seeker/cv/new`,
+        destination: '/:locale/job-seeker/profile/new',
+        permanent: false,
+      },
+      {
+        source: `/:locale(${LOCALE})/job-seeker/cv/edit`,
+        destination: '/:locale/job-seeker/profile/edit',
+        permanent: false,
+      },
+      {
+        source: `/:locale(${LOCALE})/job-seeker/cv/view`,
+        destination: '/:locale/job-seeker/profile/view',
+        permanent: false,
+      },
+      {
+        source: `/:locale(${LOCALE})/job-seeker/cv/talent-network/new`,
+        destination: '/:locale/job-seeker/profile/talent-network/new',
+        permanent: false,
+      },
+      {
+        source: `/:locale(${LOCALE})/job-seeker/cv/talent-network/edit`,
+        destination: '/:locale/job-seeker/profile/talent-network/edit',
+        permanent: false,
+      },
+      {
+        source: `/:locale(${LOCALE})/admin/cvs/:id/edit`,
+        destination: '/:locale/admin/profiles/:id/edit',
+        permanent: false,
+      },
+      // Unprefixed legacy URLs → default locale (middleware also prefixes unknowns)
+      { source: '/kitesurf-center-directory', destination: '/en/companies', permanent: true },
+      { source: '/candidates', destination: '/en/talent', permanent: true },
+      { source: '/candidates/:id', destination: '/en/talent/:id', permanent: true },
+      { source: '/create-cv', destination: `/en/create-profile`, permanent: false },
+      { source: '/create-profile', destination: `/en${createDestination}`, permanent: false },
     ];
 
     const cutoverRedirects = cutover
       ? [
           {
-            source: '/job-seeker/profile/edit',
-            destination: '/job-seeker/profile/talent-network/edit',
+            source: `/:locale(${LOCALE})/job-seeker/profile/edit`,
+            destination: '/:locale/job-seeker/profile/talent-network/edit',
             permanent: false,
           },
           {
-            source: '/job-seeker/profile/new',
-            destination: '/job-seeker/profile/talent-network/new',
+            source: `/:locale(${LOCALE})/job-seeker/profile/new`,
+            destination: '/:locale/job-seeker/profile/talent-network/new',
             permanent: false,
           },
         ]
@@ -54,34 +101,31 @@ const nextConfig: NextConfig = {
       { source: '/api/stripe/cv-boost-prices', destination: '/api/stripe/profile-boost-prices' },
     ];
   },
-  // Performance optimizations for dev server
   typescript: {
-    // Faster TypeScript compilation
     ignoreBuildErrors: false,
   },
-  // Enable faster refresh
   reactStrictMode: true,
-  // Faster development builds
   compiler: {
-    // Remove console logs in production (optional)
-    removeConsole: process.env.NODE_ENV === 'production' ? {
-      exclude: ['error', 'warn'],
-    } : false,
+    removeConsole:
+      process.env.NODE_ENV === 'production'
+        ? {
+            exclude: ['error', 'warn'],
+          }
+        : false,
   },
-  // Experimental features for better performance
   experimental: {
-    // Optimize package imports - add commonly used packages
-    optimizePackageImports: ['react', 'react-dom', 'mongoose', 'bcryptjs', 'jsonwebtoken'],
-    // Note: optimizeCss requires 'critters' package - disabled for now to avoid build issues
-    // optimizeCss: true,
+    optimizePackageImports: [
+      'react',
+      'react-dom',
+      'mongoose',
+      'bcryptjs',
+      'jsonwebtoken',
+      'next-intl',
+    ],
   },
-  // Enable compression for better performance
   compress: true,
-  // Performance optimizations
-  poweredByHeader: false, // Remove X-Powered-By header for security and slight performance gain
-  // Optimize production builds
-  productionBrowserSourceMaps: false, // Disable source maps in production for smaller builds
-  // Allow images from Vercel Blob Storage
+  poweredByHeader: false,
+  productionBrowserSourceMaps: false,
   images: {
     remotePatterns: [
       {
@@ -95,11 +139,10 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
-    // Image optimization settings
-    formats: ['image/avif', 'image/webp'], // Use modern formats for better compression
-    minimumCacheTTL: 3600, // Cache optimized images for 1 hour
-    qualities: [60, 75, 85], // 85 used for marketing banners
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 3600,
+    qualities: [60, 75, 85],
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);
