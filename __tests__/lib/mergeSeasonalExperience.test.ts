@@ -61,7 +61,39 @@ describe('mergeSeasonalExperienceForSave', () => {
     ]);
 
     expect(String(merged[0]._id)).toBe(String(existingId));
+    // Server-owned: client cannot downgrade/overwrite verificationStatus
+    expect(merged[0].verificationStatus).toBe('reference_requested');
+  });
+
+  it('ignores client-supplied confirmation fields', () => {
+    const existingId = new mongoose.Types.ObjectId();
+    const existing = [
+      {
+        _id: existingId,
+        schoolName: 'Aquasail India',
+        role: 'Instructor',
+        startMonth: 6,
+        startYear: 2013,
+        verificationStatus: 'self_reported' as const,
+      },
+    ];
+
+    const merged = mergeSeasonalExperienceForSave(existing, [
+      {
+        _id: existingId,
+        schoolName: 'Aquasail India',
+        role: 'Instructor',
+        startMonth: 6,
+        startYear: 2013,
+        verificationStatus: 'reference_confirmed',
+        workConfirmed: true,
+        rehireAnswer: true,
+      },
+    ]);
+
     expect(merged[0].verificationStatus).toBe('self_reported');
+    expect(merged[0].workConfirmed).toBeUndefined();
+    expect(merged[0].rehireAnswer).toBeUndefined();
   });
 
   it('assigns a new ObjectId for brand-new entries without fingerprint match', () => {

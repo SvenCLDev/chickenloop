@@ -90,6 +90,8 @@ export interface SeasonalExperience {
   referenceName?: string;
   referenceEmail?: string;
   referencePhone?: string;
+  /** Optional short note shown to the manager (candidate-initiated trust). */
+  referenceNoteFromSeeker?: string;
   verificationStatus: ExperienceVerificationStatus;
   referenceTokenId?: mongoose.Types.ObjectId | string;
   workConfirmed?: boolean;

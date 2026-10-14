@@ -57,7 +57,10 @@ export function serializeTalentNetworkForm(
         referenceName: e.referenceName || undefined,
         referenceEmail: e.referenceEmail || undefined,
         referencePhone: e.referencePhone || undefined,
-        verificationStatus: e.verificationStatus ?? 'self_reported',
+        referenceNoteFromSeeker: e.referenceNoteFromSeeker?.trim()
+          ? e.referenceNoteFromSeeker.trim().slice(0, 500)
+          : undefined,
+        // verificationStatus is server-owned; omit from payload
       })),
     languageSkills: form.languageSkills
       .filter((s) => s.language && s.proficiency)
@@ -108,6 +111,7 @@ export function cvToTalentNetworkForm(cv: Record<string, unknown>): TalentNetwor
             referenceName: String(e.referenceName ?? ''),
             referenceEmail: String(e.referenceEmail ?? ''),
             referencePhone: String(e.referencePhone ?? ''),
+            referenceNoteFromSeeker: String(e.referenceNoteFromSeeker ?? ''),
             verificationStatus: e.verificationStatus as TalentNetworkFormState['seasonalExperience'][0]['verificationStatus'],
             lastReferenceEmailSentAt: e.lastReferenceEmailSentAt
               ? String(e.lastReferenceEmailSentAt)

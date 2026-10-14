@@ -151,6 +151,7 @@ export async function PUT(
 
     const applied = applyTalentNetworkFieldsToCv(cv, body, {
       forceSchemaVersion: body.profileSchemaVersion === 2 ? 2 : undefined,
+      seekerEmails: [typeof cv.email === 'string' ? cv.email : undefined],
     });
     if (!applied.ok) {
       return NextResponse.json({ error: applied.error }, { status: 400 });

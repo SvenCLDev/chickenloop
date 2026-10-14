@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { talentNetworkApi } from '@/lib/api';
 import { MONTH_OPTIONS } from '@/lib/talentNetwork/constants';
+import { buildReferenceChaseSnippet } from '@/lib/talentNetwork/referenceChase';
 import { REFERENCE_MANUAL_REMIND_AFTER_MS } from '@/lib/talentNetwork/referenceFollowupConstants';
 import ExperienceVerificationBadge from './ExperienceVerificationBadge';
 import type { SeasonalExperienceFormEntry } from './formTypes';
@@ -57,9 +58,40 @@ export default function SeasonalExperienceBlock({
     onChange(next);
   };
 
+  const chaseSnippetFor = (entry: SeasonalExperienceFormEntry): string => {
+    const period =
+      entry.seasonTag ||
+      (entry.startMonth && entry.startYear
+        ? `${entry.startMonth}/${entry.startYear}`
+        : undefined);
+    return buildReferenceChaseSnippet({
+      schoolName: entry.schoolName || 'your school',
+      seasonLabel: period,
+      managerName: entry.referenceName || undefined,
+    });
+  };
+
+  const copyChaseMessage = async (index: number) => {
+    const entry = entries[index];
+    if (!entry?.clientId) return;
+    try {
+      await navigator.clipboard.writeText(chaseSnippetFor(entry));
+      setActionInfo((prev) => ({
+        ...prev,
+        [entry.clientId]: 'Chase message copied — paste it into WhatsApp or email (no confirm links).',
+      }));
+      setActionError((prev) => ({ ...prev, [entry.clientId]: '' }));
+    } catch {
+      setActionError((prev) => ({
+        ...prev,
+        [entry.clientId]: 'Could not copy — select the text manually below.',
+      }));
+    }
+  };
+
   const runAction = async (
     index: number,
-    action: 'remind' | 'cancel' | 'resend'
+    action: 'remind' | 'cancel' | 'resend' | 'resend_fyi'
   ) => {
     const entry = entries[index];
     if (!entry?.clientId) return;
@@ -73,32 +105,37 @@ export default function SeasonalExperienceBlock({
       )) as {
         ok?: boolean;
         verificationStatus?: SeasonalExperienceFormEntry['verificationStatus'];
+        chaseSnippet?: string;
         error?: string;
       };
       const nextStatus = result.verificationStatus ?? entry.verificationStatus;
-      update(index, {
-        verificationStatus: nextStatus,
-        ...(action === 'cancel'
-          ? {
-              lastReferenceEmailSentAt: undefined,
-              reminderSentAt: undefined,
-            }
-          : {}),
-        ...(action === 'remind'
-          ? { reminderSentAt: new Date().toISOString() }
-          : {}),
-        ...(action === 'resend'
-          ? {
-              lastReferenceEmailSentAt: new Date().toISOString(),
-              reminderSentAt: undefined,
-              verificationStatus: nextStatus ?? 'reference_requested',
-            }
-          : {}),
-      });
+      if (action !== 'resend_fyi') {
+        update(index, {
+          verificationStatus: nextStatus,
+          ...(action === 'cancel'
+            ? {
+                lastReferenceEmailSentAt: undefined,
+                reminderSentAt: undefined,
+              }
+            : {}),
+          ...(action === 'remind'
+            ? { reminderSentAt: new Date().toISOString() }
+            : {}),
+          ...(action === 'resend'
+            ? {
+                lastReferenceEmailSentAt: new Date().toISOString(),
+                reminderSentAt: undefined,
+                verificationStatus: nextStatus ?? 'reference_requested',
+              }
+            : {}),
+        });
+      }
       const messages: Record<typeof action, string> = {
-        remind: 'Reminder sent to the manager. We also emailed you.',
+        remind:
+          'Reminder sent to the manager only. We emailed you a separate copy with a chase message (no confirm links).',
         cancel: 'Reference request cancelled.',
-        resend: 'New reference request sent.',
+        resend: 'New reference request sent to the manager. Check your inbox for a chase kit.',
+        resend_fyi: 'We emailed you another FYI with a chase message. Confirm links stay with your manager only.',
       };
       setActionInfo((prev) => ({ ...prev, [entry.clientId]: messages[action] }));
     } catch (err: unknown) {
@@ -328,9 +365,35 @@ export default function SeasonalExperienceBlock({
                       : 'We automatically remind the manager after 5 days if there is no reply.'}
                   </p>
                   <p className="text-sm text-amber-800">
-                    You can change the manager email and save anytime (we send immediately to the new
-                    address), send a reminder after 3 days, or cancel the request.
+                    Remind emails the <strong>manager only</strong> (we never put you in Cc — confirm
+                    links are private). Change the manager email and save anytime, remind after 3 days,
+                    or cancel.
                   </p>
+                  <div className="rounded-md border border-amber-100 bg-white/70 p-3 space-y-2">
+                    <p className="text-xs font-medium text-amber-950">Chase toolkit</p>
+                    <pre className="whitespace-pre-wrap text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded p-2">
+                      {chaseSnippetFor(entry)}
+                    </pre>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => copyChaseMessage(index)}
+                        className="text-sm px-3 py-1.5 rounded-md border border-amber-300 text-amber-900 hover:bg-amber-100"
+                      >
+                        Copy chase message
+                      </button>
+                      <button
+                        type="button"
+                        disabled={Boolean(busy)}
+                        onClick={() => runAction(index, 'resend_fyi')}
+                        className="text-sm px-3 py-1.5 rounded-md border border-amber-300 text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+                      >
+                        {actionKey === `${entry.clientId}:resend_fyi`
+                          ? 'Sending…'
+                          : 'Email FYI to me'}
+                      </button>
+                    </div>
+                  </div>
                   <div className="flex flex-wrap gap-2 pt-1">
                     {canManualRemind(entry) && (
                       <button
@@ -341,7 +404,7 @@ export default function SeasonalExperienceBlock({
                       >
                         {actionKey === `${entry.clientId}:remind`
                           ? 'Sending…'
-                          : 'Send reminder now'}
+                          : 'Remind manager'}
                       </button>
                     )}
                     <button
@@ -445,6 +508,27 @@ export default function SeasonalExperienceBlock({
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Short note to your manager{' '}
+                  <span className="font-normal text-gray-500">(optional)</span>
+                </label>
+                <textarea
+                  value={entry.referenceNoteFromSeeker ?? ''}
+                  onChange={(e) =>
+                    update(index, {
+                      referenceNoteFromSeeker: e.target.value.slice(0, 500),
+                    })
+                  }
+                  rows={2}
+                  maxLength={500}
+                  placeholder="e.g. Hi Sam — can you confirm my 2024 season? Thanks!"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Shown in the email we send them. Do not use your own email as the manager address.
+                </p>
               </div>
             </div>
           </div>

@@ -67,11 +67,16 @@ RESEND_WEBHOOK_SECRET=whsec_your_svix_signing_secret
 
 Vercel cron hits `/api/cron/reference-followup` daily at **10:00 UTC** (`vercel.json`).
 
-- After **5 days** with no manager reply: one automatic reminder email to the manager + notice to the job seeker
-- After the **14-day** link expires with no reply: experience status becomes `reference_expired`
-- Job seekers can also send a reminder after **3 days**, cancel a request, or change the manager email (immediate re-send) from Edit Profile
+- After **5 days** with no manager reply: one automatic reminder email to the **manager only** + separate token-free FYI to the job seeker
+- After the **21-day** link expires with no reply: experience status becomes `reference_expired`
+- Job seekers can also remind the manager after **3 days**, cancel, resend after expiry, copy a chase message, or email themselves an FYI (no confirm links)
+- **Never Cc the seeker on manager emails** — confirm URLs are bearer tokens; self-confirmation must stay impossible
 
 Requires the same `CRON_SECRET` (or Vercel Cron user-agent) as other crons.
+
+### 6b. Reference funnel metrics
+
+Admins can `GET /api/admin/reference-metrics` for pending/confirmed/expired/bounced counts and median time-to-response. Review these **before** raising `REFERENCE_MAX_REMINDERS` or enabling a second auto-remind at day 10 (see `referenceFollowupConstants.ts`).
 
 ## Testing Email Configuration
 

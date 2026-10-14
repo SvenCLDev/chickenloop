@@ -11,9 +11,17 @@ import type { ProfileSchemaVersion } from './types';
 export function applyTalentNetworkFieldsToCv(
   cv: Document & ICV,
   body: Record<string, unknown>,
-  options?: { forceSchemaVersion?: ProfileSchemaVersion }
+  options?: {
+    forceSchemaVersion?: ProfileSchemaVersion;
+    seekerEmails?: Array<string | undefined | null>;
+  }
 ): { ok: true } | { ok: false; error: string } {
-  const parsed = validateTalentNetworkPayload(body);
+  const seekerEmails = [
+    ...(options?.seekerEmails ?? []),
+    typeof cv.email === 'string' ? cv.email : undefined,
+    typeof body.email === 'string' ? body.email : undefined,
+  ];
+  const parsed = validateTalentNetworkPayload(body, { seekerEmails });
   if (!parsed.ok) {
     return parsed;
   }

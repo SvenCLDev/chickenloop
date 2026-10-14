@@ -19,7 +19,7 @@ export interface IReferenceVerificationToken extends Document {
   bounceType?: string;
   /** When a manager reminder email was last sent (auto or seeker-triggered). */
   reminderSentAt?: Date;
-  /** Number of manager reminder emails sent for this token (max 1). */
+  /** Number of manager reminder emails sent for this token (see REFERENCE_MAX_REMINDERS). */
   reminderCount?: number;
   createdAt: Date;
   updatedAt: Date;

@@ -12,6 +12,10 @@ export function parseMongoObjectId(value: unknown): mongoose.Types.ObjectId | un
   return new mongoose.Types.ObjectId(value);
 }
 
+/**
+ * Merge seasonal experience for profile save.
+ * Verification / confirmation fields are server-owned and never taken from the client payload.
+ */
 export function mergeSeasonalExperienceForSave(
   existing: SeasonalExperience[] | undefined,
   incoming: SeasonalExperience[]
@@ -28,28 +32,28 @@ export function mergeSeasonalExperienceForSave(
     );
 
     const preservedId = explicitId ?? fingerprintMatch?._id;
-    if (!preservedId) {
-      return {
-        ...entry,
-        _id: new mongoose.Types.ObjectId(),
-      };
-    }
+    const id = preservedId ?? new mongoose.Types.ObjectId();
 
     return {
-      ...fingerprintMatch,
-      ...entry,
-      _id: preservedId,
-      verificationStatus:
-        entry.verificationStatus ??
-        fingerprintMatch?.verificationStatus ??
-        'self_reported',
-      referenceTokenId: fingerprintMatch?.referenceTokenId ?? entry.referenceTokenId,
-      lastReferenceEmailSentAt:
-        fingerprintMatch?.lastReferenceEmailSentAt ?? entry.lastReferenceEmailSentAt,
-      referenceReminderSentAt:
-        fingerprintMatch?.referenceReminderSentAt ?? entry.referenceReminderSentAt,
-      workConfirmed: entry.workConfirmed ?? fingerprintMatch?.workConfirmed,
-      rehireAnswer: entry.rehireAnswer ?? fingerprintMatch?.rehireAnswer,
+      _id: id,
+      schoolName: entry.schoolName,
+      role: entry.role,
+      startMonth: entry.startMonth,
+      startYear: entry.startYear,
+      endMonth: entry.endMonth ?? null,
+      endYear: entry.endYear ?? null,
+      seasonTag: entry.seasonTag,
+      referenceName: entry.referenceName,
+      referenceEmail: entry.referenceEmail,
+      referencePhone: entry.referencePhone,
+      referenceNoteFromSeeker: entry.referenceNoteFromSeeker,
+      // Server-owned — ignore client-supplied verification / confirmation state
+      verificationStatus: fingerprintMatch?.verificationStatus ?? 'self_reported',
+      referenceTokenId: fingerprintMatch?.referenceTokenId,
+      lastReferenceEmailSentAt: fingerprintMatch?.lastReferenceEmailSentAt,
+      referenceReminderSentAt: fingerprintMatch?.referenceReminderSentAt,
+      workConfirmed: fingerprintMatch?.workConfirmed,
+      rehireAnswer: fingerprintMatch?.rehireAnswer,
     };
   });
 }

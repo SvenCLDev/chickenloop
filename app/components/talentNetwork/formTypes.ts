@@ -52,6 +52,7 @@ export interface SeasonalExperienceFormEntry {
   referenceName: string;
   referenceEmail: string;
   referencePhone: string;
+  referenceNoteFromSeeker: string;
   verificationStatus?: SeasonalExperience['verificationStatus'];
   lastReferenceEmailSentAt?: string;
   reminderSentAt?: string;
@@ -104,6 +105,7 @@ export function emptySeasonalExperience(): SeasonalExperienceFormEntry {
     referenceName: '',
     referenceEmail: '',
     referencePhone: '',
+    referenceNoteFromSeeker: '',
     verificationStatus: 'self_reported',
   };
 }

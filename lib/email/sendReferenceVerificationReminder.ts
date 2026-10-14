@@ -13,19 +13,23 @@ function getReferenceReplyTo(): string {
   );
 }
 
-function getReferenceFrom(): string {
+function getReferenceFrom(candidateName?: string): string {
   const email = process.env.RESEND_REFERENCE_FROM_EMAIL?.trim() || getFromEmail();
+  const trimmed = candidateName?.trim();
   const name =
-    process.env.RESEND_REFERENCE_FROM_NAME?.trim() || 'Chickenloop References';
+    process.env.RESEND_REFERENCE_FROM_NAME?.trim() ||
+    (trimmed ? `${trimmed} via Chickenloop` : 'Chickenloop References');
   return formatFromAddress(email, name);
 }
 
+/** Manager reminder only — never Cc the seeker. */
 export async function sendReferenceVerificationReminder(input: {
   managerEmail: string;
   candidateName: string;
   schoolName: string;
   seasonLabel?: string;
   managerName?: string;
+  seekerNote?: string;
   token: string;
 }): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const emailContent = referenceVerificationReminderEmail({
@@ -33,6 +37,7 @@ export async function sendReferenceVerificationReminder(input: {
     schoolName: input.schoolName,
     seasonLabel: input.seasonLabel,
     managerName: input.managerName,
+    seekerNote: input.seekerNote,
     confirmWorkedRehireUrl: buildReferenceConfirmUrl(input.token, 'worked-rehire'),
     confirmWorkedNoRehireUrl: buildReferenceConfirmUrl(input.token, 'worked-no-rehire'),
     confirmNotWorkedUrl: buildReferenceConfirmUrl(input.token, 'not-worked'),
@@ -44,7 +49,7 @@ export async function sendReferenceVerificationReminder(input: {
     subject: emailContent.subject,
     html: emailContent.html,
     text: emailContent.text,
-    from: getReferenceFrom(),
+    from: getReferenceFrom(input.candidateName),
     replyTo: getReferenceReplyTo(),
     category: EmailCategory.IMPORTANT_TRANSACTIONAL,
     eventType: 'reference_verification_reminder',

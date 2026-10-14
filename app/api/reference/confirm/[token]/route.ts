@@ -4,6 +4,7 @@ import {
   confirmReferenceToken,
   getReferenceConfirmContext,
 } from '@/lib/talentNetwork/processReferenceRequests';
+import { logReferenceMetric } from '@/lib/talentNetwork/referenceMetrics';
 import { parseReferenceConfirmBody } from '@/lib/referenceVerificationToken';
 
 export async function GET(
@@ -49,6 +50,10 @@ export async function GET(
         { status: 200 }
       );
     }
+
+    logReferenceMetric('reference_confirm_page_view', {
+      schoolName: context.schoolName,
+    });
 
     return NextResponse.json(
       {

@@ -12,6 +12,10 @@ import {
   WATERSPORT_DISCIPLINES,
 } from './types';
 import { parseMongoObjectId } from './mergeSeasonalExperience';
+import {
+  isSelfAsReferenceEmail,
+  SELF_REFERENCE_EMAIL_ERROR,
+} from './referenceChase';
 
 function isValidMonth(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 12;
@@ -140,10 +144,6 @@ export function validateSeasonalExperience(
       : isValidYear(raw.endYear)
         ? raw.endYear
         : undefined;
-  const status = raw.verificationStatus ?? 'self_reported';
-  if (!isExperienceVerificationStatus(status)) {
-    return { ok: false, error: 'Invalid experience verification status' };
-  }
   if (
     typeof raw.startMonth === 'number' &&
     typeof raw.startYear === 'number' &&
@@ -156,6 +156,12 @@ export function validateSeasonalExperience(
       error: 'End date must be on or after the start date',
     };
   }
+  const referenceEmail =
+    typeof raw.referenceEmail === 'string' ? raw.referenceEmail.trim() : undefined;
+  const noteRaw =
+    typeof raw.referenceNoteFromSeeker === 'string'
+      ? raw.referenceNoteFromSeeker.trim()
+      : undefined;
   const parsedId = parseMongoObjectId(raw._id);
   return {
     ok: true,
@@ -170,14 +176,14 @@ export function validateSeasonalExperience(
       seasonTag: typeof raw.seasonTag === 'string' ? raw.seasonTag.trim() : undefined,
       referenceName:
         typeof raw.referenceName === 'string' ? raw.referenceName.trim() : undefined,
-      referenceEmail:
-        typeof raw.referenceEmail === 'string' ? raw.referenceEmail.trim() : undefined,
+      referenceEmail,
       referencePhone:
         typeof raw.referencePhone === 'string' ? raw.referencePhone.trim() : undefined,
-      verificationStatus: status,
-      workConfirmed:
-        typeof raw.workConfirmed === 'boolean' ? raw.workConfirmed : undefined,
-      rehireAnswer: typeof raw.rehireAnswer === 'boolean' ? raw.rehireAnswer : undefined,
+      referenceNoteFromSeeker: noteRaw
+        ? noteRaw.slice(0, 500)
+        : undefined,
+      // Client cannot set verification / confirmation — merge preserves server state
+      verificationStatus: 'self_reported',
     },
   };
 }
@@ -209,7 +215,10 @@ export function validateLanguageSkill(
   };
 }
 
-export function validateTalentNetworkPayload(body: Record<string, unknown>): {
+export function validateTalentNetworkPayload(
+  body: Record<string, unknown>,
+  options?: { seekerEmails?: Array<string | undefined | null> }
+): {
   ok: true;
   value: {
     profileSchemaVersion?: ProfileSchemaVersion;
@@ -253,6 +262,12 @@ export function validateTalentNetworkPayload(body: Record<string, unknown>): {
     for (const item of body.seasonalExperience) {
       const parsed = validateSeasonalExperience(item);
       if (!parsed.ok) return parsed;
+      if (
+        options?.seekerEmails &&
+        isSelfAsReferenceEmail(parsed.value.referenceEmail, options.seekerEmails)
+      ) {
+        return { ok: false, error: SELF_REFERENCE_EMAIL_ERROR };
+      }
       entries.push(parsed.value);
     }
     result.seasonalExperience = entries;

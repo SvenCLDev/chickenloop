@@ -7,8 +7,9 @@ import type { ICV } from '@/models/CV';
 import type { IReferenceVerificationToken } from '@/models/ReferenceVerificationToken';
 import ReferenceVerificationToken from '@/models/ReferenceVerificationToken';
 import { sendReferenceVerificationReminder } from '@/lib/email/sendReferenceVerificationReminder';
-import { sendReferenceReminderSent } from '@/lib/email/sendReferenceReminderSent';
+import { sendReferenceRequestFyi } from '@/lib/email/sendReferenceRequestFyi';
 import { findSeasonalExperienceForToken } from '@/lib/talentNetwork/mergeSeasonalExperience';
+import { logReferenceMetric } from '@/lib/talentNetwork/referenceMetrics';
 import type { SeasonalExperience } from '@/lib/talentNetwork/types';
 import { processReferenceVerificationRequests } from '@/lib/talentNetwork/processReferenceRequests';
 import {
@@ -16,6 +17,10 @@ import {
   REFERENCE_MAX_REMINDERS,
 } from '@/lib/talentNetwork/referenceFollowupConstants';
 import { canSendManagerReminder } from '@/lib/talentNetwork/referenceReminderEligibility';
+import {
+  buildReferenceChaseSnippet,
+  isSelfAsReferenceEmail,
+} from '@/lib/talentNetwork/referenceChase';
 
 export {
   REFERENCE_AUTO_REMIND_AFTER_MS,
@@ -37,11 +42,12 @@ function seasonLabel(entry: SeasonalExperience): string | undefined {
   return undefined;
 }
 
-async function notifySeekerReminderSent(
+async function notifySeekerFyi(
   cv: Document & ICV,
   entry: SeasonalExperience,
-  managerEmail: string
-): Promise<void> {
+  managerEmail: string,
+  reason: 'initial' | 'reminder' | 'resend_fyi'
+): Promise<{ chaseSnippet?: string } | void> {
   const jobSeeker = await User.findById(cv.jobSeeker).select('name email').lean();
   const notifyEmail =
     (typeof jobSeeker?.email === 'string' && jobSeeker.email.trim()) ||
@@ -49,14 +55,18 @@ async function notifySeekerReminderSent(
     '';
   if (!notifyEmail) return;
 
-  await sendReferenceReminderSent({
+  const result = await sendReferenceRequestFyi({
     jobSeekerEmail: notifyEmail,
     jobSeekerName: jobSeeker?.name || cv.fullName,
     jobSeekerUserId: cv.jobSeeker ? String(cv.jobSeeker) : undefined,
     schoolName: entry.schoolName,
     seasonLabel: seasonLabel(entry),
     managerEmail,
+    managerName: entry.referenceName,
+    reason,
+    experienceEntryId: entry._id ? String(entry._id) : undefined,
   });
+  return { chaseSnippet: result.chaseSnippet };
 }
 
 /**
@@ -76,12 +86,14 @@ export async function sendReferenceReminderForEntry(input: {
   );
   if (!eligibility.ok) return eligibility;
 
+  // Never Cc the seeker on the manager reminder — confirm links are bearer tokens.
   const result = await sendReferenceVerificationReminder({
     managerEmail: input.tokenDoc.managerEmail,
     candidateName: input.cv.fullName,
     schoolName: input.entry.schoolName,
     seasonLabel: seasonLabel(input.entry) || input.tokenDoc.seasonLabel,
     managerName: input.entry.referenceName,
+    seekerNote: input.entry.referenceNoteFromSeeker,
     token: input.tokenDoc.token,
   });
 
@@ -102,10 +114,16 @@ export async function sendReferenceReminderForEntry(input: {
   input.cv.markModified('seasonalExperience');
   await input.cv.save();
 
-  await notifySeekerReminderSent(
+  logReferenceMetric('reference_reminder_sent_manager', {
+    mode: input.mode,
+    experienceEntryId: input.entry._id ? String(input.entry._id) : undefined,
+  });
+
+  await notifySeekerFyi(
     input.cv,
     input.entry,
-    input.tokenDoc.managerEmail
+    input.tokenDoc.managerEmail,
+    'reminder'
   );
 
   return { ok: true };
@@ -141,6 +159,9 @@ export async function expireStaleReferenceRequests(now = new Date()): Promise<{
     entry.verificationStatus = 'reference_expired';
     cv.markModified('seasonalExperience');
     await cv.save();
+    logReferenceMetric('reference_expired', {
+      experienceEntryId: entry._id ? String(entry._id) : undefined,
+    });
     expired += 1;
   }
 
@@ -228,10 +249,15 @@ export async function processReferenceFollowups(now = new Date()): Promise<{
   };
 }
 
-export type ReferenceAction = 'remind' | 'cancel' | 'resend';
+export type ReferenceAction = 'remind' | 'cancel' | 'resend' | 'resend_fyi';
 
 export type ReferenceActionResult =
-  | { ok: true; action: ReferenceAction; verificationStatus: string }
+  | {
+      ok: true;
+      action: ReferenceAction;
+      verificationStatus: string;
+      chaseSnippet?: string;
+    }
   | { ok: false; error: string; code?: string };
 
 async function findOwnedCvEntry(
@@ -268,6 +294,37 @@ export async function runReferenceAction(input: {
   if (!found.ok) return found;
 
   const { cv, entry } = found;
+
+  if (input.action === 'resend_fyi') {
+    if (entry.verificationStatus !== 'reference_requested') {
+      return {
+        ok: false,
+        error: 'FYI is only available while awaiting a manager response',
+        code: 'invalid_state',
+      };
+    }
+    const managerEmail = entry.referenceEmail?.trim();
+    if (!managerEmail) {
+      return {
+        ok: false,
+        error: 'Add a manager email before requesting a copy',
+        code: 'missing_email',
+      };
+    }
+    const fyi = await notifySeekerFyi(cv, entry, managerEmail, 'resend_fyi');
+    return {
+      ok: true,
+      action: 'resend_fyi',
+      verificationStatus: 'reference_requested',
+      chaseSnippet:
+        fyi?.chaseSnippet ||
+        buildReferenceChaseSnippet({
+          schoolName: entry.schoolName,
+          seasonLabel: seasonLabel(entry),
+          managerName: entry.referenceName,
+        }),
+    };
+  }
 
   if (input.action === 'cancel') {
     if (
@@ -365,6 +422,16 @@ export async function runReferenceAction(input: {
       ok: false,
       error: 'Add a manager email before requesting again',
       code: 'missing_email',
+    };
+  }
+
+  const owner = await User.findById(cv.jobSeeker).select('email').lean();
+  if (isSelfAsReferenceEmail(entry.referenceEmail, [owner?.email, cv.email])) {
+    return {
+      ok: false,
+      error:
+        'You cannot use your own email as the manager reference. Enter a past employer email instead.',
+      code: 'self_email',
     };
   }
 

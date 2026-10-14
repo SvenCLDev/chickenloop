@@ -5,11 +5,19 @@ import {
   type ReferenceAction,
 } from '@/lib/talentNetwork/referenceFollowup';
 
-const ACTIONS = new Set<ReferenceAction>(['remind', 'cancel', 'resend']);
+const ACTIONS = new Set<ReferenceAction>([
+  'remind',
+  'cancel',
+  'resend',
+  'resend_fyi',
+]);
 
 /**
  * POST /api/talent-network/reference-actions
- * Body: { experienceEntryId: string, action: 'remind' | 'cancel' | 'resend' }
+ * Body: { experienceEntryId: string, action: 'remind' | 'cancel' | 'resend' | 'resend_fyi' }
+ *
+ * Remind/resend email the manager only. Never Cc the seeker on manager mail
+ * (confirm links are bearer tokens). Use resend_fyi for a token-free seeker copy.
  */
 export async function POST(request: NextRequest) {
   try {

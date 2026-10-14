@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import type { ICV } from '@/models/CV';
 import type { IReferenceVerificationToken } from '@/models/ReferenceVerificationToken';
 import { findSeasonalExperienceForToken } from '@/lib/talentNetwork/mergeSeasonalExperience';
+import { logReferenceMetric } from '@/lib/talentNetwork/referenceMetrics';
 
 export type ApplyReferenceEmailBounceResult =
   | { status: 'updated'; schoolName: string; seasonLabel?: string; managerEmail: string }
@@ -65,6 +66,10 @@ export function applyReferenceEmailBounceToCv(
     tokenDoc.respondedAt = now;
     tokenDoc.confirmed = false;
   }
+
+  logReferenceMetric('reference_bounced', {
+    experienceEntryId: entry._id ? String(entry._id) : undefined,
+  });
 
   return {
     status: 'updated',

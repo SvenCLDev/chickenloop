@@ -3,14 +3,22 @@ import mongoose from 'mongoose';
 import type { ICV } from '@/models/CV';
 import type { IReferenceVerificationToken } from '@/models/ReferenceVerificationToken';
 import ReferenceVerificationToken from '@/models/ReferenceVerificationToken';
+import User from '@/models/User';
 import { sendReferenceVerificationEmail } from '@/lib/email/sendReferenceVerificationEmail';
+import { sendReferenceRequestFyi } from '@/lib/email/sendReferenceRequestFyi';
 import { findSeasonalExperienceForToken } from '@/lib/talentNetwork/mergeSeasonalExperience';
+import {
+  isSelfAsReferenceEmail,
+} from '@/lib/talentNetwork/referenceChase';
+import { logReferenceMetric } from '@/lib/talentNetwork/referenceMetrics';
+import { REFERENCE_EXPIRY_DAYS } from '@/lib/talentNetwork/referenceFollowupConstants';
 import type { SeasonalExperience } from '@/lib/talentNetwork/types';
 import type { ReferenceConfirmInput } from '@/lib/referenceVerificationToken';
 import { generateReferenceToken } from '@/lib/referenceVerificationToken';
 
 export const COOLDOWN_MS = 24 * 60 * 60 * 1000;
-export const EXPIRY_DAYS = 14;
+/** @deprecated Prefer REFERENCE_EXPIRY_DAYS — kept for existing imports. */
+export const EXPIRY_DAYS = REFERENCE_EXPIRY_DAYS;
 
 export const EXPERIENCE_REMOVED_ERROR =
   "This reference request is no longer active because the work experience was removed from the candidate's profile.";
@@ -139,10 +147,39 @@ async function invalidatePreviousToken(
   });
 }
 
+async function notifySeekerReferenceFyi(
+  cv: Document & ICV,
+  entry: SeasonalExperience,
+  managerEmail: string,
+  reason: 'initial' | 'reminder' | 'resend_fyi'
+): Promise<void> {
+  const jobSeeker = await User.findById(cv.jobSeeker).select('name email').lean();
+  const notifyEmail =
+    (typeof jobSeeker?.email === 'string' && jobSeeker.email.trim()) ||
+    (typeof cv.email === 'string' && cv.email.trim()) ||
+    '';
+  if (!notifyEmail) return;
+
+  await sendReferenceRequestFyi({
+    jobSeekerEmail: notifyEmail,
+    jobSeekerName: jobSeeker?.name || cv.fullName,
+    jobSeekerUserId: cv.jobSeeker ? String(cv.jobSeeker) : undefined,
+    schoolName: entry.schoolName,
+    seasonLabel: seasonLabel(entry),
+    managerEmail,
+    managerName: entry.referenceName,
+    reason,
+    experienceEntryId: entry._id ? String(entry._id) : undefined,
+  });
+}
+
 export async function processReferenceVerificationRequests(
   cv: Document & ICV
 ): Promise<void> {
   if (!cv.seasonalExperience?.length) return;
+
+  const jobSeeker = await User.findById(cv.jobSeeker).select('email').lean();
+  const seekerEmails = [jobSeeker?.email, cv.email];
 
   let modified = false;
 
@@ -153,6 +190,11 @@ export async function processReferenceVerificationRequests(
       entry.verificationStatus === 'reference_confirmed' ||
       entry.verificationStatus === 'reference_disputed'
     ) {
+      continue;
+    }
+
+    // Never send a confirm token to the seeker's own inbox
+    if (isSelfAsReferenceEmail(email, seekerEmails)) {
       continue;
     }
 
@@ -214,16 +256,20 @@ export async function processReferenceVerificationRequests(
         candidateName: cv.fullName,
         schoolName: entry.schoolName,
         seasonLabel: seasonLabel(entry),
-        expiresAt: new Date(Date.now() + EXPIRY_DAYS * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(
+          Date.now() + REFERENCE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+        ),
       });
     }
 
+    // Never Cc the seeker on this message — confirm links are bearer tokens.
     const result = await sendReferenceVerificationEmail({
       managerEmail: email,
       candidateName: cv.fullName,
       schoolName: entry.schoolName,
       seasonLabel: seasonLabel(entry),
       managerName: entry.referenceName,
+      seekerNote: entry.referenceNoteFromSeeker,
       token: tokenDoc.token,
     });
 
@@ -244,6 +290,12 @@ export async function processReferenceVerificationRequests(
         tokenDoc.reminderCount = 0;
         await tokenDoc.save();
       }
+      logReferenceMetric('reference_request_sent', {
+        cvId: String(cv._id),
+        experienceEntryId: entryId,
+      });
+      // Separate token-free FYI to the seeker (not a Cc of the manager mail)
+      await notifySeekerReferenceFyi(cv, entry, email, 'initial');
       modified = true;
     }
   }
@@ -309,6 +361,14 @@ export async function confirmReferenceToken(
 
   tokenDoc.respondedAt = new Date();
   await tokenDoc.save();
+
+  logReferenceMetric(
+    response.worked === false ? 'reference_disputed' : 'reference_confirmed',
+    {
+      cvId: String(cv._id),
+      experienceEntryId: String(entry._id ?? ''),
+    }
+  );
 
   return {
     ok: true,

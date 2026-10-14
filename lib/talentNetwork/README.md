@@ -21,8 +21,11 @@ Use this checklist on **staging/preview** with `TALENT_NETWORK_ENABLED=true` bef
 - [ ] v2 editor hides education, free-text skills, legacy certification checkboxes
 - [ ] Certificate upload → status `pending_review`
 - [ ] Work experience with manager email triggers reference email (check Resend logs)
+- [ ] Seeker receives a **separate** FYI email with chase snippet (no confirm buttons / tokens)
+- [ ] Seeker cannot save their own email as manager reference
 - [ ] Reference email buttons open `/reference/confirm/[token]` on the **same deployment** (Preview links must not use `www.chickenloop.com` unless that DB holds the token)
 - [ ] Manager can confirm via email buttons or the public confirm page
+- [ ] Edit UI: Copy chase message + Email FYI to me; Remind manager does not Cc the seeker
 - [ ] Language proficiency saves correctly
 
 ## Admin verification

@@ -175,6 +175,7 @@ const CVSchema: Schema = new Schema(
         referenceName: String,
         referenceEmail: String,
         referencePhone: String,
+        referenceNoteFromSeeker: { type: String, maxlength: 500 },
         verificationStatus: {
           type: String,
           enum: [...EXPERIENCE_VERIFICATION_STATUSES],

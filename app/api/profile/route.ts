@@ -152,6 +152,7 @@ export async function POST(request: NextRequest) {
     ) {
       const applied = applyTalentNetworkFieldsToCv(cv, body, {
         forceSchemaVersion: profileSchemaVersion === 2 ? 2 : undefined,
+        seekerEmails: [user.email],
       });
       if (!applied.ok) {
         return NextResponse.json({ error: applied.error }, { status: 400 });
@@ -308,6 +309,7 @@ export async function PUT(request: NextRequest) {
     ) {
       const applied = applyTalentNetworkFieldsToCv(cv, body, {
         forceSchemaVersion: profileSchemaVersion === 2 ? 2 : undefined,
+        seekerEmails: [user.email],
       });
       if (!applied.ok) {
         return NextResponse.json({ error: applied.error }, { status: 400 });
