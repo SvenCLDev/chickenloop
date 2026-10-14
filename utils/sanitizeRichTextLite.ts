@@ -16,7 +16,7 @@ const RICH_TEXT_LITE_OPTIONS: Parameters<typeof sanitizeHtml>[1] = {
 function unwrapParagraphs(html: string): string {
   if (!html || typeof html !== 'string') return html;
   return html
-    .replace(/<\/p>\s*<p/gi, '<br>')
+    .replace(/<\/p>\s*<p[^>]*>/gi, '<br>')
     .replace(/<p[^>]*>/gi, '')
     .replace(/<\/p>/gi, '');
 }
