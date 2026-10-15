@@ -22,6 +22,7 @@ import {
   sendJobPostedConfirmation,
 } from '@/lib/email/sendJobPostedConfirmation';
 import { revalidateJobPages } from '@/lib/revalidateJobs';
+import { computeTalentMatchEmailDueAt } from '@/lib/talentMatchEmailSchedule';
 
 // GET - Get all jobs (accessible to all users, including anonymous)
 export async function GET(request: NextRequest) {
@@ -996,6 +997,7 @@ export async function POST(request: NextRequest) {
       datePosted: isPublished ? now : undefined,
       validThrough: isPublished ? validThroughDate : undefined,
       lastRecruiterEditAt: now,
+      talentMatchEmailDueAt: isPublished ? computeTalentMatchEmailDueAt(now) : null,
       createdByAdmin,
     });
 

@@ -10,6 +10,7 @@ import Link from 'next/link';
 interface EmailPreferences {
   applicationUpdates: boolean;
   marketing: boolean;
+  talentMatchEmails: boolean;
 }
 
 export default function RecruiterAccountPage() {
@@ -18,6 +19,7 @@ export default function RecruiterAccountPage() {
   const [emailPreferences, setEmailPreferences] = useState<EmailPreferences>({
     applicationUpdates: true,
     marketing: false,
+    talentMatchEmails: true,
   });
   const [loadingPreferences, setLoadingPreferences] = useState(true);
   const [savingPreferences, setSavingPreferences] = useState(false);
@@ -34,6 +36,7 @@ export default function RecruiterAccountPage() {
         setEmailPreferences({
           applicationUpdates: response.preferences.applicationUpdates ?? true,
           marketing: response.preferences.marketing ?? false,
+          talentMatchEmails: response.preferences.talentMatchEmails ?? true,
         });
       }
     } catch (err: any) {
@@ -87,7 +90,11 @@ export default function RecruiterAccountPage() {
 
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emailPreferences.applicationUpdates, emailPreferences.marketing]);
+  }, [
+    emailPreferences.applicationUpdates,
+    emailPreferences.marketing,
+    emailPreferences.talentMatchEmails,
+  ]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -157,6 +164,39 @@ export default function RecruiterAccountPage() {
                   <span
                     className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                       emailPreferences.applicationUpdates ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </label>
+            </div>
+
+            {/* Talent Match Emails Toggle */}
+            <div className="mb-6">
+              <label className="flex items-center justify-between">
+                <div>
+                  <span className="block text-sm font-medium text-gray-700">Talent Match Emails</span>
+                  <span className="text-xs text-gray-500">
+                    Get an email ~2 days after you post or update a job when matching talent is available
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEmailPreferences({
+                      ...emailPreferences,
+                      talentMatchEmails: !emailPreferences.talentMatchEmails,
+                    })
+                  }
+                  disabled={savingPreferences || loadingPreferences}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    emailPreferences.talentMatchEmails ? 'bg-blue-600' : 'bg-gray-300'
+                  }`}
+                  role="switch"
+                  aria-checked={emailPreferences.talentMatchEmails}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      emailPreferences.talentMatchEmails ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
                 </button>

@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${baseUrl}/email/unsubscribed?error=${errorType}`, 302);
     }
 
-    const { userId, category } = tokenPayload;
+    const { userId, category, preferenceKey } = tokenPayload;
 
     // Prevent unsubscribing from critical transactional emails
     if (category === EmailCategory.CRITICAL_TRANSACTIONAL) {
@@ -67,15 +67,24 @@ export async function GET(request: NextRequest) {
         jobAlerts: 'weekly',
         applicationUpdates: true,
         marketing: false,
+        talentMatchEmails: true,
       });
     }
 
-    // Update preferences based on category
+    // Update preferences based on category / optional preferenceKey
     let updated = false;
     let preferenceField = '';
     let alreadyUnsubscribed = false;
 
-    if (category === EmailCategory.IMPORTANT_TRANSACTIONAL) {
+    if (preferenceKey === 'talentMatchEmails') {
+      if (preferences.talentMatchEmails !== false) {
+        preferences.talentMatchEmails = false;
+        updated = true;
+        preferenceField = 'talentMatchEmails';
+      } else {
+        alreadyUnsubscribed = true;
+      }
+    } else if (category === EmailCategory.IMPORTANT_TRANSACTIONAL) {
       if (preferences.applicationUpdates) {
         preferences.applicationUpdates = false;
         updated = true;

@@ -119,6 +119,15 @@ export interface IJob extends Document {
    */
   lastRefreshedAt?: Date | null;
 
+  /**
+   * When the talent-match digest may be sent (publish/content-edit + 2 days).
+   * Not set by Refresh Job. Cleared after send or when matchCount ≤ 1 / unpublish.
+   */
+  talentMatchEmailDueAt?: Date | null;
+
+  /** Last time a talent-match email was sent for this job. */
+  lastTalentMatchEmailAt?: Date | null;
+
   /** True when an admin created the job on behalf of the recruiter */
   createdByAdmin?: boolean;
 
@@ -297,6 +306,17 @@ const JobSchema: Schema = new Schema(
     },
 
     lastRefreshedAt: {
+      type: Date,
+      default: null,
+    },
+
+    talentMatchEmailDueAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    lastTalentMatchEmailAt: {
       type: Date,
       default: null,
     },

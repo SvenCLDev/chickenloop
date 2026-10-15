@@ -74,6 +74,17 @@ Vercel cron hits `/api/cron/reference-followup` daily at **10:00 UTC** (`vercel.
 
 Requires the same `CRON_SECRET` (or Vercel Cron user-agent) as other crons.
 
+### 6a. Recruiter talent-match emails
+
+Vercel cron hits `/api/cron/talent-match-emails` daily at **11:00 UTC** (`vercel.json`).
+
+- **2 days** after a job is **published** or **content-edited**, if there are **more than 1** matching talent profiles, the recruiter gets an email with a deep link to filtered `/talent`
+- **Refresh Job does not** re-queue this email
+- Unpublish clears the pending send
+- Recruiters can unsubscribe via the email footer (one-click) or **Talent Match Emails** on `/recruiter/account` / `/recruiter/account/edit` (`EmailPreferences.talentMatchEmails`, default on)
+
+Requires the same `CRON_SECRET` (or Vercel Cron user-agent) as other crons.
+
 ### 6b. Reference funnel metrics
 
 Admins can `GET /api/admin/reference-metrics` for pending/confirmed/expired/bounced counts and median time-to-response. Review these **before** raising `REFERENCE_MAX_REMINDERS` or enabling a second auto-remind at day 10 (see `referenceFollowupConstants.ts`).

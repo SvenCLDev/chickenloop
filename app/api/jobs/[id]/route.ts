@@ -14,6 +14,7 @@ import { normalizeEmploymentType } from '@/lib/normalizeEmploymentType';
 import { sanitizeJobDescription } from '@/lib/sanitizeJobDescription';
 import { geocodeJobLocation } from '@/lib/geocodeJobLocation';
 import { revalidateJobPages } from '@/lib/revalidateJobs';
+import { computeTalentMatchEmailDueAt } from '@/lib/talentMatchEmailSchedule';
 import mongoose from 'mongoose';
 
 // Safeguard: Reject if request looks like a Stripe redirect (must not mutate jobs)
@@ -399,6 +400,16 @@ export async function PUT(
 
     // Only recruiter edits update this; system actions (featured, visit count, Instagram, etc.) do not
     job.lastRecruiterEditAt = new Date();
+
+    // Queue talent-match email 2 days after publish/content edit; clear on unpublish.
+    // Refresh Job must not set this (handled in a separate route).
+    const willBePublished =
+      published !== undefined ? published === true : wasPublished;
+    if (willBePublished) {
+      job.talentMatchEmailDueAt = computeTalentMatchEmailDueAt();
+    } else {
+      job.talentMatchEmailDueAt = null;
+    }
 
     // Re-geocode location for map pin when city/country are set
     const coords = await geocodeJobLocation(job.city, job.country);

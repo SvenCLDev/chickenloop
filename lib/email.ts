@@ -7,7 +7,10 @@ import { Resend } from 'resend';
 import EmailPreferences from '@/models/EmailPreferences';
 import User from '@/models/User';
 import connectDB from '@/lib/db';
-import { generateUnsubscribeUrl } from './unsubscribeToken';
+import {
+  generateUnsubscribeUrl,
+  type UnsubscribePreferenceKey,
+} from './unsubscribeToken';
 import { checkEmailRateLimit, recordEmailSent } from './emailRateLimit';
 
 /**
@@ -77,7 +80,8 @@ export function formatFromAddress(email: string, displayName?: string): string {
 async function generateUnsubscribeFooter(
   userId: string | undefined,
   category: EmailCategory,
-  userRole?: string
+  userRole?: string,
+  preferenceKey?: UnsubscribePreferenceKey
 ): Promise<{ html: string; text: string } | null> {
   // Never add unsubscribe links to critical transactional or system emails
   if (
@@ -93,7 +97,7 @@ async function generateUnsubscribeFooter(
   }
 
   try {
-    const unsubscribeUrl = generateUnsubscribeUrl(userId, category);
+    const unsubscribeUrl = generateUnsubscribeUrl(userId, category, preferenceKey);
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
       || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
     
@@ -189,7 +193,7 @@ export async function canSendEmail(
       return { canSend: true };
     }
 
-    // USER_NOTIFICATION: Check jobAlerts or marketing preference
+    // USER_NOTIFICATION: Check jobAlerts, marketing, or talentMatchEmails
     if (category === EmailCategory.USER_NOTIFICATION) {
       // Job alerts
       if (eventType === 'job_alert') {
@@ -200,6 +204,17 @@ export async function canSendEmail(
           };
         }
         // 'daily' and 'weekly' are handled by cron job frequency
+        return { canSend: true };
+      }
+
+      // Recruiter talent-match digests
+      if (eventType === 'talent_match') {
+        if (preferences.talentMatchEmails === false) {
+          return {
+            canSend: false,
+            reason: 'User has disabled talent match emails',
+          };
+        }
         return { canSend: true };
       }
 
@@ -246,11 +261,27 @@ export interface SendEmailOptions {
   eventType: string;
   // Optional: User ID for preference checking (if applicable)
   userId?: string;
+  /** When set, one-click unsubscribe toggles this preference instead of the category default. */
+  unsubscribePreferenceKey?: UnsubscribePreferenceKey;
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
-    const { category, eventType, userId, to, subject, html, text, from, replyTo, cc, bcc, tags } = options;
+    const {
+      category,
+      eventType,
+      userId,
+      to,
+      subject,
+      html,
+      text,
+      from,
+      replyTo,
+      cc,
+      bcc,
+      tags,
+      unsubscribePreferenceKey,
+    } = options;
 
     // Check if email should be sent (central enforcement gate)
     const { canSend, reason } = await canSendEmail(userId, category, eventType);
@@ -298,7 +329,12 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ success: b
     }
 
     // Generate unsubscribe footer for non-critical emails
-    const unsubscribeFooter = await generateUnsubscribeFooter(userId, category);
+    const unsubscribeFooter = await generateUnsubscribeFooter(
+      userId,
+      category,
+      undefined,
+      unsubscribePreferenceKey
+    );
     
     // Append unsubscribe footer to content
     let finalHtml = html;

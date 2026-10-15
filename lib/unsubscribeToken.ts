@@ -4,9 +4,13 @@ import { EmailCategory } from './email';
 const UNSUBSCRIBE_SECRET = process.env.UNSUBSCRIBE_SECRET || process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const UNSUBSCRIBE_TOKEN_EXPIRY = '90d'; // Tokens expire after 90 days
 
+/** Specific preference field when category alone is ambiguous (e.g. talent match vs job alerts). */
+export type UnsubscribePreferenceKey = 'talentMatchEmails';
+
 export interface UnsubscribeTokenPayload {
   userId: string;
   category: EmailCategory;
+  preferenceKey?: UnsubscribePreferenceKey;
   iat?: number;
   exp?: number;
 }
@@ -15,12 +19,18 @@ export interface UnsubscribeTokenPayload {
  * Generate a signed unsubscribe token
  * @param userId - User ID
  * @param category - Email category to unsubscribe from
+ * @param preferenceKey - Optional specific preference field
  * @returns Signed JWT token
  */
-export function generateUnsubscribeToken(userId: string, category: EmailCategory): string {
+export function generateUnsubscribeToken(
+  userId: string,
+  category: EmailCategory,
+  preferenceKey?: UnsubscribePreferenceKey
+): string {
   const payload: Omit<UnsubscribeTokenPayload, 'iat' | 'exp'> = {
     userId,
     category,
+    ...(preferenceKey ? { preferenceKey } : {}),
   };
 
   return jwt.sign(payload, UNSUBSCRIBE_SECRET, { expiresIn: UNSUBSCRIBE_TOKEN_EXPIRY });
@@ -46,6 +56,13 @@ export function verifyUnsubscribeToken(token: string): UnsubscribeTokenPayload {
       throw new Error('Invalid token: invalid category');
     }
 
+    if (
+      decoded.preferenceKey !== undefined &&
+      decoded.preferenceKey !== 'talentMatchEmails'
+    ) {
+      throw new Error('Invalid token: invalid preferenceKey');
+    }
+
     return decoded;
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
@@ -62,10 +79,15 @@ export function verifyUnsubscribeToken(token: string): UnsubscribeTokenPayload {
  * Generate unsubscribe URL
  * @param userId - User ID
  * @param category - Email category
+ * @param preferenceKey - Optional specific preference field
  * @returns Full unsubscribe URL
  */
-export function generateUnsubscribeUrl(userId: string, category: EmailCategory): string {
-  const token = generateUnsubscribeToken(userId, category);
+export function generateUnsubscribeUrl(
+  userId: string,
+  category: EmailCategory,
+  preferenceKey?: UnsubscribePreferenceKey
+): string {
+  const token = generateUnsubscribeToken(userId, category, preferenceKey);
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
     || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
   return `${baseUrl}/api/email/unsubscribe?token=${encodeURIComponent(token)}`;

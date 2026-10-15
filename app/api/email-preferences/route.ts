@@ -9,6 +9,7 @@ const DEFAULT_PREFERENCES = {
   jobAlerts: 'weekly' as const,
   applicationUpdates: true,
   marketing: false,
+  talentMatchEmails: true,
 };
 
 /**
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
             jobAlerts: preferences.jobAlerts,
             applicationUpdates: preferences.applicationUpdates,
             marketing: preferences.marketing,
+            talentMatchEmails: preferences.talentMatchEmails ?? true,
             updatedAt: preferences.updatedAt,
             createdAt: preferences.createdAt,
           },
@@ -52,6 +54,7 @@ export async function GET(request: NextRequest) {
           jobAlerts: DEFAULT_PREFERENCES.jobAlerts,
           applicationUpdates: DEFAULT_PREFERENCES.applicationUpdates,
           marketing: DEFAULT_PREFERENCES.marketing,
+          talentMatchEmails: DEFAULT_PREFERENCES.talentMatchEmails,
           updatedAt: null,
           createdAt: null,
         },
@@ -82,6 +85,7 @@ export async function GET(request: NextRequest) {
  * - jobAlerts: 'daily' | 'weekly' | 'never'
  * - applicationUpdates: boolean
  * - marketing: boolean
+ * - talentMatchEmails: boolean
  * 
  * Upserts preferences (creates if doesn't exist, updates if exists)
  */
@@ -98,6 +102,7 @@ export async function PATCH(request: NextRequest) {
       jobAlerts?: 'daily' | 'weekly' | 'never';
       applicationUpdates?: boolean;
       marketing?: boolean;
+      talentMatchEmails?: boolean;
     } = {};
 
     // Validate jobAlerts
@@ -142,19 +147,39 @@ export async function PATCH(request: NextRequest) {
       updateData.marketing = body.marketing;
     }
 
+    // Validate talentMatchEmails
+    if (body.talentMatchEmails !== undefined) {
+      if (typeof body.talentMatchEmails !== 'boolean') {
+        return NextResponse.json(
+          {
+            error: 'Invalid talentMatchEmails value',
+            message: 'talentMatchEmails must be a boolean',
+          },
+          { status: 400 }
+        );
+      }
+      updateData.talentMatchEmails = body.talentMatchEmails;
+    }
+
     // Reject if no valid fields to update
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
         {
           error: 'No valid fields to update',
-          message: 'At least one of jobAlerts, applicationUpdates, or marketing must be provided',
+          message:
+            'At least one of jobAlerts, applicationUpdates, marketing, or talentMatchEmails must be provided',
         },
         { status: 400 }
       );
     }
 
     // Reject any unexpected fields (for security)
-    const allowedFields = ['jobAlerts', 'applicationUpdates', 'marketing'];
+    const allowedFields = [
+      'jobAlerts',
+      'applicationUpdates',
+      'marketing',
+      'talentMatchEmails',
+    ];
     const providedFields = Object.keys(body);
     const unexpectedFields = providedFields.filter(field => !allowedFields.includes(field));
     
@@ -201,6 +226,7 @@ export async function PATCH(request: NextRequest) {
           jobAlerts: updatedPreferences!.jobAlerts,
           applicationUpdates: updatedPreferences!.applicationUpdates,
           marketing: updatedPreferences!.marketing,
+          talentMatchEmails: updatedPreferences!.talentMatchEmails ?? true,
           updatedAt: updatedPreferences!.updatedAt,
           createdAt: updatedPreferences!.createdAt,
         },
