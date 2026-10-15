@@ -10,7 +10,6 @@ import { jobsApi, companyApi, candidatesApi } from '@/lib/api';
 import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
 import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
-import RecruiterTalentDiscoveryBanner from '@/app/components/recruiter/RecruiterTalentDiscoveryBanner';
 import RecruiterJobTalentMatches from '@/app/components/recruiter/RecruiterJobTalentMatches';
 import TalentListRow from '@/app/components/TalentListRow';
 import type { CandidateListItem } from '@/lib/candidateListTypes';
@@ -484,7 +483,6 @@ function RecruiterDashboardClient() {
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
           {companyName ? `${companyName} Recruiter Dashboard` : 'Recruiter Dashboard'}
         </h1>
-        <RecruiterTalentDiscoveryBanner />
         <PageHeaderMarketingBanner placementKey="recruiter-dashboard" />
 
         {error && (

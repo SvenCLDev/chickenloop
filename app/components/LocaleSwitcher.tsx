@@ -29,7 +29,7 @@ export default function LocaleSwitcher({
         onChange={(e) => {
           router.replace(pathname, { locale: e.target.value as AppLocale });
         }}
-        className="rounded bg-blue-700/80 text-white border border-blue-400/40 px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-white/40"
+        className="rounded bg-white text-gray-900 border border-gray-300 px-2 py-1 text-xs font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-white/60"
       >
         {locales.map((l) => (
           <option key={l} value={l} className="text-gray-900">
