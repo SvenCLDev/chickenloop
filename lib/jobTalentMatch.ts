@@ -1,6 +1,6 @@
 /**
  * Job → Talent matching helpers.
- * Shared by admin match counts and (later) recruiter emails / dashboard.
+ * Shared by admin match counts and recruiter dashboard talent-matches.
  */
 
 import {

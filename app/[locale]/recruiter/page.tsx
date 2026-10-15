@@ -11,6 +11,7 @@ import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
 import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
 import RecruiterTalentDiscoveryBanner from '@/app/components/recruiter/RecruiterTalentDiscoveryBanner';
+import RecruiterJobTalentMatches from '@/app/components/recruiter/RecruiterJobTalentMatches';
 import TalentListRow from '@/app/components/TalentListRow';
 import type { CandidateListItem } from '@/lib/candidateListTypes';
 import {
@@ -491,6 +492,8 @@ function RecruiterDashboardClient() {
             {error}
           </div>
         )}
+
+        <RecruiterJobTalentMatches />
 
         {/* My Job Postings Section */}
         <div className="mb-8">

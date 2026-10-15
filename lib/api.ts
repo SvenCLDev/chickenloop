@@ -147,6 +147,8 @@ export const jobsApi = {
   getAll: (endpoint?: string) => apiRequest(endpoint || '/jobs'),
   getOne: (id: string) => apiRequest(`/jobs/${id}`),
   getMyJobs: () => apiRequest('/jobs/my'),
+  /** Published jobs with talent match counts + /talent deep-links (recruiter dashboard). */
+  getTalentMatches: () => apiRequest('/recruiter/jobs/talent-matches'),
   create: (data: any) =>
     apiRequest('/jobs', {
       method: 'POST',
