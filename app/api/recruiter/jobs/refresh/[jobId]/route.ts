@@ -9,6 +9,7 @@ import {
   getJobRefreshDaysRemaining,
 } from '@/lib/jobRefresh';
 import { revalidateJobPages } from '@/lib/revalidateJobs';
+import { computeTalentMatchEmailDueAt } from '@/lib/talentMatchEmailSchedule';
 
 export async function POST(
   request: NextRequest,
@@ -54,6 +55,7 @@ export async function POST(
           updatedAt: now,
           lastRecruiterEditAt: now,
           lastRefreshedAt: now,
+          talentMatchEmailDueAt: computeTalentMatchEmailDueAt(now),
         },
       },
       { new: true }

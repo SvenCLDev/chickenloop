@@ -78,8 +78,8 @@ Requires the same `CRON_SECRET` (or Vercel Cron user-agent) as other crons.
 
 Vercel cron hits `/api/cron/talent-match-emails` daily at **11:00 UTC** (`vercel.json`).
 
-- **2 days** after a job is **published** or **content-edited**, if there are **more than 1** matching talent profiles, the recruiter gets an email with a deep link to filtered `/talent`
-- **Refresh Job does not** re-queue this email
+- **2 days** after a job is **published**, **content-edited**, or **refreshed**, if there are **more than 1** matching talent profiles, the recruiter gets an email with a deep link to filtered `/talent`
+- **Refresh Job** re-queues this email (due = refresh time + 2 days)
 - Unpublish clears the pending send
 - Recruiters can unsubscribe via the email footer (one-click) or **Talent Match Emails** on `/recruiter/account` / `/recruiter/account/edit` (`EmailPreferences.talentMatchEmails`, default on)
 

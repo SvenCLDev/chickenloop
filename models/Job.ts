@@ -120,8 +120,8 @@ export interface IJob extends Document {
   lastRefreshedAt?: Date | null;
 
   /**
-   * When the talent-match digest may be sent (publish/content-edit + 2 days).
-   * Not set by Refresh Job. Cleared after send or when matchCount ≤ 1 / unpublish.
+   * When the talent-match digest may be sent (publish/content-edit/refresh + 2 days).
+   * Cleared after send or when matchCount ≤ 1 / unpublish.
    */
   talentMatchEmailDueAt?: Date | null;
 
