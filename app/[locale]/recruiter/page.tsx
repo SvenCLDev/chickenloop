@@ -11,6 +11,7 @@ import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
 import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
 import RecruiterJobTalentMatches from '@/app/components/recruiter/RecruiterJobTalentMatches';
+import FeatureJobButton from '@/app/components/recruiter/FeatureJobButton';
 import TalentListRow from '@/app/components/TalentListRow';
 import type { CandidateListItem } from '@/lib/candidateListTypes';
 import {
@@ -585,22 +586,16 @@ function RecruiterDashboardClient() {
                           {isFeatured && featuredUntilDate ? (
                             <div className="space-y-2">
                               <p className="text-gray-600 text-xs">Featured until {featuredUntilDate}</p>
-                              <button
-                                type="button"
+                              <FeatureJobButton
+                                mode="extend"
                                 onClick={() => setFeatureModalJobId(job._id)}
-                                className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium text-sm hover:bg-blue-50 hover:border-blue-400"
-                              >
-                                Extend
-                              </button>
+                              />
                             </div>
                           ) : (
-                            <button
-                              type="button"
+                            <FeatureJobButton
+                              mode="feature"
                               onClick={() => setFeatureModalJobId(job._id)}
-                              className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium text-sm hover:bg-blue-50 hover:border-blue-400"
-                            >
-                              Feature job
-                            </button>
+                            />
                           )}
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">

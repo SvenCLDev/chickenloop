@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import FeatureJobModal from '@/app/components/FeatureJobModal';
+import FeatureJobButton from '@/app/components/recruiter/FeatureJobButton';
 
 export interface JobOwnerActionsProps {
   jobId: string;
@@ -29,21 +30,15 @@ export default function JobOwnerActions({
             Edit Job
           </Link>
           {isFeatured ? (
-            <button
-              type="button"
+            <FeatureJobButton
+              mode="extend"
               onClick={() => setShowFeatureModal(true)}
-              className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium hover:bg-blue-50 hover:border-blue-400"
-            >
-              Extend featured period
-            </button>
+            />
           ) : (
-            <button
-              type="button"
+            <FeatureJobButton
+              mode="feature"
               onClick={() => setShowFeatureModal(true)}
-              className="inline-flex items-center px-3 py-1.5 rounded border border-blue-300 bg-white text-blue-700 font-medium hover:bg-blue-50 hover:border-blue-400"
-            >
-              Feature this job
-            </button>
+            />
           )}
         </div>
       </div>
