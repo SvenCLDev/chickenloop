@@ -1,7 +1,7 @@
 'use client';
 
 const FEATURE_TOOLTIP =
-  'Featured jobs appear at the top of search results and get more visibility.';
+  'More Visibility - Featured jobs appear at the top of search results and are seeded multiple times into job listings';
 
 function SparkleStar({ className = 'h-3.5 w-3.5' }: { className?: string }) {
   return (
