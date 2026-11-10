@@ -7,6 +7,27 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import LocaleSwitcher from './LocaleSwitcher';
 
+/** Browse + account text links — one shared style */
+const navLinkClass =
+  'px-2 py-2 rounded text-sm font-medium text-white hover:bg-blue-700 transition-colors';
+
+/** Primary conversion CTA (Post Job) */
+const ctaPrimaryClass =
+  'inline-flex items-center justify-center px-3 py-2 rounded-md bg-white text-blue-600 text-sm font-semibold shadow-sm hover:bg-blue-50 transition-colors';
+
+/** Secondary conversion CTA (Post Resume) — outline twin of primary */
+const ctaOutlineClass =
+  'inline-flex items-center justify-center px-3 py-2 rounded-md border border-white/80 bg-transparent text-white text-sm font-semibold hover:bg-white/10 transition-colors';
+
+const ctaPrimaryMobileClass =
+  'px-4 py-2.5 rounded-md bg-white text-blue-600 font-semibold text-sm text-center hover:bg-blue-50 transition-colors';
+
+const ctaOutlineMobileClass =
+  'px-4 py-2.5 rounded-md border border-white/80 bg-transparent text-white font-semibold text-sm text-center hover:bg-white/10 transition-colors';
+
+const accountMobileClass =
+  'px-4 py-2.5 rounded-md text-white font-medium text-sm text-center hover:bg-blue-700 transition-colors';
+
 export default function Navbar({ logoPriority = true }: { logoPriority?: boolean }) {
   const t = useTranslations('Nav');
   const tCommon = useTranslations('Common');
@@ -31,6 +52,8 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
 
   const isRecruiter = user && (user.role === 'recruiter' || user.role === 'admin');
   const isJobSeeker = user && user.role === 'job-seeker';
+  const showPostJob = !(user && isJobSeeker);
+  const showPostResume = !(user && isRecruiter);
 
   const dashboardHref =
     user?.role === 'admin'
@@ -43,8 +66,8 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
     <>
       <nav className="sticky top-0 z-50 bg-blue-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Desktop Header — xl+ only so mid widths use hamburger instead of overflowing */}
-          <div className="hidden xl:flex justify-between items-center h-16 gap-2">
+          {/* Desktop: logo | browse | divider | locale + CTAs + account */}
+          <div className="hidden xl:flex justify-between items-center h-16 gap-3">
             <div className="flex items-center flex-shrink-0">
               <Link href="/" onClick={handleLogoClick} className="relative block h-16 w-40 overflow-visible">
                 <Image
@@ -59,69 +82,58 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
               </Link>
             </div>
 
-            <div className="flex shrink-0 items-center space-x-3">
-              <Link href="/jobs" className="px-2 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
-                {t('jobs')}
-              </Link>
-              <Link href="/companies" className="px-2 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
-                {t('companies')}
-              </Link>
-              <Link href="/talent" className="px-2 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
-                {t('talent')}
-              </Link>
-              <Link href="/career-advice" className="px-2 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
-                {t('guides')}
-              </Link>
-              <Link href="/map" className="px-2 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
-                {t('map')}
-              </Link>
-            </div>
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+              <div className="flex shrink-0 items-center gap-1">
+                <Link href="/jobs" className={navLinkClass}>
+                  {t('jobs')}
+                </Link>
+                <Link href="/companies" className={navLinkClass}>
+                  {t('companies')}
+                </Link>
+                <Link href="/talent" className={navLinkClass}>
+                  {t('talent')}
+                </Link>
+                <Link href="/career-advice" className={navLinkClass}>
+                  {t('guides')}
+                </Link>
+                <Link href="/map" className={navLinkClass}>
+                  {t('map')}
+                </Link>
+              </div>
 
-            <div className="flex shrink-0 items-center space-x-2">
-              <LocaleSwitcher />
-              {!(user && isJobSeeker) && (
-                <Link
-                  href="/recruiter/jobs/new"
-                  className="px-3 py-2 bg-white text-blue-600 rounded-md hover:bg-blue-50 font-medium text-sm transition-colors shadow-sm"
-                >
-                  {t('postJob')}
-                </Link>
-              )}
-              {!(user && isRecruiter) && (
-                <Link
-                  href="/job-seeker/profile/new"
-                  className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-400 font-medium text-sm transition-colors"
-                >
-                  {t('postResume')}
-                </Link>
-              )}
-              {user ? (
-                <>
-                  <Link
-                    href={dashboardHref}
-                    className="px-3 py-2 text-white hover:bg-blue-700 rounded-md font-medium text-sm transition-colors"
-                  >
-                    {t('dashboard')}
+              <div className="h-6 w-px shrink-0 bg-white/30" aria-hidden="true" />
+
+              <div className="flex shrink-0 items-center gap-2">
+                <LocaleSwitcher />
+                {showPostJob && (
+                  <Link href="/recruiter/jobs/new" className={ctaPrimaryClass}>
+                    {t('postJob')}
                   </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="px-3 py-2 text-white hover:bg-blue-700 rounded-md font-medium text-sm transition-colors"
-                  >
-                    {t('logout')}
-                  </button>
-                </>
-              ) : (
-                <Link
-                  href="/login"
-                  className="px-3 py-2 text-white hover:bg-blue-700 rounded-md font-medium text-sm transition-colors"
-                >
-                  {t('login')}
-                </Link>
-              )}
+                )}
+                {showPostResume && (
+                  <Link href="/job-seeker/profile/new" className={ctaOutlineClass}>
+                    {t('postResume')}
+                  </Link>
+                )}
+                {user ? (
+                  <>
+                    <Link href={dashboardHref} className={navLinkClass}>
+                      {t('dashboard')}
+                    </Link>
+                    <button type="button" onClick={handleLogout} className={navLinkClass}>
+                      {t('logout')}
+                    </button>
+                  </>
+                ) : (
+                  <Link href="/login" className={navLinkClass}>
+                    {t('login')}
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Mobile / tablet Header — below xl */}
+          {/* Mobile / tablet header — below xl */}
           <div className="xl:hidden relative flex justify-between items-center h-16">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -153,10 +165,10 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
 
             <div className="flex items-center gap-2">
               <LocaleSwitcher />
-              {!(user && isJobSeeker) && (
+              {showPostJob && (
                 <Link
                   href="/recruiter/jobs/new"
-                  className="px-3 py-1.5 bg-white text-blue-600 rounded-md hover:bg-blue-50 font-medium text-xs transition-colors shadow-sm"
+                  className="inline-flex items-center px-3 py-1.5 rounded-md bg-white text-blue-600 font-semibold text-xs shadow-sm hover:bg-blue-50 transition-colors"
                   onClick={closeMobileMenu}
                 >
                   {t('postJob')}
@@ -172,21 +184,21 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
                   <h3 className="text-xs font-semibold text-blue-200 uppercase tracking-wider mb-2">
                     {t('primaryActions')}
                   </h3>
-                  <div className="flex flex-col space-y-1">
-                    {!(user && isJobSeeker) && (
+                  <div className="flex flex-col space-y-2">
+                    {showPostJob && (
                       <Link
                         href="/recruiter/jobs/new"
                         onClick={closeMobileMenu}
-                        className="px-4 py-2.5 bg-white text-blue-600 rounded-md hover:bg-blue-50 font-medium text-sm text-center transition-colors"
+                        className={ctaPrimaryMobileClass}
                       >
                         {t('postJob')}
                       </Link>
                     )}
-                    {!(user && isRecruiter) && (
+                    {showPostResume && (
                       <Link
                         href="/job-seeker/profile/new"
                         onClick={closeMobileMenu}
-                        className="px-4 py-2.5 bg-blue-500 text-white rounded-md hover:bg-blue-400 font-medium text-sm text-center transition-colors"
+                        className={ctaOutlineMobileClass}
                       >
                         {t('postResume')}
                       </Link>
@@ -196,26 +208,23 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
                         <Link
                           href={dashboardHref}
                           onClick={closeMobileMenu}
-                          className="px-4 py-2.5 text-white hover:bg-blue-700 rounded-md font-medium text-sm text-center transition-colors"
+                          className={accountMobileClass}
                         >
                           {t('dashboard')}
                         </Link>
                         <button
+                          type="button"
                           onClick={() => {
                             closeMobileMenu();
                             handleLogout();
                           }}
-                          className="px-4 py-2.5 text-white hover:bg-blue-700 rounded-md font-medium text-sm text-center transition-colors"
+                          className={accountMobileClass}
                         >
                           {t('logout')}
                         </button>
                       </>
                     ) : (
-                      <Link
-                        href="/login"
-                        onClick={closeMobileMenu}
-                        className="px-4 py-2.5 text-white hover:bg-blue-700 rounded-md font-medium text-sm text-center transition-colors"
-                      >
+                      <Link href="/login" onClick={closeMobileMenu} className={accountMobileClass}>
                         {t('login')}
                       </Link>
                     )}
@@ -230,7 +239,11 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
                     <Link href="/jobs" onClick={closeMobileMenu} className="px-4 py-2 rounded hover:bg-blue-700 text-sm">
                       {t('jobs')}
                     </Link>
-                    <Link href="/companies" onClick={closeMobileMenu} className="px-4 py-2 rounded hover:bg-blue-700 text-sm">
+                    <Link
+                      href="/companies"
+                      onClick={closeMobileMenu}
+                      className="px-4 py-2 rounded hover:bg-blue-700 text-sm"
+                    >
                       {t('companies')}
                     </Link>
                     <Link href="/talent" onClick={closeMobileMenu} className="px-4 py-2 rounded hover:bg-blue-700 text-sm">
@@ -244,7 +257,11 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
                     {t('resources')}
                   </h3>
                   <div className="flex flex-col space-y-1">
-                    <Link href="/career-advice" onClick={closeMobileMenu} className="px-4 py-2 rounded hover:bg-blue-700 text-sm">
+                    <Link
+                      href="/career-advice"
+                      onClick={closeMobileMenu}
+                      className="px-4 py-2 rounded hover:bg-blue-700 text-sm"
+                    >
                       {t('careerAdvice')}
                     </Link>
                     <Link href="/map" onClick={closeMobileMenu} className="px-4 py-2 rounded hover:bg-blue-700 text-sm">
