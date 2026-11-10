@@ -89,7 +89,23 @@ export async function PUT(
 
     const { email, name, role, password, talentNetworkBeta } = await request.json();
 
-    if (email) user.email = email;
+    if (email !== undefined && email !== null) {
+      if (typeof email !== 'string' || !email.trim()) {
+        return NextResponse.json({ error: 'Email must be a non-empty string' }, { status: 400 });
+      }
+      const emailNormalized = email.trim().toLowerCase();
+      const other = await User.findOne({
+        email: emailNormalized,
+        _id: { $ne: user._id },
+      }).select('_id').lean();
+      if (other) {
+        return NextResponse.json(
+          { error: 'Another user already has this email address' },
+          { status: 409 }
+        );
+      }
+      user.email = emailNormalized;
+    }
     if (name) user.name = name;
     if (role && ['recruiter', 'job-seeker', 'admin'].includes(role)) {
       user.role = role;

@@ -101,7 +101,9 @@ export const authOptions: NextAuthOptions = {
           return true;
         }
 
-        const emailOwner = await User.findOne({ email: canonicalEmail })
+        const emailOwner = await User.findOne({
+          $expr: { $eq: [{ $toLower: '$email' }, canonicalEmail] },
+        })
           .select('_id name role providers')
           .lean();
 
@@ -150,7 +152,9 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      const existingUser = await User.findOne({ email: canonicalEmail })
+      const existingUser = await User.findOne({
+        $expr: { $eq: [{ $toLower: '$email' }, canonicalEmail] },
+      })
         .select('_id name role providers')
         .lean();
 
@@ -165,6 +169,8 @@ export const authOptions: NextAuthOptions = {
           );
           delete (user as any).id;
         }
+        // Force lowercase so Mongo unique index cannot create Flovejoy@ vs flovejoy@ twins.
+        (user as { email?: string | null }).email = canonicalEmail;
         console.log('[NextAuth] New Google user — adapter will create user');
         return true;
       }
