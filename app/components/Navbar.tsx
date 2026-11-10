@@ -41,7 +41,7 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
 
   return (
     <>
-      <nav className="sticky top-0 z-50 overflow-x-hidden bg-blue-600 text-white shadow-lg">
+      <nav className="sticky top-0 z-50 bg-blue-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Desktop Header — xl+ only so mid widths use hamburger instead of overflowing */}
           <div className="hidden xl:flex justify-between items-center h-16 gap-2">
