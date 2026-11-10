@@ -41,12 +41,12 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-blue-600 text-white shadow-lg">
+      <nav className="sticky top-0 z-50 overflow-x-hidden bg-blue-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Desktop Header */}
-          <div className="hidden md:flex justify-between items-center h-16">
+          {/* Desktop Header — xl+ only so mid widths use hamburger instead of overflowing */}
+          <div className="hidden xl:flex justify-between items-center h-16 gap-2">
             <div className="flex items-center flex-shrink-0">
-              <Link href="/" onClick={handleLogoClick} className="relative block h-16 w-[480px] overflow-visible">
+              <Link href="/" onClick={handleLogoClick} className="relative block h-16 w-40 overflow-visible">
                 <Image
                   src="/CL-2026-v3.png"
                   alt={t('logoAlt')}
@@ -59,30 +59,30 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
               </Link>
             </div>
 
-            <div className="flex items-center space-x-6">
-              <Link href="/jobs" className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
+            <div className="flex shrink-0 items-center space-x-3">
+              <Link href="/jobs" className="px-2 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
                 {t('jobs')}
               </Link>
-              <Link href="/companies" className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
+              <Link href="/companies" className="px-2 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
                 {t('companies')}
               </Link>
-              <Link href="/talent" className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
+              <Link href="/talent" className="px-2 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
                 {t('talent')}
               </Link>
-              <Link href="/career-advice" className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
+              <Link href="/career-advice" className="px-2 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
                 {t('guides')}
               </Link>
-              <Link href="/map" className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
+              <Link href="/map" className="px-2 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
                 {t('map')}
               </Link>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex shrink-0 items-center space-x-2">
               <LocaleSwitcher />
               {!(user && isJobSeeker) && (
                 <Link
                   href="/recruiter/jobs/new"
-                  className="px-4 py-2 bg-white text-blue-600 rounded-md hover:bg-blue-50 font-medium text-sm transition-colors shadow-sm"
+                  className="px-3 py-2 bg-white text-blue-600 rounded-md hover:bg-blue-50 font-medium text-sm transition-colors shadow-sm"
                 >
                   {t('postJob')}
                 </Link>
@@ -90,7 +90,7 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
               {!(user && isRecruiter) && (
                 <Link
                   href="/job-seeker/profile/new"
-                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-400 font-medium text-sm transition-colors"
+                  className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-400 font-medium text-sm transition-colors"
                 >
                   {t('postResume')}
                 </Link>
@@ -99,13 +99,13 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
                 <>
                   <Link
                     href={dashboardHref}
-                    className="px-4 py-2 text-white hover:bg-blue-700 rounded-md font-medium text-sm transition-colors"
+                    className="px-3 py-2 text-white hover:bg-blue-700 rounded-md font-medium text-sm transition-colors"
                   >
                     {t('dashboard')}
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="px-4 py-2 text-white hover:bg-blue-700 rounded-md font-medium text-sm transition-colors"
+                    className="px-3 py-2 text-white hover:bg-blue-700 rounded-md font-medium text-sm transition-colors"
                   >
                     {t('logout')}
                   </button>
@@ -113,7 +113,7 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
               ) : (
                 <Link
                   href="/login"
-                  className="px-4 py-2 text-white hover:bg-blue-700 rounded-md font-medium text-sm transition-colors"
+                  className="px-3 py-2 text-white hover:bg-blue-700 rounded-md font-medium text-sm transition-colors"
                 >
                   {t('login')}
                 </Link>
@@ -121,8 +121,8 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
             </div>
           </div>
 
-          {/* Mobile Header */}
-          <div className="md:hidden relative flex justify-between items-center h-16">
+          {/* Mobile / tablet Header — below xl */}
+          <div className="xl:hidden relative flex justify-between items-center h-16">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-md text-white hover:text-blue-100 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-300"
@@ -166,7 +166,7 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
           </div>
 
           {mobileMenuOpen && (
-            <div className="md:hidden pb-4 border-t border-blue-700 bg-blue-600">
+            <div className="xl:hidden pb-4 border-t border-blue-700 bg-blue-600">
               <div className="flex flex-col pt-2">
                 <div className="px-4 py-2 border-b border-blue-700 mb-2">
                   <h3 className="text-xs font-semibold text-blue-200 uppercase tracking-wider mb-2">
