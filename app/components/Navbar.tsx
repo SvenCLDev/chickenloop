@@ -31,7 +31,6 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
 
   const isRecruiter = user && (user.role === 'recruiter' || user.role === 'admin');
   const isJobSeeker = user && user.role === 'job-seeker';
-  const isAdmin = user?.role === 'admin';
 
   const dashboardHref =
     user?.role === 'admin'
@@ -76,11 +75,6 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
               <Link href="/map" className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
                 {t('map')}
               </Link>
-              {isAdmin && (
-                <Link href="/maintenance-log" className="px-3 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors">
-                  {t('maintenanceLog')}
-                </Link>
-              )}
             </div>
 
             <div className="flex items-center space-x-3">
@@ -256,11 +250,6 @@ export default function Navbar({ logoPriority = true }: { logoPriority?: boolean
                     <Link href="/map" onClick={closeMobileMenu} className="px-4 py-2 rounded hover:bg-blue-700 text-sm">
                       {t('map')}
                     </Link>
-                    {isAdmin && (
-                      <Link href="/maintenance-log" onClick={closeMobileMenu} className="px-4 py-2 rounded hover:bg-blue-700 text-sm">
-                        {t('maintenanceLog')}
-                      </Link>
-                    )}
                   </div>
                 </div>
 
