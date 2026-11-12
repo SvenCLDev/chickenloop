@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
-  title: 'Chickenloop | Watersports Talent Network & Job Board',
+  title: 'Chickenloop | The Professional Network for the Watersports Industry',
   description:
     'The global watersports talent network and free job board for kite, foil, surf, sail, dive and yacht crew. Verified profiles for pros. Trusted hiring for centres.',
 };
