@@ -3,7 +3,7 @@ export const HOMEPAGE_HERO_IMAGES = [
   '/Kitesurfer.jpg',
   '/Sailing.jpg',
   '/Wingfoil.jpg',
-  '/Diving.jpg',
+  '/Surfing.jpg',
 ] as const;
 
 export const HOMEPAGE_HERO_LCP_IMAGE = HOMEPAGE_HERO_IMAGES[0];
