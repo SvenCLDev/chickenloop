@@ -13,21 +13,28 @@ export function talentMatchDigestEmail({
 }) {
   const greeting = recruiterName || 'there';
   const safeTitle = jobTitle.trim() || 'your role';
-  const candidatesLabel = matchCount === 1 ? 'candidate' : 'candidates';
 
-  const subject = `${matchCount} ${candidatesLabel} match your ${safeTitle} role`;
+  const subject = `${matchCount} potential candidates match your job: ${safeTitle}`;
 
   const html = `
       <p>Hi ${greeting},</p>
 
       <p>
-        Good news — <strong>${matchCount}</strong> people in the Chickenloop talent database
-        currently match your job <strong>${safeTitle}</strong>.
+        Good news! We found <strong>${matchCount}</strong> potential candidates in the Chickenloop Talent Network
+        who match your job posting: <strong>${safeTitle}</strong>
       </p>
 
       <p>
-        These profiles are filtered by sport, work area, languages, country, and availability
-        (looking for work now, soon, or seasonally).
+        These candidates match your requirements based on their sports, professional experience,
+        languages, location and availability.
+      </p>
+
+      <p>
+        Why wait for applications when you can proactively discover and contact suitable instructors?
+      </p>
+
+      <p>
+        Explore your matching candidates and connect with potential hires directly.
       </p>
 
       <p style="margin: 28px 0;">
@@ -38,28 +45,36 @@ export function talentMatchDigestEmail({
       </p>
 
       <p>
-        You can also review matches for all your jobs on your
+        You can also manage your job postings and recruitment activity from your
         <a href="${dashboardUrl}">recruiter dashboard</a>.
       </p>
 
       <p>
         Best regards,<br/>
-        The Chickenloop team
+        Sven from The Chickenloop Team
+      </p>
+
+      <p>
+        Chickenloop – Connecting watersports professionals with opportunities worldwide.
       </p>
     `;
 
   const text = `Hi ${greeting},
 
-Good news — ${matchCount} people in the Chickenloop talent database currently match your job "${safeTitle}".
+Good news! We found ${matchCount} potential candidates in the Chickenloop Talent Network who match your job posting: ${safeTitle}
 
-These profiles are filtered by sport, work area, languages, country, and availability (looking for work now, soon, or seasonally).
+These candidates match your requirements based on their sports, professional experience, languages, location and availability.
 
-View matching talent: ${matchUrl}
+Why wait for applications when you can proactively discover and contact suitable instructors?
 
-Review matches on your recruiter dashboard: ${dashboardUrl}
+Explore your matching candidates and connect with potential hires directly. View matching talent: ${matchUrl}
+
+You can also manage your job postings and recruitment activity from your recruiter dashboard: ${dashboardUrl}
 
 Best regards,
-The Chickenloop team
+Sven from The Chickenloop Team
+
+Chickenloop – Connecting watersports professionals with opportunities worldwide.
 `;
 
   return { subject, html, text };
