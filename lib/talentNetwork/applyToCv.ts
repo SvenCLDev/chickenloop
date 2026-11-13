@@ -2,6 +2,7 @@ import type { Document } from 'mongoose';
 import type { ICV } from '@/models/CV';
 import { syncLegacyFieldsFromTalentNetwork } from './syncLegacyFields';
 import {
+  mergeCertificatesForSave,
   normalizeCertificatesForSave,
   validateTalentNetworkPayload,
 } from './validators';
@@ -35,7 +36,9 @@ export function applyTalentNetworkFieldsToCv(
   }
 
   if (value.verifiedCertificates !== undefined) {
-    cv.verifiedCertificates = normalizeCertificatesForSave(value.verifiedCertificates);
+    cv.verifiedCertificates = normalizeCertificatesForSave(
+      mergeCertificatesForSave(cv.verifiedCertificates, value.verifiedCertificates)
+    );
     cv.markModified('verifiedCertificates');
   }
 

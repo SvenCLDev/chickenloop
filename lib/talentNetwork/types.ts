@@ -32,6 +32,7 @@ export const CERTIFICATE_VERIFICATION_STATUSES = [
   'unverified',
   'pending_review',
   'verified',
+  'rejected',
 ] as const;
 export type CertificateVerificationStatus =
   (typeof CERTIFICATE_VERIFICATION_STATUSES)[number];

@@ -41,6 +41,9 @@ export default function AdminVerificationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionId, setActionId] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<QueueItem | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectError, setRejectError] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -73,18 +76,53 @@ export default function AdminVerificationPage() {
     }
   }, [user]);
 
-  const handleAction = async (
-    cvId: string,
-    certId: string,
-    action: 'verify' | 'reject'
-  ) => {
+  const handleVerify = async (cvId: string, certId: string) => {
     const key = `${cvId}:${certId}`;
     setActionId(key);
     try {
-      await adminApi.updateCertificateVerification(cvId, certId, { action });
+      await adminApi.updateCertificateVerification(cvId, certId, { action: 'verify' });
       await loadData();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Action failed');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const openRejectModal = (item: QueueItem) => {
+    setRejectTarget(item);
+    setRejectReason('');
+    setRejectError('');
+  };
+
+  const closeRejectModal = () => {
+    if (actionId) return;
+    setRejectTarget(null);
+    setRejectReason('');
+    setRejectError('');
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectTarget) return;
+    const reason = rejectReason.trim();
+    if (!reason) {
+      setRejectError('Please enter a reason so the job seeker knows what to fix.');
+      return;
+    }
+
+    const key = `${rejectTarget.cvId}:${rejectTarget.certId}`;
+    setActionId(key);
+    setRejectError('');
+    try {
+      await adminApi.updateCertificateVerification(rejectTarget.cvId, rejectTarget.certId, {
+        action: 'reject',
+        adminNote: reason,
+      });
+      setRejectTarget(null);
+      setRejectReason('');
+      await loadData();
+    } catch (err: unknown) {
+      setRejectError(err instanceof Error ? err.message : 'Reject failed');
     } finally {
       setActionId(null);
     }
@@ -212,7 +250,7 @@ export default function AdminVerificationPage() {
                   <div className="mt-6 flex gap-3">
                     <button
                       type="button"
-                      onClick={() => handleAction(item.cvId, item.certId, 'verify')}
+                      onClick={() => handleVerify(item.cvId, item.certId)}
                       disabled={actionId === actionKey}
                       className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50"
                     >
@@ -220,7 +258,7 @@ export default function AdminVerificationPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAction(item.cvId, item.certId, 'reject')}
+                      onClick={() => openRejectModal(item)}
                       disabled={actionId === actionKey}
                       className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
                     >
@@ -233,6 +271,55 @@ export default function AdminVerificationPage() {
           </div>
         )}
       </main>
+
+      {rejectTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reject-cert-title"
+            className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl"
+          >
+            <h2 id="reject-cert-title" className="text-lg font-semibold text-gray-900">
+              Reject certificate
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Tell {rejectTarget.candidateName} why this document was rejected. They will get an
+              email with your reason.
+            </p>
+            <label htmlFor="reject-reason" className="mt-4 block text-sm font-medium text-gray-700">
+              Rejection reason
+            </label>
+            <textarea
+              id="reject-reason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={4}
+              placeholder="e.g. This looks like a CV/resume. Please upload the actual certificate document."
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            {rejectError && <p className="mt-2 text-sm text-red-600">{rejectError}</p>}
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeRejectModal}
+                disabled={!!actionId}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReject}
+                disabled={!!actionId}
+                className="px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700 disabled:opacity-50"
+              >
+                {actionId ? 'Rejecting...' : 'Confirm reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

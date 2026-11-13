@@ -93,4 +93,22 @@ describe('buildTalentNetworkVerificationSummary', () => {
     expect(summary.pendingItems[0]).toContain('listed on profile only');
     expect(summary.pendingItems[0]).toContain('upload document in Edit Profile');
   });
+
+  it('includes rejection reason for rejected certificates', () => {
+    const summary = buildTalentNetworkVerificationSummary({
+      verifiedCertificates: [
+        {
+          issuingBody: 'IKO',
+          certificateLevel: 'Level 2',
+          verificationStatus: 'rejected',
+          disciplines: [],
+          adminNote: 'Please upload the certificate, not a CV.',
+        },
+      ],
+    });
+
+    expect(summary.certificates.rejected).toBe(1);
+    expect(summary.pendingItems[0]).toContain('verification rejected');
+    expect(summary.pendingItems[0]).toContain('Please upload the certificate, not a CV.');
+  });
 });

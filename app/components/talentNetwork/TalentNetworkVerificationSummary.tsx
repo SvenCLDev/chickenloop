@@ -50,6 +50,9 @@ export default function TalentNetworkVerificationSummary({
           <p className="mt-2 text-sm text-amber-700">
             {summary.certificates.pendingReview} pending review
           </p>
+          {summary.certificates.rejected > 0 && (
+            <p className="text-sm text-red-700">{summary.certificates.rejected} rejected</p>
+          )}
           {summary.certificates.unverified > 0 && (
             <p className="text-sm text-gray-600">{summary.certificates.unverified} not submitted</p>
           )}

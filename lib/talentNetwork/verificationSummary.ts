@@ -11,6 +11,7 @@ export interface VerificationSummary {
   certificates: {
     verified: number;
     pendingReview: number;
+    rejected: number;
     unverified: number;
   };
   references: {
@@ -56,6 +57,7 @@ export function buildTalentNetworkVerificationSummary(cv: {
   const certificates = {
     verified: certs.filter((c) => c.verificationStatus === 'verified').length,
     pendingReview: certs.filter((c) => c.verificationStatus === 'pending_review').length,
+    rejected: certs.filter((c) => c.verificationStatus === 'rejected').length,
     unverified: certs.filter((c) => (c.verificationStatus ?? 'unverified') === 'unverified').length,
   };
 
@@ -87,6 +89,13 @@ export function buildTalentNetworkVerificationSummary(cv: {
       verifiedItems.push(`${label} — Chickenloop verified`);
     } else if (status === 'pending_review') {
       pendingItems.push(`${label} — pending admin review`);
+    } else if (status === 'rejected') {
+      const reason = cert.adminNote?.trim();
+      pendingItems.push(
+        reason
+          ? `${label} — verification rejected: ${reason}`
+          : `${label} — verification rejected; upload the correct certificate document`
+      );
     } else {
       pendingItems.push(
         `${label} — listed on profile only (upload document in Edit Profile to request verification)`

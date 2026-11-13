@@ -14,6 +14,7 @@ interface TalentNetworkProfileViewProps {
       issueDate?: string;
       expiryDate?: string;
       verificationStatus?: string;
+      adminNote?: string;
     }>;
     seasonalExperience?: Array<{
       schoolName: string;
@@ -61,6 +62,13 @@ function CertificateStatusBadge({
     return (
       <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
         Pending review
+      </span>
+    );
+  }
+  if (status === 'rejected' && showOwnerStatus) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+        Rejected
       </span>
     );
   }
@@ -167,6 +175,14 @@ export default function TalentNetworkProfileView({
                     {cert.expiryDate ? ` · Expires ${String(cert.expiryDate).slice(0, 10)}` : ''}
                   </p>
                 )}
+                {showOwnerStatus &&
+                  cert.verificationStatus === 'rejected' &&
+                  cert.adminNote?.trim() && (
+                    <p className="mt-2 text-sm text-red-800 bg-red-50 border border-red-100 rounded-md px-3 py-2">
+                      <span className="font-medium">Rejection reason: </span>
+                      {cert.adminNote.trim()}
+                    </p>
+                  )}
               </div>
             ))}
           </div>

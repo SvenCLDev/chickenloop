@@ -113,6 +113,7 @@ export default function TalentNetworkCvForm({
         ...next[index],
         documentUrl: url,
         verificationStatus: 'pending_review',
+        adminNote: undefined,
       };
       setFormData({ ...formData, verifiedCertificates: next });
     } catch (err: unknown) {

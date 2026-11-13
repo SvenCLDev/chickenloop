@@ -244,6 +244,17 @@ export default function CertificateBlock({
               uploading={uploadingIndex === index}
               onUploadDocument={onUploadDocument}
             />
+
+            {cert.verificationStatus === 'rejected' && cert.adminNote?.trim() && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+                <p className="font-medium">Verification rejected</p>
+                <p className="mt-1">{cert.adminNote.trim()}</p>
+                <p className="mt-2 text-red-800/90">
+                  Please replace the document with the actual certificate (not a CV), then save your
+                  profile.
+                </p>
+              </div>
+            )}
           </div>
         );
       })}

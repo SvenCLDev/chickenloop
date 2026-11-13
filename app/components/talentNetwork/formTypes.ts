@@ -38,6 +38,8 @@ export interface VerifiedCertificateFormEntry {
   expiryDate: string;
   documentUrl: string;
   verificationStatus?: VerifiedCertificate['verificationStatus'];
+  /** Owner-facing note from admin after rejection */
+  adminNote?: string;
 }
 
 export interface SeasonalExperienceFormEntry {

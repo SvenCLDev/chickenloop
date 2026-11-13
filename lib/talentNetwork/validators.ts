@@ -295,6 +295,10 @@ export function normalizeCertificatesForSave(
   return certificates.map((cert) => {
     const hasDocument = !!cert.documentUrl;
     let verificationStatus = cert.verificationStatus ?? 'unverified';
+    // Rejected stays rejected until the seeker replaces the document (handled in merge).
+    if (verificationStatus === 'rejected') {
+      return { ...cert, verificationStatus };
+    }
     if (hasDocument && verificationStatus === 'unverified') {
       verificationStatus = 'pending_review';
     }
@@ -302,5 +306,45 @@ export function normalizeCertificatesForSave(
       verificationStatus = 'unverified';
     }
     return { ...cert, verificationStatus };
+  });
+}
+
+/**
+ * Preserve rejected status + adminNote when the same document is re-saved.
+ * Replacing the document clears the rejection and re-queues for review.
+ */
+export function mergeCertificatesForSave(
+  existing: VerifiedCertificate[] | undefined,
+  incoming: VerifiedCertificate[]
+): VerifiedCertificate[] {
+  const prev = existing ?? [];
+  return incoming.map((cert, index) => {
+    const old = prev[index];
+    const incomingUrl = cert.documentUrl?.trim() || '';
+    const oldUrl = old?.documentUrl?.trim() || '';
+
+    if (old?.verificationStatus === 'rejected' && oldUrl && incomingUrl === oldUrl) {
+      return {
+        ...cert,
+        verificationStatus: 'rejected',
+        adminNote: old.adminNote,
+      };
+    }
+
+    if (old?.verificationStatus === 'rejected' && incomingUrl && incomingUrl !== oldUrl) {
+      return {
+        ...cert,
+        verificationStatus: 'pending_review',
+        adminNote: undefined,
+      };
+    }
+
+    // Never let clients invent or clear admin notes outside the reject flow.
+    const { adminNote: _ignored, ...rest } = cert;
+    void _ignored;
+    if (old?.adminNote && old.verificationStatus === cert.verificationStatus) {
+      return { ...rest, adminNote: old.adminNote };
+    }
+    return rest;
   });
 }

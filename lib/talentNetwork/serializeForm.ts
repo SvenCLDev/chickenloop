@@ -95,6 +95,9 @@ export function cvToTalentNetworkForm(cv: Record<string, unknown>): TalentNetwor
             expiryDate: c.expiryDate ? String(c.expiryDate).slice(0, 10) : '',
             documentUrl: String(c.documentUrl ?? ''),
             verificationStatus: c.verificationStatus as TalentNetworkFormState['verifiedCertificates'][0]['verificationStatus'],
+            adminNote: typeof c.adminNote === 'string' && c.adminNote.trim()
+              ? c.adminNote.trim()
+              : undefined,
           }))
         : [],
     seasonalExperience:
