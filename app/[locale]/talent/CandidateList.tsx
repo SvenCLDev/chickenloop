@@ -443,6 +443,7 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
                 togglingFavourite={togglingFavouriteId === candidate._id}
                 onToggleFavourite={handleToggleFavourite}
                 linkToProfile={!isAnonymous}
+                returnUrl={talentListUrl(searchParams.toString() || undefined)}
               />
             ))}
           </div>

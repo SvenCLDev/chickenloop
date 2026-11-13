@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { stripHtmlToText } from '@/lib/sanitizeText';
 import type { CandidateListItem } from '@/lib/candidateListTypes';
-import { talentProfilePath } from '@/lib/talentRoutes';
+import { talentProfileHref } from '@/lib/talentRoutes';
 import { getNameInitials } from '@/lib/talentVisibility';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 
@@ -45,6 +45,8 @@ type TalentListRowProps = {
   onToggleFavourite?: (e: React.MouseEvent, cvId: string) => void;
   /** When false, card is not clickable (anonymous directory). */
   linkToProfile?: boolean;
+  /** Filtered list URL so profile “Back” restores search state. */
+  returnUrl?: string;
 };
 
 export default function TalentListRow({
@@ -54,11 +56,13 @@ export default function TalentListRow({
   togglingFavourite = false,
   onToggleFavourite,
   linkToProfile = true,
+  returnUrl,
 }: TalentListRowProps) {
   const picture = candidate.pictures?.[0] || null;
   const displayName = candidate.displayName || candidate.fullName;
   const allowLink =
     linkToProfile && candidate.profileLinkAllowed !== false;
+  const profileHref = talentProfileHref(candidate._id, returnUrl);
   const primaryRole =
     candidate.lookingForWorkInAreas?.[0] ||
     candidate.experienceAndSkill?.[0] ||
@@ -101,7 +105,7 @@ export default function TalentListRow({
 
   const nameEl = allowLink ? (
     <Link
-      href={talentProfilePath(candidate._id)}
+      href={profileHref}
       className="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors truncate"
     >
       {displayName}
@@ -120,7 +124,7 @@ export default function TalentListRow({
     >
       <div className="flex gap-4 p-4 sm:p-5">
         {allowLink ? (
-          <Link href={talentProfilePath(candidate._id)} className="shrink-0">
+          <Link href={profileHref} className="shrink-0">
             {avatar}
           </Link>
         ) : (
