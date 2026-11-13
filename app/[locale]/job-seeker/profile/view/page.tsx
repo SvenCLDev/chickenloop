@@ -8,31 +8,11 @@ import TalentNetworkProfileView from '@/app/components/talentNetwork/TalentNetwo
 import TalentNetworkVerificationSummary from '@/app/components/talentNetwork/TalentNetworkVerificationSummary';
 import { cvApi } from '@/lib/api';
 import { stripHtmlToText } from '@/lib/sanitizeText';
+import {
+  formatAvailability,
+  formatExperienceLevel,
+} from '@/lib/talentNetwork/preferenceLabels';
 import Link from 'next/link';
-
-const EXPERIENCE_LEVEL_LABELS: Record<string, string> = {
-  entry: 'Entry',
-  intermediate: 'Intermediate',
-  experienced: 'Experienced',
-  senior: 'Senior',
-};
-
-const AVAILABILITY_LABELS: Record<string, string> = {
-  available_now: 'Available now',
-  available_soon: 'Available soon',
-  seasonal: 'Seasonal',
-  not_available: 'Not available',
-};
-
-function formatExperienceLevel(value?: string): string {
-  if (!value) return '—';
-  return EXPERIENCE_LEVEL_LABELS[value] ?? value;
-}
-
-function formatAvailability(value?: string): string {
-  if (!value) return '—';
-  return AVAILABILITY_LABELS[value] ?? value;
-}
 
 export default function ViewCVPage() {
   return (

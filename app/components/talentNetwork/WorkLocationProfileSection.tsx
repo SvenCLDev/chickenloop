@@ -1,13 +1,20 @@
+'use client';
+
+import { useMemo, useState } from 'react';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { WORK_AUTHORIZATION_STATUS_LABELS } from '@/lib/talentNetwork/constants';
 import type { WorkAuthorization, WorkAuthorizationStatus } from '@/lib/talentNetwork/types';
+import { EU_EEA_CH_COUNTRY_CODES } from '@/lib/workLocation';
 
 export interface WorkLocationProfileData {
   nationalityCountry?: string;
   preferredWorkCountries?: string[];
   workEligibleCountries?: string[];
+  euEeaWorkRights?: boolean;
   workAuthorizations?: WorkAuthorization[];
 }
+
+const EU_EEA_CH_SET = new Set<string>(EU_EEA_CH_COUNTRY_CODES);
 
 function formatCountryCodes(codes: string[] | undefined): string {
   if (!codes?.length) return '';
@@ -19,10 +26,20 @@ export default function WorkLocationProfileSection({
 }: {
   data: WorkLocationProfileData;
 }) {
+  const [showEligibleCountries, setShowEligibleCountries] = useState(false);
+
+  const hasEuEeaRights = data.euEeaWorkRights === true;
+  const eligibleCodes = data.workEligibleCountries ?? [];
+  const extraEligibleCodes = useMemo(
+    () => eligibleCodes.filter((code) => !EU_EEA_CH_SET.has(code.toUpperCase())),
+    [eligibleCodes]
+  );
+
   const hasBasic =
     data.nationalityCountry ||
     (data.preferredWorkCountries?.length ?? 0) > 0 ||
-    (data.workEligibleCountries?.length ?? 0) > 0;
+    eligibleCodes.length > 0 ||
+    hasEuEeaRights;
   const hasAuthorizations = (data.workAuthorizations?.length ?? 0) > 0;
 
   if (!hasBasic && !hasAuthorizations) {
@@ -45,11 +62,51 @@ export default function WorkLocationProfileSection({
             <dd className="text-gray-900">{formatCountryCodes(data.preferredWorkCountries)}</dd>
           </div>
         )}
-        {(data.workEligibleCountries?.length ?? 0) > 0 && (
+
+        {hasEuEeaRights && (
           <div>
-            <dt className="font-medium text-gray-700">Can work in</dt>
-            <dd className="text-gray-900">{formatCountryCodes(data.workEligibleCountries)}</dd>
+            <dt className="font-medium text-gray-700">Work rights</dt>
+            <dd className="text-gray-900">
+              <span className="inline-flex items-center rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-medium text-teal-900">
+                Can work anywhere in the EU / EEA / Switzerland
+              </span>
+            </dd>
           </div>
+        )}
+
+        {hasEuEeaRights ? (
+          <>
+            {extraEligibleCodes.length > 0 && (
+              <div>
+                <dt className="font-medium text-gray-700">Also can work in</dt>
+                <dd className="text-gray-900">{formatCountryCodes(extraEligibleCodes)}</dd>
+              </div>
+            )}
+            {eligibleCodes.length > 0 && (
+              <div>
+                <dt className="sr-only">Eligible countries</dt>
+                <dd>
+                  <button
+                    type="button"
+                    onClick={() => setShowEligibleCountries((v) => !v)}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    {showEligibleCountries ? 'Hide eligible countries' : 'Show eligible countries'}
+                  </button>
+                  {showEligibleCountries && (
+                    <p className="mt-2 text-gray-900">{formatCountryCodes(eligibleCodes)}</p>
+                  )}
+                </dd>
+              </div>
+            )}
+          </>
+        ) : (
+          eligibleCodes.length > 0 && (
+            <div>
+              <dt className="font-medium text-gray-700">Can work in</dt>
+              <dd className="text-gray-900">{formatCountryCodes(eligibleCodes)}</dd>
+            </div>
+          )
         )}
       </dl>
 

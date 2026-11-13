@@ -38,6 +38,7 @@ interface TalentNetworkProfileViewProps {
     nationalityCountry?: string;
     preferredWorkCountries?: string[];
     workEligibleCountries?: string[];
+    euEeaWorkRights?: boolean;
     workAuthorizations?: WorkAuthorization[];
   };
   /** Show full pending/verified badges (job seeker viewing own profile) */
@@ -121,6 +122,7 @@ export default function TalentNetworkProfileView({
           nationalityCountry: cv.nationalityCountry,
           preferredWorkCountries: cv.preferredWorkCountries,
           workEligibleCountries: cv.workEligibleCountries,
+          euEeaWorkRights: cv.euEeaWorkRights,
           workAuthorizations: cv.workAuthorizations,
         }}
       />

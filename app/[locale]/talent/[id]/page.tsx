@@ -11,6 +11,10 @@ import JobSelectionModal from '@/app/components/JobSelectionModal';
 import TalentNetworkProfileView from '@/app/components/talentNetwork/TalentNetworkProfileView';
 import WorkLocationProfileSection from '@/app/components/talentNetwork/WorkLocationProfileSection';
 import type { WorkAuthorization } from '@/lib/talentNetwork/types';
+import {
+  formatAvailability,
+  formatExperienceLevel,
+} from '@/lib/talentNetwork/preferenceLabels';
 
 interface CV {
   _id: string;
@@ -37,6 +41,8 @@ interface CV {
   certifications?: string[];
   professionalCertifications?: string[];
   experienceAndSkill?: string[];
+  experienceLevel?: string;
+  availability?: string;
   languages?: string[];
   lookingForWorkInAreas?: string[];
   pictures?: string[];
@@ -51,6 +57,7 @@ interface CV {
   nationalityCountry?: string;
   preferredWorkCountries?: string[];
   workEligibleCountries?: string[];
+  euEeaWorkRights?: boolean;
   workAuthorizations?: WorkAuthorization[];
   verifiedCertificates?: any[];
   seasonalExperience?: any[];
@@ -438,6 +445,25 @@ function CVDetailContent() {
             </div>
           )}
 
+          {(cv.experienceLevel || cv.availability) && (
+            <div className="mb-6 pb-6 border-b border-gray-200">
+              <div className="grid md:grid-cols-2 gap-6">
+                {cv.experienceLevel && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Experience Level</p>
+                    <p className="text-lg text-gray-900">{formatExperienceLevel(cv.experienceLevel)}</p>
+                  </div>
+                )}
+                {cv.availability && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Availability</p>
+                    <p className="text-lg text-gray-900">{formatAvailability(cv.availability)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {cv.profileSchemaVersion === 2 ? (
             <TalentNetworkProfileView cv={cv} />
           ) : (
@@ -447,6 +473,7 @@ function CVDetailContent() {
               nationalityCountry: cv.nationalityCountry,
               preferredWorkCountries: cv.preferredWorkCountries,
               workEligibleCountries: cv.workEligibleCountries,
+              euEeaWorkRights: cv.euEeaWorkRights,
               workAuthorizations: cv.workAuthorizations,
             }}
           />
