@@ -421,6 +421,23 @@ function CVDetailContent() {
             </div>
           )}
 
+          {/* Sports & Activities — shown for all schema versions */}
+          {cv.experienceAndSkill && cv.experienceAndSkill.length > 0 && (
+            <div className="mb-6 pb-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Sports & Activities</h2>
+              <div className="flex flex-wrap gap-2">
+                {cv.experienceAndSkill.map((item: string, index: number) => (
+                  <span
+                    key={`sport-${index}`}
+                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {cv.profileSchemaVersion === 2 ? (
             <TalentNetworkProfileView cv={cv} />
           ) : (
@@ -489,38 +506,24 @@ function CVDetailContent() {
             </div>
           )}
 
-          {/* Skills */}
-          {((cv.skills && cv.skills.length > 0 && cv.skills.some((s: string) => s.trim() !== '')) ||
-            (cv.experienceAndSkill && cv.experienceAndSkill.length > 0)) && (
-              <div className="mb-6 pb-6 border-b border-gray-200">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Skills</h2>
-                <div className="flex flex-wrap gap-2">
-                  {/* Sports Experiences and Skills */}
-                  {cv.experienceAndSkill &&
-                    cv.experienceAndSkill.length > 0 &&
-                    cv.experienceAndSkill.map((item: string, index: number) => (
-                      <span
-                        key={`sport-${index}`}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  {/* Other Skills */}
-                  {cv.skills &&
-                    cv.skills
-                      .filter((skill: string) => skill.trim() !== '')
-                      .map((skill: string, index: number) => (
-                        <span
-                          key={`skill-${index}`}
-                          className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                </div>
+          {/* Skills (generic only — sports shown above as Sports & Activities) */}
+          {cv.skills && cv.skills.length > 0 && cv.skills.some((s: string) => s.trim() !== '') && (
+            <div className="mb-6 pb-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Skills</h2>
+              <div className="flex flex-wrap gap-2">
+                {cv.skills
+                  .filter((skill: string) => skill.trim() !== '')
+                  .map((skill: string, index: number) => (
+                    <span
+                      key={`skill-${index}`}
+                      className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                    >
+                      {skill}
+                    </span>
+                  ))}
               </div>
-            )}
+            </div>
+          )}
 
           {/* Languages */}
           {cv.languages && cv.languages.length > 0 && (
