@@ -446,10 +446,7 @@ export default function HomePageContent({
           <section className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <SectionHeader title={t("featuredTalent")} />
-              <p className="text-gray-600 text-base sm:text-lg -mt-4 mb-8 sm:mb-10 max-w-2xl">
-                Verified profiles from the Chickenloop Talent Network
-              </p>
-              
+
               {candidatesLoading ? (
                 <div className="text-center py-16">
                   <p className="text-gray-600 text-lg">Loading talent...</p>
