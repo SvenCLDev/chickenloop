@@ -36,6 +36,7 @@ export type HomepageTalentCard = {
   fullName: string;
   profileHeadline?: string;
   summary?: string;
+  availability?: string;
   experienceAndSkill?: string[];
   lookingForWorkInAreas?: string[];
   pictures?: string[];
@@ -327,6 +328,7 @@ function toCard(input: TalentScoreInput): HomepageTalentCard {
     fullName: input.fullName || 'Talent',
     profileHeadline: input.profileHeadline,
     summary: input.summary,
+    availability: input.availability,
     experienceAndSkill: input.experienceAndSkill,
     lookingForWorkInAreas: input.lookingForWorkInAreas,
     pictures: input.pictures?.slice(0, 1),

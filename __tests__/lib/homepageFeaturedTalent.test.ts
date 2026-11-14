@@ -264,6 +264,27 @@ describe('selection and diversity', () => {
     expect(cards).toHaveLength(2);
   });
 
+  it('includes availability and sports on card payload for UI chips', () => {
+    const { cards } = selectHomepageFeaturedTalent(
+      [
+        baseTalent({
+          _id: '1',
+          availability: 'available_soon',
+          experienceAndSkill: ['kitesurfing', 'wing foiling', 'surfing', 'kayaking'],
+        }),
+      ],
+      6
+    );
+    expect(cards).toHaveLength(1);
+    expect(cards[0].availability).toBe('available_soon');
+    expect(cards[0].experienceAndSkill).toEqual([
+      'kitesurfing',
+      'wing foiling',
+      'surfing',
+      'kayaking',
+    ]);
+  });
+
   it('returns exactly six when more than six eligible', () => {
     const inputs = Array.from({ length: 10 }, (_, i) =>
       baseTalent({
