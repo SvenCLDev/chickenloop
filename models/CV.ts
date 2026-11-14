@@ -51,6 +51,12 @@ export interface ICV extends Document {
   profileHeadline?: string;
   profileHeadlineSource?: 'ai' | 'manual';
   profileHeadlineUpdatedAt?: Date;
+  /**
+   * Bumped only when meaningful professional profile fields change
+   * (roles, sports, certs, experience, location, languages, availability, etc.).
+   * Used for homepage Featured Talent freshness scoring — not generic updatedAt.
+   */
+  professionalProfileUpdatedAt?: Date;
   profileSchemaVersion?: ProfileSchemaVersion;
   verifiedCertificates?: VerifiedCertificate[];
   seasonalExperience?: SeasonalExperience[];
@@ -149,6 +155,9 @@ const CVSchema: Schema = new Schema(
       enum: ['ai', 'manual'],
     },
     profileHeadlineUpdatedAt: {
+      type: Date,
+    },
+    professionalProfileUpdatedAt: {
       type: Date,
     },
     profileSchemaVersion: {

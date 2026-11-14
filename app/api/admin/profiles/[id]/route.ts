@@ -7,6 +7,7 @@ import { applyTalentNetworkFieldsToCv } from '@/lib/talentNetwork/applyToCv';
 import { processReferenceVerificationRequestsForCvId } from '@/lib/talentNetwork/runReferenceVerificationAfterSave';
 import { applyWorkLocationFieldsToCv } from '@/lib/workLocation';
 import { applyProfileHeadlineRules } from '@/lib/talentNetwork/applyProfileHeadline';
+import { touchProfessionalProfileUpdatedAt } from '@/lib/talentNetwork/touchProfessionalProfileUpdatedAt';
 
 // GET - Get a single CV by ID (admin only)
 export async function GET(
@@ -172,6 +173,8 @@ export async function PUT(
         return NextResponse.json({ error: headlineApplied.error }, { status: 400 });
       }
     }
+
+    touchProfessionalProfileUpdatedAt(cv, body);
 
     await cv.save();
 

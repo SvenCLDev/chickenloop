@@ -224,14 +224,14 @@ export default function HomePageContent({
 
   const loadTopCandidates = async () => {
     try {
-      const response = await fetch('/api/candidates-list');
+      const response = await fetch('/api/homepage/featured-talent?limit=6', {
+        credentials: 'include',
+      });
       if (!response.ok) {
-        throw new Error('Failed to fetch candidates');
+        throw new Error('Failed to fetch featured talent');
       }
       const data = await response.json();
-      const candidates = data.cvs || [];
-      // Get the first 4 candidates (already sorted by newest first from API)
-      setTopCandidates(candidates.slice(0, 4));
+      setTopCandidates(Array.isArray(data.cvs) ? data.cvs.slice(0, 6) : []);
     } catch (err) {
       console.error('Failed to load top candidates:', err);
     } finally {

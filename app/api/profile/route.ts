@@ -12,6 +12,7 @@ import {
   applyProfileHeadlineRules,
   captureHeadlineInputSnapshot,
 } from '@/lib/talentNetwork/applyProfileHeadline';
+import { touchProfessionalProfileUpdatedAt } from '@/lib/talentNetwork/touchProfessionalProfileUpdatedAt';
 
 // GET - Get current user's CV (job seekers only)
 export async function GET(request: NextRequest) {
@@ -172,6 +173,8 @@ export async function POST(request: NextRequest) {
     if (!headlineApplied.ok) {
       return NextResponse.json({ error: headlineApplied.error }, { status: 400 });
     }
+
+    touchProfessionalProfileUpdatedAt(cv, body, { force: true });
 
     await cv.save();
 
@@ -339,6 +342,8 @@ export async function PUT(request: NextRequest) {
     if (!headlineApplied.ok) {
       return NextResponse.json({ error: headlineApplied.error }, { status: 400 });
     }
+
+    touchProfessionalProfileUpdatedAt(cv, body);
 
     await cv.save();
 
