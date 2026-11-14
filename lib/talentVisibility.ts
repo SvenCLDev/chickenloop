@@ -19,6 +19,27 @@ export function canOpenTalentProfile(tier: TalentViewerTier): boolean {
   return tier === 'community' || tier === 'recruiter';
 }
 
+/**
+ * Homepage Featured Talent: redact instructor name for anonymous viewers only.
+ * Keeps photo, headline, summary, availability, and activity fields (unlike list redaction).
+ */
+export function applyHomepageFeaturedTalentVisibility<
+  T extends { fullName?: string },
+>(
+  card: T,
+  tier: TalentViewerTier
+): T & { fullName: string; profileLinkAllowed: boolean } {
+  const next = {
+    ...card,
+    fullName: typeof card.fullName === 'string' ? card.fullName : '',
+    profileLinkAllowed: canOpenTalentProfile(tier),
+  };
+  if (tier === 'anonymous') {
+    next.fullName = '';
+  }
+  return next;
+}
+
 /** Initials like "JS" from a full name. */
 export function getNameInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);

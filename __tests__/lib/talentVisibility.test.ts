@@ -1,4 +1,5 @@
 import {
+  applyHomepageFeaturedTalentVisibility,
   applyTalentDetailVisibility,
   applyTalentListVisibility,
   getAnonymousDisplayName,
@@ -76,5 +77,44 @@ describe('talentVisibility', () => {
     expect(detail.phone).toBeUndefined();
     expect(detail.address).toBeUndefined();
     expect((detail.jobSeeker as { email?: string }).email).toBeUndefined();
+  });
+
+  it('redacts homepage featured name for anonymous but keeps teaser fields', () => {
+    const card = applyHomepageFeaturedTalentVisibility(
+      {
+        _id: '1',
+        fullName: 'Jane Doe',
+        profileHeadline: 'Kitesurf Instructor',
+        summary: 'Bio text',
+        availability: 'available_now',
+        experienceAndSkill: ['kitesurfing'],
+        pictures: ['https://example.com/a.jpg'],
+      },
+      'anonymous'
+    );
+
+    expect(card.fullName).toBe('');
+    expect(card.profileLinkAllowed).toBe(false);
+    expect(card.profileHeadline).toBe('Kitesurf Instructor');
+    expect(card.summary).toBe('Bio text');
+    expect(card.pictures).toEqual(['https://example.com/a.jpg']);
+    expect(card.availability).toBe('available_now');
+    expect(card.experienceAndSkill).toEqual(['kitesurfing']);
+  });
+
+  it('keeps homepage featured fullName for community and recruiter', () => {
+    const base = {
+      _id: '1',
+      fullName: 'Jane Doe',
+      summary: 'Bio',
+      pictures: ['https://example.com/a.jpg'],
+    };
+    const community = applyHomepageFeaturedTalentVisibility(base, 'community');
+    const recruiter = applyHomepageFeaturedTalentVisibility(base, 'recruiter');
+
+    expect(community.fullName).toBe('Jane Doe');
+    expect(community.profileLinkAllowed).toBe(true);
+    expect(recruiter.fullName).toBe('Jane Doe');
+    expect(recruiter.profileLinkAllowed).toBe(true);
   });
 });

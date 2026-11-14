@@ -13,10 +13,13 @@ const CARD_AVAILABILITY_VALUES = new Set([
 
 const MAX_ACTIVITY_CHIPS = 3;
 
+const cardShellClassName =
+  'group bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 block overflow-hidden transform hover:-translate-y-1 border border-gray-100';
+
 interface CandidateCardProps {
   candidate: {
     _id: string;
-    fullName: string;
+    fullName?: string;
     profileHeadline?: string;
     summary?: string;
     availability?: string;
@@ -24,10 +27,15 @@ interface CandidateCardProps {
     lookingForWorkInAreas?: string[];
     skills?: string[];
     pictures?: string[];
+    profileLinkAllowed?: boolean;
   };
+  profileLinkAllowed?: boolean;
 }
 
-export default function CandidateCard({ candidate }: CandidateCardProps) {
+export default function CandidateCard({
+  candidate,
+  profileLinkAllowed = true,
+}: CandidateCardProps) {
   const headline = getDisplayHeadline(candidate);
   const thumbnail =
     candidate.pictures && candidate.pictures.length > 0 ? candidate.pictures[0] : null;
@@ -40,12 +48,12 @@ export default function CandidateCard({ candidate }: CandidateCardProps) {
     .map((s) => String(s).trim())
     .filter(Boolean)
     .slice(0, MAX_ACTIVITY_CHIPS);
+  const displayName = (candidate.fullName ?? '').trim();
+  const allowLink =
+    profileLinkAllowed && candidate.profileLinkAllowed !== false;
 
-  return (
-    <Link
-      href={talentProfilePath(candidate._id)}
-      className="group bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer block overflow-hidden transform hover:-translate-y-1 border border-gray-100"
-    >
+  const cardBody = (
+    <>
       <div className="w-full h-48 sm:h-56 bg-gray-200 relative overflow-hidden">
         {thumbnail ? (
           <JobCardImage src={thumbnail} alt={headline || 'Profile photo'} />
@@ -53,12 +61,18 @@ export default function CandidateCard({ candidate }: CandidateCardProps) {
       </div>
 
       <div className="p-5 sm:p-6">
-        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+        <h3
+          className={`text-lg sm:text-xl font-bold text-gray-900 mb-2 line-clamp-2 transition-colors ${
+            allowLink ? 'group-hover:text-blue-600' : ''
+          }`}
+        >
           {headline}
         </h3>
-        <p className="text-sm text-gray-600 mb-2 line-clamp-1" title={candidate.fullName}>
-          {candidate.fullName}
-        </p>
+        {displayName ? (
+          <p className="text-sm text-gray-600 mb-2 line-clamp-1" title={displayName}>
+            {displayName}
+          </p>
+        ) : null}
         {availabilityLabel ? (
           <div className="mb-2">
             <span className="inline-flex items-center rounded-full bg-cyan-50 px-2 py-0.5 text-xs font-medium text-cyan-800">
@@ -83,6 +97,19 @@ export default function CandidateCard({ candidate }: CandidateCardProps) {
           </div>
         ) : null}
       </div>
-    </Link>
+    </>
   );
+
+  if (allowLink) {
+    return (
+      <Link
+        href={talentProfilePath(candidate._id)}
+        className={`${cardShellClassName} cursor-pointer`}
+      >
+        {cardBody}
+      </Link>
+    );
+  }
+
+  return <div className={cardShellClassName}>{cardBody}</div>;
 }
