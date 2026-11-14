@@ -305,6 +305,35 @@ export default function HomePageContent({
         />
         
         <HomepageValueProps />
+
+        {/* Featured Talent Section - Only visible to recruiters and admins */}
+        {user && (user.role === 'recruiter' || user.role === 'admin') && (
+          <section className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <SectionHeader
+                title={t("featuredTalent")}
+                actionLabel="View All Talent"
+                actionHref="/talent"
+              />
+
+              {candidatesLoading ? (
+                <div className="text-center py-16">
+                  <p className="text-gray-600 text-lg">Loading talent...</p>
+                </div>
+              ) : topCandidates.length === 0 ? (
+                <div className="text-center py-16">
+                  <p className="text-gray-600 text-lg">No talent profiles available at the moment.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                  {topCandidates.map((candidate) => (
+                    <CandidateCard key={candidate._id} candidate={candidate} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
         
         {/* Featured Jobs Section */}
         {!featuredJobsLoading && featuredJobs.length > 0 && (
@@ -440,31 +469,6 @@ export default function HomePageContent({
             </Link>
           </div>
         </section>
-        
-        {/* Featured Talent Section - Only visible to recruiters and admins */}
-        {user && (user.role === 'recruiter' || user.role === 'admin') && (
-          <section className="bg-gray-50 pt-6 pb-12 sm:pt-8 sm:pb-16">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <SectionHeader title={t("featuredTalent")} />
-
-              {candidatesLoading ? (
-                <div className="text-center py-16">
-                  <p className="text-gray-600 text-lg">Loading talent...</p>
-                </div>
-              ) : topCandidates.length === 0 ? (
-                <div className="text-center py-16">
-                  <p className="text-gray-600 text-lg">No talent profiles available at the moment.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-                  {topCandidates.map((candidate) => (
-                    <CandidateCard key={candidate._id} candidate={candidate} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        )}
 
         {/* About Section - The Chickenloop Story */}
         <section id="about" className="bg-white pt-6 pb-12 sm:pt-8 sm:pb-16">
