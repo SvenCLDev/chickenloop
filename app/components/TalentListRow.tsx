@@ -103,15 +103,86 @@ export default function TalentListRow({
     </div>
   );
 
-  const nameEl = allowLink ? (
-    <Link
-      href={profileHref}
-      className="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors truncate"
-    >
-      {displayName}
-    </Link>
-  ) : (
-    <span className="text-lg font-bold text-gray-900 truncate">{displayName}</span>
+  const cardBody = (
+    <div className="flex gap-4 p-4 sm:p-5">
+      <div className="shrink-0">{avatar}</div>
+
+      <div className="min-w-0 flex-1 pr-8">
+        <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1">
+          <span
+            className={`text-lg font-bold text-gray-900 truncate ${
+              allowLink ? 'group-hover:text-blue-600 transition-colors' : ''
+            }`}
+          >
+            {displayName}
+          </span>
+          {candidate.featured && (
+            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+              Featured
+            </span>
+          )}
+        </div>
+
+        {primaryRole && (
+          <p className="text-sm font-medium text-gray-600 mb-1">{primaryRole}</p>
+        )}
+        {secondarySkills && secondarySkills !== primaryRole && (
+          <p className="text-sm text-gray-600 mb-2">{secondarySkills}</p>
+        )}
+
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {verifiedCount > 0 && (
+            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+              {verifiedCount} verified cert{verifiedCount === 1 ? '' : 's'}
+            </span>
+          )}
+          {referenceCount > 0 && (
+            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
+              {referenceCount} confirmed ref{referenceCount === 1 ? '' : 's'}
+            </span>
+          )}
+          {certLabels.map((label) => (
+            <span
+              key={label}
+              className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700"
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {languages.map((lang) => (
+            <span
+              key={lang}
+              className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-800"
+            >
+              {lang}
+            </span>
+          ))}
+          {candidate.availability && (
+            <span className="inline-flex items-center rounded-full bg-cyan-50 px-2 py-0.5 text-xs font-medium text-cyan-800">
+              {AVAILABILITY_LABELS[candidate.availability] || candidate.availability}
+            </span>
+          )}
+          {candidate.experienceLevel && (
+            <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+              {EXPERIENCE_LEVEL_LABELS[candidate.experienceLevel] ||
+                candidate.experienceLevel}
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+          {locationLabel && <span>{locationLabel}</span>}
+          {lastActive && allowLink && <span>Active {getTimeAgo(lastActive)}</span>}
+        </div>
+
+        {summary && (
+          <p className="mt-2 text-sm text-gray-600 line-clamp-2">{summary}</p>
+        )}
+      </div>
+    </div>
   );
 
   return (
@@ -120,92 +191,24 @@ export default function TalentListRow({
         candidate.featured
           ? 'border-amber-300 ring-1 ring-amber-200/60'
           : 'border-gray-200 shadow-sm'
-      }`}
+      } ${allowLink ? 'cursor-pointer' : ''}`}
     >
-      <div className="flex gap-4 p-4 sm:p-5">
-        {allowLink ? (
-          <Link href={profileHref} className="shrink-0">
-            {avatar}
-          </Link>
-        ) : (
-          <div className="shrink-0">{avatar}</div>
-        )}
-
-        <div className="min-w-0 flex-1 pr-8">
-          <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1">
-            {nameEl}
-            {candidate.featured && (
-              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                Featured
-              </span>
-            )}
-          </div>
-
-          {primaryRole && (
-            <p className="text-sm font-medium text-gray-600 mb-1">{primaryRole}</p>
-          )}
-          {secondarySkills && secondarySkills !== primaryRole && (
-            <p className="text-sm text-gray-600 mb-2">{secondarySkills}</p>
-          )}
-
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {verifiedCount > 0 && (
-              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
-                {verifiedCount} verified cert{verifiedCount === 1 ? '' : 's'}
-              </span>
-            )}
-            {referenceCount > 0 && (
-              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
-                {referenceCount} confirmed ref{referenceCount === 1 ? '' : 's'}
-              </span>
-            )}
-            {certLabels.map((label) => (
-              <span
-                key={label}
-                className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700"
-              >
-                {label}
-              </span>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {languages.map((lang) => (
-              <span
-                key={lang}
-                className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-800"
-              >
-                {lang}
-              </span>
-            ))}
-            {candidate.availability && (
-              <span className="inline-flex items-center rounded-full bg-cyan-50 px-2 py-0.5 text-xs font-medium text-cyan-800">
-                {AVAILABILITY_LABELS[candidate.availability] || candidate.availability}
-              </span>
-            )}
-            {candidate.experienceLevel && (
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-                {EXPERIENCE_LEVEL_LABELS[candidate.experienceLevel] ||
-                  candidate.experienceLevel}
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-            {locationLabel && <span>{locationLabel}</span>}
-            {lastActive && allowLink && <span>Active {getTimeAgo(lastActive)}</span>}
-          </div>
-
-          {summary && (
-            <p className="mt-2 text-sm text-gray-600 line-clamp-2">{summary}</p>
-          )}
-        </div>
-      </div>
+      {allowLink ? (
+        <Link href={profileHref} className="block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+          {cardBody}
+        </Link>
+      ) : (
+        cardBody
+      )}
 
       {showFavourite && onToggleFavourite && (
         <button
           type="button"
-          onClick={(e) => onToggleFavourite(e, candidate._id)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleFavourite(e, candidate._id);
+          }}
           disabled={togglingFavourite}
           className="absolute top-4 right-4 p-2 rounded-full bg-white/90 border border-gray-200 shadow-sm hover:bg-gray-50 disabled:opacity-50 z-10"
           aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
