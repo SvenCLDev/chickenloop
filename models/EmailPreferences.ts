@@ -45,8 +45,7 @@ const EmailPreferencesSchema: Schema = new Schema(
   }
 );
 
-// Create index for efficient lookup by userId
-EmailPreferencesSchema.index({ userId: 1 });
+// userId already indexed via unique: true above — do not add schema.index({ userId: 1 }).
 
 const EmailPreferences: Model<IEmailPreferences> =
   mongoose.models.EmailPreferences ||

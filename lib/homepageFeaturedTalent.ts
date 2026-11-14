@@ -17,9 +17,14 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CANDIDATE_POOL_CAP = 150;
 const SUMMARY_MIN_CHARS = 40;
 
-const KNOWN_ISSUING_BODIES = new Set(
+/** Known watersports issuing bodies (excludes OTHER). Typed as string for Set.has(). */
+const KNOWN_ISSUING_BODIES: Set<string> = new Set(
   ISSUING_BODIES.filter((b) => b !== 'OTHER')
 );
+
+function isKnownIssuingBody(body: string | undefined): boolean {
+  return Boolean(body && KNOWN_ISSUING_BODIES.has(body));
+}
 
 /** Soft diversity caps while alternatives remain. */
 export const DIVERSITY_MAX_PER_SPORT = 2;
@@ -244,16 +249,10 @@ export function scoreCompleteness(input: TalentScoreInput): number {
 export function scoreCredentials(input: TalentScoreInput): number {
   const certs = input.verifiedCertificates ?? [];
   const verifiedKnown = certs.filter(
-    (c) =>
-      c.verificationStatus === 'verified' &&
-      c.issuingBody &&
-      KNOWN_ISSUING_BODIES.has(c.issuingBody as (typeof ISSUING_BODIES)[number])
+    (c) => c.verificationStatus === 'verified' && isKnownIssuingBody(c.issuingBody)
   );
   const structuredKnown = certs.filter(
-    (c) =>
-      c.issuingBody &&
-      KNOWN_ISSUING_BODIES.has(c.issuingBody as (typeof ISSUING_BODIES)[number]) &&
-      (c.certificateLevel || c.issuingBody)
+    (c) => isKnownIssuingBody(c.issuingBody) && (c.certificateLevel || c.issuingBody)
   );
   const legacy =
     (input.professionalCertifications ?? []).filter(
