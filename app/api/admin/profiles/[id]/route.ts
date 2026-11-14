@@ -6,6 +6,7 @@ import { isExperienceLevel, isAvailability, isWorkArea } from '@/lib/domainTypes
 import { applyTalentNetworkFieldsToCv } from '@/lib/talentNetwork/applyToCv';
 import { processReferenceVerificationRequestsForCvId } from '@/lib/talentNetwork/runReferenceVerificationAfterSave';
 import { applyWorkLocationFieldsToCv } from '@/lib/workLocation';
+import { applyProfileHeadlineRules } from '@/lib/talentNetwork/applyProfileHeadline';
 
 // GET - Get a single CV by ID (admin only)
 export async function GET(
@@ -160,6 +161,16 @@ export async function PUT(
     const workLocationApplied = applyWorkLocationFieldsToCv(cv, body);
     if (!workLocationApplied.ok) {
       return NextResponse.json({ error: workLocationApplied.error }, { status: 400 });
+    }
+
+    if (body.profileHeadline !== undefined) {
+      const headlineApplied = await applyProfileHeadlineRules(cv, body, {
+        mode: 'update',
+        forceManual: true,
+      });
+      if (!headlineApplied.ok) {
+        return NextResponse.json({ error: headlineApplied.error }, { status: 400 });
+      }
     }
 
     await cv.save();

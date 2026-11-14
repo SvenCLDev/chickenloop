@@ -11,6 +11,7 @@ export function serializeTalentNetworkForm(
     phone: form.phone || undefined,
     address: form.address || undefined,
     summary: form.summary || undefined,
+    profileHeadline: form.profileHeadline?.trim() || undefined,
     experienceAndSkill: form.experienceAndSkill,
     lookingForWorkInAreas: form.lookingForWorkInAreas,
     experienceLevel: form.experienceLevel || undefined,
@@ -83,6 +84,11 @@ export function cvToTalentNetworkForm(cv: Record<string, unknown>): TalentNetwor
     phone: String(cv.phone ?? ''),
     address: String(cv.address ?? ''),
     summary: String(cv.summary ?? ''),
+    profileHeadline: String(cv.profileHeadline ?? ''),
+    profileHeadlineSource:
+      cv.profileHeadlineSource === 'ai' || cv.profileHeadlineSource === 'manual'
+        ? cv.profileHeadlineSource
+        : undefined,
     verifiedCertificates:
       certs.length > 0
         ? certs.map((c, i) => ({

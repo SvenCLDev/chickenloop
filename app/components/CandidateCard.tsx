@@ -2,13 +2,16 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { stripHtmlToText } from '@/lib/sanitizeText';
 import { talentProfilePath } from '@/lib/talentRoutes';
+import { getDisplayHeadline } from '@/lib/talentNetwork/profileHeadline';
 
 interface CandidateCardProps {
   candidate: {
     _id: string;
     fullName: string;
+    profileHeadline?: string;
     summary?: string;
     experienceAndSkill?: string[];
+    lookingForWorkInAreas?: string[];
     skills?: string[];
     pictures?: string[];
     verifiedCertCount?: number;
@@ -16,12 +19,7 @@ interface CandidateCardProps {
 }
 
 export default function CandidateCard({ candidate }: CandidateCardProps) {
-  // Get main skill/title - prioritize experienceAndSkill, then first skill from skills array
-  const mainSkill = candidate.experienceAndSkill && candidate.experienceAndSkill.length > 0
-    ? candidate.experienceAndSkill[0]
-    : candidate.skills && candidate.skills.length > 0
-      ? candidate.skills[0]
-      : 'Professional';
+  const headline = getDisplayHeadline(candidate);
 
   return (
     <Link
@@ -47,17 +45,17 @@ export default function CandidateCard({ candidate }: CandidateCardProps) {
 
       {/* Candidate Info */}
       <div className="p-5 sm:p-6">
-        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
-          {candidate.fullName}
+        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 line-clamp-2 hover:text-blue-600 transition-colors">
+          {headline}
         </h3>
+        <p className="text-sm sm:text-base text-gray-600 font-medium mb-2 truncate">
+          {candidate.fullName}
+        </p>
         {(candidate.verifiedCertCount ?? 0) > 0 && (
           <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 mb-2">
             {candidate.verifiedCertCount} verified cert{(candidate.verifiedCertCount ?? 0) === 1 ? '' : 's'}
           </span>
         )}
-        <p className="text-sm sm:text-base text-blue-600 font-medium mb-2">
-          {mainSkill}
-        </p>
         {candidate.summary && (
           <p className="text-sm text-gray-600 mb-3 line-clamp-3">
             {stripHtmlToText(candidate.summary)}

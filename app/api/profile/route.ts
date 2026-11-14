@@ -8,6 +8,10 @@ import { applyTalentNetworkFieldsToCv } from '@/lib/talentNetwork/applyToCv';
 import { canUserWriteTalentNetworkFields } from '@/lib/talentNetwork/userContext';
 import { processReferenceVerificationRequestsForCvId } from '@/lib/talentNetwork/runReferenceVerificationAfterSave';
 import { applyWorkLocationFieldsToCv } from '@/lib/workLocation';
+import {
+  applyProfileHeadlineRules,
+  captureHeadlineInputSnapshot,
+} from '@/lib/talentNetwork/applyProfileHeadline';
 
 // GET - Get current user's CV (job seekers only)
 export async function GET(request: NextRequest) {
@@ -164,6 +168,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: workLocationApplied.error }, { status: 400 });
     }
 
+    const headlineApplied = await applyProfileHeadlineRules(cv, body, { mode: 'create' });
+    if (!headlineApplied.ok) {
+      return NextResponse.json({ error: headlineApplied.error }, { status: 400 });
+    }
+
     await cv.save();
 
     if (cv.profileSchemaVersion === 2) {
@@ -212,6 +221,8 @@ export async function PUT(request: NextRequest) {
     if (!cv) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
+
+    const previousHeadlineInputs = captureHeadlineInputSnapshot(cv);
 
     const body = await request.json();
     const {
@@ -319,6 +330,14 @@ export async function PUT(request: NextRequest) {
     const workLocationApplied = applyWorkLocationFieldsToCv(cv, body);
     if (!workLocationApplied.ok) {
       return NextResponse.json({ error: workLocationApplied.error }, { status: 400 });
+    }
+
+    const headlineApplied = await applyProfileHeadlineRules(cv, body, {
+      mode: 'update',
+      previousInputs: previousHeadlineInputs,
+    });
+    if (!headlineApplied.ok) {
+      return NextResponse.json({ error: headlineApplied.error }, { status: 400 });
     }
 
     await cv.save();

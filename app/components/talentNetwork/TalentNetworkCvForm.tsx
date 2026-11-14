@@ -67,6 +67,7 @@ export default function TalentNetworkCvForm({
   const [error, setError] = useState('');
   const [experienceDateErrors, setExperienceDateErrors] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
+  const [generatingHeadline, setGeneratingHeadline] = useState(false);
   const [certificateSaveModalOpen, setCertificateSaveModalOpen] = useState(false);
   const [certificatesMissingDocument, setCertificatesMissingDocument] = useState<
     { index: number; label: string }[]
@@ -125,6 +126,33 @@ export default function TalentNetworkCvForm({
 
   const handlePictureError = (message: string) => {
     setError(message);
+  };
+
+  const handleGenerateHeadline = async () => {
+    if (
+      formData.profileHeadline.trim() &&
+      !window.confirm('Replace the current professional headline with a new suggestion?')
+    ) {
+      return;
+    }
+    setGeneratingHeadline(true);
+    setError('');
+    try {
+      const data = (await cvApi.generateHeadline({
+        lookingForWorkInAreas: formData.lookingForWorkInAreas,
+        experienceAndSkill: formData.experienceAndSkill,
+        verifiedCertificates: formData.verifiedCertificates,
+        seasonalExperience: formData.seasonalExperience,
+      })) as { headline?: string; error?: string };
+      if (!data.headline) {
+        throw new Error(data.error || 'Failed to generate headline');
+      }
+      setFormData({ ...formData, profileHeadline: data.headline });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to generate headline');
+    } finally {
+      setGeneratingHeadline(false);
+    }
   };
 
   const performSave = async () => {
@@ -289,6 +317,37 @@ export default function TalentNetworkCvForm({
 
       <section className="space-y-4">
         <h2 className="text-xl font-semibold text-gray-900">Summary</h2>
+        <div>
+          <label htmlFor="profileHeadline" className="block text-sm font-medium text-gray-700 mb-1">
+            Professional Headline
+          </label>
+          <p className="text-sm text-gray-500 mb-2">
+            Short title shown on talent cards (e.g. &quot;Kitesurf &amp; Wingfoil Instructor&quot;). Max 80
+            characters. Generate from your sports and work preferences, or write your own.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              id="profileHeadline"
+              type="text"
+              maxLength={80}
+              placeholder="e.g. Kitesurf & Wingfoil Instructor"
+              value={formData.profileHeadline}
+              onChange={(e) => setFormData({ ...formData, profileHeadline: e.target.value })}
+              className="flex-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+            />
+            <button
+              type="button"
+              onClick={handleGenerateHeadline}
+              disabled={generatingHeadline || loading}
+              className="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-md hover:bg-purple-100 disabled:opacity-50 whitespace-nowrap"
+            >
+              {generatingHeadline ? 'Generating…' : 'Generate headline'}
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-gray-500 text-right">
+            {formData.profileHeadline.length}/80
+          </p>
+        </div>
         <textarea
           placeholder="Professional summary"
           value={formData.summary}

@@ -6,6 +6,7 @@ import type { CandidateListItem } from '@/lib/candidateListTypes';
 import { talentProfileHref } from '@/lib/talentRoutes';
 import { getNameInitials } from '@/lib/talentVisibility';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
+import { getDisplayHeadline } from '@/lib/talentNetwork/profileHeadline';
 
 const EXPERIENCE_LEVEL_LABELS: Record<string, string> = {
   entry: 'Entry',
@@ -60,14 +61,10 @@ export default function TalentListRow({
 }: TalentListRowProps) {
   const picture = candidate.pictures?.[0] || null;
   const displayName = candidate.displayName || candidate.fullName;
+  const headline = getDisplayHeadline(candidate);
   const allowLink =
     linkToProfile && candidate.profileLinkAllowed !== false;
   const profileHref = talentProfileHref(candidate._id, returnUrl);
-  const primaryRole =
-    candidate.lookingForWorkInAreas?.[0] ||
-    candidate.experienceAndSkill?.[0] ||
-    null;
-  const secondarySkills = (candidate.experienceAndSkill || []).slice(0, 2).join(' · ');
   const verifiedCount = candidate.verifiedCertCount ?? 0;
   const referenceCount = candidate.confirmedReferenceCount ?? 0;
   const certLabels =
@@ -108,13 +105,13 @@ export default function TalentListRow({
       <div className="shrink-0">{avatar}</div>
 
       <div className="min-w-0 flex-1 pr-8">
-        <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1">
+        <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-0.5">
           <span
-            className={`text-lg font-bold text-gray-900 truncate ${
+            className={`text-lg font-bold text-gray-900 line-clamp-2 ${
               allowLink ? 'group-hover:text-blue-600 transition-colors' : ''
             }`}
           >
-            {displayName}
+            {headline}
           </span>
           {candidate.featured && (
             <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
@@ -122,13 +119,7 @@ export default function TalentListRow({
             </span>
           )}
         </div>
-
-        {primaryRole && (
-          <p className="text-sm font-medium text-gray-600 mb-1">{primaryRole}</p>
-        )}
-        {secondarySkills && secondarySkills !== primaryRole && (
-          <p className="text-sm text-gray-600 mb-2">{secondarySkills}</p>
-        )}
+        <p className="text-sm font-medium text-gray-600 mb-2 truncate">{displayName}</p>
 
         <div className="flex flex-wrap gap-1.5 mb-2">
           {verifiedCount > 0 && (

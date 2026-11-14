@@ -13,6 +13,8 @@ export interface TalentNetworkFormState {
   phone: string;
   address: string;
   summary: string;
+  profileHeadline: string;
+  profileHeadlineSource?: 'ai' | 'manual';
   verifiedCertificates: VerifiedCertificateFormEntry[];
   seasonalExperience: SeasonalExperienceFormEntry[];
   languageSkills: LanguageSkillFormEntry[];
@@ -139,6 +141,8 @@ export function emptyTalentNetworkForm(): TalentNetworkFormState {
     phone: '',
     address: '',
     summary: '',
+    profileHeadline: '',
+    profileHeadlineSource: undefined,
     verifiedCertificates: [emptyCertificate()],
     seasonalExperience: [emptySeasonalExperience()],
     languageSkills: [emptyLanguageSkill()],

@@ -183,6 +183,16 @@ export const cvApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  generateHeadline: (data?: {
+    lookingForWorkInAreas?: string[];
+    experienceAndSkill?: string[];
+    verifiedCertificates?: unknown[];
+    seasonalExperience?: unknown[];
+  }) =>
+    apiRequest('/profile/generate-headline', {
+      method: 'POST',
+      body: JSON.stringify(data ?? {}),
+    }),
   delete: () =>
     apiRequest('/profile', {
       method: 'DELETE',

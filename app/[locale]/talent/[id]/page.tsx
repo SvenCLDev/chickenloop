@@ -15,10 +15,12 @@ import {
   formatAvailability,
   formatExperienceLevel,
 } from '@/lib/talentNetwork/preferenceLabels';
+import { getDisplayHeadline } from '@/lib/talentNetwork/profileHeadline';
 
 interface CV {
   _id: string;
   fullName: string;
+  profileHeadline?: string;
   email?: string;
   phone?: string;
   address?: string;
@@ -328,9 +330,14 @@ function CVDetailContent() {
         </Link>
 
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">{cv.fullName}</h1>
-            <div className="flex gap-3">
+          <div className="flex justify-between items-start gap-4 mb-6">
+            <div className="min-w-0">
+              <h1 className="text-3xl font-bold text-gray-900">{cv.fullName}</h1>
+              <p className="mt-1 text-lg text-gray-600 line-clamp-2">
+                {getDisplayHeadline(cv)}
+              </p>
+            </div>
+            <div className="flex gap-3 shrink-0">
               {user && (user.role === 'recruiter' || user.role === 'admin') && (
                 <>
                   {hasContacted ? (

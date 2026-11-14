@@ -3,6 +3,8 @@ export interface CandidateListItem {
   fullName: string;
   /** Prefers anonymized label for anonymous viewers when set by API. */
   displayName?: string;
+  /** Professional headline for cards (AI or manual). */
+  profileHeadline?: string;
   summary?: string;
   address?: string;
   /** Country/region code for non-recruiter “Based in” without full address. */

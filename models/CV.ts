@@ -47,6 +47,10 @@ export interface ICV extends Document {
   featuredUntil?: Date | null;
   experienceLevel?: ExperienceLevel;
   availability?: Availability;
+  /** Recruiter-facing professional headline (AI or manually edited). */
+  profileHeadline?: string;
+  profileHeadlineSource?: 'ai' | 'manual';
+  profileHeadlineUpdatedAt?: Date;
   profileSchemaVersion?: ProfileSchemaVersion;
   verifiedCertificates?: VerifiedCertificate[];
   seasonalExperience?: SeasonalExperience[];
@@ -134,6 +138,18 @@ const CVSchema: Schema = new Schema(
     availability: {
       type: String,
       enum: ['available_now', 'available_soon', 'seasonal', 'not_available'],
+    },
+    profileHeadline: {
+      type: String,
+      maxlength: 80,
+      trim: true,
+    },
+    profileHeadlineSource: {
+      type: String,
+      enum: ['ai', 'manual'],
+    },
+    profileHeadlineUpdatedAt: {
+      type: Date,
     },
     profileSchemaVersion: {
       type: Number,

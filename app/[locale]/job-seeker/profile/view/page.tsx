@@ -12,6 +12,7 @@ import {
   formatAvailability,
   formatExperienceLevel,
 } from '@/lib/talentNetwork/preferenceLabels';
+import { getDisplayHeadline } from '@/lib/talentNetwork/profileHeadline';
 import Link from 'next/link';
 
 export default function ViewCVPage() {
@@ -174,6 +175,9 @@ function ViewCVPageContent() {
               <div>
                 <p className="text-sm font-medium text-gray-500">Full Name</p>
                 <p className="text-lg text-gray-900">{cv.fullName || '-'}</p>
+                <p className="text-base text-gray-600 mt-0.5 line-clamp-2">
+                  {getDisplayHeadline(cv)}
+                </p>
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">

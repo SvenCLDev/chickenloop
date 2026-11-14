@@ -23,6 +23,7 @@ type JobSeekerDoc = {
 export type CvDocumentForListItem = {
   _id: ObjectIdLike;
   fullName: string;
+  profileHeadline?: string;
   summary?: string;
   address?: string;
   experienceAndSkill?: string[];
@@ -83,6 +84,7 @@ export function mapCvDocumentToCandidateListItem(cv: CvDocumentForListItem): Can
   return {
     _id: String(cv._id),
     fullName: cv.fullName,
+    profileHeadline: cv.profileHeadline,
     summary: cv.summary,
     address: cv.address,
     experienceAndSkill: cv.experienceAndSkill ?? [],
