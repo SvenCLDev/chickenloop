@@ -110,7 +110,6 @@ export function applyTalentListVisibility<T extends Record<string, unknown>>(
   if (tier === 'anonymous') {
     next.displayName = getAnonymousDisplayName(fullName);
     next.fullName = next.displayName;
-    next.pictures = [];
     delete next.summary;
     return next;
   }

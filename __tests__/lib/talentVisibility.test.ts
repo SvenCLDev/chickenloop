@@ -36,7 +36,7 @@ describe('talentVisibility', () => {
 
     expect(row.fullName).toBe('J. D.');
     expect(row.displayName).toBe('J. D.');
-    expect(row.pictures).toEqual([]);
+    expect(row.pictures).toEqual(['https://example.com/a.jpg']);
     expect(row.summary).toBeUndefined();
     expect(row.address).toBeUndefined();
     expect(row.regionLabel).toBe('ES');
