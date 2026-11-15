@@ -168,53 +168,6 @@ function ViewCVPageContent() {
             <TalentNetworkVerificationSummary cv={cv} editProfileHref={editHref} />
           )}
 
-          {/* Personal Information */}
-          <div className="mb-6 pb-6 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Personal Information</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Full Name</p>
-                <p className="text-lg text-gray-900">{cv.fullName || '-'}</p>
-                <p className="text-base text-gray-600 mt-0.5 line-clamp-2">
-                  {getDisplayHeadline(cv)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">
-                  Email
-                  {previewAsRecruiter ? (
-                    <span className="ml-1 text-xs font-normal text-emerald-700">
-                      (visible to recruiters)
-                    </span>
-                  ) : null}
-                </p>
-                <p className="text-lg text-gray-900">{cv.email || '-'}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">
-                  Phone
-                  {previewAsRecruiter ? (
-                    <span className="ml-1 text-xs font-normal text-emerald-700">
-                      (visible to recruiters)
-                    </span>
-                  ) : null}
-                </p>
-                <p className="text-lg text-gray-900">{cv.phone || '-'}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">
-                  Address
-                  {previewAsRecruiter ? (
-                    <span className="ml-1 text-xs font-normal text-emerald-700">
-                      (visible to recruiters)
-                    </span>
-                  ) : null}
-                </p>
-                <p className="text-lg text-gray-900">{cv.address || '-'}</p>
-              </div>
-            </div>
-          </div>
-
           {/* Summary */}
           {cv.summary && (
             <div className="mb-6 pb-6 border-b border-gray-200">
@@ -416,6 +369,53 @@ function ViewCVPageContent() {
 
           </>
           )}
+
+          {/* Personal Information */}
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Personal Information</h2>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Full Name</p>
+                <p className="text-lg text-gray-900">{cv.fullName || '-'}</p>
+                <p className="text-base text-gray-600 mt-0.5 line-clamp-2">
+                  {getDisplayHeadline(cv)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Email
+                  {previewAsRecruiter ? (
+                    <span className="ml-1 text-xs font-normal text-emerald-700">
+                      (visible to recruiters)
+                    </span>
+                  ) : null}
+                </p>
+                <p className="text-lg text-gray-900">{cv.email || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Phone
+                  {previewAsRecruiter ? (
+                    <span className="ml-1 text-xs font-normal text-emerald-700">
+                      (visible to recruiters)
+                    </span>
+                  ) : null}
+                </p>
+                <p className="text-lg text-gray-900">{cv.phone || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Address
+                  {previewAsRecruiter ? (
+                    <span className="ml-1 text-xs font-normal text-emerald-700">
+                      (visible to recruiters)
+                    </span>
+                  ) : null}
+                </p>
+                <p className="text-lg text-gray-900">{cv.address || '-'}</p>
+              </div>
+            </div>
+          </div>
 
           {/* Pictures */}
           {cv.pictures && cv.pictures.length > 0 && (

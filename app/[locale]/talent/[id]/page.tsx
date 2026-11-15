@@ -374,39 +374,6 @@ function CVDetailContent() {
             </div>
           </div>
 
-          {/* Personal Information */}
-          <div className="mb-6 pb-6 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Personal Information</h2>
-            {isJobSeekerUser && (
-              <p className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2 mb-4">
-                Contact details are hidden from other instructors. Recruiters see email and phone when
-                the profile is published.
-              </p>
-            )}
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Full Name</p>
-                <p className="text-lg text-gray-900">{cv.fullName || '-'}</p>
-              </div>
-              {isRecruiterUser && (
-                <>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Email</p>
-                    <p className="text-lg text-gray-900">{cv.email || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Phone</p>
-                    <p className="text-lg text-gray-900">{cv.phone || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Address</p>
-                    <p className="text-lg text-gray-900">{cv.address || '-'}</p>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
           {/* Summary */}
           {cv.summary && (
             <div className="mb-6 pb-6 border-b border-gray-200">
@@ -612,6 +579,39 @@ function CVDetailContent() {
             )}
             </>
           )}
+
+          {/* Personal Information */}
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Personal Information</h2>
+            {isJobSeekerUser && (
+              <p className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2 mb-4">
+                Contact details are hidden from other instructors. Recruiters see email and phone when
+                the profile is published.
+              </p>
+            )}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Full Name</p>
+                <p className="text-lg text-gray-900">{cv.fullName || '-'}</p>
+              </div>
+              {isRecruiterUser && (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Email</p>
+                    <p className="text-lg text-gray-900">{cv.email || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Phone</p>
+                    <p className="text-lg text-gray-900">{cv.phone || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Address</p>
+                    <p className="text-lg text-gray-900">{cv.address || '-'}</p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
           {/* Pictures */}
           {cv.pictures && cv.pictures.length > 0 && (
