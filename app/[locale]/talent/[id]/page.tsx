@@ -329,19 +329,19 @@ function CVDetailContent() {
           ← Back to {returnUrl.includes('/applications/') ? 'Application Details' : 'Profiles'}
         </Link>
 
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="flex justify-between items-start gap-4 mb-6">
-            <div className="min-w-0">
-              <h1 className="text-3xl font-bold text-gray-900">{cv.fullName}</h1>
+        <div className="bg-white rounded-lg shadow-lg p-4 lg:p-8">
+          <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:justify-between lg:items-start">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 min-w-0 break-words">{cv.fullName}</h1>
               <p className="mt-1 text-lg text-gray-600 line-clamp-2">
                 {getDisplayHeadline(cv)}
               </p>
             </div>
-            <div className="flex gap-3 shrink-0">
+            <div className="flex flex-col gap-2 w-full min-w-0 lg:w-auto lg:flex-row lg:gap-3 shrink-0">
               {user && (user.role === 'recruiter' || user.role === 'admin') && (
                 <>
                   {hasContacted ? (
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded font-semibold">
+                    <div className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded font-semibold w-full lg:w-auto">
                       <span>✓</span>
                       <span>Contacted</span>
                     </div>
@@ -349,7 +349,7 @@ function CVDetailContent() {
                     <button
                       onClick={() => handleContactCandidate()}
                       disabled={contacting}
-                      className="px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full lg:w-auto"
                     >
                       {contacting ? 'Contacting...' : 'Contact Candidate'}
                     </button>
@@ -357,7 +357,7 @@ function CVDetailContent() {
                   <button
                     onClick={handleToggleFavourite}
                     disabled={togglingFavourite || checkingFavourite}
-                    className={`px-4 py-2 rounded font-semibold transition-colors ${
+                    className={`px-4 py-2 rounded font-semibold transition-colors w-full lg:w-auto ${
                       isFavourite
                         ? 'bg-yellow-500 text-white hover:bg-yellow-600'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
