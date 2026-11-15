@@ -377,7 +377,6 @@ function CVDetailContent() {
           {/* Summary */}
           {cv.summary && (
             <div className="mb-6 pb-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Summary</h2>
               <div
                 className="prose prose-p:text-gray-700 prose-li:text-gray-700 prose-blockquote:text-gray-700 max-w-none leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: cv.summary || '' }}
