@@ -10,10 +10,18 @@ import SaveJobAlertModal, { SaveJobAlertLoginPrompt } from './SaveJobAlertModal'
 import JobAlertToast from './JobAlertToast';
 import { hasSavableAlertFilters } from './savedSearchUtils';
 import { useAuth } from '@/app/contexts/AuthContext';
+import TalentNetworkIntroduction from '@/app/components/TalentNetworkIntroduction';
 import type { JobListFilters, JobListItem } from '@/lib/jobs';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
 import { JOB_CATEGORIES } from '@/lib/jobCategories';
 import { EMPLOYMENT_TYPE_OPTIONS } from '@/lib/employmentTypes';
+import {
+  shouldPlaceTalentNetworkPromo,
+  shouldShowTalentNetworkPromo,
+} from '@/lib/talentNetworkPromoVisibility';
+
+const JOB_GRID_CLASS =
+  'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6';
 
 interface JobListProps {
   initialJobs: JobListItem[];
@@ -82,12 +90,39 @@ export default function JobList({
   const hasMountedRef = useRef(false);
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const [cvCount, setCvCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!toastMessage) return;
     const timer = setTimeout(() => setToastMessage(null), 3000);
     return () => clearTimeout(timer);
   }, [toastMessage]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (user?.role !== 'job-seeker') {
+      setCvCount(null);
+      return;
+    }
+    let cancelled = false;
+    const fetchCount = async () => {
+      try {
+        const res = await fetch('/api/profile/mine/count', { credentials: 'include' });
+        const data = await res.json();
+        if (!cancelled && res.ok && typeof data.count === 'number') {
+          setCvCount(data.count);
+        } else if (!cancelled) {
+          setCvCount(null);
+        }
+      } catch {
+        if (!cancelled) setCvCount(null);
+      }
+    };
+    void fetchCount();
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user?.role, user?.id]);
 
   const loadJobs = useCallback(async (pageToLoad: number, activeFilters: JobListFilters, replace = false) => {
     setLoading(true);
@@ -219,6 +254,21 @@ export default function JobList({
   }, [loadMore]);
 
   const renderedJobs = useMemo(() => jobs, [jobs]);
+  const firstJobs = useMemo(() => renderedJobs.slice(0, 6), [renderedJobs]);
+  const remainingJobs = useMemo(() => renderedJobs.slice(6), [renderedJobs]);
+
+  const viewerEligible = shouldShowTalentNetworkPromo({
+    role: user?.role ?? null,
+    authLoading,
+    cvCount: user?.role === 'job-seeker' ? cvCount : null,
+  });
+  const showTalentNetworkPromo = shouldPlaceTalentNetworkPromo({
+    initialPage,
+    jobCount: renderedJobs.length,
+    viewerEligible,
+  });
+  const talentNetworkCtaHref =
+    user?.role === 'job-seeker' ? '/job-seeker/profile/new' : '/register';
   const cities = useMemo(
     () => Array.from(new Set(availableCities)).sort((a, b) => a.localeCompare(b)),
     [availableCities]
@@ -439,10 +489,28 @@ export default function JobList({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {renderedJobs.map((job, index) => (
-              <JobCard key={`${job._id}-${index}`} job={job} priority={index < 3} />
-            ))}
+          <div className="space-y-6">
+            <div className={JOB_GRID_CLASS}>
+              {firstJobs.map((job, index) => (
+                <JobCard key={`${job._id}-${index}`} job={job} priority={index < 3} />
+              ))}
+            </div>
+
+            {showTalentNetworkPromo ? (
+              <TalentNetworkIntroduction ctaHref={talentNetworkCtaHref} />
+            ) : null}
+
+            {remainingJobs.length > 0 ? (
+              <div className={JOB_GRID_CLASS}>
+                {remainingJobs.map((job, index) => (
+                  <JobCard
+                    key={`${job._id}-${index + 6}`}
+                    job={job}
+                    priority={false}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
