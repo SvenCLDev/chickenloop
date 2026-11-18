@@ -22,6 +22,7 @@ import JobApplySection from '../../../jobs/[id]/JobApplySection';
 import JobSpamButton from '../../../jobs/[id]/JobSpamButton';
 import JobThumbnailGallery from '../../../jobs/[id]/JobThumbnailGallery';
 import JobHeroImage, { getJobHeroLcpPreloadProps } from '../../../jobs/[id]/JobHeroImage';
+import TalentNetworkJobDetailPromo from '@/app/components/TalentNetworkJobDetailPromo';
 import JobOwnerActions from './JobOwnerActions';
 import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
 import OtherJobsAtCompany from './OtherJobsAtCompany';
@@ -1107,6 +1108,8 @@ export default async function CanonicalJobDetailPage({ params }: PageProps) {
                 Please mention that you found this job on chickenloop.com
               </p>
             </div>
+
+            <TalentNetworkJobDetailPromo jobId={job._id} />
 
             {/* Job Pictures Gallery - All images (up to 3, including the hero) */}
             {job.pictures && job.pictures.length > 0 && (
