@@ -5,8 +5,12 @@ import { ObjectId } from 'mongodb';
 import clientPromise from '@/lib/mongodb';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
+import EmailPreferences from '@/models/EmailPreferences';
 import { isEmailBlocked } from '@/lib/blockedEmail';
 import { recordUserLogin } from '@/lib/recordUserLogin';
+import { sendEmailAsync, EmailCategory } from '@/lib/email';
+import { getWelcomeEmail } from '@/lib/emailTemplates';
+import { getBaseUrlForAuthEmails } from '@/lib/baseUrlForAuthEmails';
 
 /** Only trust strings that are real MongoDB ObjectIds (never providerAccountId). */
 function isValidUserObjectId(id: string | undefined): boolean {
@@ -305,10 +309,73 @@ export const authOptions: NextAuthOptions = {
     },
   },
   events: {
-    async signIn({ user }) {
+    async createUser({ user }) {
+      const userId = (user as { id?: string }).id;
+      if (!userId || !isValidUserObjectId(userId)) return;
+
+      try {
+        await connectDB();
+
+        const existingPrefs = await EmailPreferences.findOne({ userId }).select('_id').lean();
+        if (!existingPrefs) {
+          await EmailPreferences.create({
+            userId,
+            jobAlerts: 'weekly',
+            applicationUpdates: true,
+            marketing: false,
+          });
+        }
+
+        const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
+        if (!email) return;
+
+        const baseUrl = getBaseUrlForAuthEmails();
+        const welcomeTemplate = getWelcomeEmail({
+          userName: typeof user.name === 'string' ? user.name : '',
+          dashboardUrl: `${baseUrl}/job-seeker`,
+        });
+
+        sendEmailAsync({
+          to: email,
+          subject: welcomeTemplate.subject,
+          html: welcomeTemplate.html,
+          text: welcomeTemplate.text,
+          category: EmailCategory.IMPORTANT_TRANSACTIONAL,
+          eventType: 'user_welcome',
+          userId,
+          tags: [
+            { name: 'type', value: 'welcome' },
+            { name: 'event', value: 'user_welcome' },
+            { name: 'source', value: 'google_oauth' },
+          ],
+        });
+      } catch (error) {
+        console.error('[NextAuth] createUser onboarding side effects failed:', error);
+      }
+    },
+    async signIn({ user, account }) {
       const userId = (user as { id?: string }).id;
       if (userId && isValidUserObjectId(userId)) {
         await recordUserLogin(userId);
+
+        if (account?.provider === 'google' && account.providerAccountId) {
+          try {
+            await connectDB();
+            await User.updateOne(
+              {
+                _id: userId,
+                $or: [
+                  { 'providers.google.id': { $exists: false } },
+                  { 'providers.google.id': null },
+                  { 'providers.google.id': '' },
+                ],
+              },
+              { $set: { 'providers.google.id': account.providerAccountId } }
+            );
+          } catch (error) {
+            console.error('[NextAuth] Failed to set providers.google.id:', error);
+          }
+        }
       }
     },
   },

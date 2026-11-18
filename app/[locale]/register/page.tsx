@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
+import { signIn } from 'next-auth/react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import Navbar from '@/app/components/Navbar';
 import TurnstileWidget from '@/app/components/TurnstileWidget';
@@ -18,10 +19,22 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const honeypotRef = useRef<HTMLInputElement>(null);
   const { register } = useAuth();
+
+  const handleGoogle = async () => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      await signIn('google', { callbackUrl: '/auth/post-login' });
+    } catch {
+      setError(t('failed'));
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +78,25 @@ export default function RegisterPage() {
       <main className="max-w-md mx-auto px-4 py-12">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <h1 className="text-3xl font-bold text-center mb-6 text-gray-900">{t('title')}</h1>
+
+          <button
+            type="button"
+            onClick={handleGoogle}
+            disabled={googleLoading || loading}
+            className="w-full mb-4 bg-white border border-gray-300 text-gray-900 py-2 px-4 rounded-md hover:bg-gray-50 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {t('continueWithGoogle')}
+          </button>
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center" aria-hidden>
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-3 text-gray-500">{t('orEmail')}</span>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
               ref={honeypotRef}
@@ -162,7 +194,7 @@ export default function RegisterPage() {
             )}
             <button
               type="submit"
-              disabled={loading || !turnstileToken}
+              disabled={loading || googleLoading || !turnstileToken}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
             >
               {loading ? t('submitting') : t('submit')}

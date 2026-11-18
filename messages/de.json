@@ -86,6 +86,8 @@
   },
   "Register": {
     "title": "Chickenloop beitreten",
+    "continueWithGoogle": "Weiter mit Google",
+    "orEmail": "oder mit E-Mail registrieren",
     "fullName": "Vollständiger Name",
     "email": "E-Mail",
     "password": "Passwort",

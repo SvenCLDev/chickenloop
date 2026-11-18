@@ -86,6 +86,8 @@
   },
   "Register": {
     "title": "Join Chickenloop",
+    "continueWithGoogle": "Continue with Google",
+    "orEmail": "or register with email",
     "fullName": "Full Name",
     "email": "Email",
     "password": "Password",

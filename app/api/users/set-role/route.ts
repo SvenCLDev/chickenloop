@@ -37,7 +37,9 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         role,
-        redirectTo: storedRole === 'recruiter' ? '/recruiter' : '/job-seeker',
+        // Match credentials register: recruiters create a company next.
+        redirectTo:
+          storedRole === 'recruiter' ? '/recruiter/company/new' : '/job-seeker',
       },
       { status: 200 }
     );
