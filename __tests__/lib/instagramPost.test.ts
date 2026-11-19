@@ -9,6 +9,7 @@ jest.mock('@/lib/instagram-image', () => ({
 }));
 
 import {
+  buildCaptionHook,
   buildInstagramAltText,
   buildInstagramHashtags,
   buildInstagramPostHistoryUpdate,
@@ -16,6 +17,7 @@ import {
   buildJobCaption,
   instagramHandleFromUrl,
   resolveCompanyInstagramHandle,
+  truncateCaptionSummary,
 } from '@/lib/social/instagram';
 
 const kiteJob = {
@@ -114,11 +116,59 @@ describe('buildInstagramHashtags', () => {
   });
 });
 
+describe('buildCaptionHook', () => {
+  it('keeps the classic wanted phrasing by default', () => {
+    expect(buildCaptionHook('Kitesurf Instructor', 'Tarifa, Spain')).toBe(
+      'Kitesurf Instructor wanted in Tarifa, Spain'
+    );
+  });
+
+  it('supports hiring and recruiting presets', () => {
+    expect(buildCaptionHook('Kitesurf Instructor', 'Tarifa, Spain', 'Hiring')).toBe(
+      'Hiring: Kitesurf Instructor in Tarifa, Spain'
+    );
+    expect(buildCaptionHook('Kitesurf Instructor', '', 'Recruiting')).toBe(
+      'Recruiting: Kitesurf Instructor'
+    );
+  });
+});
+
+describe('truncateCaptionSummary', () => {
+  it('prefers a sentence boundary and adds an ellipsis', () => {
+    const text =
+      'Join our team for the summer season on the Atlantic side. Extra detail that should be cut.';
+    expect(truncateCaptionSummary(text, 70)).toBe(
+      'Join our team for the summer season on the Atlantic side.…'
+    );
+  });
+});
+
 describe('buildJobCaption', () => {
   it('leads with role and location using the full country name', () => {
     const { caption } = buildJobCaption(kiteJob, { companyHandle: 'kitehousetarifa' });
 
     expect(caption.split('\n')[0]).toBe('Kitesurf Instructor wanted in Tarifa, Spain');
+  });
+
+  it('decodes HTML entities in the description summary', () => {
+    const { caption } = buildJobCaption({
+      ...kiteJob,
+      description: '<p>Teach kitesurf &amp; wingfoil at our centre this summer.</p>',
+    });
+
+    expect(caption).toContain('Teach kitesurf & wingfoil at our centre this summer.');
+    expect(caption).not.toContain('&amp;');
+  });
+
+  it('uses the headline preset in the opening line', () => {
+    const { caption } = buildJobCaption(kiteJob, {
+      companyHandle: 'kitehousetarifa',
+      headlinePreset: 'Hiring',
+    });
+
+    expect(caption.split('\n')[0]).toBe(
+      'Hiring: Kitesurf Instructor in Tarifa, Spain'
+    );
   });
 
   it('mentions the company handle and prompts for tags', () => {

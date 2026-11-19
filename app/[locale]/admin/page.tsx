@@ -700,6 +700,8 @@ function AdminDashboard() {
       bg?: string;
       customTags?: string;
       collaborator?: string;
+      headline?: string;
+      caption?: string;
     }
   ) => {
     setPostingToInstagramJobId(jobId);
@@ -713,6 +715,9 @@ function AdminDashboard() {
             ? {
                 pos: payload.pos ?? 'bl',
                 bg: payload.bg ?? 'grey',
+                ...(payload.headline?.trim()
+                  ? { headline: payload.headline.trim() }
+                  : {}),
               }
             : {
                 slides: payload.slides,
@@ -723,6 +728,7 @@ function AdminDashboard() {
           ...(payload.collaborator?.trim()
             ? { collaborator: payload.collaborator.trim() }
             : {}),
+          ...(typeof payload.caption === 'string' ? { caption: payload.caption } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));

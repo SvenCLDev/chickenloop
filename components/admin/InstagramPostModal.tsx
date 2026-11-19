@@ -32,6 +32,8 @@ export interface InstagramPostModalProps {
     bg: string;
     customTags: string;
     collaborator: string;
+    headline?: string;
+    caption?: string;
   }) => void;
 }
 
@@ -91,20 +93,30 @@ export default function InstagramPostModal({
   ]);
   const [singlePos, setSinglePos] = useState<string>('bl');
   const [singleBg, setSingleBg] = useState<string>('grey');
+  const [singleHeadline, setSingleHeadline] = useState<string>('Wanted');
   const [customTags, setCustomTags] = useState('');
   const [collaborator, setCollaborator] = useState('');
-  const [previewCaption, setPreviewCaption] = useState('');
+  const [generatedCaption, setGeneratedCaption] = useState('');
+  const [editableCaption, setEditableCaption] = useState('');
+  const [captionDirty, setCaptionDirty] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(true);
   const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoadingPreview(true);
-    fetch(`/api/instagram-preview/${jobId}`)
+    setCaptionDirty(false);
+    const headlineParam =
+      mode === 'single' ? `?headline=${encodeURIComponent(singleHeadline)}` : '';
+    fetch(`/api/instagram-preview/${jobId}${headlineParam}`)
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;
-        if (data?.fullCaption) setPreviewCaption(data.fullCaption);
+        if (data?.fullCaption) {
+          setGeneratedCaption(data.fullCaption);
+          setEditableCaption(data.fullCaption);
+          setCaptionDirty(false);
+        }
         if (typeof data?.collaborator === 'string') setCollaborator(data.collaborator);
         if (Array.isArray(data?.slides) && data.slides.length >= 2) {
           setSlides(data.slides);
@@ -117,17 +129,52 @@ export default function InstagramPostModal({
     return () => {
       cancelled = true;
     };
+    // Re-seed caption when job changes. Headline-driven reseed is handled separately
+    // so dirty edits are not wiped while typing on single mode.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
+
+  useEffect(() => {
+    if (mode !== 'single') return;
+    let cancelled = false;
+    fetch(`/api/instagram-preview/${jobId}?headline=${encodeURIComponent(singleHeadline)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled || !data?.fullCaption) return;
+        setGeneratedCaption(data.fullCaption);
+        if (!captionDirty) {
+          setEditableCaption(data.fullCaption);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, jobId, singleHeadline, captionDirty]);
 
   const activeSlideIndex = typeof tab === 'number' ? tab : 0;
   const activeSlide = slides[activeSlideIndex] ?? slides[0];
 
   const previewUrl = useMemo(() => {
     if (mode === 'single') {
-      return `/api/instagram-image/${jobId}?pos=${singlePos}&bg=${singleBg}&_=${previewKey}`;
+      const params = new URLSearchParams();
+      params.set('pos', singlePos);
+      params.set('bg', singleBg);
+      if (singleHeadline.trim()) params.set('headline', singleHeadline.trim());
+      params.set('_', String(previewKey));
+      return `/api/instagram-image/${jobId}?${params.toString()}`;
     }
     return `${buildSlidePreviewUrl(jobId, activeSlideIndex, activeSlide)}&_=${previewKey}`;
-  }, [mode, jobId, singlePos, singleBg, activeSlideIndex, activeSlide, previewKey]);
+  }, [
+    mode,
+    jobId,
+    singlePos,
+    singleBg,
+    singleHeadline,
+    activeSlideIndex,
+    activeSlide,
+    previewKey,
+  ]);
 
   const updateSlide = (index: number, patch: Partial<CarouselSlideConfig>) => {
     setSlides((prev) =>
@@ -152,8 +199,43 @@ export default function InstagramPostModal({
       bg: mode === 'single' ? singleBg : slides[0]?.bg ?? 'grey',
       customTags,
       collaborator,
+      ...(mode === 'single' ? { headline: singleHeadline } : {}),
+      caption: editableCaption,
     });
   };
+
+  const resetCaption = () => {
+    setEditableCaption(generatedCaption);
+    setCaptionDirty(false);
+  };
+
+  const captionEditor = (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <label className="block text-sm font-medium text-gray-700">Caption</label>
+        <button
+          type="button"
+          onClick={resetCaption}
+          disabled={!generatedCaption || editableCaption === generatedCaption}
+          className="text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Reset to generated
+        </button>
+      </div>
+      <textarea
+        value={editableCaption}
+        onChange={(e) => {
+          setEditableCaption(e.target.value);
+          setCaptionDirty(true);
+        }}
+        rows={10}
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 text-sm whitespace-pre-wrap"
+      />
+      <p className="text-xs text-gray-500 mt-1">
+        Additional hashtags/mentions below are appended on publish if not already in the caption.
+      </p>
+    </div>
+  );
 
   const tabs: Array<{ id: EditorTab; label: string }> = [
     { id: 0, label: 'Slide 1 · Hook' },
@@ -240,6 +322,39 @@ export default function InstagramPostModal({
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Headline preset
+                    </label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {HOOK_PRESETS.map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => {
+                            setSingleHeadline(preset);
+                            setPreviewKey((k) => k + 1);
+                          }}
+                          className={`px-2.5 py-1 rounded text-sm border ${
+                            singleHeadline === preset
+                              ? 'border-indigo-500 bg-indigo-50 text-indigo-800'
+                              : 'border-gray-300 text-gray-700'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      value={singleHeadline}
+                      onChange={(e) => {
+                        setSingleHeadline(e.target.value);
+                        setPreviewKey((k) => k + 1);
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Text Position
                     </label>
                     <select
@@ -306,6 +421,7 @@ export default function InstagramPostModal({
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
                     />
                   </div>
+                  {captionEditor}
                 </div>
               ) : tab === 'caption' ? (
                 <div className="space-y-4">
@@ -336,15 +452,7 @@ export default function InstagramPostModal({
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
                     />
                   </div>
-                  {previewCaption && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">Caption preview</p>
-                      <div className="text-sm text-gray-600 whitespace-pre-wrap break-words max-h-48 overflow-y-auto p-3 bg-gray-50 rounded-md border border-gray-200">
-                        {previewCaption}
-                        {customTags.trim() ? `\n\n${customTags.trim()}` : ''}
-                      </div>
-                    </div>
-                  )}
+                  {captionEditor}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -661,15 +769,6 @@ export default function InstagramPostModal({
                   alt="Instagram preview"
                   className="w-full max-w-[360px] rounded-lg border border-gray-200 bg-gray-100"
                 />
-              )}
-              {mode === 'single' && previewCaption && (
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Caption preview</p>
-                  <div className="text-sm text-gray-600 whitespace-pre-wrap break-words max-h-32 overflow-y-auto p-3 bg-gray-50 rounded-md border border-gray-200">
-                    {previewCaption}
-                    {customTags.trim() ? `\n\n${customTags.trim()}` : ''}
-                  </div>
-                </div>
               )}
             </div>
           </div>

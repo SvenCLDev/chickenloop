@@ -17,6 +17,7 @@ import {
   type CarouselSlideConfig,
 } from '@/lib/instagramSlideConfig';
 import { getCountryNameFromCode } from '@/lib/countryUtils';
+import { stripHtmlToText } from '@/lib/sanitizeText';
 
 const GRAPH_API_VERSION = 'v25.0';
 const GRAPH_API_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
@@ -87,18 +88,51 @@ const RESERVED_INSTAGRAM_PATHS = new Set([
   'developer',
 ]);
 
-/** Extract short summary from HTML description: strip tags, first N chars, trim to last full word. */
+/**
+ * Truncate plain text for captions: prefer last sentence end within budget,
+ * else last word boundary; append ellipsis when truncated.
+ */
+export function truncateCaptionSummary(
+  text: string,
+  maxChars: number = SUMMARY_MAX_CHARS
+): string {
+  const stripped = text.replace(/\s+/g, ' ').trim();
+  if (!stripped.length) return '';
+  if (stripped.length <= maxChars) return stripped;
+
+  const budget = Math.max(1, maxChars - 1);
+  const window = stripped.slice(0, budget);
+  const sentenceMatch = window.match(/^([\s\S]*[.!?])(?=\s|$)/);
+  if (sentenceMatch && sentenceMatch[1].trim().length >= Math.min(40, budget / 2)) {
+    return `${sentenceMatch[1].trim()}…`;
+  }
+  const lastSpace = window.lastIndexOf(' ');
+  const cut = lastSpace > 0 ? window.slice(0, lastSpace).trim() : window.trim();
+  return `${cut}…`;
+}
+
+/** Extract short summary from HTML description: decode entities, strip tags, soft-truncate. */
 function extractDescriptionSummary(
   html: string | undefined,
   maxChars: number = SUMMARY_MAX_CHARS
 ): string {
   if (!html || typeof html !== 'string') return '';
-  const stripped = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!stripped.length) return '';
-  if (stripped.length <= maxChars) return stripped;
-  const truncated = stripped.slice(0, maxChars);
-  const lastSpace = truncated.lastIndexOf(' ');
-  return lastSpace > 0 ? truncated.slice(0, lastSpace).trim() : truncated;
+  const stripped = stripHtmlToText(html).replace(/\s+/g, ' ').trim();
+  return truncateCaptionSummary(stripped, maxChars);
+}
+
+/** Build the first caption line from a headline preset (Hiring / Wanted / Recruiting). */
+export function buildCaptionHook(
+  title: string,
+  location: string,
+  headlinePreset?: string | null
+): string {
+  const preset = (headlinePreset || 'Wanted').trim() || 'Wanted';
+  const loc = location ? ` in ${location}` : '';
+  if (/^wanted$/i.test(preset)) return `${title} wanted${loc}`;
+  if (/^hiring$/i.test(preset)) return `Hiring: ${title}${loc}`;
+  if (/^recruiting$/i.test(preset)) return `Recruiting: ${title}${loc}`;
+  return `${preset}: ${title}${loc}`;
 }
 
 /** Normalize a value for use as hashtag segment: lowercase, strip accents, remove non-alphanumeric. No underscores or hyphens. */
@@ -269,7 +303,7 @@ export interface JobCaption {
  */
 export function buildJobCaption(
   job: any,
-  options?: { companyHandle?: string | null }
+  options?: { companyHandle?: string | null; headlinePreset?: string | null }
 ): JobCaption {
   const hashtags = buildInstagramHashtags(job);
   const hashtagSuffix = '\n\n' + hashtags.join(' ');
@@ -279,7 +313,7 @@ export function buildJobCaption(
   const companyName = resolveCompanyName(job);
   const handle = normalizeHandle(options?.companyHandle);
 
-  const hook = location ? `${title} wanted in ${location}` : `${title} wanted`;
+  const hook = buildCaptionHook(title, location, options?.headlinePreset);
 
   let companyLine = '';
   if (companyName && handle) {
@@ -331,12 +365,13 @@ function resolveCardImageSource(job: any): string | null {
 /** Build caption, hashtags, collaborator and image URL for an Instagram post (no API calls). */
 export function buildInstagramPreview(
   job: any,
-  options?: { collaborator?: string | null }
+  options?: { collaborator?: string | null; headlinePreset?: string | null }
 ): InstagramPreview {
   const collaborator =
     normalizeHandle(options?.collaborator) ?? resolveCompanyInstagramHandle(job);
   const { caption, hashtags, fullCaption } = buildJobCaption(job, {
     companyHandle: collaborator,
+    headlinePreset: options?.headlinePreset,
   });
 
   return {
@@ -493,13 +528,23 @@ async function publishMediaContainer(creationId: string): Promise<string> {
 
 function assembleCaption(
   job: any,
-  options?: { customTags?: string; collaborator?: string | null }
+  options?: {
+    customTags?: string;
+    collaborator?: string | null;
+    headlinePreset?: string | null;
+    /** When set, use this as the caption body instead of regenerating from the job. */
+    captionOverride?: string | null;
+  }
 ): string {
   const collaborator =
     normalizeHandle(options?.collaborator) ?? resolveCompanyInstagramHandle(job);
 
+  const override =
+    typeof options?.captionOverride === 'string' ? options.captionOverride.trim() : '';
+
   const { caption: baseCaption, hashtags } = buildJobCaption(job, {
     companyHandle: collaborator,
+    headlinePreset: options?.headlinePreset,
   });
 
   const autoHashtagSegments = new Set(hashtags.map((h) => h.slice(1).toLowerCase()));
@@ -510,7 +555,20 @@ function assembleCaption(
     autoMentions
   );
 
+  // If the editor already includes a tag/mention, don't append it again.
+  if (override) {
+    const lower = override.toLowerCase();
+    customHashtags = customHashtags.filter((h) => !lower.includes(h.toLowerCase()));
+    customMentions = customMentions.filter((m) => !lower.includes(`@${m.toLowerCase()}`));
+  }
+
   const assemble = (): string => {
+    if (override) {
+      const parts: string[] = [override];
+      if (customHashtags.length > 0) parts.push('\n\n' + customHashtags.join(' '));
+      if (customMentions.length > 0) parts.push('\n\n' + customMentions.join(' '));
+      return parts.join('');
+    }
     const parts: string[] = [baseCaption + '\n\n' + hashtags.join(' ')];
     if (customHashtags.length > 0) parts.push('\n\n' + customHashtags.join(' '));
     if (customMentions.length > 0) parts.push('\n\n' + customMentions.join(' '));
@@ -527,7 +585,9 @@ function assembleCaption(
     caption = assemble();
   }
   if (caption.length > INSTAGRAM_CAPTION_MAX) {
-    caption = caption.slice(0, INSTAGRAM_CAPTION_MAX);
+    const window = caption.slice(0, INSTAGRAM_CAPTION_MAX);
+    const lastSpace = window.lastIndexOf(' ');
+    caption = (lastSpace > 0 ? window.slice(0, lastSpace) : window).trimEnd();
   }
   return caption;
 }
@@ -603,6 +663,8 @@ export interface PostJobToInstagramOptions {
   bg?: string;
   customTags?: string;
   collaborator?: string | null;
+  headline?: string | null;
+  caption?: string | null;
 }
 
 async function persistInstagramPost(
@@ -665,6 +727,7 @@ async function postSingleImageToInstagram(
   const imageBuffer = await generateInstagramImageBuffer(job, {
     pos: options?.pos,
     bg: options?.bg,
+    headline: options?.headline ?? undefined,
   });
   const blobPath = `instagram/${jobIdStr}-${Date.now()}.jpg`;
   const blob = await put(blobPath, imageBuffer, {
@@ -678,6 +741,8 @@ async function postSingleImageToInstagram(
   const caption = assembleCaption(job, {
     customTags: options?.customTags,
     collaborator,
+    headlinePreset: options?.headline,
+    captionOverride: options?.caption,
   });
 
   const baseParams: Record<string, string> = {
@@ -768,6 +833,7 @@ async function postCarouselToInstagram(
   const caption = assembleCaption(job, {
     customTags: options?.customTags,
     collaborator,
+    captionOverride: options?.caption,
   });
 
   const parentBase: Record<string, string> = {

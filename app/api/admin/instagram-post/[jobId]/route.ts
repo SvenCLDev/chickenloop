@@ -63,6 +63,8 @@ export async function POST(
       bg?: string;
       customTags?: string;
       collaborator?: string;
+      headline?: string;
+      caption?: string;
     } = {};
     try {
       const raw = await request.json();
@@ -75,6 +77,8 @@ export async function POST(
         if (typeof raw.bg === 'string') body.bg = raw.bg;
         if (typeof raw.customTags === 'string') body.customTags = raw.customTags;
         if (typeof raw.collaborator === 'string') body.collaborator = raw.collaborator;
+        if (typeof raw.headline === 'string') body.headline = raw.headline;
+        if (typeof raw.caption === 'string') body.caption = raw.caption;
       }
     } catch {
       // no body or invalid JSON – use defaults

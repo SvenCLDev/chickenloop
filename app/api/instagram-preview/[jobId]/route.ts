@@ -61,8 +61,11 @@ export async function GET(
         : undefined,
     };
 
+    const headlinePreset =
+      request.nextUrl.searchParams.get('headline')?.trim() || undefined;
+
     const { imageUrl, caption, hashtags, fullCaption, collaborator } =
-      buildInstagramPreview(jobForPreview);
+      buildInstagramPreview(jobForPreview, { headlinePreset });
 
     const slides = buildDefaultCarouselConfig(jobForPreview);
 

@@ -84,6 +84,15 @@ describe('buildDefaultCarouselConfig', () => {
     );
   });
 
+  it('decodes HTML entities in slide body text', () => {
+    const slides = buildDefaultCarouselConfig({
+      ...twoPicJob,
+      description: '<p>Teach kitesurf &amp; wingfoil this summer.</p>',
+    });
+    expect(slides[1].bodyText).toContain('Teach kitesurf & wingfoil this summer.');
+    expect(slides[1].bodyText).not.toContain('&amp;');
+  });
+
   it('uses blurred photo for details when only one picture exists', () => {
     const slides = buildDefaultCarouselConfig(onePicJob);
     expect(slides[1].imageMode).toBe('picture0_blur');

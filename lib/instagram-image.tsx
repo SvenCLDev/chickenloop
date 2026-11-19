@@ -101,6 +101,8 @@ export interface InstagramImageJob {
 export interface GenerateInstagramImageOptions {
   pos?: Pos | string;
   bg?: Bg | string;
+  /** Hook line shown above the job title (e.g. Hiring / Wanted / Recruiting). */
+  headline?: string;
 }
 
 function normalizePos(pos: Pos | string | undefined): Pos {
@@ -130,6 +132,8 @@ function buildCardElement(
   const companyName = job.company?.name ?? job.companyId?.name ?? '';
   const activity = (job.sports?.[0] ?? job.occupationalAreas?.[0]) ?? '';
   const activityLabel = activity ? String(activity).toUpperCase() : '';
+  const headline = (options?.headline || '').trim().toUpperCase();
+  const hookLabel = headline || activityLabel;
   const city = job.city ?? '';
   const country = job.country ?? '';
   const locationLine = [city, country].filter(Boolean).join(', ');
@@ -218,19 +222,19 @@ function buildCardElement(
             />
           </div>
         ) : null}
-        {activityLabel ? (
+        {hookLabel ? (
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
-              fontSize: 28,
-              fontWeight: 600,
-              letterSpacing: '3px',
+              fontSize: headline ? 32 : 28,
+              fontWeight: headline ? 700 : 600,
+              letterSpacing: headline ? '4px' : '3px',
               color: 'rgba(255,255,255,0.95)',
               marginTop: 0,
             }}
           >
-            {activityLabel}
+            {hookLabel}
           </div>
         ) : null}
         <div

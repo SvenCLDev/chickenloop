@@ -108,9 +108,15 @@ export async function GET(
     const pos: Pos = posRaw && POS_VALUES.includes(posRaw as Pos) ? (posRaw as Pos) : 'bl';
     const bgRaw = searchParams?.get('bg')?.toLowerCase();
     const bg: Bg = bgRaw && BG_VALUES.includes(bgRaw as Bg) ? (bgRaw as Bg) : 'grey';
+    const headlineRaw = searchParams?.get('headline')?.trim() || '';
+    const headline = headlineRaw || undefined;
 
     if (requestPng) {
-      const pngBuffer = await generateInstagramImagePngBuffer(jobForImage, { pos, bg });
+      const pngBuffer = await generateInstagramImagePngBuffer(jobForImage, {
+        pos,
+        bg,
+        headline,
+      });
       return new Response(new Uint8Array(pngBuffer), {
         status: 200,
         headers: {
@@ -119,7 +125,11 @@ export async function GET(
         },
       });
     }
-    const jpegBuffer = await generateInstagramImageBuffer(jobForImage, { pos, bg });
+    const jpegBuffer = await generateInstagramImageBuffer(jobForImage, {
+      pos,
+      bg,
+      headline,
+    });
     return new Response(new Uint8Array(jpegBuffer), {
       status: 200,
       headers: {

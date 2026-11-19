@@ -4,6 +4,7 @@
  */
 
 import { getCountryNameFromCode } from '@/lib/countryUtils';
+import { stripHtmlToText } from '@/lib/sanitizeText';
 
 /** Mirrored from instagram-image to avoid a circular import. */
 export const POS_VALUES = ['bl', 'br', 'tl', 'tr'] as const;
@@ -97,7 +98,7 @@ const BODY_MAX_CHARS = 420;
 
 function stripHtml(html: string | undefined | null, maxChars: number): string {
   if (!html || typeof html !== 'string') return '';
-  const stripped = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const stripped = stripHtmlToText(html).replace(/\s+/g, ' ').trim();
   if (!stripped.length) return '';
   if (stripped.length <= maxChars) return stripped;
   const truncated = stripped.slice(0, maxChars);
