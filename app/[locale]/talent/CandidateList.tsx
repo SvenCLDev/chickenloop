@@ -18,6 +18,10 @@ import {
 } from '@/lib/candidateSearchParams';
 import type { CandidateFilterOptions, CandidateListItem } from '@/lib/candidateListTypes';
 import TalentListRow from '@/app/components/TalentListRow';
+import TalentNetworkPreviewModal, {
+  TALENT_PREVIEW_DISMISSED_KEY,
+  TALENT_PREVIEW_SESSION_KEY,
+} from '@/app/components/talentNetwork/TalentNetworkPreviewModal';
 import CandidateSearchBar from './CandidateSearchBar';
 import CandidateFiltersSidebar from './CandidateFiltersSidebar';
 import MobileFiltersPanel from './MobileFiltersPanel';
@@ -55,6 +59,7 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [favouriteCvIds, setFavouriteCvIds] = useState<Set<string>>(new Set());
   const [togglingFavouriteId, setTogglingFavouriteId] = useState<string | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const observerRef = useRef<HTMLDivElement | null>(null);
   const loadedPagesRef = useRef<Set<number>>(new Set([initialFilters.page || 1]));
   const hasMountedRef = useRef(false);
@@ -71,6 +76,33 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
         .catch(() => {});
     }
   }, [user]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (user) {
+      setShowPreviewModal(false);
+      return;
+    }
+    if (typeof window === 'undefined') return;
+    const permanentlyDismissed = localStorage.getItem(TALENT_PREVIEW_DISMISSED_KEY) === '1';
+    const sessionDismissed = sessionStorage.getItem(TALENT_PREVIEW_SESSION_KEY) === '1';
+    setShowPreviewModal(!permanentlyDismissed && !sessionDismissed);
+  }, [authLoading, user]);
+
+  const closePreviewForSession = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(TALENT_PREVIEW_SESSION_KEY, '1');
+    }
+    setShowPreviewModal(false);
+  }, []);
+
+  const dismissPreviewPermanently = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(TALENT_PREVIEW_DISMISSED_KEY, '1');
+      sessionStorage.setItem(TALENT_PREVIEW_SESSION_KEY, '1');
+    }
+    setShowPreviewModal(false);
+  }, []);
 
   const loadCandidates = useCallback(
     async (pageToLoad: number, activeFilters: CandidateListFilters, replace = false) => {
@@ -282,23 +314,14 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
 
   return (
     <>
+      <TalentNetworkPreviewModal
+        open={isAnonymous && showPreviewModal}
+        onCloseSession={closePreviewForSession}
+        onDismissPermanent={dismissPreviewPermanently}
+      />
       <div className="mb-6">
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Find Talent</h1>
         <p className="mt-2 text-gray-600">Browse verified watersports professionals</p>
-        {isAnonymous && (
-          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-            You&apos;re browsing a preview of the Talent Network. Names are shown as initials and
-            contact details stay private.{' '}
-            <a href="/register" className="font-semibold underline hover:text-blue-700">
-              Create a free profile
-            </a>{' '}
-            or{' '}
-            <a href="/login" className="font-semibold underline hover:text-blue-700">
-              log in
-            </a>{' '}
-            to see how instructors appear to recruiters.
-          </div>
-        )}
         {isJobSeeker && (
           <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
             This is the directory recruiters browse. Contact details are hidden from other
