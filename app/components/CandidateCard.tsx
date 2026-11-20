@@ -30,11 +30,14 @@ interface CandidateCardProps {
     profileLinkAllowed?: boolean;
   };
   profileLinkAllowed?: boolean;
+  /** When set, the card always links here (overrides profileLinkAllowed gating). */
+  href?: string;
 }
 
 export default function CandidateCard({
   candidate,
   profileLinkAllowed = true,
+  href,
 }: CandidateCardProps) {
   const headline = getDisplayHeadline(candidate);
   const thumbnail =
@@ -50,7 +53,9 @@ export default function CandidateCard({
     .slice(0, MAX_ACTIVITY_CHIPS);
   const displayName = (candidate.fullName ?? '').trim();
   const allowLink =
-    profileLinkAllowed && candidate.profileLinkAllowed !== false;
+    Boolean(href) ||
+    (profileLinkAllowed && candidate.profileLinkAllowed !== false);
+  const linkHref = href || talentProfilePath(candidate._id);
 
   const cardBody = (
     <>
@@ -102,10 +107,7 @@ export default function CandidateCard({
 
   if (allowLink) {
     return (
-      <Link
-        href={talentProfilePath(candidate._id)}
-        className={`${cardShellClassName} cursor-pointer`}
-      >
+      <Link href={linkHref} className={`${cardShellClassName} cursor-pointer`}>
         {cardBody}
       </Link>
     );

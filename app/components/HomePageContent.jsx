@@ -17,6 +17,7 @@ import CompaniesPreview from './CompaniesPreview';
 import HomepageValueProps from './HomepageValueProps';
 import TurnstileWidget from './TurnstileWidget';
 import { deferUntilIdle } from '@/lib/deferUntilIdle';
+import { TALENT_LIST_PATH, talentProfilePath } from '@/lib/talentRoutes';
 
 /**
  * @param {Object} props
@@ -326,7 +327,11 @@ export default function HomePageContent({
                   <CandidateCard
                     key={candidate._id}
                     candidate={candidate}
-                    profileLinkAllowed={candidate.profileLinkAllowed !== false}
+                    href={
+                      user
+                        ? talentProfilePath(candidate._id)
+                        : TALENT_LIST_PATH
+                    }
                   />
                 ))}
               </div>
