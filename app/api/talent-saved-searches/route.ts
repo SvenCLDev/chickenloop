@@ -94,7 +94,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         message: 'Talent search saved successfully',
-        savedSearch: serializeSearch(savedSearch.toObject() as Record<string, unknown>),
+        savedSearch: serializeSearch(
+          savedSearch.toObject() as unknown as Record<string, unknown>
+        ),
       },
       { status: 201 }
     );

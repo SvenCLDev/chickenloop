@@ -257,7 +257,7 @@ export const talentSavedSearchesApi = {
   getAll: () => apiRequest('/talent-saved-searches'),
   create: (data: {
     name: string;
-    filters: Record<string, unknown>;
+    filters: import('@/lib/candidateSearchParams').CandidateSearchParams;
     frequency?: string;
     active?: boolean;
   }) =>
@@ -269,7 +269,7 @@ export const talentSavedSearchesApi = {
     id: string,
     data: {
       name?: string;
-      filters?: Record<string, unknown>;
+      filters?: import('@/lib/candidateSearchParams').CandidateSearchParams;
       frequency?: string;
       active?: boolean;
     }

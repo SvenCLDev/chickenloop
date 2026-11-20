@@ -97,7 +97,9 @@ export async function PATCH(
 
     return NextResponse.json({
       message: 'Talent search updated successfully',
-      savedSearch: serializeSearch(savedSearch.toObject() as Record<string, unknown>),
+      savedSearch: serializeSearch(
+        savedSearch.toObject() as unknown as Record<string, unknown>
+      ),
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
