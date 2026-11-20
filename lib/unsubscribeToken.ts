@@ -5,7 +5,7 @@ const UNSUBSCRIBE_SECRET = process.env.UNSUBSCRIBE_SECRET || process.env.JWT_SEC
 const UNSUBSCRIBE_TOKEN_EXPIRY = '90d'; // Tokens expire after 90 days
 
 /** Specific preference field when category alone is ambiguous (e.g. talent match vs job alerts). */
-export type UnsubscribePreferenceKey = 'talentMatchEmails';
+export type UnsubscribePreferenceKey = 'talentMatchEmails' | 'talentAlerts';
 
 export interface UnsubscribeTokenPayload {
   userId: string;
@@ -58,7 +58,8 @@ export function verifyUnsubscribeToken(token: string): UnsubscribeTokenPayload {
 
     if (
       decoded.preferenceKey !== undefined &&
-      decoded.preferenceKey !== 'talentMatchEmails'
+      decoded.preferenceKey !== 'talentMatchEmails' &&
+      decoded.preferenceKey !== 'talentAlerts'
     ) {
       throw new Error('Invalid token: invalid preferenceKey');
     }

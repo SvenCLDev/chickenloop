@@ -12,6 +12,7 @@ import {
   candidateListFiltersToSearchParams,
   DEFAULT_CANDIDATE_SORT,
   EMPTY_CANDIDATE_LIST_FILTERS,
+  hasActiveFilters,
   searchParamsToCandidateListFilters,
   type CandidateListFilters,
   type CandidateSearchParams,
@@ -22,6 +23,7 @@ import TalentNetworkPreviewModal, {
   TALENT_PREVIEW_DISMISSED_KEY,
   TALENT_PREVIEW_SESSION_KEY,
 } from '@/app/components/talentNetwork/TalentNetworkPreviewModal';
+import SaveTalentSearchModal from '@/app/components/talent/SaveTalentSearchModal';
 import CandidateSearchBar from './CandidateSearchBar';
 import CandidateFiltersSidebar from './CandidateFiltersSidebar';
 import MobileFiltersPanel from './MobileFiltersPanel';
@@ -60,6 +62,8 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
   const [favouriteCvIds, setFavouriteCvIds] = useState<Set<string>>(new Set());
   const [togglingFavouriteId, setTogglingFavouriteId] = useState<string | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [saveSearchOpen, setSaveSearchOpen] = useState(false);
+  const [saveSearchToast, setSaveSearchToast] = useState('');
   const observerRef = useRef<HTMLDivElement | null>(null);
   const loadedPagesRef = useRef<Set<number>>(new Set([initialFilters.page || 1]));
   const hasMountedRef = useRef(false);
@@ -303,6 +307,11 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
   const showFavourite = user?.role === 'recruiter' || user?.role === 'admin';
   const isAnonymous = !user;
   const isJobSeeker = user?.role === 'job-seeker';
+  const canSaveTalentSearch = user?.role === 'recruiter' || user?.role === 'admin';
+  const currentSearchParams = useMemo(
+    () => candidateListFiltersToSearchParams(filters, 1),
+    [filters]
+  );
 
   if (authLoading) {
     return (
@@ -319,9 +328,42 @@ export default function CandidateList({ initialFilters }: CandidateListProps) {
         onCloseSession={closePreviewForSession}
         onDismissPermanent={dismissPreviewPermanently}
       />
+      <SaveTalentSearchModal
+        open={saveSearchOpen}
+        filters={currentSearchParams}
+        onClose={() => setSaveSearchOpen(false)}
+        onSuccess={() => {
+          setSaveSearchToast('Talent alert saved. Manage it from your recruiter dashboard.');
+          window.setTimeout(() => setSaveSearchToast(''), 4000);
+        }}
+      />
       <div className="mb-6">
-        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Find Talent</h1>
-        <p className="mt-2 text-gray-600">Browse verified watersports professionals</p>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Find Talent</h1>
+            <p className="mt-2 text-gray-600">Browse verified watersports professionals</p>
+          </div>
+          {canSaveTalentSearch && (
+            <button
+              type="button"
+              onClick={() => setSaveSearchOpen(true)}
+              disabled={!hasActiveFilters(currentSearchParams)}
+              className="shrink-0 inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                hasActiveFilters(currentSearchParams)
+                  ? 'Save current filters as a Talent Alert'
+                  : 'Select at least one filter to save a search'
+              }
+            >
+              Save Search
+            </button>
+          )}
+        </div>
+        {saveSearchToast && (
+          <div className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+            {saveSearchToast}
+          </div>
+        )}
         {isJobSeeker && (
           <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
             This is the directory recruiters browse. Contact details are hidden from other

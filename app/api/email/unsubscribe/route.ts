@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
         applicationUpdates: true,
         marketing: false,
         talentMatchEmails: true,
+        talentAlerts: true,
       });
     }
 
@@ -81,6 +82,14 @@ export async function GET(request: NextRequest) {
         preferences.talentMatchEmails = false;
         updated = true;
         preferenceField = 'talentMatchEmails';
+      } else {
+        alreadyUnsubscribed = true;
+      }
+    } else if (preferenceKey === 'talentAlerts') {
+      if (preferences.talentAlerts !== false) {
+        preferences.talentAlerts = false;
+        updated = true;
+        preferenceField = 'talentAlerts';
       } else {
         alreadyUnsubscribed = true;
       }

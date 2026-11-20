@@ -10,6 +10,7 @@ const DEFAULT_PREFERENCES = {
   applicationUpdates: true,
   marketing: false,
   talentMatchEmails: true,
+  talentAlerts: true,
 };
 
 /**
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
             applicationUpdates: preferences.applicationUpdates,
             marketing: preferences.marketing,
             talentMatchEmails: preferences.talentMatchEmails ?? true,
+            talentAlerts: preferences.talentAlerts ?? true,
             updatedAt: preferences.updatedAt,
             createdAt: preferences.createdAt,
           },
@@ -55,6 +57,7 @@ export async function GET(request: NextRequest) {
           applicationUpdates: DEFAULT_PREFERENCES.applicationUpdates,
           marketing: DEFAULT_PREFERENCES.marketing,
           talentMatchEmails: DEFAULT_PREFERENCES.talentMatchEmails,
+          talentAlerts: DEFAULT_PREFERENCES.talentAlerts,
           updatedAt: null,
           createdAt: null,
         },
@@ -103,6 +106,7 @@ export async function PATCH(request: NextRequest) {
       applicationUpdates?: boolean;
       marketing?: boolean;
       talentMatchEmails?: boolean;
+      talentAlerts?: boolean;
     } = {};
 
     // Validate jobAlerts
@@ -161,13 +165,26 @@ export async function PATCH(request: NextRequest) {
       updateData.talentMatchEmails = body.talentMatchEmails;
     }
 
+    if (body.talentAlerts !== undefined) {
+      if (typeof body.talentAlerts !== 'boolean') {
+        return NextResponse.json(
+          {
+            error: 'Invalid talentAlerts value',
+            message: 'talentAlerts must be a boolean',
+          },
+          { status: 400 }
+        );
+      }
+      updateData.talentAlerts = body.talentAlerts;
+    }
+
     // Reject if no valid fields to update
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
         {
           error: 'No valid fields to update',
           message:
-            'At least one of jobAlerts, applicationUpdates, marketing, or talentMatchEmails must be provided',
+            'At least one of jobAlerts, applicationUpdates, marketing, talentMatchEmails, or talentAlerts must be provided',
         },
         { status: 400 }
       );
@@ -179,6 +196,7 @@ export async function PATCH(request: NextRequest) {
       'applicationUpdates',
       'marketing',
       'talentMatchEmails',
+      'talentAlerts',
     ];
     const providedFields = Object.keys(body);
     const unexpectedFields = providedFields.filter(field => !allowedFields.includes(field));
@@ -227,6 +245,7 @@ export async function PATCH(request: NextRequest) {
           applicationUpdates: updatedPreferences!.applicationUpdates,
           marketing: updatedPreferences!.marketing,
           talentMatchEmails: updatedPreferences!.talentMatchEmails ?? true,
+          talentAlerts: updatedPreferences!.talentAlerts ?? true,
           updatedAt: updatedPreferences!.updatedAt,
           createdAt: updatedPreferences!.createdAt,
         },

@@ -66,6 +66,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
+    const previousAvailability = cv.availability;
+    const wasPublished = cv.published === true;
+
     const body = await request.json();
     const {
       fullName,
@@ -180,6 +183,34 @@ export async function PUT(
 
     if (cv.profileSchemaVersion === 2) {
       await processReferenceVerificationRequestsForCvId(cv._id);
+    }
+
+    if (!wasPublished && cv.published !== false) {
+      const { triggerTalentAlertEnqueueAsync } = await import(
+        '@/lib/talentAlerts/enqueueTalentAlertEvents'
+      );
+      triggerTalentAlertEnqueueAsync(String(cv._id));
+    }
+
+    if (availability !== undefined && previousAvailability !== cv.availability) {
+      const { onCvAvailabilityChanged } = await import(
+        '@/lib/talentAlerts/favouriteAvailability'
+      );
+      const { triggerImmediateTalentAlertProcessing } = await import(
+        '@/lib/talentAlerts/enqueueTalentAlertEvents'
+      );
+      void onCvAvailabilityChanged(
+        String(cv._id),
+        previousAvailability,
+        cv.availability
+      ).then((result) => {
+        if (result.immediateRecruiterIds.length > 0) {
+          triggerImmediateTalentAlertProcessing(
+            String(cv._id),
+            result.immediateRecruiterIds
+          );
+        }
+      });
     }
 
     const responseCv =

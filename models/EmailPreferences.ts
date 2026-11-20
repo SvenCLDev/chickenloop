@@ -7,6 +7,8 @@ export interface IEmailPreferences extends Document {
   marketing: boolean;
   /** Recruiter emails about talent matches for their jobs (default on). */
   talentMatchEmails: boolean;
+  /** Recruiter Talent Alerts (saved searches + favourite availability). */
+  talentAlerts: boolean;
   updatedAt: Date;
   createdAt: Date;
 }
@@ -36,6 +38,10 @@ const EmailPreferencesSchema: Schema = new Schema(
       required: true,
     },
     talentMatchEmails: {
+      type: Boolean,
+      default: true,
+    },
+    talentAlerts: {
       type: Boolean,
       default: true,
     },

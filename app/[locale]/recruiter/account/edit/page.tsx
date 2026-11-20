@@ -11,6 +11,7 @@ interface EmailPreferences {
   applicationUpdates: boolean;
   marketing: boolean;
   talentMatchEmails: boolean;
+  talentAlerts: boolean;
 }
 
 export default function EditAccountPage() {
@@ -24,6 +25,7 @@ export default function EditAccountPage() {
     applicationUpdates: true,
     marketing: false,
     talentMatchEmails: true,
+    talentAlerts: true,
   });
   const [loading, setLoading] = useState(false);
   const [loadingPreferences, setLoadingPreferences] = useState(true);
@@ -44,6 +46,7 @@ export default function EditAccountPage() {
           applicationUpdates: response.preferences.applicationUpdates ?? true,
           marketing: response.preferences.marketing ?? false,
           talentMatchEmails: response.preferences.talentMatchEmails ?? true,
+          talentAlerts: response.preferences.talentAlerts ?? true,
         });
       }
     } catch (err: any) {
@@ -115,6 +118,7 @@ export default function EditAccountPage() {
     emailPreferences.applicationUpdates,
     emailPreferences.marketing,
     emailPreferences.talentMatchEmails,
+    emailPreferences.talentAlerts,
   ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -272,6 +276,39 @@ export default function EditAccountPage() {
                     <span
                       className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                         emailPreferences.talentMatchEmails ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </label>
+              </div>
+
+              {/* Talent Alerts Toggle */}
+              <div className="mb-6">
+                <label className="flex items-center justify-between">
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">Talent Alerts</span>
+                    <span className="text-xs text-gray-500">
+                      Emails for saved Talent Network searches and favourite availability updates
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEmailPreferences({
+                        ...emailPreferences,
+                        talentAlerts: !emailPreferences.talentAlerts,
+                      })
+                    }
+                    disabled={savingPreferences || loadingPreferences}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      emailPreferences.talentAlerts ? 'bg-blue-600' : 'bg-gray-300'
+                    }`}
+                    role="switch"
+                    aria-checked={emailPreferences.talentAlerts}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        emailPreferences.talentAlerts ? 'translate-x-5' : 'translate-x-0'
                       }`}
                     />
                   </button>

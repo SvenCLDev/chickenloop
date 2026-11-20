@@ -31,7 +31,28 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .lean();
 
-    const cvsWithData = cvs.map((cv) => mapCvDocumentToCandidateListItem(cv));
+    const prefsList =
+      (
+        userData as {
+          favouriteTalentAlertPrefs?: Array<{
+            cvId: { toString(): string };
+            notifyWhenAvailableNow?: boolean;
+            notifyWhenAvailableSoon?: boolean;
+          }>;
+        }
+      ).favouriteTalentAlertPrefs || [];
+
+    const cvsWithData = cvs.map((cv) => {
+      const item = mapCvDocumentToCandidateListItem(cv);
+      const prefs = prefsList.find((p) => String(p.cvId) === String(cv._id));
+      return {
+        ...item,
+        alertPrefs: {
+          notifyWhenAvailableNow: prefs?.notifyWhenAvailableNow !== false,
+          notifyWhenAvailableSoon: prefs?.notifyWhenAvailableSoon === true,
+        },
+      };
+    });
 
     return NextResponse.json({ cvs: cvsWithData }, { status: 200 });
   } catch (error: unknown) {

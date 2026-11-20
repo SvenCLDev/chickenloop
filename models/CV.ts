@@ -57,6 +57,8 @@ export interface ICV extends Document {
    * Used for homepage Featured Talent freshness scoring — not generic updatedAt.
    */
   professionalProfileUpdatedAt?: Date;
+  /** Set once when the CV first becomes searchable for Talent Alerts. */
+  firstSearchableAt?: Date;
   profileSchemaVersion?: ProfileSchemaVersion;
   verifiedCertificates?: VerifiedCertificate[];
   seasonalExperience?: SeasonalExperience[];
@@ -158,6 +160,9 @@ const CVSchema: Schema = new Schema(
       type: Date,
     },
     professionalProfileUpdatedAt: {
+      type: Date,
+    },
+    firstSearchableAt: {
       type: Date,
     },
     profileSchemaVersion: {

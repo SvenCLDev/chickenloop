@@ -11,9 +11,12 @@ import { getJobUrl } from '@/lib/jobSlug';
 import Link from 'next/link';
 import PageHeaderMarketingBanner from '@/components/marketing/PageHeaderMarketingBanner';
 import RecruiterJobTalentMatches from '@/app/components/recruiter/RecruiterJobTalentMatches';
+import RecruiterTalentAlerts from '@/app/components/recruiter/RecruiterTalentAlerts';
 import FeatureJobButton from '@/app/components/recruiter/FeatureJobButton';
 import TalentListRow from '@/app/components/TalentListRow';
 import type { CandidateListItem } from '@/lib/candidateListTypes';
+import { getDisplayHeadline } from '@/lib/talentNetwork/profileHeadline';
+import { AVAILABILITY_LABELS } from '@/lib/talentNetwork/preferenceLabels';
 import {
   canRefreshJob,
   getJobRefreshCooldownMessage,
@@ -68,8 +71,18 @@ function RecruiterDashboardClient() {
   const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
-  const [favouriteCandidates, setFavouriteCandidates] = useState<CandidateListItem[]>([]);
+  const [favouriteCandidates, setFavouriteCandidates] = useState<
+    Array<
+      CandidateListItem & {
+        alertPrefs?: {
+          notifyWhenAvailableNow?: boolean;
+          notifyWhenAvailableSoon?: boolean;
+        };
+      }
+    >
+  >([]);
   const [togglingFavouriteId, setTogglingFavouriteId] = useState<string | null>(null);
+  const [updatingAlertPrefsId, setUpdatingAlertPrefsId] = useState<string | null>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [loadingApplications, setLoadingApplications] = useState(false);
   const [removingApplication, setRemovingApplication] = useState<string | null>(null);
@@ -830,6 +843,8 @@ function RecruiterDashboardClient() {
           )}
         </div>
 
+        <RecruiterTalentAlerts />
+
         {/* Saved Talent Section */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-6">Saved Talent</h2>
@@ -848,16 +863,75 @@ function RecruiterDashboardClient() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {favouriteCandidates.map((candidate) => (
-                <TalentListRow
-                  key={candidate._id}
-                  candidate={candidate}
-                  showFavourite
-                  isFavourite
-                  togglingFavourite={togglingFavouriteId === candidate._id}
-                  onToggleFavourite={handleToggleFavourite}
-                />
+                <div key={candidate._id} className="bg-white rounded-lg shadow-md p-4">
+                  <TalentListRow
+                    candidate={candidate}
+                    showFavourite
+                    isFavourite
+                    togglingFavourite={togglingFavouriteId === candidate._id}
+                    onToggleFavourite={handleToggleFavourite}
+                  />
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3 text-sm text-gray-700">
+                    <span className="text-gray-500">
+                      {getDisplayHeadline(candidate)}
+                      {candidate.availability
+                        ? ` · ${AVAILABILITY_LABELS[candidate.availability] || candidate.availability}`
+                        : ''}
+                    </span>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={candidate.alertPrefs?.notifyWhenAvailableNow !== false}
+                        disabled={updatingAlertPrefsId === candidate._id}
+                        onChange={async (e) => {
+                          setUpdatingAlertPrefsId(candidate._id);
+                          try {
+                            const res = await candidatesApi.updateFavouriteAlerts(candidate._id, {
+                              notifyWhenAvailableNow: e.target.checked,
+                            });
+                            setFavouriteCandidates((prev) =>
+                              prev.map((c) =>
+                                c._id === candidate._id
+                                  ? { ...c, alertPrefs: res.alertPrefs }
+                                  : c
+                              )
+                            );
+                          } finally {
+                            setUpdatingAlertPrefsId(null);
+                          }
+                        }}
+                      />
+                      Notify when available now
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={candidate.alertPrefs?.notifyWhenAvailableSoon === true}
+                        disabled={updatingAlertPrefsId === candidate._id}
+                        onChange={async (e) => {
+                          setUpdatingAlertPrefsId(candidate._id);
+                          try {
+                            const res = await candidatesApi.updateFavouriteAlerts(candidate._id, {
+                              notifyWhenAvailableSoon: e.target.checked,
+                            });
+                            setFavouriteCandidates((prev) =>
+                              prev.map((c) =>
+                                c._id === candidate._id
+                                  ? { ...c, alertPrefs: res.alertPrefs }
+                                  : c
+                              )
+                            );
+                          } finally {
+                            setUpdatingAlertPrefsId(null);
+                          }
+                        }}
+                      />
+                      Notify when available soon
+                    </label>
+                  </div>
+                </div>
               ))}
             </div>
           )}

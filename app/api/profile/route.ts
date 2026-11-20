@@ -182,6 +182,11 @@ export async function POST(request: NextRequest) {
       await processReferenceVerificationRequestsForCvId(cv._id);
     }
 
+    const { triggerTalentAlertEnqueueAsync } = await import(
+      '@/lib/talentAlerts/enqueueTalentAlertEvents'
+    );
+    triggerTalentAlertEnqueueAsync(String(cv._id));
+
     const responseCv =
       cv.profileSchemaVersion === 2 ? await CV.findById(cv._id) : cv;
 
@@ -226,6 +231,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const previousHeadlineInputs = captureHeadlineInputSnapshot(cv);
+    const previousAvailability = cv.availability;
 
     const body = await request.json();
     const {
@@ -349,6 +355,27 @@ export async function PUT(request: NextRequest) {
 
     if (cv.profileSchemaVersion === 2) {
       await processReferenceVerificationRequestsForCvId(cv._id);
+    }
+
+    if (availability !== undefined && previousAvailability !== cv.availability) {
+      const { onCvAvailabilityChanged } = await import(
+        '@/lib/talentAlerts/favouriteAvailability'
+      );
+      const { triggerImmediateTalentAlertProcessing } = await import(
+        '@/lib/talentAlerts/enqueueTalentAlertEvents'
+      );
+      void onCvAvailabilityChanged(
+        String(cv._id),
+        previousAvailability,
+        cv.availability
+      ).then((result) => {
+        if (result.immediateRecruiterIds.length > 0) {
+          triggerImmediateTalentAlertProcessing(
+            String(cv._id),
+            result.immediateRecruiterIds
+          );
+        }
+      });
     }
 
     const responseCv =

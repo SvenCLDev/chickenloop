@@ -14,6 +14,11 @@ export interface IUser extends Document {
 
   favouriteJobs?: mongoose.Types.ObjectId[];
   favouriteCandidates?: mongoose.Types.ObjectId[];
+  favouriteTalentAlertPrefs?: Array<{
+    cvId: mongoose.Types.ObjectId;
+    notifyWhenAvailableNow: boolean;
+    notifyWhenAvailableSoon: boolean;
+  }>;
 
   companyId?: mongoose.Types.ObjectId;
 
@@ -96,6 +101,23 @@ const UserSchema: Schema = new Schema(
       {
         type: Schema.Types.ObjectId,
         ref: 'CV',
+      },
+    ],
+    favouriteTalentAlertPrefs: [
+      {
+        cvId: {
+          type: Schema.Types.ObjectId,
+          ref: 'CV',
+          required: true,
+        },
+        notifyWhenAvailableNow: {
+          type: Boolean,
+          default: true,
+        },
+        notifyWhenAvailableSoon: {
+          type: Boolean,
+          default: false,
+        },
       },
     ],
     companyId: {

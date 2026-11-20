@@ -41,17 +41,43 @@ export async function POST(
       userData.favouriteCandidates = userData.favouriteCandidates.filter(
         (favId: any) => favId.toString() !== cvId.toString()
       );
+      userData.favouriteTalentAlertPrefs = (
+        userData.favouriteTalentAlertPrefs || []
+      ).filter((p: { cvId: { toString(): string } }) => p.cvId.toString() !== cvId.toString());
     } else {
-      // Add to favourites
+      // Add to favourites with default availability alert prefs
       userData.favouriteCandidates.push(cvId);
+      if (!userData.favouriteTalentAlertPrefs) {
+        userData.favouriteTalentAlertPrefs = [];
+      }
+      const hasPrefs = userData.favouriteTalentAlertPrefs.some(
+        (p: { cvId: { toString(): string } }) => p.cvId.toString() === cvId.toString()
+      );
+      if (!hasPrefs) {
+        userData.favouriteTalentAlertPrefs.push({
+          cvId,
+          notifyWhenAvailableNow: true,
+          notifyWhenAvailableSoon: false,
+        });
+      }
     }
 
     await userData.save();
+
+    const prefs = (userData.favouriteTalentAlertPrefs || []).find(
+      (p: { cvId: { toString(): string } }) => p.cvId.toString() === cvId.toString()
+    );
 
     return NextResponse.json(
       {
         message: isFavourite ? 'Removed from favourites' : 'Added to favourites',
         isFavourite: !isFavourite,
+        alertPrefs: prefs
+          ? {
+              notifyWhenAvailableNow: prefs.notifyWhenAvailableNow !== false,
+              notifyWhenAvailableSoon: prefs.notifyWhenAvailableSoon === true,
+            }
+          : null,
       },
       { status: 200 }
     );

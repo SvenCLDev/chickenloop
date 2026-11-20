@@ -11,6 +11,8 @@ import '@/models/CareerAdvice';
 import '@/models/Application';
 import '@/models/ReferenceVerificationToken';
 import '@/models/SavedSearch';
+import '@/models/TalentSavedSearch';
+import '@/models/TalentAlertEvent';
 import '@/models/StripeEvent';
 
 if (!process.env.MONGODB_URI) {

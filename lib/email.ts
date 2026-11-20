@@ -218,6 +218,20 @@ export async function canSendEmail(
         return { canSend: true };
       }
 
+      // Recruiter Talent Alerts (saved searches + favourite availability)
+      if (
+        eventType === 'talent_alert' ||
+        eventType === 'talent_alert_favourite'
+      ) {
+        if (preferences.talentAlerts === false) {
+          return {
+            canSend: false,
+            reason: 'User has disabled talent alerts',
+          };
+        }
+        return { canSend: true };
+      }
+
       // Marketing emails
       if (eventType.startsWith('marketing_') || eventType === 'marketing') {
         if (!preferences.marketing) {

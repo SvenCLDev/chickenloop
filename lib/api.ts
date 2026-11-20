@@ -253,6 +253,37 @@ export const savedSearchesApi = {
     }),
 };
 
+export const talentSavedSearchesApi = {
+  getAll: () => apiRequest('/talent-saved-searches'),
+  create: (data: {
+    name: string;
+    filters: Record<string, unknown>;
+    frequency?: string;
+    active?: boolean;
+  }) =>
+    apiRequest('/talent-saved-searches', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (
+    id: string,
+    data: {
+      name?: string;
+      filters?: Record<string, unknown>;
+      frequency?: string;
+      active?: boolean;
+    }
+  ) =>
+    apiRequest(`/talent-saved-searches/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiRequest(`/talent-saved-searches/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
 export const applicationsApi = {
   getMyApplications: () => apiRequest('/my-applications'),
   getOne: (applicationId: string) => apiRequest(`/applications/${applicationId}`),
@@ -317,6 +348,14 @@ export const candidatesApi = {
     }),
   checkFavourite: (id: string) => apiRequest(`/candidates-list/${id}/favourite`),
   getFavourites: () => apiRequest('/candidates-list/favourites'),
+  updateFavouriteAlerts: (
+    id: string,
+    data: { notifyWhenAvailableNow?: boolean; notifyWhenAvailableSoon?: boolean }
+  ) =>
+    apiRequest(`/candidates-list/${id}/favourite-alerts`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
 };
 
 export const accountApi = {

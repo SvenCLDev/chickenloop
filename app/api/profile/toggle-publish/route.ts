@@ -18,8 +18,16 @@ export async function POST(request: NextRequest) {
     // Toggle published status
     // If published is true, set to false (hide)
     // If published is false or undefined (default), set to true (show)
-    cv.published = cv.published === true ? false : true;
+    const wasPublished = cv.published === true;
+    cv.published = wasPublished ? false : true;
     await cv.save();
+
+    if (!wasPublished && cv.published) {
+      const { triggerTalentAlertEnqueueAsync } = await import(
+        '@/lib/talentAlerts/enqueueTalentAlertEvents'
+      );
+      triggerTalentAlertEnqueueAsync(String(cv._id));
+    }
 
     return NextResponse.json(
       { 
